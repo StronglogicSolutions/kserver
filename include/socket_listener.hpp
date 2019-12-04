@@ -67,8 +67,8 @@ class SocketListener : public SendInterface {
   // private methods
   int createSocket();
 
-  void onMessageReceived(int client_socket_fd,
-                         std::weak_ptr<char[]> w_buffer_ptr);
+  virtual void onMessageReceived(int client_socket_fd,
+                                 std::weak_ptr<char[]> w_buffer_ptr);
 
   int waitForConnection(int listening);
 
