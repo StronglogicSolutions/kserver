@@ -1,7 +1,6 @@
 #include <iostream>
-
-#include "include/kserver.hpp"
-#include "include/request_handler.hpp"
+#include <request/request_handler.hpp>
+#include <server/kserver.hpp>
 
 int main(int argc, char** argv) {
   KServer server(argc, argv);

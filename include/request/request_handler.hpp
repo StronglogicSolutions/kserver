@@ -1,13 +1,13 @@
 #ifndef __REQUEST_HANDLER_HPP__
 #define __REQUEST_HANDLER_HPP__
 
+#include <codec/kmessage_generated.h>
+#include <database/DatabaseConnection.h>
+
+#include <config/config_parser.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include "DatabaseConnection.h"
-#include "codec/kmessage_generated.h"
-#include "config_parser.hpp"
 
 using namespace KData;
 

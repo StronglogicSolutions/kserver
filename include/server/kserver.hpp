@@ -1,13 +1,12 @@
 #include <algorithm>
 #include <bitset>
 #include <cstring>
+#include <interface/socket_listener.hpp>
 #include <iomanip>
 #include <iostream>
+#include <request/request_handler.hpp>
 #include <string>
-
-#include "request_handler.hpp"
-#include "socket_listener.hpp"
-#include "types.hpp"
+#include <types/types.hpp>
 
 template <typename T>
 static std::string toBinaryString(const T& x) {

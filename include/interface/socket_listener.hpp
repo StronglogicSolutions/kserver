@@ -2,9 +2,9 @@
 #define __SOCKET_LISTENER_H__
 
 // Project libraries
-#include "send_interface.hpp"
-#include "task_queue.hpp"
-#include "types.hpp"
+#include <interface/send_interface.hpp>
+#include <task/task_queue.hpp>
+#include <types/types.hpp>
 
 // System libraries
 #include <sys/socket.h>
