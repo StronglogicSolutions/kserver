@@ -45,6 +45,8 @@ class SocketListener : public SendInterface {
 
   void sendMessage(int client_socket_fd, char* message, size_t size);
 
+  void sendMessage(int client_socket_fd, const char* message, size_t size);
+
   MessageHandler createMessageHandler(std::function<void()> cb);
   /**
    * Perform intialization work

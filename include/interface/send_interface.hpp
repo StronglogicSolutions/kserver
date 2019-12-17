@@ -2,7 +2,6 @@
 #define __SEND_INTERFACE_H__
 
 #include <memory>
-#include <string>
 
 class SendInterface {
  public:

@@ -8,6 +8,8 @@
 #include <string>
 #include <types/types.hpp>
 
+using namespace KData;
+
 template <typename T>
 static std::string toBinaryString(const T& x) {
   std::stringstream ss;
@@ -71,7 +73,6 @@ class KServer : public SocketListener {
 
     if (message_string.size() > 0 && isdigits(message_string)) {
       std::cout << "Numerical data discovered" << std::endl;
-      std::string return_message{""};
       std::vector<uint32_t> bits{};
       try {
         unsigned int message_code = stoi(message_string);
@@ -83,22 +84,39 @@ class KServer : public SocketListener {
             bits.push_back(static_cast<uint32_t>(i));
           }
         }
-        return_message += "Value was accepted\n";
 
-        std::string application_path = m_request_handler(bits);
+        std::pair<uint8_t*, int> tuple_data = m_request_handler(bits);
 
-        sendMessage(client_socket_fd,
-                    const_cast<char*>(application_path.c_str()),
-                    application_path.size());
+        uint8_t* byte_buffer = tuple_data.first;
+        int size = tuple_data.second;
 
+        auto message = GetMessage(byte_buffer);
+
+        auto id = message->id();
+        const flatbuffers::Vector<uint8_t>* data = message->data();
+
+        std::cout << "ID: " << id << std::endl;
+        int index = 0;
+
+        std::string message_string{};
+
+        for (auto it = data->begin(); it != data->end(); it++) {
+          message_string += (char)*it;
+        }
+
+        std::cout << "Message: " << message_string << std::endl;
+
+        std::string placeholder{"Return string"};
+
+        sendMessage(client_socket_fd, const_cast<char*>(placeholder.c_str()),
+                    placeholder.size());
       } catch (std::out_of_range& e) {
         std::cout << e.what() << std::endl;
-        return_message += "Out of range\n";
-        sendMessage(client_socket_fd, const_cast<char*>(return_message.c_str()),
-                    return_message.size());
+        const char* return_message{"Out of range\0"};
+        sendMessage(client_socket_fd, return_message, 13);
       }
     } else {
-      char* return_message{"Value was not accepted\0"};
+      const char* return_message{"Value was not accepted\0"};
       sendMessage(client_socket_fd, return_message, static_cast<size_t>(24));
     }
   };

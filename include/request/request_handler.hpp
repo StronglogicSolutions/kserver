@@ -7,6 +7,7 @@
 #include <config/config_parser.hpp>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace KData;
@@ -32,8 +33,9 @@ class RequestHandler {
     m_connection.setConfig(configuration);
   }
 
-  std::string operator()(std::vector<uint32_t> bits) {
+  std::pair<uint8_t*, int> operator()(std::vector<uint32_t> bits) {
     QueryFilter filter{};
+
     for (const auto& bit : bits) {
       filter.push_back(
           std::make_pair(std::string("mask"), std::to_string(bit)));
@@ -49,17 +51,22 @@ class RequestHandler {
       for (const auto& row : result.values) {
         if (row.first == "path") paths += row.second + "\n";
       }
-      unsigned char message_bytes[] = {11, 2, 13, 14, 15, 16, 17, 18};
-      // std::vector<unsigned char> vector_bytes(message_bytes);
-      // std::vector<flatbuffers::Offset<uint8_t>>
-      // flatbuffers_byte_vector(vector_bytes);
-
+      unsigned char message_bytes[] = {33, 34, 45, 52, 52, 122, 101, 35};
       auto byte_vector = builder.CreateVector(message_bytes, 8);
       auto message = CreateMessage(builder, 0, byte_vector);
+      builder.Finish(message);
 
-      return paths;
+      uint8_t* message_buffer = builder.GetBufferPointer();
+      int size = builder.GetSize();
+
+      std::pair<uint8_t*, int> ret_tuple =
+          std::make_pair(message_buffer, std::ref(size));
+
+      return ret_tuple;
     }
-    return std::string{"Application not found"};
+    /* return std::string{"Application not found"}; */
+    uint8_t byte_array[6]{1, 2, 3, 4, 5, 6};
+    return std::make_pair(&byte_array[0], 6);
   }
 
  private:
