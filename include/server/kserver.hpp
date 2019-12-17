@@ -86,30 +86,21 @@ class KServer : public SocketListener {
         }
 
         std::pair<uint8_t*, int> tuple_data = m_request_handler(bits);
-
         uint8_t* byte_buffer = tuple_data.first;
-        int size = tuple_data.second;
 
         auto message = GetMessage(byte_buffer);
-
         auto id = message->id();
+
         const flatbuffers::Vector<uint8_t>* data = message->data();
-
-        std::cout << "ID: " << id << std::endl;
-        int index = 0;
-
         std::string message_string{};
 
         for (auto it = data->begin(); it != data->end(); it++) {
           message_string += (char)*it;
         }
+        std::cout << "ID: " << id << "\n" << "Message: " << message_string << std::endl;
 
-        std::cout << "Message: " << message_string << std::endl;
-
-        std::string placeholder{"Return string"};
-
-        sendMessage(client_socket_fd, const_cast<char*>(placeholder.c_str()),
-                    placeholder.size());
+        sendMessage(client_socket_fd, const_cast<char*>(message_string.c_str()),
+                    message_string.size());
       } catch (std::out_of_range& e) {
         std::cout << e.what() << std::endl;
         const char* return_message{"Out of range\0"};
