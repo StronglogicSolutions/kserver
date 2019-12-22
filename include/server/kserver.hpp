@@ -50,10 +50,10 @@ bool isdigits(const std::string& s) {
   return true;
 }
 
-inline size_t findNullIndex(char* data) {
+inline size_t findNullIndex(uint8_t* data) {
   size_t index = 0;
   while (data) {
-    if (strcmp(data, "\0") == 0) {
+    if (strcmp(const_cast<const char*>((char*)data), "\0") == 0) {
       break;
     }
     index++;
@@ -74,8 +74,8 @@ class KServer : public SocketListener {
   }
 
   virtual void onMessageReceived(int client_socket_fd,
-                                 std::weak_ptr<char[]> w_buffer_ptr) override {
-    std::shared_ptr<char[]> s_buffer_ptr = w_buffer_ptr.lock();
+                                 std::weak_ptr<uint8_t[]> w_buffer_ptr) override {
+    std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
     size_t null_index = findNullIndex(s_buffer_ptr.get());
 
     std::string message_string =
@@ -123,9 +123,14 @@ class KServer : public SocketListener {
     } else {
       const char* return_message{"Value was not accepted\0"};
       // Obtain the raw buffer so we can read the header
-      char* raw_buffer = s_buffer_ptr.get();
+      uint8_t* raw_buffer = s_buffer_ptr.get();
+      auto val1 = *raw_buffer;
+      auto val2 = *(raw_buffer+1);
+      auto val3 = *(raw_buffer+2);
+      auto val4 = *(raw_buffer+3);
+
       uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
-                                    *(raw_buffer + 2) << 8, *(raw_buffer + 3));
+                                    *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
       // TODO: Copying into a new buffer for readability - switch to using the
       // original buffer
       uint8_t decode_buffer[message_byte_size];
@@ -142,6 +147,7 @@ class KServer : public SocketListener {
       logger->info("Client message: {}", data_json.dump(4));
 
       sendMessage(client_socket_fd, return_message, static_cast<size_t>(24));
+      memset(raw_buffer, 0, MAX_BUFFER_SIZE);
     }
   };
 
