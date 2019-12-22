@@ -1,6 +1,7 @@
 #ifndef __REQUEST_HANDLER_HPP__
 #define __REQUEST_HANDLER_HPP__
 
+#include <Log.h>
 #include <codec/kmessage_generated.h>
 #include <database/DatabaseConnection.h>
 

@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-g++ -std=c++17 -g -lpq -pthread -I include -L /usr/local/include/pqxx src/main.cpp include/database/DatabaseConnection.cpp include/server/libsocket_listener.a /usr/local/lib/libpqxx.a -o kserver
+g++ -std=c++17 -g -lpq -pthread -I include -I minlog -L /usr/local/include/pqxx src/main.cpp src/libspdlog.a include/database/DatabaseConnection.cpp include/server/libsocket_listener.a /usr/local/lib/libpqxx.a -o kserver

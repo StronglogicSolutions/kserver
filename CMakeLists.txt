@@ -7,7 +7,8 @@ set(SOURCES "src/main.cpp" "/usr/local/lib/libpqxx.a" "include/server/libsocket_
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -std=c++17 -pthread -lpq")
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
-  "include"
+  "include",
+  "minlog"
 )
 target_link_libraries(${PROJECT_NAME} Threads::Threads)
 

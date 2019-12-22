@@ -1,14 +1,18 @@
+#include <Log.h>
 #include <algorithm>
 #include <bitset>
+#include <codec/json.hpp>
 #include <cstring>
 #include <interface/socket_listener.hpp>
 #include <iomanip>
-#include <iostream>
 #include <request/request_handler.hpp>
 #include <string>
 #include <types/types.hpp>
 
+using namespace MinLog;
 using namespace KData;
+
+using json = nlohmann::json;
 
 template <typename T>
 static std::string toBinaryString(const T& x) {
@@ -20,10 +24,10 @@ static std::string toBinaryString(const T& x) {
 const std::vector<int> range_values{1, 2, 3, 4, 5, 6};
 
 bool hasNthBitSet(int value, int n) {
-  std::cout << "Checking for " << n << " bit" << std::endl;
+  LOG(INFO) << "Checking for " << n << " bit";
   auto result = value & (1 << (n - 1));
   if (result) {
-    std::cout << std::hex << " has bit " << n << " set" << std::endl;
+    LOG(INFO) << std::hex << " has bit " << n << " set";
     return true;
   }
   return false;
@@ -37,7 +41,7 @@ bool isdigits(const std::string& s) {
   return true;
 }
 
-size_t findNullIndex(char* data) {
+inline size_t findNullIndex(char* data) {
   size_t index = 0;
   while (data) {
     if (strcmp(data, "\0") == 0) {
@@ -51,7 +55,9 @@ size_t findNullIndex(char* data) {
 
 class KServer : public SocketListener {
  public:
-  KServer(int argc, char** argv) : SocketListener(argc, argv) {}
+  KServer(int argc, char** argv) : SocketListener(argc, argv) {
+    LOG(INFO) << "KServer initialized";
+  }
   ~KServer() {}
 
   void set_handler(const RequestHandler&& handler) {
@@ -72,13 +78,12 @@ class KServer : public SocketListener {
     }
 
     if (message_string.size() > 0 && isdigits(message_string)) {
-      std::cout << "Numerical data discovered" << std::endl;
+      LOG(INFO) << "Numerical data discovered";
       std::vector<uint32_t> bits{};
       try {
         unsigned int message_code = stoi(message_string);
         std::string binary_string = toBinaryString<int>(+message_code);
-        std::cout << binary_string << "\n"
-                  << std::hex << +message_code << std::endl;
+        LOG(INFO) << binary_string << "\n" << std::hex << +message_code;
         for (const auto& i : range_values) {
           if (hasNthBitSet(stoi(message_string), i)) {
             bits.push_back(static_cast<uint32_t>(i));
@@ -97,17 +102,37 @@ class KServer : public SocketListener {
         for (auto it = data->begin(); it != data->end(); it++) {
           message_string += (char)*it;
         }
-        std::cout << "ID: " << id << "\n" << "Message: " << message_string << std::endl;
+        LOG(INFO) << "ID: " << id << "\n"
+                  << "Message: " << message_string;
 
         sendMessage(client_socket_fd, const_cast<char*>(message_string.c_str()),
                     message_string.size());
       } catch (std::out_of_range& e) {
-        std::cout << e.what() << std::endl;
+        LOG(ERROR) << e.what();
         const char* return_message{"Out of range\0"};
         sendMessage(client_socket_fd, return_message, 13);
       }
     } else {
       const char* return_message{"Value was not accepted\0"};
+      // Obtain the raw buffer so we can read the header
+      char* raw_buffer = s_buffer_ptr.get();
+      uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
+                                    *(raw_buffer + 2) << 8, *(raw_buffer + 3));
+      // TODO: Copying into a new buffer for readability - switch to using the
+      // original buffer
+      uint8_t decode_buffer[message_byte_size];
+      std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
+      // Parse the bytes into an encoded message structure
+      auto k_message = GetMessage(&decode_buffer);
+      auto id = k_message->id();  // message ID
+      LOG(INFO) << "Message ID: " << id;
+      // Get the message bytes and create a string
+      const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
+      std::string decoded_message{message_bytes->begin(), message_bytes->end()};
+      json data_json = json::parse(decoded_message);  // Parse json from string
+
+      LOG(INFO) << "Client message: " << data_json.dump(4);
+
       sendMessage(client_socket_fd, return_message, static_cast<size_t>(24));
     }
   };
