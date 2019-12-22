@@ -1,9 +1,10 @@
 #ifndef __REQUEST_HANDLER_HPP__
 #define __REQUEST_HANDLER_HPP__
 
-#include <Log.h>
+// #include <Log.h>
 #include <codec/kmessage_generated.h>
 #include <database/DatabaseConnection.h>
+#include <log/logger.h>
 
 #include <config/config_parser.hpp>
 #include <iostream>
@@ -14,6 +15,8 @@
 using namespace KData;
 
 flatbuffers::FlatBufferBuilder builder(1024);
+
+auto logger = KLogger::get_logger();
 
 class RequestHandler {
  public:

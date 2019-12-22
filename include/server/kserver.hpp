@@ -1,4 +1,8 @@
-#include <Log.h>
+#ifndef __KSERVER_HPP__
+#define __KSERVER_HPP__
+
+#include <log/logger.h>
+
 #include <algorithm>
 #include <bitset>
 #include <codec/json.hpp>
@@ -9,10 +13,15 @@
 #include <string>
 #include <types/types.hpp>
 
-using namespace MinLog;
+// using namespace MinLog;
 using namespace KData;
-
 using json = nlohmann::json;
+
+namespace {
+
+KLogger* k_logger = new KLogger();
+
+auto logger = k_logger -> get_logger();
 
 template <typename T>
 static std::string toBinaryString(const T& x) {
@@ -24,10 +33,10 @@ static std::string toBinaryString(const T& x) {
 const std::vector<int> range_values{1, 2, 3, 4, 5, 6};
 
 bool hasNthBitSet(int value, int n) {
-  LOG(INFO) << "Checking for " << n << " bit";
+  logger->info("Checking for {} bit", n);
   auto result = value & (1 << (n - 1));
   if (result) {
-    LOG(INFO) << std::hex << " has bit " << n << " set";
+    logger->info("{} has bit {} set", value, n);
     return true;
   }
   return false;
@@ -56,7 +65,7 @@ inline size_t findNullIndex(char* data) {
 class KServer : public SocketListener {
  public:
   KServer(int argc, char** argv) : SocketListener(argc, argv) {
-    LOG(INFO) << "KServer initialized";
+    logger->info("KServer initialized");
   }
   ~KServer() {}
 
@@ -78,12 +87,12 @@ class KServer : public SocketListener {
     }
 
     if (message_string.size() > 0 && isdigits(message_string)) {
-      LOG(INFO) << "Numerical data discovered";
+      logger->info("Numerical data discovered");
       std::vector<uint32_t> bits{};
       try {
         unsigned int message_code = stoi(message_string);
         std::string binary_string = toBinaryString<int>(+message_code);
-        LOG(INFO) << binary_string << "\n" << std::hex << +message_code;
+        logger->info("{}\n{}", binary_string, +message_code);
         for (const auto& i : range_values) {
           if (hasNthBitSet(stoi(message_string), i)) {
             bits.push_back(static_cast<uint32_t>(i));
@@ -102,13 +111,12 @@ class KServer : public SocketListener {
         for (auto it = data->begin(); it != data->end(); it++) {
           message_string += (char)*it;
         }
-        LOG(INFO) << "ID: " << id << "\n"
-                  << "Message: " << message_string;
+        logger->info("ID: {}\n Message: {}", id, message_string);
 
         sendMessage(client_socket_fd, const_cast<char*>(message_string.c_str()),
                     message_string.size());
       } catch (std::out_of_range& e) {
-        LOG(ERROR) << e.what();
+        logger->info("Error: {}", e.what());
         const char* return_message{"Out of range\0"};
         sendMessage(client_socket_fd, return_message, 13);
       }
@@ -125,13 +133,13 @@ class KServer : public SocketListener {
       // Parse the bytes into an encoded message structure
       auto k_message = GetMessage(&decode_buffer);
       auto id = k_message->id();  // message ID
-      LOG(INFO) << "Message ID: " << id;
+      logger->info("Message ID: {}", id);
       // Get the message bytes and create a string
       const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
       std::string decoded_message{message_bytes->begin(), message_bytes->end()};
       json data_json = json::parse(decoded_message);  // Parse json from string
 
-      LOG(INFO) << "Client message: " << data_json.dump(4);
+      logger->info("Client message: {}", data_json.dump(4));
 
       sendMessage(client_socket_fd, return_message, static_cast<size_t>(24));
     }
@@ -140,3 +148,5 @@ class KServer : public SocketListener {
  private:
   RequestHandler m_request_handler;
 };
+}  // namespace
+#endif  // __KSEVER_HPP__
