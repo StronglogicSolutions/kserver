@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include <bitset>
-#include <codec/json.hpp>
+#include <codec/util.hpp>
 #include <cstring>
 #include <interface/socket_listener.hpp>
 #include <iomanip>
@@ -15,13 +15,12 @@
 
 // using namespace MinLog;
 using namespace KData;
-using json = nlohmann::json;
 
 namespace {
 
 KLogger* k_logger = new KLogger();
 
-auto logger = k_logger -> get_logger();
+auto logger = k_logger->get_logger();
 
 template <typename T>
 static std::string toBinaryString(const T& x) {
@@ -73,8 +72,8 @@ class KServer : public SocketListener {
     m_request_handler = handler;
   }
 
-  virtual void onMessageReceived(int client_socket_fd,
-                                 std::weak_ptr<uint8_t[]> w_buffer_ptr) override {
+  virtual void onMessageReceived(
+      int client_socket_fd, std::weak_ptr<uint8_t[]> w_buffer_ptr) override {
     std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
     size_t null_index = findNullIndex(s_buffer_ptr.get());
 
@@ -125,12 +124,13 @@ class KServer : public SocketListener {
       // Obtain the raw buffer so we can read the header
       uint8_t* raw_buffer = s_buffer_ptr.get();
       auto val1 = *raw_buffer;
-      auto val2 = *(raw_buffer+1);
-      auto val3 = *(raw_buffer+2);
-      auto val4 = *(raw_buffer+3);
+      auto val2 = *(raw_buffer + 1);
+      auto val3 = *(raw_buffer + 2);
+      auto val4 = *(raw_buffer + 3);
 
-      uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
-                                    *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
+      uint32_t message_byte_size =
+          (*raw_buffer << 24 | *(raw_buffer + 1) << 16, *(raw_buffer + 2) << 8,
+           +(*(raw_buffer + 3)));
       // TODO: Copying into a new buffer for readability - switch to using the
       // original buffer
       uint8_t decode_buffer[message_byte_size];
@@ -142,17 +142,30 @@ class KServer : public SocketListener {
       // Get the message bytes and create a string
       const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
       std::string decoded_message{message_bytes->begin(), message_bytes->end()};
-      json data_json = json::parse(decoded_message);  // Parse json from string
+      nlohmann::json data_json = nlohmann::json::parse(decoded_message);  // Parse json from string
 
       logger->info("Client message: {}", data_json.dump(4));
-
+      // Handle operations
+      if (isOperation(data_json)) {
+        std::string op_string = data_json["command"];
+        if (isStartOperation(op_string)) {
+          KSession session{.id = 1, .fd = client_socket_fd, .status = 1};
+          std::string start_message_status = createMessage("sessionaccepted");
+          sendMessage(client_socket_fd, start_message_status.c_str(),
+                      start_message_status.size());
+          return;
+        } else if (isStopOperation(op_string)) {
+          shutdown(client_socket_fd, SHUT_RDWR);
+          close(client_socket_fd);
+          return;
+        }
+      }
       sendMessage(client_socket_fd, return_message, static_cast<size_t>(24));
       memset(raw_buffer, 0, MAX_BUFFER_SIZE);
+      }
     }
+   private:
+    RequestHandler m_request_handler;
   };
-
- private:
-  RequestHandler m_request_handler;
-};
-}  // namespace
-#endif  // __KSEVER_HPP__
+};    // namespace
+#endif  // __KSERVER_HPP__
