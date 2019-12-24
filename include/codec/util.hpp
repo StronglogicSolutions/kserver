@@ -52,6 +52,26 @@ std::string createMessage(const char* data, std::string args = "") {
   return s.GetString();
 }
 
+std::string createOperation(const char* op, std::vector<std::string> args) {
+  StringBuffer s;
+  Writer<StringBuffer> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("operation");
+  w.Key("command");
+  w.String(op);
+  w.Key("args");
+  w.StartArray();
+  if (!args.empty()) {
+    for (const auto& arg : args) {
+      w.String(arg.c_str());
+    }
+  }
+  w.EndArray();
+  w.EndObject();
+  return s.GetString();
+}
+
 bool isOperation(const char* data) {
   Document d;
   d.Parse(data);
