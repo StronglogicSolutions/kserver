@@ -20,7 +20,7 @@ namespace {
 
 KLogger* k_logger = new KLogger();
 
-auto logger = k_logger->get_logger();
+auto logger = k_logger -> get_logger();
 
 template <typename T>
 static std::string toBinaryString(const T& x) {
@@ -47,18 +47,6 @@ bool isdigits(const std::string& s) {
       return false;
     }
   return true;
-}
-
-inline size_t findNullIndex(uint8_t* data) {
-  size_t index = 0;
-  while (data) {
-    if (strcmp(const_cast<const char*>((char*)data), "\0") == 0) {
-      break;
-    }
-    index++;
-    data++;
-  }
-  return index;
 }
 
 class KServer : public SocketListener {
@@ -120,7 +108,7 @@ class KServer : public SocketListener {
         sendMessage(client_socket_fd, return_message, 13);
       }
     } else {
-      const char* return_message{"Value was not accepted\0"};
+      std::string return_message = createMessage("Value was not accepted", "");
       // Obtain the raw buffer so we can read the header
       uint8_t* raw_buffer = s_buffer_ptr.get();
       auto val1 = *raw_buffer;
@@ -142,30 +130,31 @@ class KServer : public SocketListener {
       // Get the message bytes and create a string
       const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
       std::string decoded_message{message_bytes->begin(), message_bytes->end()};
-      nlohmann::json data_json = nlohmann::json::parse(decoded_message);  // Parse json from string
-
-      logger->info("Client message: {}", data_json.dump(4));
+      std::string json_message = getJsonString(decoded_message);
+      logger->info("Client message: {}", json_message);
       // Handle operations
-      if (isOperation(data_json)) {
-        std::string op_string = data_json["command"];
-        if (isStartOperation(op_string)) {
+      if (isOperation(decoded_message.c_str())) {
+        if (isStartOperation(decoded_message.c_str())) {
           KSession session{.id = 1, .fd = client_socket_fd, .status = 1};
-          std::string start_message_status = createMessage("sessionaccepted");
-          sendMessage(client_socket_fd, start_message_status.c_str(),
-                      start_message_status.size());
+          std::map<int, std::string> server_data = m_request_handler(getOperation(decoded_message.c_str()));
+          std::string start_message = createMessage("New Session", server_data);
+          sendMessage(client_socket_fd, start_message.c_str(),
+                      start_message.size());
           return;
-        } else if (isStopOperation(op_string)) {
+        } else if (isStopOperation(decoded_message.c_str())) {
           shutdown(client_socket_fd, SHUT_RDWR);
           close(client_socket_fd);
           return;
         }
       }
-      sendMessage(client_socket_fd, return_message, static_cast<size_t>(24));
+      sendMessage(client_socket_fd, return_message.c_str(),
+                  return_message.size());
       memset(raw_buffer, 0, MAX_BUFFER_SIZE);
-      }
     }
-   private:
-    RequestHandler m_request_handler;
-  };
-};    // namespace
+  }
+
+ private:
+  RequestHandler m_request_handler;
+};
+};      // namespace
 #endif  // __KSERVER_HPP__

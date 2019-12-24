@@ -6,6 +6,7 @@
 #include <database/DatabaseConnection.h>
 #include <log/logger.h>
 
+#include <codec/util.hpp>
 #include <config/config_parser.hpp>
 #include <iostream>
 #include <string>
@@ -35,6 +36,33 @@ class RequestHandler {
 
     m_connection = DatabaseConnection{};
     m_connection.setConfig(configuration);
+  }
+
+  std::map<int, std::string> operator()(KOperation op) {
+    // TODO: We need to fix the DB query so it is orderable and groupable
+    DatabaseQuery select_query{.table = "apps",
+                               .fields = {"name", "path", "data", "mask"},
+                               .type = QueryType::SELECT,
+                               .values = {}};
+    QueryResult result = m_connection.query(select_query);
+    std::map<int, std::string> command_map{};
+    std::vector<std::string> names{};
+    std::vector<int> masks{};
+    // int mask = -1;
+    std::string name{""};
+    for (const auto& row : result.values) {
+      if (row.first == "name") {
+        names.push_back(row.second);
+      } else if (row.first == "mask") {
+        masks.push_back(stoi(row.second));
+      }
+    }
+    if (masks.size() == names.size()) {
+      for (int i = 0; i < masks.size(); i++) {
+        command_map.emplace(masks.at(i), names.at(i));
+      }
+    }
+    return command_map;
   }
 
   std::pair<uint8_t*, int> operator()(std::vector<uint32_t> bits) {

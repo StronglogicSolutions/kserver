@@ -1,9 +1,27 @@
+#ifndef __UTIL_HPP__
+#define __UTIL_HPP__
+
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "json.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/error/en.h"
+#include "rapidjson/filereadstream.h"
+#include "rapidjson/filewritestream.h"
+#include "rapidjson/pointer.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 
 using json = nlohmann::json;
+using namespace rapidjson;
+
+typedef std::string KOperation;
+typedef std::map<int, std::string> CommandMap;
+typedef std::vector<std::pair<std::string, std::string>> TupVec;
+typedef std::vector<std::map<int, std::string>> MapVec;
 
 struct KSession {
   int id;
@@ -11,27 +29,153 @@ struct KSession {
   int status;
 };
 
-std::string createMessage(const char* data) {
-  json data_json{};
-  data_json["type"] = "custom";
-  data_json["program"] = "placeholder";
-  data_json["message"] = data;
-
-  return data_json.dump();
+std::string getJsonString(std::string s) {
+  Document d;
+  d.Parse(s.c_str());
+  StringBuffer buffer;
+  PrettyWriter<StringBuffer> writer(buffer);
+  d.Accept(writer);
+  return buffer.GetString();
 }
 
-std::string createOperation(const char* op, std::vector<std::string> args) {
-  json operation_json{};
-  operation_json["type"] = "operation";
-  operation_json["command"] = op;
-  if (!args.empty()) {
-    operation_json["args"] = args;
+std::string createMessage(const char* data, std::string args = "") {
+  StringBuffer s;
+  Writer<StringBuffer> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("custom");
+  w.Key("message");
+  w.String(data);
+  w.Key("args");
+  w.String(args.c_str());
+  w.EndObject();
+  return s.GetString();
+}
+
+bool isOperation(const char* data) {
+  Document d;
+  d.Parse(data);
+  return strcmp(d["type"].GetString(), "operation") == 0;
+}
+
+std::string getOperation(const char* data) {
+  Document d;
+  d.Parse(data);
+  if (d.HasMember("command")) {
+    return d["command"].GetString();
   }
-  return operation_json.dump();
+  return "";
 }
 
-bool isOperation(json data) { return *(data.find("type")) == "operation"; }
+CommandMap getArgMap(const char* data) {
+  Document d;
+  d.Parse(data);
+  CommandMap cm{};
+  if (d.HasMember("args")) {
+    for (const auto& m : d["args"].GetObject()) {
+      cm.emplace(std::stoi(m.name.GetString()), m.value.GetString());
+    }
+  }
+  return cm;
+}
 
-bool isStartOperation(std::string operation) { return operation == "start"; }
+std::string createMessage(const char* data,
+                          std::map<int, std::string> map = {}) {
+  StringBuffer s;
+  Writer<StringBuffer> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("custom");
+  w.Key("message");
+  w.String(data);
+  w.Key("args");
+  w.StartObject();
+  if (!map.empty()) {
+    for (const auto& [k, v] : map) {
+      w.Key(std::to_string(k).c_str());
+      w.String(v.c_str());
+    }
+  }
+  w.EndObject();
+  w.EndObject();
+  return s.GetString();
+}
 
-bool isStopOperation(std::string operation) { return operation == "stop"; }
+std::string rapidCreateMessage(const char* data,
+                               std::map<int, std::string> map = {}) {
+  StringBuffer s;
+  Writer<StringBuffer> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("custom");
+  w.Key("message");
+  w.String(data);
+  w.Key("args");
+  w.StartObject();
+  if (!map.empty()) {
+    for (const auto& [k, v] : map) {
+      w.Key(std::to_string(k).c_str());
+      w.String(v.c_str());
+    }
+  }
+  w.EndObject();
+  w.EndObject();
+  return s.GetString();
+}
+
+bool isStartOperation(const char* data) {
+  Document d;
+  d.Parse(data);
+  return strcmp(d["command"].GetString(), "start") == 0;
+}
+
+bool isStopOperation(const char* data) {
+  Document d;
+  d.Parse(data);
+  return strcmp(d["command"].GetString(), "stop") == 0;
+}
+
+bool isNewSession(const char* data) {
+  Document d;
+  d.Parse(data);
+  if (d.HasMember("message")) {
+    return strcmp(d["message"].GetString(), "New Session") == 0;
+  }
+  return false;
+}
+
+/* std::string createMessage(const char* data, TupVec v = {}) { */
+/*   json data_json{}; */
+/*   data_json["type"] = "custom"; */
+/*   data_json["message"] = data; */
+/*   data_json["args"] = nullptr; */
+/*   if (!v.empty()) { */
+/*     for (const auto& r : v) { */
+/*       data_json["args"][r.first] = r.second; */
+/*     } */
+/*   } */
+/*   return data_json.dump(); */
+/* } */
+
+std::string stringTupleVecToJson(
+    std::vector<std::pair<std::string, std::string>> v) {
+  json j{};
+  for (const auto& row : v) {
+    j[row.first] = row.second;
+  }
+  return j;
+}
+
+inline size_t findNullIndex(uint8_t* data) {
+  size_t index = 0;
+  while (data) {
+    if (strcmp(const_cast<const char*>((char*)data), "\0") == 0) {
+      break;
+    }
+    index++;
+    data++;
+  }
+  return index;
+}
+
+#endif  // __UTIL_HPP__

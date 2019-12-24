@@ -144,11 +144,9 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
       auto count = query.fields.size();
 
       for (auto row : pqxx_result) {
-        int index = 1;
+        int index = 0;
         for (const auto &field: row) {
-          auto remainder = count == index ? (count - 1) : count % index;
-          index++;
-          std::string field_name = remainder == 0 ? query.fields[0] : query.fields[remainder];
+          std::string field_name = query.fields[index++];
           auto row_chars = field.c_str();
           if (row_chars != nullptr) {
             std::string value{row_chars};

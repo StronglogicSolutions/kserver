@@ -8,6 +8,8 @@
 
 enum QueryType { INSERT = 0, DELETE = 1, UPDATE = 2, SELECT = 3 };
 
+typedef std::vector<std::pair<std::string, std::string>> TupVec;
+
 struct DatabaseCredentials {
   std::string user;
   std::string password;
