@@ -78,6 +78,10 @@ bool isOperation(const char* data) {
   return strcmp(d["type"].GetString(), "operation") == 0;
 }
 
+bool isExecuteOperation(const char* data) {
+  return strcmp(data, "Execute") == 0;
+}
+
 std::string getOperation(const char* data) {
   Document d;
   d.Parse(data);
@@ -85,6 +89,18 @@ std::string getOperation(const char* data) {
     return d["command"].GetString();
   }
   return "";
+}
+
+std::vector<std::string> getArgs(const char* data) {
+  Document d;
+  d.Parse(data);
+  std::vector<std::string> args{};
+  if (d.HasMember("args")) {
+    for (const auto& v : d["args"].GetArray()) {
+      args.push_back(v.GetString());
+    }
+  }
+  return args;
 }
 
 CommandMap getArgMap(const char* data) {

@@ -134,27 +134,49 @@ class KServer : public SocketListener {
       logger->info("Client message: {}", json_message);
       // Handle operations
       if (isOperation(decoded_message.c_str())) {
+        logger->info("Received operation");
         if (isStartOperation(decoded_message.c_str())) {
+          logger->info("Start operation");
           KSession session{.id = 1, .fd = client_socket_fd, .status = 1};
-          std::map<int, std::string> server_data = m_request_handler(getOperation(decoded_message.c_str()));
+          std::map<int, std::string> server_data =
+              m_request_handler(getOperation(decoded_message.c_str()));
           std::string start_message = createMessage("New Session", server_data);
           sendMessage(client_socket_fd, start_message.c_str(),
                       start_message.size());
           return;
         } else if (isStopOperation(decoded_message.c_str())) {
+          logger->info(
+              "Stop operation. Shutting down client and closing connection");
           shutdown(client_socket_fd, SHUT_RDWR);
           close(client_socket_fd);
           return;
+        } else {
+          std::string operation = getOperation(decoded_message.c_str());
+          if (isExecuteOperation(operation.c_str())) {
+            logger->info("Execute operation");
+            std::vector <std::string> args = getArgs(decoded_message.c_str());
+            if (!args.empty()) {
+              // handler needs to act on these masks
+              logger->info("Execute masks received");
+              for (const auto& arg : args) {
+                logger->info("Argument: {}", arg);
+              }
+            }
+          }
+          std::string execute_response =
+              createMessage("We'll get right on that", "");
+          sendMessage(client_socket_fd, execute_response.c_str(),
+                      execute_response.size());
         }
       }
-      sendMessage(client_socket_fd, return_message.c_str(),
-                  return_message.size());
-      memset(raw_buffer, 0, MAX_BUFFER_SIZE);
+        sendMessage(client_socket_fd, return_message.c_str(),
+                    return_message.size());
+        memset(raw_buffer, 0, MAX_BUFFER_SIZE);
+      }
     }
-  }
 
- private:
-  RequestHandler m_request_handler;
-};
+   private:
+    RequestHandler m_request_handler;
+  };
 };      // namespace
 #endif  // __KSERVER_HPP__
