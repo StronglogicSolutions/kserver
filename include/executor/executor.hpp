@@ -1,8 +1,8 @@
 #include <functional>
 #include <future>
+#include <iostream>
 #include <string>
 #include <string_view>
-#include <iostream>
 
 #include "execxx.h"
 
@@ -39,28 +39,6 @@ class ProcessExecutor : public ProcessManager {
     }
 
     bool run() {
-      /* pid_t child_pid = fork(); */
-      /* if (child_pid < 0) {  // dud */
-
-      /* } else if (child_pid == 0) { */
-      /*   // parent process */
-      /* } else {  // child_pid > 0 therefore implement logic */
-      /*   ::umask(0); */
-      /*   pid_t sid = ::setsid(); */
-      /*   if (sid < 0) { */
-      /*     // Could not start session */
-      /*   } else { */
-      /*     ::chdir(path); */
-      /*     // Check to see if this process is already running, and KILL */
-      /*     // std::ifstream to read input stream */
-      /*     // std::ofstream to write to pid file */
-      /*     ::close(STDIN_FILENO); */
-      /*     ::close(STDOUT_FILENO); */
-      /*     ::close(STDERR_FILENO); */
-      /*     // Perform work */
-      /*     bool result = action(); */
-      /*     return result; */
-      /*   } */
       std::future<bool> result_future = std::async(&ProcessDaemon::run_, this);
       bool result = result_future.get();
       return result;
