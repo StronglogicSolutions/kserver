@@ -33,7 +33,7 @@ std::string qx(const std::vector<std::string>& args) {
   close(stdout_fds[1]);
 
   std::string out;
-  const int buf_size = 4096;
+  const int buf_size = 32768;
   char buffer[buf_size];
   do {
     const ssize_t r = read(stdout_fds[0], buffer, buf_size);

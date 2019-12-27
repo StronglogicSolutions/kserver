@@ -1,6 +1,7 @@
 #ifndef __KSERVER_HPP__
 #define __KSERVER_HPP__
 
+#include <codec/uuid.h>
 #include <log/logger.h>
 
 #include <algorithm>
@@ -11,6 +12,7 @@
 #include <iomanip>
 #include <request/request_handler.hpp>
 #include <string>
+#include <string_view>
 #include <types/types.hpp>
 
 // using namespace MinLog;
@@ -137,12 +139,21 @@ class KServer : public SocketListener {
         KLOG->info("Received operation");
         if (isStartOperation(decoded_message.c_str())) {
           KLOG->info("Start operation");
-          KSession session{.id = 1, .fd = client_socket_fd, .status = 1};
+          uuids::uuid const new_uuid = uuids::uuid_system_generator{}();
+          KSession session{.fd = client_socket_fd, .status = 1, .id = new_uuid};
           std::map<int, std::string> server_data =
               m_request_handler(getOperation(decoded_message.c_str()));
           std::string start_message = createMessage("New Session", server_data);
           sendMessage(client_socket_fd, start_message.c_str(),
                       start_message.size());
+          std::vector<std::pair<std::string, std::string>> session_info{
+              {"status", std::to_string(session.status)},
+              {"uuid", uuids::to_string(new_uuid)}};
+          std::string session_message =
+              createMessage("Session Info", session_info);
+          KLOG->info("Sending message: {}", session_message);
+          sendMessage(client_socket_fd, session_message.c_str(),
+                      session_message.size());
           return;
         } else if (isStopOperation(decoded_message.c_str())) {
           KLOG->info(
@@ -179,5 +190,5 @@ class KServer : public SocketListener {
  private:
   Request::RequestHandler m_request_handler;
 };
-};      // namespace KServer
+};      // namespace KYO
 #endif  // __KSERVER_HPP__

@@ -1,11 +1,12 @@
 #ifndef __UTIL_HPP__
 #define __UTIL_HPP__
 
+#include <codec/uuid.h>
+
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "json.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
 #include "rapidjson/filereadstream.h"
@@ -15,8 +16,9 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
-using json = nlohmann::json;
 using namespace rapidjson;
+using namespace uuids;
+using namespace uuids;
 
 typedef std::string KOperation;
 typedef std::map<int, std::string> CommandMap;
@@ -24,9 +26,9 @@ typedef std::vector<std::pair<std::string, std::string>> TupVec;
 typedef std::vector<std::map<int, std::string>> MapVec;
 
 struct KSession {
-  int id;
   int fd;
   int status;
+  uuid id;
 };
 
 std::string getJsonString(std::string s) {
@@ -115,6 +117,28 @@ CommandMap getArgMap(const char* data) {
   return cm;
 }
 
+std::string createMessage(
+    const char* data, std::vector<std::pair<std::string, std::string>> args) {
+  StringBuffer s;
+  Writer<StringBuffer> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("custom");
+  w.Key("message");
+  w.String(data);
+  w.Key("args");
+  w.StartObject();
+  if (!args.empty()) {
+    for (const auto& v : args) {
+      w.Key(v.first.c_str());
+      w.String(v.second.c_str());
+    }
+  }
+  w.EndObject();
+  w.EndObject();
+  return s.GetString();
+}
+
 std::string createMessage(const char* data,
                           std::map<int, std::string> map = {}) {
   StringBuffer s;
@@ -178,28 +202,6 @@ bool isNewSession(const char* data) {
     return strcmp(d["message"].GetString(), "New Session") == 0;
   }
   return false;
-}
-
-/* std::string createMessage(const char* data, TupVec v = {}) { */
-/*   json data_json{}; */
-/*   data_json["type"] = "custom"; */
-/*   data_json["message"] = data; */
-/*   data_json["args"] = nullptr; */
-/*   if (!v.empty()) { */
-/*     for (const auto& r : v) { */
-/*       data_json["args"][r.first] = r.second; */
-/*     } */
-/*   } */
-/*   return data_json.dump(); */
-/* } */
-
-std::string stringTupleVecToJson(
-    std::vector<std::pair<std::string, std::string>> v) {
-  json j{};
-  for (const auto& row : v) {
-    j[row.first] = row.second;
-  }
-  return j;
 }
 
 inline size_t findNullIndex(uint8_t* data) {
