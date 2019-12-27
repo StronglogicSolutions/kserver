@@ -9,11 +9,13 @@
 #include <memory>
 
 typedef std::shared_ptr<spdlog::logger> log_ptr;
+class KLogger;
 
 log_ptr g_logger;
 
+KLogger* g_instance;
+
 class KLogger {
-  KLogger* g_instance;
 
  public:
   KLogger() {
@@ -28,7 +30,14 @@ class KLogger {
     g_instance = this;
   }
   ~KLogger() { g_instance = NULL; }
-  KLogger* GetInstance() { return g_instance; }
+
+  static KLogger* GetInstance() {
+    if (g_instance == nullptr) {
+      g_instance = new KLogger();
+    }
+    return g_instance;
+  }
+
   log_ptr static get_logger() { return g_logger; }
 };
 

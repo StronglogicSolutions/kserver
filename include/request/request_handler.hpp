@@ -1,29 +1,39 @@
 #ifndef __REQUEST_HANDLER_HPP__
 #define __REQUEST_HANDLER_HPP__
 
-// #include <Log.h>
 #include <codec/kmessage_generated.h>
 #include <database/DatabaseConnection.h>
 #include <log/logger.h>
-
 #include <codec/util.hpp>
 #include <config/config_parser.hpp>
+#include <executor/executor.hpp>
 #include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
 
+
+namespace Request {
 using namespace KData;
 
 flatbuffers::FlatBufferBuilder builder(1024);
 
-auto logger = KLogger::get_logger();
+
+auto KLOG = KLogger::GetInstance()->get_logger();
+
+
+// Callback
+std::function<std::string(std::string)> onProcessComplete(
+    [](std::string value) {
+      KLOG->info("Value returned from process:\n{}", value);
+      return value;
+    });
 
 class RequestHandler {
  public:
   RequestHandler() {
     if (!ConfigParser::initConfig()) {
-      std::cout << "Unable to load config" << std::endl;
+      KLOG->info("Unable to load config");
       return;
     }
 
@@ -36,6 +46,8 @@ class RequestHandler {
 
     m_connection = DatabaseConnection{};
     m_connection.setConfig(configuration);
+    m_executor = new ProcessExecutor();
+    m_executor->setEventCallback(onProcessComplete);
   }
 
   std::map<int, std::string> operator()(KOperation op) {
@@ -63,6 +75,23 @@ class RequestHandler {
       }
     }
     return command_map;
+  }
+
+  std::string operator()(uint32_t mask) {
+    QueryResult result = m_connection.query(
+        DatabaseQuery{.table = "apps",
+                      .fields = {"path"},
+                      .type = QueryType::SELECT,
+                      .values = {},
+                      .filter = QueryFilter{std::make_pair(
+                          std::string("mask"), std::to_string(mask))}});
+
+    for (const auto& row : result.values) {
+      KLOG->info("Field: {}, Value: {}", row.first, row.second);
+      m_executor->request(row.second);
+    }
+
+    return std::string{"Process hopefully complete"};
   }
 
   std::pair<uint8_t*, int> operator()(std::vector<uint32_t> bits) {
@@ -102,8 +131,9 @@ class RequestHandler {
   }
 
  private:
+  ProcessExecutor* m_executor;
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;
 };
-
+} // namespace Request
 #endif  // __REQUEST_HANDLER_HPP__

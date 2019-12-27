@@ -16,11 +16,11 @@
 // using namespace MinLog;
 using namespace KData;
 
-namespace {
+namespace KYO {
 
-KLogger* k_logger = new KLogger();
+KLogger* k_logger_ptr = KLogger::GetInstance();
 
-auto logger = k_logger -> get_logger();
+auto KLOG = k_logger_ptr -> get_logger();
 
 template <typename T>
 static std::string toBinaryString(const T& x) {
@@ -32,10 +32,10 @@ static std::string toBinaryString(const T& x) {
 const std::vector<int> range_values{1, 2, 3, 4, 5, 6};
 
 bool hasNthBitSet(int value, int n) {
-  logger->info("Checking for {} bit", n);
+  KLOG->info("Checking for {} bit", n);
   auto result = value & (1 << (n - 1));
   if (result) {
-    logger->info("{} has bit {} set", value, n);
+    KLOG->info("{} has bit {} set", value, n);
     return true;
   }
   return false;
@@ -52,11 +52,11 @@ bool isdigits(const std::string& s) {
 class KServer : public SocketListener {
  public:
   KServer(int argc, char** argv) : SocketListener(argc, argv) {
-    logger->info("KServer initialized");
+    KLOG->info("KServer initialized");
   }
   ~KServer() {}
 
-  void set_handler(const RequestHandler&& handler) {
+  void set_handler(const Request::RequestHandler&& handler) {
     m_request_handler = handler;
   }
 
@@ -74,12 +74,12 @@ class KServer : public SocketListener {
     }
 
     if (message_string.size() > 0 && isdigits(message_string)) {
-      logger->info("Numerical data discovered");
+      KLOG->info("Numerical data discovered");
       std::vector<uint32_t> bits{};
       try {
         unsigned int message_code = stoi(message_string);
         std::string binary_string = toBinaryString<int>(+message_code);
-        logger->info("{}\n{}", binary_string, +message_code);
+        KLOG->info("{}\n{}", binary_string, +message_code);
         for (const auto& i : range_values) {
           if (hasNthBitSet(stoi(message_string), i)) {
             bits.push_back(static_cast<uint32_t>(i));
@@ -98,12 +98,12 @@ class KServer : public SocketListener {
         for (auto it = data->begin(); it != data->end(); it++) {
           message_string += (char)*it;
         }
-        logger->info("ID: {}\n Message: {}", id, message_string);
+        KLOG->info("ID: {}\n Message: {}", id, message_string);
 
         sendMessage(client_socket_fd, const_cast<char*>(message_string.c_str()),
                     message_string.size());
       } catch (std::out_of_range& e) {
-        logger->info("Error: {}", e.what());
+        KLOG->info("Error: {}", e.what());
         const char* return_message{"Out of range\0"};
         sendMessage(client_socket_fd, return_message, 13);
       }
@@ -126,17 +126,17 @@ class KServer : public SocketListener {
       // Parse the bytes into an encoded message structure
       auto k_message = GetMessage(&decode_buffer);
       auto id = k_message->id();  // message ID
-      logger->info("Message ID: {}", id);
+      KLOG->info("Message ID: {}", id);
       // Get the message bytes and create a string
       const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
       std::string decoded_message{message_bytes->begin(), message_bytes->end()};
       std::string json_message = getJsonString(decoded_message);
-      logger->info("Client message: {}", json_message);
+      KLOG->info("Client message: {}", json_message);
       // Handle operations
       if (isOperation(decoded_message.c_str())) {
-        logger->info("Received operation");
+        KLOG->info("Received operation");
         if (isStartOperation(decoded_message.c_str())) {
-          logger->info("Start operation");
+          KLOG->info("Start operation");
           KSession session{.id = 1, .fd = client_socket_fd, .status = 1};
           std::map<int, std::string> server_data =
               m_request_handler(getOperation(decoded_message.c_str()));
@@ -145,7 +145,7 @@ class KServer : public SocketListener {
                       start_message.size());
           return;
         } else if (isStopOperation(decoded_message.c_str())) {
-          logger->info(
+          KLOG->info(
               "Stop operation. Shutting down client and closing connection");
           shutdown(client_socket_fd, SHUT_RDWR);
           close(client_socket_fd);
@@ -153,13 +153,14 @@ class KServer : public SocketListener {
         } else {
           std::string operation = getOperation(decoded_message.c_str());
           if (isExecuteOperation(operation.c_str())) {
-            logger->info("Execute operation");
-            std::vector <std::string> args = getArgs(decoded_message.c_str());
+            KLOG->info("Execute operation");
+            std::vector<std::string> args = getArgs(decoded_message.c_str());
             if (!args.empty()) {
               // handler needs to act on these masks
-              logger->info("Execute masks received");
+              KLOG->info("Execute masks received");
               for (const auto& arg : args) {
-                logger->info("Argument: {}", arg);
+                KLOG->info("Argument: {}", arg);
+                std::string execute_status = m_request_handler(std::stoi(arg));
               }
             }
           }
@@ -169,14 +170,14 @@ class KServer : public SocketListener {
                       execute_response.size());
         }
       }
-        sendMessage(client_socket_fd, return_message.c_str(),
-                    return_message.size());
-        memset(raw_buffer, 0, MAX_BUFFER_SIZE);
-      }
+      sendMessage(client_socket_fd, return_message.c_str(),
+                  return_message.size());
+      memset(raw_buffer, 0, MAX_BUFFER_SIZE);
     }
+  }
 
-   private:
-    RequestHandler m_request_handler;
-  };
-};      // namespace
+ private:
+  Request::RequestHandler m_request_handler;
+};
+};      // namespace KServer
 #endif  // __KSERVER_HPP__
