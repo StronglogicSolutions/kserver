@@ -15,15 +15,20 @@ class ProcessManager {
   virtual void notifyProcessEvent(std::string status) = 0;
 };
 
-/** Impl */
-    std::string run_(std::string_view path) {
-      std::vector<std::string> v_args{};
-      v_args.push_back(std::string(path));
-      v_args.push_back(std::string("--test"));
-      /* qx wraps calls to fork() and exec() */
-      return std::string(qx(v_args));
-    }
+const char* findWorkDir(std::string_view path) {
+  return path.substr(0, path.find_last_of("/")).data();
+}
 
+/** Impl */
+std::string run_(std::string_view path) {
+  std::vector<std::string> v_args{};
+  v_args.push_back(std::string(path));
+
+  std::string work_dir{findWorkDir(path)};
+
+  /* qx wraps calls to fork() and exec() */
+  return std::string(qx(v_args, work_dir));
+}
 /** Process Executor - implements Manager interface */
 class ProcessExecutor : public ProcessManager {
  public:
@@ -41,8 +46,7 @@ class ProcessExecutor : public ProcessManager {
 
     /** Uses async and future to call implementation*/
     std::string run() {
-      std::future<std::string> result_future =
-          std::async(&run_, m_path);
+      std::future<std::string> result_future = std::async(&run_, m_path);
       std::string result = result_future.get();
       return result;
     }

@@ -1,10 +1,14 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <iostream>
 #include <string>
 #include <vector>
 
-std::string qx(const std::vector<std::string>& args) {
+namespace {
+
+std::string qx(const std::vector<std::string>& args,
+               const std::string& working_directory = "") {
   int stdout_fds[2];
   pipe(stdout_fds);
 
@@ -12,11 +16,14 @@ std::string qx(const std::vector<std::string>& args) {
   pipe(stderr_fds);
 
   const pid_t pid = fork();
+  std::cout << pid << std::endl;
   if (!pid) {
+    if (!working_directory.empty()) {
+      chdir(working_directory.c_str());
+    }
     close(stdout_fds[0]);
     dup2(stdout_fds[1], 1);
     close(stdout_fds[1]);
-
     close(stderr_fds[0]);
     dup2(stderr_fds[1], 2);
     close(stderr_fds[1]);
@@ -43,6 +50,7 @@ std::string qx(const std::vector<std::string>& args) {
   } while (errno == EAGAIN || errno == EINTR);
 
   close(stdout_fds[0]);
+  close(stdout_fds[1]);
 
   close(stderr_fds[1]);
   close(stderr_fds[0]);
@@ -54,4 +62,4 @@ std::string qx(const std::vector<std::string>& args) {
 
   return out;
 }
-
+}

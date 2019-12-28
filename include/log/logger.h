@@ -8,6 +8,7 @@
 #include <iostream>
 #include <memory>
 
+namespace {
 typedef std::shared_ptr<spdlog::logger> log_ptr;
 class KLogger;
 
@@ -40,6 +41,6 @@ class KLogger {
 
   log_ptr static get_logger() { return g_logger; }
 };
-
+}
 #endif  // __LOGGER_H__
 

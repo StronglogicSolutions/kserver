@@ -161,6 +161,34 @@ std::string createMessage(const char* data,
   return s.GetString();
 }
 
+std::string createMessage(const char* data,
+                          std::map<int, std::vector<std::string>> map = {}) {
+  StringBuffer s;
+  Writer<StringBuffer> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("custom");
+  w.Key("message");
+  w.String(data);
+  w.Key("args");
+  w.StartObject();
+  if (!map.empty()) {
+    for (const auto& [k, v] : map) {
+      w.Key(std::to_string(k).c_str());
+      if (!v.empty()) {
+        w.StartArray();
+        for (const auto& arg : v) {
+          w.String(arg.c_str());
+        }
+        w.EndArray();
+      }
+    }
+  }
+  w.EndObject();
+  w.EndObject();
+  return s.GetString();
+}
+
 std::string rapidCreateMessage(const char* data,
                                std::map<int, std::string> map = {}) {
   StringBuffer s;
