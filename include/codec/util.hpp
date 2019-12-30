@@ -3,6 +3,7 @@
 
 #include <codec/uuid.h>
 
+#include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,7 +19,9 @@
 
 using namespace rapidjson;
 using namespace uuids;
-using namespace uuids;
+
+static const int MAX_PACKET_SIZE = 4096;
+static const int HEADER_SIZE = 4;
 
 typedef std::string KOperation;
 typedef std::map<int, std::string> CommandMap;
@@ -82,6 +85,10 @@ bool isOperation(const char* data) {
 
 bool isExecuteOperation(const char* data) {
   return strcmp(data, "Execute") == 0;
+}
+
+bool isFileUploadOperation(const char* data) {
+  return strcmp(data, "FileUpload") == 0;
 }
 
 std::string getOperation(const char* data) {
@@ -212,15 +219,11 @@ std::string rapidCreateMessage(const char* data,
 }
 
 bool isStartOperation(const char* data) {
-  Document d;
-  d.Parse(data);
-  return strcmp(d["command"].GetString(), "start") == 0;
+  return strcmp(data, "start") == 0;
 }
 
 bool isStopOperation(const char* data) {
-  Document d;
-  d.Parse(data);
-  return strcmp(d["command"].GetString(), "stop") == 0;
+  return strcmp(data, "stop") == 0;
 }
 
 bool isNewSession(const char* data) {
@@ -242,6 +245,34 @@ inline size_t findNullIndex(uint8_t* data) {
     data++;
   }
   return index;
+}
+
+void test() {
+  char pixels[5];
+  std::ofstream output("output.bmp",
+                       std::ios::binary | std::ios::out | std::ios::app);
+  for (size_t i = 0; i < 5; i++) {
+    output.write((char*)&pixels[i], 1);
+  }
+  output.close();
+}
+void loadAndPrintFile(std::string_view file_path) {
+  /* std::string filename = ""; */
+  /* // prepare a file to read */
+  /* double d = 3.14; */
+  /* std::ofstream(filename,
+   * std::ios::binary).write(reinterpret_cast<char*>(&d), sizeof d) */
+  /*    << 123 << "abc"; */
+  // open file for reading
+  std::ifstream ifs("./disgusted_girl.jpg", std::ios::binary);
+  std::ifstream::pos_type pos = ifs.tellg();
+  std::vector<char> result(pos);
+  ifs.seekg(0, std::ios::beg);
+  ifs.read(&result[0], pos);
+
+  for (const auto& c : result) {
+    std::cout << c;
+  }
 }
 
 #endif  // __UTIL_HPP__
