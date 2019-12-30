@@ -81,6 +81,7 @@ class ProcessExecutor : public ProcessManager {
         status_report += process_std_out;
         notifyProcessEvent(status_report);
       }
+      delete pd_ptr;
     }
   }
 
