@@ -2,11 +2,13 @@
 #define __UTIL_HPP__
 
 #include <codec/uuid.h>
+#include <bitset>
 
 #include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
+#include <codec/kmessage_generated.h>
 
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
@@ -19,6 +21,7 @@
 
 using namespace rapidjson;
 using namespace uuids;
+using namespace KData;
 
 static const int MAX_PACKET_SIZE = 4096;
 static const int HEADER_SIZE = 4;
@@ -27,12 +30,17 @@ typedef std::string KOperation;
 typedef std::map<int, std::string> CommandMap;
 typedef std::vector<std::pair<std::string, std::string>> TupVec;
 typedef std::vector<std::map<int, std::string>> MapVec;
-
+typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
+typedef std::map<int, std::string> ServerData;
 struct KSession {
   int fd;
   int status;
   uuid id;
 };
+
+/**
+ * JSON Tools
+ */
 
 std::string getJsonString(std::string s) {
   Document d;
@@ -75,20 +83,6 @@ std::string createOperation(const char* op, std::vector<std::string> args) {
   w.EndArray();
   w.EndObject();
   return s.GetString();
-}
-
-bool isOperation(const char* data) {
-  Document d;
-  d.Parse(data);
-  return strcmp(d["type"].GetString(), "operation") == 0;
-}
-
-bool isExecuteOperation(const char* data) {
-  return strcmp(data, "Execute") == 0;
-}
-
-bool isFileUploadOperation(const char* data) {
-  return strcmp(data, "FileUpload") == 0;
 }
 
 std::string getOperation(const char* data) {
@@ -196,26 +190,22 @@ std::string createMessage(const char* data,
   return s.GetString();
 }
 
-std::string rapidCreateMessage(const char* data,
-                               std::map<int, std::string> map = {}) {
-  StringBuffer s;
-  Writer<StringBuffer> w(s);
-  w.StartObject();
-  w.Key("type");
-  w.String("custom");
-  w.Key("message");
-  w.String(data);
-  w.Key("args");
-  w.StartObject();
-  if (!map.empty()) {
-    for (const auto& [k, v] : map) {
-      w.Key(std::to_string(k).c_str());
-      w.String(v.c_str());
-    }
-  }
-  w.EndObject();
-  w.EndObject();
-  return s.GetString();
+/**
+ * Operations
+ */
+
+bool isOperation(const char* data) {
+  Document d;
+  d.Parse(data);
+  return strcmp(d["type"].GetString(), "operation") == 0;
+}
+
+bool isExecuteOperation(const char* data) {
+  return strcmp(data, "Execute") == 0;
+}
+
+bool isFileUploadOperation(const char* data) {
+  return strcmp(data, "FileUpload") == 0;
 }
 
 bool isStartOperation(const char* data) {
@@ -226,6 +216,34 @@ bool isStopOperation(const char* data) {
   return strcmp(data, "stop") == 0;
 }
 
+/**
+ * General
+ */
+
+std::string getDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
+    // Make sure not an empty buffer
+    // Obtain the raw buffer so we can read the header
+    uint8_t* raw_buffer = s_buffer_ptr.get();
+    auto val1 = *raw_buffer;
+    auto val2 = *(raw_buffer + 1);
+    auto val3 = *(raw_buffer + 2);
+    auto val4 = *(raw_buffer + 3);
+
+    uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
+                                  *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
+    // TODO: Copying into a new buffer for readability - switch to using the
+    // original buffer
+    uint8_t decode_buffer[message_byte_size];
+    std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
+    // Parse the bytes into an encoded message structure
+    auto k_message = GetMessage(&decode_buffer);
+    auto id = k_message->id();  // message ID
+    // Get the message bytes and create a string
+    const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
+    std::string decoded_message{message_bytes->begin(), message_bytes->end()};
+    return decoded_message;
+}
+
 bool isNewSession(const char* data) {
   Document d;
   d.Parse(data);
@@ -234,6 +252,31 @@ bool isNewSession(const char* data) {
   }
   return false;
 }
+
+namespace FileUtils {
+void test() {
+  char pixels[5];
+  std::ofstream output("output.bmp",
+                       std::ios::binary | std::ios::out | std::ios::app);
+  for (size_t i = 0; i < 5; i++) {
+    output.write((char*)&pixels[i], 1);
+  }
+  output.close();
+}
+void loadAndPrintFile(std::string_view file_path) {
+  std::ifstream ifs("./disgusted_girl.jpg", std::ios::binary);
+  std::ifstream::pos_type pos = ifs.tellg();
+  std::vector<char> result(pos);
+  ifs.seekg(0, std::ios::beg);
+  ifs.read(&result[0], pos);
+
+  for (const auto& c : result) {
+    std::cout << c;
+  }
+}
+}
+
+// Bit helpers
 
 inline size_t findNullIndex(uint8_t* data) {
   size_t index = 0;
@@ -247,32 +290,28 @@ inline size_t findNullIndex(uint8_t* data) {
   return index;
 }
 
-void test() {
-  char pixels[5];
-  std::ofstream output("output.bmp",
-                       std::ios::binary | std::ios::out | std::ios::app);
-  for (size_t i = 0; i < 5; i++) {
-    output.write((char*)&pixels[i], 1);
-  }
-  output.close();
+template <typename T>
+static std::string toBinaryString(const T& x) {
+  std::stringstream ss;
+  ss << std::bitset<sizeof(T) * 8>(x);
+  return ss.str();
 }
-void loadAndPrintFile(std::string_view file_path) {
-  /* std::string filename = ""; */
-  /* // prepare a file to read */
-  /* double d = 3.14; */
-  /* std::ofstream(filename,
-   * std::ios::binary).write(reinterpret_cast<char*>(&d), sizeof d) */
-  /*    << 123 << "abc"; */
-  // open file for reading
-  std::ifstream ifs("./disgusted_girl.jpg", std::ios::binary);
-  std::ifstream::pos_type pos = ifs.tellg();
-  std::vector<char> result(pos);
-  ifs.seekg(0, std::ios::beg);
-  ifs.read(&result[0], pos);
 
-  for (const auto& c : result) {
-    std::cout << c;
+bool hasNthBitSet(int value, int n) {
+  auto result = value & (1 << (n - 1));
+  if (result) {
+    return true;
   }
+  return false;
+}
+
+// aka isNumber
+bool isdigits(const std::string& s) {
+  for (char c : s)
+    if (!isdigit(c)) {
+      return false;
+    }
+  return true;
 }
 
 #endif  // __UTIL_HPP__
