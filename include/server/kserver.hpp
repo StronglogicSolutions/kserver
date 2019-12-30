@@ -18,21 +18,28 @@
 
 class Decoder {
  public:
-  Decoder(std::string_view name, int fd, std::function<void(int)> callback)
+  Decoder(int fd, std::string name, std::function<void(int)> system_callback, std::function<void(uint8_t*, int, std::string)> file_callback)
       : index(0),
+        file_buffer(nullptr),
         total_packets(0),
         packet_offset(0),
         buffer_offset(0),
         file_size(0),
-        file_name(name),
+        filename(name),
         m_fd(fd),
-        m_cb(callback) {}
+        m_cb(system_callback),
+        m_file_cb(file_callback) {}
+
+        ~Decoder() {
+          delete[] file_buffer;
+          file_buffer = nullptr;
+        }
 
   void processPacket(uint8_t* data) {
     bool is_first_packet = (index == 0);
 
     if (is_first_packet) {
-      file_size = int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]);
+      file_size = int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) - HEADER_SIZE;
       total_packets = static_cast<uint32_t>(
           ceil(static_cast<double>(file_size + HEADER_SIZE) / MAX_PACKET_SIZE));
       file_buffer = new uint8_t[total_packets * MAX_PACKET_SIZE];
@@ -48,17 +55,20 @@ class Decoder {
       }
       index++;
       return;
-    }
-    bool is_last_packet = (index == (total_packets - 1));
-    buffer_offset = (index * MAX_PACKET_SIZE) - HEADER_SIZE;
-    if (!is_last_packet) {
-      std::memcpy(file_buffer + buffer_offset, data, MAX_PACKET_SIZE);
     } else {
-      uint32_t last_packet_size = file_size - buffer_offset;
-      // handle file cleanup
-      std::memcpy(file_buffer + buffer_offset, data, last_packet_size);
-      // save or return ptr to data
-      m_cb(m_fd);
+      buffer_offset = (index * MAX_PACKET_SIZE) - HEADER_SIZE;
+      bool is_last_packet = (index == (total_packets - 1));
+      if (!is_last_packet) {
+        std::memcpy(file_buffer + buffer_offset, data, MAX_PACKET_SIZE);
+      } else {
+        uint32_t last_packet_size = file_size - buffer_offset - HEADER_SIZE;
+        // handle file cleanup
+        std::memcpy(file_buffer + buffer_offset, data, last_packet_size);
+        // save or return ptr to data
+        m_file_cb(file_buffer, file_size, filename);
+        m_cb(m_fd);
+      }
+      index++;
     }
   }
 
@@ -69,19 +79,25 @@ class Decoder {
   uint32_t packet_offset;
   uint32_t buffer_offset;
   uint32_t file_size;
+  std::string filename;
   int m_fd;
-  std::string_view file_name;
   std::function<void(int)> m_cb;
+  std::function<void(uint8_t* data, int size, std::string)> m_file_cb;
 };
 
 class FileHandler {
  public:
-  FileHandler(int client_fd, std::string_view name, uint8_t* first_packet,
+  FileHandler(int client_fd, std::string name, uint8_t* first_packet,
               std::function<void(int)> callback)
       : socket_fd(client_fd) {
-    m_decoder = new Decoder(name, client_fd, callback);
+    m_decoder = new Decoder(client_fd, name, callback, [this](uint8_t* data, int size, std::string filename) {
+      if (size > 0) {
+            FileUtils::saveFile(data, size, filename);
+          }
+    });
     m_decoder->processPacket(first_packet);
   }
+
   void processPacket(uint8_t* data) { m_decoder->processPacket(data); }
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
 
@@ -122,6 +138,9 @@ class KServer : public SocketListener {
       KLOG->info("Finished handling file for client {}", socket_fd);
       file_pending_fd = -1;
       file_pending = false;
+      m_file_handlers.erase(std::find_if(m_file_handlers.begin(), m_file_handlers.end(), [socket_fd](FileHandler& handler) {
+        return handler.isHandlingSocket(socket_fd);
+      }));
     }
   }
 
@@ -138,8 +157,9 @@ class KServer : public SocketListener {
     if (handler != m_file_handlers.end()) {
       handler->processPacket(s_buffer_ptr.get());
     } else {
+      std::string filename{"kyo.png"};
       FileHandler new_handler{
-          client_socket_fd, "Placeholder filename", s_buffer_ptr.get(),
+          client_socket_fd, filename, s_buffer_ptr.get(),
           std::bind(&KYO::KServer::onFileHandled, this, client_socket_fd)};
       m_file_handlers.push_back(new_handler);
     }
@@ -212,6 +232,7 @@ class KServer : public SocketListener {
             "Stop operation. Shutting down client and closing connection");
         shutdown(client_socket_fd, SHUT_RDWR);
         close(client_socket_fd);
+        onFileHandled(client_socket_fd);
         return;
       } else if (isExecuteOperation(op.c_str())) {  // Process execution request
         KLOG->info("Execute operation");

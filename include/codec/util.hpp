@@ -3,7 +3,7 @@
 
 #include <codec/uuid.h>
 #include <bitset>
-
+#include <iterator>
 #include <fstream>
 #include <string>
 #include <utility>
@@ -254,6 +254,26 @@ bool isNewSession(const char* data) {
 }
 
 namespace FileUtils {
+void saveFile(std::vector<char> bytes, const char* filename) {
+  std::ofstream output(filename,
+                       std::ios::binary | std::ios::out | std::ios::app);
+  char* raw_data = bytes.data();
+  for (size_t i = 0; i < bytes.size(); i++) {
+    output.write(const_cast<const char*>(&raw_data[i]), 1);
+  }
+  output.close();
+}
+
+void saveFile(uint8_t* bytes, int size, std::string filename) {
+  std::ofstream output(filename.c_str(),
+                       std::ios::binary | std::ios::out | std::ios::app);
+
+  for (int i = 0; i < size; i++) {
+    output.write((const char*)(&bytes[i]), 1);
+  }
+  output.close();
+}
+
 void test() {
   char pixels[5];
   std::ofstream output("output.bmp",
