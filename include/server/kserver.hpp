@@ -4,6 +4,7 @@
 #include <codec/uuid.h>
 #include <log/logger.h>
 #include <math.h>
+#include <utility>
 
 #include <algorithm>
 #include <codec/util.hpp>
@@ -30,10 +31,12 @@ class Decoder {
         m_cb(system_callback),
         m_file_cb(file_callback) {}
 
-        ~Decoder() {
-          delete[] file_buffer;
-          file_buffer = nullptr;
-        }
+  ~Decoder() {
+    if (file_buffer != nullptr) {
+      delete[] file_buffer;
+      file_buffer = nullptr;
+    }
+  }
 
   void processPacket(uint8_t* data) {
     bool is_first_packet = (index == 0);
@@ -98,6 +101,21 @@ class FileHandler {
     m_decoder->processPacket(first_packet);
   }
 
+   FileHandler(FileHandler&& f) : m_decoder(f.m_decoder), socket_fd(f.socket_fd) {
+     std::cout << "Move CONSTRUCTOR\n";
+     f.m_decoder = nullptr;
+    }
+
+    FileHandler(FileHandler& f) : m_decoder(f.m_decoder) {
+     std::cout << "COPY CONSTRUCTOR\n";
+     f.m_decoder = nullptr;
+
+    }
+
+  ~FileHandler() {
+    std::cout << "FileHandler DESTRUCTOR" << std::endl;
+    delete m_decoder;
+  }
   void processPacket(uint8_t* data) { m_decoder->processPacket(data); }
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
 
@@ -121,7 +139,7 @@ class KServer : public SocketListener {
       : SocketListener(argc, argv), file_pending(false), file_pending_fd(-1) {
     KLOG->info("KServer initialized");
   }
-  ~KServer() {}
+  ~KServer() { m_file_handlers.clear(); }
 
   /**
    * Request Handler
@@ -138,9 +156,6 @@ class KServer : public SocketListener {
       KLOG->info("Finished handling file for client {}", socket_fd);
       file_pending_fd = -1;
       file_pending = false;
-      m_file_handlers.erase(std::find_if(m_file_handlers.begin(), m_file_handlers.end(), [socket_fd](FileHandler& handler) {
-        return handler.isHandlingSocket(socket_fd);
-      }));
     }
   }
 
@@ -158,10 +173,9 @@ class KServer : public SocketListener {
       handler->processPacket(s_buffer_ptr.get());
     } else {
       std::string filename{"kyo.png"};
-      FileHandler new_handler{
-          client_socket_fd, filename, s_buffer_ptr.get(),
-          std::bind(&KYO::KServer::onFileHandled, this, client_socket_fd)};
-      m_file_handlers.push_back(new_handler);
+      FileHandler file_handler{ client_socket_fd, filename, s_buffer_ptr.get(),
+std::bind(&KYO::KServer::onFileHandled, this, client_socket_fd)};
+      m_file_handlers.push_back(std::forward<FileHandler>(file_handler));
     }
     return;
   }
@@ -232,7 +246,6 @@ class KServer : public SocketListener {
             "Stop operation. Shutting down client and closing connection");
         shutdown(client_socket_fd, SHUT_RDWR);
         close(client_socket_fd);
-        onFileHandled(client_socket_fd);
         return;
       } else if (isExecuteOperation(op.c_str())) {  // Process execution request
         KLOG->info("Execute operation");
