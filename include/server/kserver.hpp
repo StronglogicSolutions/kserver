@@ -98,16 +98,25 @@ auto KLOG = k_logger_ptr -> get_logger();
 
 class KServer : public SocketListener {
  public:
+ /**
+  * Constructor
+  */
   KServer(int argc, char** argv)
       : SocketListener(argc, argv), file_pending(false), file_pending_fd(-1) {
     KLOG->info("KServer initialized");
   }
   ~KServer() {}
 
+  /**
+   * Request Handler
+   */
   void set_handler(const Request::RequestHandler&& handler) {
     m_request_handler = handler;
   }
 
+  /**
+   * File Transfer Completion
+   */
   void onFileHandled(int socket_fd) {
     if (file_pending_fd == socket_fd) {
       KLOG->info("Finished handling file for client {}", socket_fd);
@@ -117,7 +126,7 @@ class KServer : public SocketListener {
   }
 
 /**
- *
+ * Ongoing File Transfer
  */
   void handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
                          int client_socket_fd) {
@@ -137,6 +146,9 @@ class KServer : public SocketListener {
     return;
   }
 
+/**
+ * Start Operation
+ */
   void handleStart(std::string decoded_message, int client_socket_fd) {
     // Session
     uuids::uuid const new_uuid = uuids::uuid_system_generator{}();
@@ -158,6 +170,9 @@ class KServer : public SocketListener {
                 session_message.size());
   }
 
+/**
+ * Execute Operation
+ */
   void handleExecute(std::string decoded_message, int client_socket_fd) {
     std::vector<std::string> args = getArgs(decoded_message.c_str());
     if (!args.empty()) {
@@ -172,6 +187,9 @@ class KServer : public SocketListener {
                 execute_response.size());
   }
 
+/**
+ * File Upload Operation
+ */
   void handleFileUploadRequest(int client_socket_fd) {
     file_pending = true;
     file_pending_fd = client_socket_fd;
@@ -180,6 +198,9 @@ class KServer : public SocketListener {
                 file_ready_message.size());
   }
 
+/**
+ * Operations are the processing of requests
+ */
   void handleOperation(std::string decoded_message, int client_socket_fd) {
     KOperation op = getOperation(decoded_message.c_str());
     if (isStartOperation(op.c_str())) {  // Start
@@ -203,6 +224,9 @@ class KServer : public SocketListener {
       }
   }
 
+/**
+ * Override
+ */
   virtual void onMessageReceived(
       int client_socket_fd, std::weak_ptr<uint8_t[]> w_buffer_ptr) override {
     // Get ptr to data
