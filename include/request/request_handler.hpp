@@ -4,6 +4,7 @@
 #include <codec/kmessage_generated.h>
 #include <database/DatabaseConnection.h>
 #include <log/logger.h>
+
 #include <codec/util.hpp>
 #include <config/config_parser.hpp>
 #include <executor/executor.hpp>
@@ -12,15 +13,12 @@
 #include <utility>
 #include <vector>
 
-
 namespace Request {
 using namespace KData;
 
 flatbuffers::FlatBufferBuilder builder(1024);
 
-
-auto KLOG = KLogger::GetInstance()->get_logger();
-
+auto KLOG = KLogger::GetInstance() -> get_logger();
 
 // Callback
 std::function<std::string(std::string)> onProcessComplete(
@@ -48,6 +46,12 @@ class RequestHandler {
     m_connection.setConfig(configuration);
     m_executor = new ProcessExecutor();
     m_executor->setEventCallback(onProcessComplete);
+  }
+
+  ~RequestHandler() {
+    if (m_executor != nullptr) {
+      delete m_executor;
+    }
   }
 
   std::map<int, std::string> operator()(KOperation op) {
@@ -135,5 +139,5 @@ class RequestHandler {
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;
 };
-} // namespace Request
+}  // namespace Request
 #endif  // __REQUEST_HANDLER_HPP__
