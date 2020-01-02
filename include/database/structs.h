@@ -9,6 +9,7 @@
 enum QueryType { INSERT = 0, DELETE = 1, UPDATE = 2, SELECT = 3 };
 
 typedef std::vector<std::pair<std::string, std::string>> TupVec;
+typedef std::vector<std::string_view> Fields;
 
 struct DatabaseCredentials {
   std::string user;
@@ -23,7 +24,8 @@ struct DatabaseConfiguration {
 };
 
 typedef std::vector<std::pair<std::string, std::string>> QueryFilter;
-
+typedef std::vector<std::string> Values;
+typedef std::vector<std::pair<std::string, std::string>> QueryValues;
 struct DatabaseQuery {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
