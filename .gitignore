@@ -2,3 +2,7 @@ kserver
 config
 tags
 .vscode
+**.out
+**/CMakeFiles
+**/CMakeCache.txt
+**/Makefile
