@@ -4,7 +4,6 @@
 #include <codec/uuid.h>
 #include <log/logger.h>
 #include <math.h>
-#include <utility>
 
 #include <algorithm>
 #include <codec/util.hpp>
@@ -16,10 +15,12 @@
 #include <string>
 #include <string_view>
 #include <types/types.hpp>
+#include <utility>
 
 class Decoder {
  public:
-  Decoder(int fd, std::string name, std::function<void(int)> system_callback, std::function<void(uint8_t*, int, std::string)> file_callback)
+  Decoder(int fd, std::string name, std::function<void(int)> system_callback,
+          std::function<void(uint8_t*, int, std::string)> file_callback)
       : index(0),
         file_buffer(nullptr),
         total_packets(0),
@@ -42,7 +43,8 @@ class Decoder {
     bool is_first_packet = (index == 0);
 
     if (is_first_packet) {
-      file_size = int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) - HEADER_SIZE;
+      file_size = int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
+                  HEADER_SIZE;
       total_packets = static_cast<uint32_t>(
           ceil(static_cast<double>(file_size + HEADER_SIZE) / MAX_PACKET_SIZE));
       file_buffer = new uint8_t[total_packets * MAX_PACKET_SIZE];
@@ -93,24 +95,26 @@ class FileHandler {
   FileHandler(int client_fd, std::string name, uint8_t* first_packet,
               std::function<void(int)> callback)
       : socket_fd(client_fd) {
-    m_decoder = new Decoder(client_fd, name, callback, [this](uint8_t* data, int size, std::string filename) {
-      if (size > 0) {
-            FileUtils::saveFile(data, size, filename);
-          }
-    });
+    m_decoder =
+        new Decoder(client_fd, name, callback,
+                    [this](uint8_t* data, int size, std::string filename) {
+                      if (size > 0) {
+                        FileUtils::saveFile(data, size, filename);
+                      }
+                    });
     m_decoder->processPacket(first_packet);
   }
 
-   FileHandler(FileHandler&& f) : m_decoder(f.m_decoder), socket_fd(f.socket_fd) {
-     std::cout << "Move CONSTRUCTOR\n";
-     f.m_decoder = nullptr;
-    }
+  FileHandler(FileHandler&& f)
+      : m_decoder(f.m_decoder), socket_fd(f.socket_fd) {
+    std::cout << "Move CONSTRUCTOR\n";
+    f.m_decoder = nullptr;
+  }
 
-    FileHandler(FileHandler& f) : m_decoder(f.m_decoder) {
-     std::cout << "COPY CONSTRUCTOR\n";
-     f.m_decoder = nullptr;
-
-    }
+  FileHandler(FileHandler& f) : m_decoder(f.m_decoder), socket_fd(f.socket_fd) {
+    std::cout << "COPY CONSTRUCTOR\n";
+    f.m_decoder = nullptr;
+  }
 
   ~FileHandler() {
     std::cout << "FileHandler DESTRUCTOR" << std::endl;
@@ -132,9 +136,9 @@ auto KLOG = k_logger_ptr -> get_logger();
 
 class KServer : public SocketListener {
  public:
- /**
-  * Constructor
-  */
+  /**
+   * Constructor
+   */
   KServer(int argc, char** argv)
       : SocketListener(argc, argv), file_pending(false), file_pending_fd(-1) {
     KLOG->info("KServer initialized");
@@ -159,9 +163,9 @@ class KServer : public SocketListener {
     }
   }
 
-/**
- * Ongoing File Transfer
- */
+  /**
+   * Ongoing File Transfer
+   */
   void handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
                          int client_socket_fd) {
     auto handler =
@@ -172,41 +176,40 @@ class KServer : public SocketListener {
     if (handler != m_file_handlers.end()) {
       handler->processPacket(s_buffer_ptr.get());
     } else {
-      std::string filename{"kyo.png"};
-      FileHandler file_handler{ client_socket_fd, filename, s_buffer_ptr.get(),
-std::bind(&KYO::KServer::onFileHandled, this, client_socket_fd)};
+      std::string filename{"kyo.mp4"};
+      FileHandler file_handler{
+          client_socket_fd, filename, s_buffer_ptr.get(),
+          std::bind(&KYO::KServer::onFileHandled, this, client_socket_fd)};
       m_file_handlers.push_back(std::forward<FileHandler>(file_handler));
     }
     return;
   }
 
-/**
- * Start Operation
- */
+  /**
+   * Start Operation
+   */
   void handleStart(std::string decoded_message, int client_socket_fd) {
     // Session
     uuids::uuid const new_uuid = uuids::uuid_system_generator{}();
-    m_sessions.push_back(KSession{
-      .fd = client_socket_fd, .status = 1, .id = new_uuid
-    });
+    m_sessions.push_back(
+        KSession{.fd = client_socket_fd, .status = 1, .id = new_uuid});
     // Database fetch
     ServerData server_data = m_request_handler("Start");
     // Send welcome
     std::string start_message = createMessage("New Session", server_data);
     sendMessage(client_socket_fd, start_message.c_str(), start_message.size());
     // Send session info
-    SessionInfo session_info{
-        {"status", std::to_string(1)},
-        {"uuid", uuids::to_string(new_uuid)}};
+    SessionInfo session_info{{"status", std::to_string(1)},
+                             {"uuid", uuids::to_string(new_uuid)}};
     std::string session_message = createMessage("Session Info", session_info);
     KLOG->info("Sending message: {}", session_message);
     sendMessage(client_socket_fd, session_message.c_str(),
                 session_message.size());
   }
 
-/**
- * Execute Operation
- */
+  /**
+   * Execute Operation
+   */
   void handleExecute(std::string decoded_message, int client_socket_fd) {
     std::vector<std::string> args = getArgs(decoded_message.c_str());
     if (!args.empty()) {
@@ -221,9 +224,9 @@ std::bind(&KYO::KServer::onFileHandled, this, client_socket_fd)};
                 execute_response.size());
   }
 
-/**
- * File Upload Operation
- */
+  /**
+   * File Upload Operation
+   */
   void handleFileUploadRequest(int client_socket_fd) {
     file_pending = true;
     file_pending_fd = client_socket_fd;
@@ -232,35 +235,34 @@ std::bind(&KYO::KServer::onFileHandled, this, client_socket_fd)};
                 file_ready_message.size());
   }
 
-/**
- * Operations are the processing of requests
- */
+  /**
+   * Operations are the processing of requests
+   */
   void handleOperation(std::string decoded_message, int client_socket_fd) {
     KOperation op = getOperation(decoded_message.c_str());
     if (isStartOperation(op.c_str())) {  // Start
-        KLOG->info("Start operation");
-        handleStart(decoded_message, client_socket_fd);
-        return;
-      } else if (isStopOperation(op.c_str())) {  // Stop
-        KLOG->info(
-            "Stop operation. Shutting down client and closing connection");
-        shutdown(client_socket_fd, SHUT_RDWR);
-        close(client_socket_fd);
-        return;
-      } else if (isExecuteOperation(op.c_str())) {  // Process execution request
-        KLOG->info("Execute operation");
-        handleExecute(decoded_message, client_socket_fd);
-        return;
-      } else if (isFileUploadOperation(op.c_str())) {  // File upload request
-        KLOG->info("File upload operation");
-        handleFileUploadRequest(client_socket_fd);
-        return;
-      }
+      KLOG->info("Start operation");
+      handleStart(decoded_message, client_socket_fd);
+      return;
+    } else if (isStopOperation(op.c_str())) {  // Stop
+      KLOG->info("Stop operation. Shutting down client and closing connection");
+      shutdown(client_socket_fd, SHUT_RDWR);
+      close(client_socket_fd);
+      return;
+    } else if (isExecuteOperation(op.c_str())) {  // Process execution request
+      KLOG->info("Execute operation");
+      handleExecute(decoded_message, client_socket_fd);
+      return;
+    } else if (isFileUploadOperation(op.c_str())) {  // File upload request
+      KLOG->info("File upload operation");
+      handleFileUploadRequest(client_socket_fd);
+      return;
+    }
   }
 
-/**
- * Override
- */
+  /**
+   * Override
+   */
   virtual void onMessageReceived(
       int client_socket_fd, std::weak_ptr<uint8_t[]> w_buffer_ptr) override {
     // Get ptr to data
