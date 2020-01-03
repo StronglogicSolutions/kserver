@@ -56,6 +56,8 @@ class Decoder {
                   first_packet_size);
       if (index == (total_packets - 1)) {
         // handle file, cleanup, return
+        m_file_cb(file_buffer, file_size, filename);
+        m_cb(m_fd);
         return;
       }
       index++;
@@ -107,19 +109,31 @@ class FileHandler {
 
   FileHandler(FileHandler&& f)
       : m_decoder(f.m_decoder), socket_fd(f.socket_fd) {
-    std::cout << "Move CONSTRUCTOR\n";
     f.m_decoder = nullptr;
   }
 
-  FileHandler(FileHandler& f) : m_decoder(f.m_decoder), socket_fd(f.socket_fd) {
-    std::cout << "COPY CONSTRUCTOR\n";
-    f.m_decoder = nullptr;
+  FileHandler(const FileHandler& f)
+      : m_decoder(new Decoder{*(f.m_decoder)}), socket_fd(f.socket_fd) {}
+
+  FileHandler& operator=(const FileHandler& f) {
+    if (&f != this) {
+      delete m_decoder;
+      m_decoder = nullptr;
+      m_decoder = new Decoder{*(f.m_decoder)};
+    }
+    return *this;
   }
 
-  ~FileHandler() {
-    std::cout << "FileHandler DESTRUCTOR" << std::endl;
-    delete m_decoder;
+  FileHandler& operator=(FileHandler&& f) {
+    if (&f != this) {
+      delete m_decoder;
+      m_decoder = f.m_decoder;
+      f.m_decoder = nullptr;
+    }
+    return *this;
   }
+
+  ~FileHandler() { delete m_decoder; }
   void processPacket(uint8_t* data) { m_decoder->processPacket(data); }
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
 
@@ -143,13 +157,18 @@ class KServer : public SocketListener {
       : SocketListener(argc, argv), file_pending(false), file_pending_fd(-1) {
     KLOG->info("KServer initialized");
   }
-  ~KServer() { m_file_handlers.clear(); }
+  ~KServer() {
+    KLOG->info("Server shuttingdown");
+    m_file_handlers.clear();
+  }
 
   /**
    * Request Handler
    */
   void set_handler(const Request::RequestHandler&& handler) {
+    KLOG->info("Setting RequestHandler");
     m_request_handler = handler;
+    m_request_handler.initialize();
   }
 
   /**

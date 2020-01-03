@@ -29,7 +29,7 @@ std::function<std::string(std::string)> onProcessComplete(
 
 class RequestHandler {
  public:
-  RequestHandler() {
+  RequestHandler() : m_executor(nullptr) {
     if (!ConfigParser::initConfig()) {
       KLOG->info("Unable to load config");
       return;
@@ -44,14 +44,45 @@ class RequestHandler {
 
     m_connection = DatabaseConnection{};
     m_connection.setConfig(configuration);
-    m_executor = new ProcessExecutor();
-    m_executor->setEventCallback(onProcessComplete);
+  }
+
+  RequestHandler(RequestHandler&& r)
+      : m_executor(r.m_executor),
+        m_connection(r.m_connection),
+        m_credentials(r.m_credentials) {
+    r.m_executor = nullptr;
+  }
+
+  RequestHandler(const RequestHandler& r)
+      : m_executor(nullptr), // We do not copy the Executor
+        m_connection(r.m_connection),
+        m_credentials(r.m_credentials) {}
+
+  RequestHandler& operator=(const RequestHandler& handler) {
+    this->m_executor = nullptr;
+    this->m_connection = handler.m_connection;
+    this->m_credentials = handler.m_credentials;
+    return *this;
+  }
+
+  RequestHandler& operator=(RequestHandler&& handler) {
+    if (&handler != this) {
+      delete m_executor;
+      m_executor = handler.m_executor;
+      handler.m_executor = nullptr;
+    }
+    return *this;
   }
 
   ~RequestHandler() {
     if (m_executor != nullptr) {
       delete m_executor;
     }
+  }
+
+  void initialize() {
+    m_executor = new ProcessExecutor();
+    m_executor->setEventCallback(onProcessComplete);
   }
 
   std::map<int, std::string> operator()(KOperation op) {
