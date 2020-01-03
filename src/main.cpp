@@ -6,7 +6,7 @@ using namespace KYO;
 
 int main(int argc, char** argv) {
   KServer server(argc, argv);
-  server.set_handler(Request::RequestHandler{});
+  server.set_handler(std::move(Request::RequestHandler{}));
   if (server.init()) {
     server.run();
   }
