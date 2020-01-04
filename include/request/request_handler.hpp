@@ -20,13 +20,6 @@ flatbuffers::FlatBufferBuilder builder(1024);
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
 
-// Callback
-std::function<std::string(std::string)> onProcessComplete(
-    [](std::string value) {
-      KLOG->info("Value returned from process:\n{}", value);
-      return value;
-    });
-
 class RequestHandler {
  public:
   RequestHandler() : m_executor(nullptr) {
@@ -54,7 +47,7 @@ class RequestHandler {
   }
 
   RequestHandler(const RequestHandler& r)
-      : m_executor(nullptr), // We do not copy the Executor
+      : m_executor(nullptr),  // We do not copy the Executor
         m_connection(r.m_connection),
         m_credentials(r.m_credentials) {}
 
@@ -80,9 +73,13 @@ class RequestHandler {
     }
   }
 
-  void initialize() {
+  void initialize(std::function<void(std::string, int)> event_callback_fn) {
     m_executor = new ProcessExecutor();
-    m_executor->setEventCallback(onProcessComplete);
+    m_executor->setEventCallback(
+        [this](std::string result, int client_socket_fd) {
+          onProcessComplete(result, client_socket_fd);
+        });
+    m_event_callback_fn = event_callback_fn;
   }
 
   std::map<int, std::string> operator()(KOperation op) {
@@ -112,7 +109,7 @@ class RequestHandler {
     return command_map;
   }
 
-  std::string operator()(uint32_t mask) {
+  std::string operator()(uint32_t mask, int client_socket_fd) {
     QueryResult result = m_connection.query(
         DatabaseQuery{.table = "apps",
                       .fields = {"path"},
@@ -123,7 +120,7 @@ class RequestHandler {
 
     for (const auto& row : result.values) {
       KLOG->info("Field: {}, Value: {}", row.first, row.second);
-      m_executor->request(row.second);
+      m_executor->request(row.second, client_socket_fd);
     }
 
     return std::string{"Process hopefully complete"};
@@ -166,6 +163,13 @@ class RequestHandler {
   }
 
  private:
+  // Callback
+  void onProcessComplete(std::string value, int client_socket_fd) {
+    m_event_callback_fn(value, client_socket_fd);
+  }
+
+  std::function<void(std::string, int)> m_event_callback_fn;
+
   ProcessExecutor* m_executor;
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;

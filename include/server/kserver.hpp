@@ -168,7 +168,17 @@ class KServer : public SocketListener {
   void set_handler(const Request::RequestHandler&& handler) {
     KLOG->info("Setting RequestHandler");
     m_request_handler = handler;
-    m_request_handler.initialize();
+    m_request_handler.initialize(
+        [this](std::string result, int client_socket_fd) {
+          onProcessEvent(result, client_socket_fd);
+        });
+  }
+
+  void onProcessEvent(std::string result, int client_socket_fd) {
+    std::string process_executor_result_str =
+        createMessage("Process Result", result);
+    sendMessage(client_socket_fd, process_executor_result_str.c_str(),
+                process_executor_result_str.size());
   }
 
   /**
@@ -235,7 +245,8 @@ class KServer : public SocketListener {
       KLOG->info("Execute masks received");
       for (const auto& arg : args) {
         KLOG->info("Argument: {}", arg);
-        std::string execute_status = m_request_handler(std::stoi(arg));
+        std::string execute_status =
+            m_request_handler(std::stoi(arg), client_socket_fd);
       }
     }
     std::string execute_response = createMessage("We'll get right on that", "");

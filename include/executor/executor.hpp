@@ -6,13 +6,13 @@
 
 #include "execxx.hpp"
 /** Function Types */
-typedef std::function<std::string(std::string)> EventCallback;
+typedef std::function<void(std::string, int)> EventCallback;
 /** Manager Interface */
 class ProcessManager {
  public:
-  virtual void request(std::string_view path) = 0;
+  virtual void request(std::string_view path, int client_id) = 0;
   virtual void setEventCallback(EventCallback callback_function) = 0;
-  virtual void notifyProcessEvent(std::string status) = 0;
+  virtual void notifyProcessEvent(std::string status, int client_id) = 0;
 };
 
 const char* findWorkDir(std::string_view path) {
@@ -66,11 +66,12 @@ class ProcessExecutor : public ProcessManager {
   /** Set the callback */
   virtual void setEventCallback(EventCallback f) override { m_callback = f; }
   /** Callback to be used upon process completion */
-  virtual void notifyProcessEvent(std::string status) override {
-    m_callback(status);
+  virtual void notifyProcessEvent(std::string status,
+                                  int client_socket_fd) override {
+    m_callback(status, client_socket_fd);
   }
   /** Request the running of a process */
-  virtual void request(std::string_view path) override {
+  virtual void request(std::string_view path, int client_socket_fd) override {
     if (path[0] != '\0') {
       ProcessDaemon* pd_ptr = new ProcessDaemon(path);
       auto process_std_out = pd_ptr->run();
@@ -79,7 +80,7 @@ class ProcessExecutor : public ProcessManager {
         status_report += path;
         status_report += "\n";
         status_report += process_std_out;
-        notifyProcessEvent(status_report);
+        notifyProcessEvent(status_report, client_socket_fd);
       }
       delete pd_ptr;
     }
