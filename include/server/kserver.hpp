@@ -169,16 +169,24 @@ class KServer : public SocketListener {
     KLOG->info("Setting RequestHandler");
     m_request_handler = handler;
     m_request_handler.initialize(
-        [this](std::string result, int client_socket_fd) {
-          onProcessEvent(result, client_socket_fd);
+        [this](std::string result, int mask, int client_socket_fd) {
+          onProcessEvent(result, mask, client_socket_fd);
         });
   }
 
-  void onProcessEvent(std::string result, int client_socket_fd) {
+  void onProcessEvent(std::string result, int mask, int client_socket_fd) {
     std::string process_executor_result_str =
-        createMessage("Process Result", result);
-    sendMessage(client_socket_fd, process_executor_result_str.c_str(),
-                process_executor_result_str.size());
+        createEvent("Process Result", mask, result);
+    if (result.size() <= 2046) {
+      sendMessage(client_socket_fd, process_executor_result_str.c_str(),
+                  process_executor_result_str.size());
+    } else {
+      KLOG->info(
+          "KServer::onProcessEvent() - result too big to send in one message");
+      std::string alt_result = createEvent(
+          "Process Result", mask, std::string{"Result too big to display"});
+      sendMessage(client_socket_fd, alt_result.c_str(), alt_result.size());
+    }
   }
 
   /**
@@ -312,7 +320,7 @@ class KServer : public SocketListener {
       KLOG->info("Received operation");
       handleOperation(decoded_message, client_socket_fd);
     }  // isOperation
-    // TODO: handle regular messages
+       // TODO: handle regular messages
   }
 
  private:

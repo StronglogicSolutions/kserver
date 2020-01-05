@@ -73,11 +73,12 @@ class RequestHandler {
     }
   }
 
-  void initialize(std::function<void(std::string, int)> event_callback_fn) {
+  void initialize(
+      std::function<void(std::string, int, int)> event_callback_fn) {
     m_executor = new ProcessExecutor();
     m_executor->setEventCallback(
-        [this](std::string result, int client_socket_fd) {
-          onProcessComplete(result, client_socket_fd);
+        [this](std::string result, int mask, int client_socket_fd) {
+          onProcessComplete(result, mask, client_socket_fd);
         });
     m_event_callback_fn = event_callback_fn;
   }
@@ -120,7 +121,7 @@ class RequestHandler {
 
     for (const auto& row : result.values) {
       KLOG->info("Field: {}, Value: {}", row.first, row.second);
-      m_executor->request(row.second, client_socket_fd);
+      m_executor->request(row.second, mask, client_socket_fd);
     }
 
     return std::string{"Process hopefully complete"};
@@ -164,11 +165,11 @@ class RequestHandler {
 
  private:
   // Callback
-  void onProcessComplete(std::string value, int client_socket_fd) {
-    m_event_callback_fn(value, client_socket_fd);
+  void onProcessComplete(std::string value, int mask, int client_socket_fd) {
+    m_event_callback_fn(value, mask, client_socket_fd);
   }
 
-  std::function<void(std::string, int)> m_event_callback_fn;
+  std::function<void(std::string, int, int)> m_event_callback_fn;
 
   ProcessExecutor* m_executor;
   DatabaseConnection m_connection;
