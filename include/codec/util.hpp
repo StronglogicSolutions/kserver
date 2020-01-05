@@ -1,14 +1,15 @@
 #ifndef __UTIL_HPP__
 #define __UTIL_HPP__
 
+#include <codec/kmessage_generated.h>
 #include <codec/uuid.h>
+
 #include <bitset>
-#include <iterator>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
-#include <codec/kmessage_generated.h>
 
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
@@ -61,6 +62,41 @@ std::string createMessage(const char* data, std::string args = "") {
   w.String(data);
   w.Key("args");
   w.String(args.c_str());
+  w.EndObject();
+  return s.GetString();
+}
+
+std::string createEvent(const char* event, int mask, std::string stdout) {
+  StringBuffer s;
+  Writer<StringBuffer> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("event");
+  w.Key("mask");
+  w.Int(mask);
+  w.Key("args");
+  w.String(stdout.c_str());
+  w.EndObject();
+  return s.GetString();
+}
+
+std::string createEvent(const char* event, int mask,
+                        std::vector<std::string> args) {
+  StringBuffer s;
+  Writer<StringBuffer> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("event");
+  w.Key("mask");
+  w.Int(mask);
+  w.Key("args");
+  w.StartArray();
+  if (!args.empty()) {
+    for (const auto& arg : args) {
+      w.String(arg.c_str());
+    }
+  }
+  w.EndArray();
   w.EndObject();
   return s.GetString();
 }
@@ -208,40 +244,36 @@ bool isFileUploadOperation(const char* data) {
   return strcmp(data, "FileUpload") == 0;
 }
 
-bool isStartOperation(const char* data) {
-  return strcmp(data, "start") == 0;
-}
+bool isStartOperation(const char* data) { return strcmp(data, "start") == 0; }
 
-bool isStopOperation(const char* data) {
-  return strcmp(data, "stop") == 0;
-}
+bool isStopOperation(const char* data) { return strcmp(data, "stop") == 0; }
 
 /**
  * General
  */
 
 std::string getDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
-    // Make sure not an empty buffer
-    // Obtain the raw buffer so we can read the header
-    uint8_t* raw_buffer = s_buffer_ptr.get();
-    auto val1 = *raw_buffer;
-    auto val2 = *(raw_buffer + 1);
-    auto val3 = *(raw_buffer + 2);
-    auto val4 = *(raw_buffer + 3);
+  // Make sure not an empty buffer
+  // Obtain the raw buffer so we can read the header
+  uint8_t* raw_buffer = s_buffer_ptr.get();
+  auto val1 = *raw_buffer;
+  auto val2 = *(raw_buffer + 1);
+  auto val3 = *(raw_buffer + 2);
+  auto val4 = *(raw_buffer + 3);
 
-    uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
-                                  *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
-    // TODO: Copying into a new buffer for readability - switch to using the
-    // original buffer
-    uint8_t decode_buffer[message_byte_size];
-    std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
-    // Parse the bytes into an encoded message structure
-    auto k_message = GetMessage(&decode_buffer);
-    auto id = k_message->id();  // message ID
-    // Get the message bytes and create a string
-    const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
-    std::string decoded_message{message_bytes->begin(), message_bytes->end()};
-    return decoded_message;
+  uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
+                                *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
+  // TODO: Copying into a new buffer for readability - switch to using the
+  // original buffer
+  uint8_t decode_buffer[message_byte_size];
+  std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
+  // Parse the bytes into an encoded message structure
+  auto k_message = GetMessage(&decode_buffer);
+  auto id = k_message->id();  // message ID
+  // Get the message bytes and create a string
+  const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
+  std::string decoded_message{message_bytes->begin(), message_bytes->end()};
+  return decoded_message;
 }
 
 bool isNewSession(const char* data) {
@@ -294,7 +326,7 @@ void loadAndPrintFile(std::string_view file_path) {
     std::cout << c;
   }
 }
-}
+}  // namespace FileUtils
 
 // Bit helpers
 
