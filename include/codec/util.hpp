@@ -54,7 +54,7 @@ std::string getJsonString(std::string s) {
 
 std::string createMessage(const char* data, std::string args = "") {
   StringBuffer s;
-  Writer<StringBuffer> w(s);
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
   w.Key("type");
   w.String("custom");
@@ -68,7 +68,7 @@ std::string createMessage(const char* data, std::string args = "") {
 
 std::string createEvent(const char* event, int mask, std::string stdout) {
   StringBuffer s;
-  Writer<StringBuffer> w(s);
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
   w.Key("type");
   w.String("event");
@@ -80,15 +80,35 @@ std::string createEvent(const char* event, int mask, std::string stdout) {
   return s.GetString();
 }
 
-std::string createEvent(const char* event, int mask,
-                        std::vector<std::string> args) {
+std::string createEvent(const char* event, std::vector<std::string> args) {
   StringBuffer s;
-  Writer<StringBuffer> w(s);
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
   w.Key("type");
   w.String("event");
-  w.Key("mask");
-  w.Int(mask);
+  w.Key("event");
+  w.String(event);
+  w.Key("args");
+  w.StartArray();
+  if (!args.empty()) {
+    for (const auto& arg : args) {
+      w.String(arg.c_str());
+    }
+  }
+  w.EndArray();
+  w.EndObject();
+  return s.GetString();
+}
+
+std::string createEvent(const char* event, int mask,
+                        std::vector<std::string> args) {
+  StringBuffer s;
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("event");
+  w.Key("event");
+  w.String(event);
   w.Key("args");
   w.StartArray();
   if (!args.empty()) {
@@ -103,7 +123,7 @@ std::string createEvent(const char* event, int mask,
 
 std::string createOperation(const char* op, std::vector<std::string> args) {
   StringBuffer s;
-  Writer<StringBuffer> w(s);
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
   w.Key("type");
   w.String("operation");
@@ -157,7 +177,7 @@ CommandMap getArgMap(const char* data) {
 std::string createMessage(
     const char* data, std::vector<std::pair<std::string, std::string>> args) {
   StringBuffer s;
-  Writer<StringBuffer> w(s);
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
   w.Key("type");
   w.String("custom");
@@ -179,7 +199,7 @@ std::string createMessage(
 std::string createMessage(const char* data,
                           std::map<int, std::string> map = {}) {
   StringBuffer s;
-  Writer<StringBuffer> w(s);
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
   w.Key("type");
   w.String("custom");
@@ -201,7 +221,7 @@ std::string createMessage(const char* data,
 std::string createMessage(const char* data,
                           std::map<int, std::vector<std::string>> map = {}) {
   StringBuffer s;
-  Writer<StringBuffer> w(s);
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
   w.Key("type");
   w.String("custom");
@@ -238,6 +258,10 @@ bool isOperation(const char* data) {
 
 bool isExecuteOperation(const char* data) {
   return strcmp(data, "Execute") == 0;
+}
+
+bool isScheduleOperation(const char* data) {
+  return strcmp(data, "Schedule") == 0;
 }
 
 bool isFileUploadOperation(const char* data) {

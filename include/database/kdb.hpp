@@ -27,20 +27,20 @@ class KDB {
     m_connection.setConfig(configuration);
   }
 
-  QueryValues select(std::string_view table, Fields fields,
+  QueryValues select(std::string table, Fields fields,
                      QueryFilter filter = {}) {
     DatabaseQuery select_query{.table = table,
                                .fields = fields,
                                .type = QueryType::SELECT,
-                               .values = {}};
-    QueryResult result = m_connection.query(insert_query);
+                               .filter = filter};
+    QueryResult result = m_connection.query(select_query);
     if (!result.values.empty()) {
       return result.values;
     }
   }
 
-  bool insert(std::string_view table, Fields fields, Values values) {
-    DatabaseQuery insert_query{.= table,
+  bool insert(std::string table, Fields fields, Values values) {
+    DatabaseQuery insert_query{.table= table,
                                .fields = fields,
                                .type = QueryType::INSERT,
                                .values = values};

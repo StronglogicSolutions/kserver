@@ -15,6 +15,7 @@
 #include <string>
 #include <string_view>
 #include <types/types.hpp>
+#include <server/types.hpp>
 #include <utility>
 
 class Decoder {
@@ -162,6 +163,14 @@ class KServer : public SocketListener {
     m_file_handlers.clear();
   }
 
+  void systemEventNotify(int client_socket_fd, int system_event, std::vector<std::string> args) {
+    switch (system_event) {
+      case SYSTEM_EVENTS__FILE_UPDATE:
+        // incoming file has new information, such as a filename to be assigned to it
+        KLOG->info("SYSTEM EVENT:: Updating information about file for client {}", client_socket_fd);
+    }
+  }
+
   /**
    * Request Handler
    */
@@ -171,21 +180,29 @@ class KServer : public SocketListener {
     m_request_handler.initialize(
         [this](std::string result, int mask, int client_socket_fd) {
           onProcessEvent(result, mask, client_socket_fd);
-        });
+        },
+        [this](int client_socket_fd, int system_event, std::vector<std::string> args) {
+          systemEventNotify(client_socket_fd, system_event, args);
+        }
+    );
   }
 
   void onProcessEvent(std::string result, int mask, int client_socket_fd) {
-    std::string process_executor_result_str =
-        createEvent("Process Result", mask, result);
     if (result.size() <= 2046) {
+      std::vector<std::string> event_args{std::to_string(mask), result};
+      std::string process_executor_result_str =
+          createEvent("Process Result", event_args);
       sendMessage(client_socket_fd, process_executor_result_str.c_str(),
                   process_executor_result_str.size());
     } else {
       KLOG->info(
           "KServer::onProcessEvent() - result too big to send in one message");
-      std::string alt_result = createEvent(
-          "Process Result", mask, std::string{"Result too big to display"});
-      sendMessage(client_socket_fd, alt_result.c_str(), alt_result.size());
+      std::vector<std::string> event_args{
+          std::to_string(mask), "Result completed, but was too big to display"};
+      std::string process_executor_result_str =
+          createEvent("Process Result", event_args);
+      sendMessage(client_socket_fd, process_executor_result_str.c_str(),
+                  process_executor_result_str.size());
     }
   }
 
@@ -273,6 +290,11 @@ class KServer : public SocketListener {
                 file_ready_message.size());
   }
 
+  void handleSchedule(std::string decoded_message, int client_socket_fd) {
+    std::vector<std::string> argv = getArgs(decoded_message.c_str());
+      m_request_handler("Schedule", argv, client_socket_fd);
+  }
+
   /**
    * Operations are the processing of requests
    */
@@ -287,6 +309,9 @@ class KServer : public SocketListener {
       shutdown(client_socket_fd, SHUT_RDWR);
       close(client_socket_fd);
       return;
+    } else if (isScheduleOperation(op.c_str())) {
+      KLOG->info("Schedule operation. Processing request to schedule a task");
+      handleSchedule(decoded_message, client_socket_fd);
     } else if (isExecuteOperation(op.c_str())) {  // Process execution request
       KLOG->info("Execute operation");
       handleExecute(decoded_message, client_socket_fd);

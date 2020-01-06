@@ -7,7 +7,9 @@
 
 #include <codec/util.hpp>
 #include <config/config_parser.hpp>
+#include <database/kdb.hpp>
 #include <executor/executor.hpp>
+#include <server/types.hpp>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -74,15 +76,53 @@ class RequestHandler {
   }
 
   void initialize(
-      std::function<void(std::string, int, int)> event_callback_fn) {
+      std::function<void(std::string, int, int)> event_callback_fn,
+      std::function<void(int, int, std::vector<std::string>)> system_callback_fn) {
     m_executor = new ProcessExecutor();
     m_executor->setEventCallback(
         [this](std::string result, int mask, int client_socket_fd) {
           onProcessComplete(result, mask, client_socket_fd);
         });
+    m_system_callback_fn = system_callback_fn;
     m_event_callback_fn = event_callback_fn;
   }
 
+  std::string operator()(KOperation op, std::vector<std::string> argv,
+                         int client_socket_fd) {
+    if (op == "Schedule") {
+      auto mask = argv.at(argv.size() - 1);
+      auto kdb = Database::KDB();
+
+      QueryValues result = kdb.select("apps", {"name", "path"}, {{"mask", mask}});
+      std::string name{};
+      std::string path{};
+      for (const auto& value : result) {
+        if (value.first == "name") {
+          name += value.second;
+          continue;
+        }
+        if (value.first == "path") {
+          path += value.second;
+          continue;
+        }
+      }
+      if (!path.empty() && !name.empty()) {
+        if (name == "Instagram") {
+          auto filename = argv.at(0);
+          m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE, {filename});
+          // notify KServer of filename received
+          auto datetime = argv.at(1);
+          auto description = argv.at(2);
+          auto hashtags = argv.at(3);
+          auto requested_by = argv.at(4);
+          auto requested_by_phrase = argv.at(5);
+          auto promote_share = argv.at(6);
+          auto link_bio = argv.at(7);
+        }
+      }
+    }
+    return std::string{"Operation failed"};
+  }
   std::map<int, std::string> operator()(KOperation op) {
     // TODO: We need to fix the DB query so it is orderable and groupable
     DatabaseQuery select_query{.table = "apps",
@@ -170,6 +210,7 @@ class RequestHandler {
   }
 
   std::function<void(std::string, int, int)> m_event_callback_fn;
+  std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
 
   ProcessExecutor* m_executor;
   DatabaseConnection m_connection;
