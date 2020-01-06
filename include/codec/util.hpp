@@ -5,6 +5,7 @@
 #include <codec/uuid.h>
 
 #include <bitset>
+#include <chrono>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -389,5 +390,13 @@ bool isdigits(const std::string& s) {
     }
   return true;
 }
+
+namespace TimeUtils {
+int unixtime() {
+  return std::chrono::duration_cast<std::chrono::seconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
+}  // namespace TimeUtils
 
 #endif  // __UTIL_HPP__

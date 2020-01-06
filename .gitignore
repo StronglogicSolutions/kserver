@@ -1,6 +1,7 @@
 kserver
 config
 tags
+data
 .vscode
 **.out
 **/CMakeFiles
