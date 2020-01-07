@@ -178,25 +178,34 @@ class KServer : public SocketListener {
             "SYSTEM EVENT:: Updating information file information for client "
             "{} and file with ID",
             client_socket_fd);
-          auto received_file = std::find_if(m_received_files.begin(), m_received_files.end(), [client_socket_fd](ReceivedFile& file) {
-            // TODO: We need to change this so we are matching by UUID
-            return file.client_fd == client_socket_fd;
-          });
+        auto received_file = std::find_if(m_received_files.begin(), m_received_files.end(), [client_socket_fd](ReceivedFile& file) {
+          // TODO: We need to change this so we are matching by UUID
+          return file.client_fd == client_socket_fd;
+        });
 
-          if (received_file != m_received_files.end()) {
-            // We must assume that these files match, just by virtue of the client file descriptor ID. Again, we should be matching by UUID. // TODO: We must do this
-            std::string uuid = args.at(1);
-            std::string filename {"data/"};
-            filename += uuid.c_str();
-            filename += + "/";
-            filename += args.at(0);
-            FileUtils::createDirectory(uuid.c_str());
-            FileUtils::saveFile(received_file->f_ptr, received_file->size, filename.c_str());
-            sendEvent(client_socket_fd, "File Save Success", {});
+        if (received_file != m_received_files.end()) {
+          // We must assume that these files match, just by virtue of the client file descriptor ID. Again, we should be matching by UUID. // TODO: We must do this
+          std::string uuid = args.at(1);
+          std::string filename {"data/"};
+          filename += uuid.c_str();
+          filename += + "/";
+          filename += args.at(0);
+          FileUtils::createDirectory(uuid.c_str());
+          FileUtils::saveFile(received_file->f_ptr, received_file->size, filename.c_str());
+          m_received_files.erase(received_file);
+          auto it = std::find_if(m_file_handlers.begin(), m_file_handlers.end(), [client_socket_fd](FileHandler& handler) {
+            return handler.isHandlingSocket(client_socket_fd);
+          });
+          if (it != m_file_handlers.end()) {
+            m_file_handlers.erase(it);
           } else {
-            KLOG->info("Unable to find file");
-            sendEvent(client_socket_fd, "File Save Failure", {});
+            KLOG->info("Problem removing file handler for client {}", client_socket_fd);
           }
+          sendEvent(client_socket_fd, "File Save Success", {});
+        } else {
+          KLOG->info("Unable to find file");
+          sendEvent(client_socket_fd, "File Save Failure", {});
+        }
     }
   }
 
@@ -261,15 +270,6 @@ class KServer : public SocketListener {
         KLOG->info("Finished handling file for client {}", socket_fd);
         file_pending_fd = -1;
         file_pending = false;
-        auto it = std::find_if(m_file_handlers.begin(), m_file_handlers.end(), [socket_fd](FileHandler& handler) {
-          return handler.isHandlingSocket(socket_fd);
-        });
-        if (it != m_file_handlers.end()) {
-          m_file_handlers.erase(it);
-        } else {
-          KLOG->info("Problem removing file handler for client {}", socket_fd);
-        }
-
         sendEvent(socket_fd, "File Transfer Complete", {});
       } else {
         sendEvent(socket_fd, "File Transfer Failed", {});
