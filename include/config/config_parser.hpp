@@ -1,3 +1,6 @@
+#ifndef __CONFIG_PARSER_HPP__
+#define __CONFIG_PARSER_HPP__
+
 #include <string>
 
 #include "INIReader.h"
@@ -26,3 +29,4 @@ std::string getDBName() { return reader.Get("database", "name", "NAME_ERROR"); }
 
 std::string getDBUser() { return reader.Get("database", "user", "USER_ERROR"); }
 }  // namespace ConfigParser
+#endif // __CONFIG_PARSER_HPP__

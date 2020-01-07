@@ -9,6 +9,7 @@
 #include <config/config_parser.hpp>
 #include <database/kdb.hpp>
 #include <executor/executor.hpp>
+#include <executor/scheduler.hpp>
 #include <iostream>
 #include <server/types.hpp>
 #include <string>
@@ -90,6 +91,7 @@ class RequestHandler {
   std::string operator()(KOperation op, std::vector<std::string> argv,
                          int client_socket_fd, std::string uuid) {
     if (op == "Schedule") {
+      KLOG->info("RequestHandler:: Handling schedule request");
       auto mask = argv.at(argv.size() - 1);
       auto kdb = Database::KDB();
 
@@ -109,6 +111,7 @@ class RequestHandler {
       }
       if (!path.empty() && !name.empty()) {
         if (name == "Instagram") {
+          KLOG->info("RequestHandler:: Instagram task");
           auto filename = argv.at(0);
           m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
                                {filename, uuid});
@@ -120,6 +123,32 @@ class RequestHandler {
           auto requested_by_phrase = argv.at(5);
           auto promote_share = argv.at(6);
           auto link_bio = argv.at(7);
+
+          std::string env_file_string{"#!/usr/bin/env bash\n"};
+          env_file_string += "DESCRIPTION=" + description + "\n";
+          env_file_string += "HASHTAGS=" + hashtags + "\n";
+          env_file_string += "REQUESTED_BY=" + requested_by + "\n";
+          env_file_string += "REQUESTED_BY_PHRASE=" + requested_by_phrase + "\n";
+          env_file_string += "PROMOTE_SHARE=" + promote_share + "\n";
+          env_file_string += "LINK_BIO=" + link_bio + "\n";
+          std::string env_filename = {"data/"};
+          env_filename += uuid;
+          env_filename += "/v.env";
+
+          FileUtils::saveEnvFile(env_file_string, env_filename);
+
+          auto validate = true;  // TODO: Replace this with actual validation
+          if (validate) {
+            KLOG->info("Sending task request to Scheduler");
+            Executor::Scheduler scheduler{};
+            Executor::Task task{
+                .execution_mask = std::stoi(mask),
+                .datetime = datetime,
+                .envfile = env_filename,
+                .execution_flags = "--description=$DESCRIPTION --hashtags=$HASHTAGS --requested_by=$REQUESTED_BY --requested_by_phrase=$REQUESTED_BY_PHRASE --promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO"
+            };
+            scheduler.schedule(task);
+          }
         }
       }
     }

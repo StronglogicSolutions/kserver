@@ -339,6 +339,11 @@ void saveFile(uint8_t* bytes, int size, std::string filename) {
   output.close();
 }
 
+void saveEnvFile(std::string env_file_string, std::string filename) {
+  std::ofstream out{filename};
+  out << env_file_string;
+}
+
 void test() {
   char pixels[5];
   std::ofstream output("output.bmp",
