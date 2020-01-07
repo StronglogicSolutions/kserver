@@ -5,6 +5,7 @@
 #include <codec/uuid.h>
 
 #include <bitset>
+#include <filesystem>
 #include <chrono>
 #include <fstream>
 #include <iterator>
@@ -311,6 +312,13 @@ bool isNewSession(const char* data) {
 }
 
 namespace FileUtils {
+
+void createDirectory(const char* dir_name) {
+  std::string directory_name = {"data/"};
+  directory_name += dir_name;
+  std::filesystem::create_directory(directory_name.c_str());
+}
+
 void saveFile(std::vector<char> bytes, const char* filename) {
   std::ofstream output(filename,
                        std::ios::binary | std::ios::out | std::ios::app);

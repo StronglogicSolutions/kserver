@@ -9,8 +9,8 @@
 #include <config/config_parser.hpp>
 #include <database/kdb.hpp>
 #include <executor/executor.hpp>
-#include <server/types.hpp>
 #include <iostream>
+#include <server/types.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -75,9 +75,9 @@ class RequestHandler {
     }
   }
 
-  void initialize(
-      std::function<void(std::string, int, int)> event_callback_fn,
-      std::function<void(int, int, std::vector<std::string>)> system_callback_fn) {
+  void initialize(std::function<void(std::string, int, int)> event_callback_fn,
+                  std::function<void(int, int, std::vector<std::string>)>
+                      system_callback_fn) {
     m_executor = new ProcessExecutor();
     m_executor->setEventCallback(
         [this](std::string result, int mask, int client_socket_fd) {
@@ -88,12 +88,13 @@ class RequestHandler {
   }
 
   std::string operator()(KOperation op, std::vector<std::string> argv,
-                         int client_socket_fd) {
+                         int client_socket_fd, std::string uuid) {
     if (op == "Schedule") {
       auto mask = argv.at(argv.size() - 1);
       auto kdb = Database::KDB();
 
-      QueryValues result = kdb.select("apps", {"name", "path"}, {{"mask", mask}});
+      QueryValues result =
+          kdb.select("apps", {"name", "path"}, {{"mask", mask}});
       std::string name{};
       std::string path{};
       for (const auto& value : result) {
@@ -109,7 +110,8 @@ class RequestHandler {
       if (!path.empty() && !name.empty()) {
         if (name == "Instagram") {
           auto filename = argv.at(0);
-          m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE, {filename});
+          m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
+                               {filename, uuid});
           // notify KServer of filename received
           auto datetime = argv.at(1);
           auto description = argv.at(2);
