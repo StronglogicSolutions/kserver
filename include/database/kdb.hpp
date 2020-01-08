@@ -37,6 +37,7 @@ class KDB {
     if (!result.values.empty()) {
       return result.values;
     }
+    return {{}};
   }
 
   bool insert(std::string table, Fields fields, Values values) {
@@ -46,11 +47,8 @@ class KDB {
                                .values = values};
 
     QueryResult result = m_connection.query(insert_query);
-    if (!result.values.empty()) {
-      return true;
-      // TODO: does this even return values?
-    }
-    return false;
+    // TODO: add try/catch and handle accordingly
+    return true;
   }
 
  private:
