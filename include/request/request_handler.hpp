@@ -4,6 +4,7 @@
 #include <codec/kmessage_generated.h>
 #include <database/DatabaseConnection.h>
 #include <log/logger.h>
+#include <stdlib.h>
 
 #include <codec/util.hpp>
 #include <config/config_parser.hpp>
@@ -15,6 +16,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+std::string get_cwd() {
+  char *working_dir_path = realpath(".", NULL);
+  return std::string{working_dir_path};
+}
 
 namespace Request {
 using namespace KData;
@@ -125,17 +131,21 @@ class RequestHandler {
           auto link_bio = argv.at(7);
 
           std::string env_file_string{"#!/usr/bin/env bash\n"};
-          env_file_string += "DESCRIPTION=" + description + "\n";
-          env_file_string += "HASHTAGS=" + hashtags + "\n";
-          env_file_string += "REQUESTED_BY=" + requested_by + "\n";
-          env_file_string += "REQUESTED_BY_PHRASE=" + requested_by_phrase + "\n";
-          env_file_string += "PROMOTE_SHARE=" + promote_share + "\n";
-          env_file_string += "LINK_BIO=" + link_bio + "\n";
+          env_file_string += "DESCRIPTION='" + description + "'\n";
+          env_file_string += "HASHTAGS='" + hashtags + "'\n";
+          env_file_string += "REQUESTED_BY='" + requested_by + "'\n";
+          env_file_string +=
+              "REQUESTED_BY_PHRASE='" + requested_by_phrase + "'\n";
+          env_file_string += "PROMOTE_SHARE='" + promote_share + "'\n";
+          env_file_string += "LINK_BIO='" + link_bio + "'\n";
           std::string env_filename = {"data/"};
           env_filename += uuid;
           env_filename += "/v.env";
 
           FileUtils::saveEnvFile(env_file_string, env_filename);
+
+          std::string media_filename = get_cwd();
+          media_filename += "/data/" + uuid + "/" +  filename;
 
           auto validate = true;  // TODO: Replace this with actual validation
           if (validate) {
@@ -144,9 +154,13 @@ class RequestHandler {
             Executor::Task task{
                 .execution_mask = std::stoi(mask),
                 .datetime = datetime,
+                .filename = media_filename,
                 .envfile = env_filename,
-                .execution_flags = "--description=$DESCRIPTION --hashtags=$HASHTAGS --requested_by=$REQUESTED_BY --requested_by_phrase=$REQUESTED_BY_PHRASE --promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO"
-            };
+                .execution_flags =
+                    "--description=$DESCRIPTION --hashtags=$HASHTAGS "
+                    "--requested_by=$REQUESTED_BY "
+                    "--requested_by_phrase=$REQUESTED_BY_PHRASE "
+                    "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO"};
             scheduler.schedule(task);
           }
         }
