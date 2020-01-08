@@ -30,7 +30,6 @@ class Decoder {
         file_size(0),
         filename(name),
         m_fd(fd),
-        // m_cb(system_callback),
         m_file_cb(file_callback) {}
 
   ~Decoder() {
@@ -68,10 +67,9 @@ class Decoder {
       if (!is_last_packet) {
         std::memcpy(file_buffer + buffer_offset, data, MAX_PACKET_SIZE);
       } else {
-        uint32_t last_packet_size = file_size - buffer_offset - HEADER_SIZE;
-        // handle file cleanup
+        uint32_t last_packet_size = file_size - buffer_offset;
         std::memcpy(file_buffer + buffer_offset, data, last_packet_size);
-        // save or return ptr to data
+        // completion callback
         m_file_cb(file_buffer, file_size, filename);
       }
       index++;
