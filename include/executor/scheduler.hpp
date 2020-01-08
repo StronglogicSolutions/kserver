@@ -15,6 +15,7 @@ namespace Executor {
 typedef struct {
   int execution_mask;
   std::string datetime;
+  std::string filename;
   std::string envfile;
   std::string execution_flags;
 } Task;
@@ -41,8 +42,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     // verify and put in database
     Database::KDB kdb{};
 
-    auto result = kdb.insert("schedule", {"time", "mask", "flags", "envfile"},
-                             {task.datetime, std::to_string(task.execution_mask),
+    auto result = kdb.insert("schedule", {"time", "mask", "file", "flags", "envfile"},
+                             {task.datetime, std::to_string(task.execution_mask), task.filename,
                               task.execution_flags, task.envfile});
     KLOG->info("Request to schedule task was {}",
                result ? "Accepted" : "Rejected");
