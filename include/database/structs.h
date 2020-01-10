@@ -24,6 +24,8 @@ struct DatabaseConfiguration {
 };
 
 typedef std::vector<std::pair<std::string, std::string>> QueryFilter;
+typedef std::vector<std::tuple<std::string, std::string, std::string>> QueryComparisonFilter;
+typedef std::vector<std::tuple<std::string, std::string, std::string>> QueryComparisonBetweenFilter;
 typedef std::vector<std::string> Values;
 typedef std::vector<std::pair<std::string, std::string>> QueryValues;
 struct DatabaseQuery {
@@ -32,6 +34,21 @@ struct DatabaseQuery {
   /* type */ QueryType type;
   /* values */ std::vector<std::string> values;
   /* filter */ QueryFilter filter;
+};
+
+struct ComparisonSelectQuery {
+  /* table */ std::string table;
+  /* fields */ std::vector<std::string> fields;
+  /* values */ std::vector<std::string> values;
+  /* filter */ QueryComparisonFilter filter;
+};
+
+
+struct ComparisonBetweenSelectQuery {
+  /* table */ std::string table;
+  /* fields */ std::vector<std::string> fields;
+  /* values */ std::vector<std::string> values;
+  /* filter */ QueryComparisonBetweenFilter filter;
 };
 
 struct QueryResult {

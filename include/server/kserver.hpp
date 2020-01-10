@@ -169,6 +169,10 @@ class KServer : public SocketListener {
   void systemEventNotify(int client_socket_fd, int system_event,
                          std::vector<std::string> args) {
     switch (system_event) {
+      case SYSTEM_EVENTS__SCHEDULED_TASKS_READY:
+        KLOG->info("Informing client {} about scheduled tasks", client_socket_fd);
+        sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
+        break;
       case SYSTEM_EVENTS__FILE_UPDATE:
         // incoming file has new information, such as a filename to be
         // assigned to it
@@ -204,6 +208,7 @@ class KServer : public SocketListener {
           KLOG->info("Unable to find file");
           sendEvent(client_socket_fd, "File Save Failure", {});
         }
+        break;
     }
   }
 
@@ -333,9 +338,6 @@ class KServer : public SocketListener {
             m_request_handler(std::stoi(arg), client_socket_fd);
       }
     }
-    std::string execute_response = createMessage("We'll get right on that", "");
-    sendMessage(client_socket_fd, execute_response.c_str(),
-                execute_response.size());
   }
 
   /**
@@ -405,8 +407,13 @@ class KServer : public SocketListener {
     if (isOperation(decoded_message.c_str())) {
       KLOG->info("Received operation");
       handleOperation(decoded_message, client_socket_fd);
-    }  // isOperation
-       // TODO: handle regular messages
+    } else if (isMessage(decoded_message.c_str())) {
+      // isOperation
+      if (strcmp(getMessage(decoded_message.c_str()).c_str(), "scheduler") == 0) {
+        KLOG->info("Testing scheduler");
+        m_request_handler(client_socket_fd, "Test", Request::DevTest::Schedule);
+      }
+    }
   }
 
  private:

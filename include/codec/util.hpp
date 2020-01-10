@@ -152,6 +152,15 @@ std::string getOperation(const char* data) {
   return "";
 }
 
+std::string getMessage(const char* data) {
+  Document d;
+  d.Parse(data);
+  if (d.HasMember("message")) {
+    return d["message"].GetString();
+  }
+  return "";
+}
+
 std::vector<std::string> getArgs(const char* data) {
   Document d;
   d.Parse(data);
@@ -251,6 +260,12 @@ std::string createMessage(const char* data,
 /**
  * Operations
  */
+
+bool isMessage(const char* data) {
+  Document d;
+  d.Parse(data);
+  return d.HasMember("message");
+}
 
 bool isOperation(const char* data) {
   Document d;

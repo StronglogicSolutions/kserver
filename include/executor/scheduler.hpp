@@ -12,13 +12,20 @@
 #include <vector>
 
 namespace Executor {
-typedef struct {
+
+struct Task {
   int execution_mask;
   std::string datetime;
   std::string filename;
   std::string envfile;
   std::string execution_flags;
-} Task;
+
+  // friend std::ostream & operator << (std::ostream &out, const Executor::Task& t) {
+  //     out << t.datetime;
+  //     out << " - Mask: " << std::to_string(t.execution_mask) << "\n. Args: " << t.filename << " - " << t.envfile << " - " << t.execution_flags;
+  //     return out;
+  // }
+};
 
 namespace {
 class DeferInterface {
@@ -42,9 +49,10 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     // verify and put in database
     Database::KDB kdb{};
 
-    auto result = kdb.insert("schedule", {"time", "mask", "file", "flags", "envfile"},
-                             {task.datetime, std::to_string(task.execution_mask), task.filename,
-                              task.execution_flags, task.envfile});
+    auto result =
+        kdb.insert("schedule", {"time", "mask", "file", "flags", "envfile"},
+                   {task.datetime, std::to_string(task.execution_mask),
+                    task.filename, task.execution_flags, task.envfile});
     KLOG->info("Request to schedule task was {}",
                result ? "Accepted" : "Rejected");
   }
@@ -55,33 +63,47 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   }
 
   void onProcessComplete(std::string value, int mask, int client_fd) {
-        KLOG->info("Value returned from process:\n{}", value);
+    KLOG->info("Value returned from process:\n{}", value);
   }
-
 
   virtual std::vector<Task> fetchTasks() {
     // get tasks from database
     // now' a good time to execute them, or place them in cron
     Database::KDB kdb{};
     // get today timestamp
-    std::string today_start_timestamp{"0000000000"};
+    std::string current_timestamp = std::to_string(TimeUtils::unixtime());
+    std::string future_timestamp_24hr = std::to_string(TimeUtils::unixtime() + 86400);
     std::vector<Task> tasks{};
-    auto result = kdb.select("schedule", {"time", "mask", "flags", "envfile"},
-                             {{"datetime", today_start_timestamp}});
-    // if (!result.empty()) {
-    //   for (const auto& v : result) {
-
-    //     // Make sure result is a vector of maps
-    //     tasks.push_back(Task{.execution_mask = v["mask"],
-    //                          .execution_flags = v["flags"],
-    //                          .envfile = v["envfile"],
-    //                          .datetime = v["time"]});
-    //   }
-    // }
-    // for (const auto& task : tasks) {
-    //   executeTask(task);
-    // }
-
+    QueryComparisonBetweenFilter filter{{"time", current_timestamp, future_timestamp_24hr}};
+    // TODO: Implement >, <, <> filtering
+    auto result = kdb.selectCompare("schedule", {"time", "file", "mask", "flags", "envfile"}, filter);
+    if (!result.empty() && result.at(0).first.size() > 0) {
+      std::string mask, flags, envfile, time, filename;
+      for (const auto& v : result) {
+        if (v.first == "mask") {
+          mask = v.second;
+        }
+        if (v.first == "flags") {
+          flags = v.second;
+        }
+        if (v.first == "envfile") {
+          envfile = v.second;
+        }
+        if (v.first == "time") {
+          time = v.second;
+        }
+        if (v.first == "file") {
+          filename = v.second;
+        }
+        if (!filename.empty() && !envfile.empty() && !flags.empty() && !time.empty() && !mask.empty()) {
+          tasks.push_back(Task{.execution_mask = std::stoi(mask),
+                                      .datetime = time,
+                                      .filename = filename,
+                                      .envfile = envfile,
+                                      .execution_flags = flags});
+              }
+        }
+      }
     return tasks;
   }
 
@@ -96,9 +118,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       // Make this member?
       ProcessExecutor executor{};
       executor.setEventCallback(
-        [this](std::string result, int mask, int client_socket_fd) {
-          onProcessComplete(result, mask, client_socket_fd);
-        });
+          [this](std::string result, int mask, int client_socket_fd) {
+            onProcessComplete(result, mask, client_socket_fd);
+          });
       executor.request(app_info.path, task.execution_mask, -69);
     }
   }

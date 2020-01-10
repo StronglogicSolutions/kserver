@@ -23,6 +23,9 @@ std::string get_cwd() {
 }
 
 namespace Request {
+  enum DevTest {
+    Schedule = 1
+  };
 using namespace KData;
 
 flatbuffers::FlatBufferBuilder builder(1024);
@@ -168,6 +171,23 @@ class RequestHandler {
     }
     return std::string{"Operation failed"};
   }
+
+  void operator()(int client_socket_fd, KOperation op, DevTest test) {
+    if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
+      Executor::Scheduler scheduler{};
+      std::vector<Executor::Task> tasks = scheduler.fetchTasks();
+      if (!tasks.empty()) {
+        KLOG->info("There are tasks to be reviewed");
+        for (const auto& task : tasks) {
+          KLOG->info("Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution Flags", task.datetime, std::to_string(task.execution_mask), task.filename, task.envfile);
+        }
+        std::string tasks_message = std::to_string(tasks.size());
+        tasks_message += " tasks scheduled to run in the next 24 hours";
+        m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY, {tasks_message});
+      }
+    }
+  }
+
   std::map<int, std::string> operator()(KOperation op) {
     // TODO: We need to fix the DB query so it is orderable and groupable
     DatabaseQuery select_query{.table = "apps",

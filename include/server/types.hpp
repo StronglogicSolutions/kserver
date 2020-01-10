@@ -2,6 +2,7 @@
 #define __TYPES_HPP__
 
 static const int SYSTEM_EVENTS__FILE_UPDATE = 1;
+static const int SYSTEM_EVENTS__SCHEDULED_TASKS_READY = 2;
 
 typedef struct {
   int timestamp;

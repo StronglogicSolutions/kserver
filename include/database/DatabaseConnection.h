@@ -12,6 +12,8 @@ public:
   bool setConfig(DatabaseConfiguration config);
   // work
   QueryResult query(DatabaseQuery query);
+  QueryResult query(ComparisonSelectQuery query);
+  QueryResult query(ComparisonBetweenSelectQuery query);
   // state
   std::string getDbName();
 
@@ -22,6 +24,8 @@ private:
   std::string getConnectionString();
   pqxx::result performInsert(DatabaseQuery query);
   pqxx::result performSelect(DatabaseQuery query);
+  pqxx::result performSelect(ComparisonSelectQuery query);
+  pqxx::result performSelect(ComparisonBetweenSelectQuery query);
 //  bool connected;
 };
 

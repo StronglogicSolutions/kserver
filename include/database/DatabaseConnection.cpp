@@ -83,6 +83,41 @@ std::string selectStatement(DatabaseQuery query) {
   return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table};
 }
 
+std::string selectStatement(ComparisonSelectQuery query) {
+  if (!query.filter.empty()) {
+    if (query.filter.size() > 1) {
+      // We do not curently support multiple comparisons in a single query
+      return std::string{"SELECT 1"};
+    }
+    size_t index = 0;
+    std::string filter_string{"WHERE "};
+    std::string delim{""};
+    for (const auto& filter_tup : query.filter) {
+      filter_string += delim + std::get<0>(filter_tup) + std::get<1>(filter_tup) + std::get<2>(filter_tup);
+      //  + "'";
+
+    }
+    return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + filter_string};
+  }
+}
+
+std::string selectStatement(ComparisonBetweenSelectQuery query) {
+  if (!query.filter.empty()) {
+    if (query.filter.size() > 1) {
+      // We do not curently support multiple comparisons in a single query
+      return std::string{"SELECT 1"};
+    }
+    size_t index = 0;
+    std::string filter_string{"WHERE "};
+    std::string delim{""};
+    for (const auto& filter_tup : query.filter) {
+      filter_string += delim + std::get<0>(filter_tup) + " BETWEEN " + std::get<1>(filter_tup) + " AND " + std::get<2>(filter_tup);
+      //  + "'";
+    }
+    return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + filter_string};
+  }
+}
+
 // TODO: Update query
 // TODO: Filtering
 
@@ -104,6 +139,24 @@ pqxx::result DatabaseConnection::performInsert (DatabaseQuery query) {
 }
 
 pqxx::result DatabaseConnection::performSelect (DatabaseQuery query) {
+  pqxx::connection connection(getConnectionString().c_str());
+  pqxx::work worker(connection);
+  pqxx::result pqxx_result = worker.exec(selectStatement(query));
+  worker.commit();
+
+  return pqxx_result;
+}
+
+pqxx::result DatabaseConnection::performSelect (ComparisonSelectQuery query) {
+  pqxx::connection connection(getConnectionString().c_str());
+  pqxx::work worker(connection);
+  pqxx::result pqxx_result = worker.exec(selectStatement(query));
+  worker.commit();
+
+  return pqxx_result;
+}
+
+pqxx::result DatabaseConnection::performSelect (ComparisonBetweenSelectQuery query) {
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
   pqxx::result pqxx_result = worker.exec(selectStatement(query));
@@ -184,6 +237,53 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
   }
   return QueryResult{};
 }
+
+
+QueryResult DatabaseConnection::query(ComparisonSelectQuery query) {
+    pqxx::result pqxx_result = performSelect(query);
+
+    QueryResult result{};
+    result.table = query.table;
+
+    auto count = query.fields.size();
+
+    for (auto row : pqxx_result) {
+      int index = 0;
+      for (const auto &field: row) {
+        std::string field_name = query.fields[index++];
+        auto row_chars = field.c_str();
+        if (row_chars != nullptr) {
+          std::string value{row_chars};
+          auto pair = std::make_pair(field_name, value);
+          result.values.push_back(pair);
+        }
+      }
+    }
+    return result;
+  }
+
+  QueryResult DatabaseConnection::query(ComparisonBetweenSelectQuery query) {
+    pqxx::result pqxx_result = performSelect(query);
+
+    QueryResult result{};
+    result.table = query.table;
+
+    auto count = query.fields.size();
+
+    for (auto row : pqxx_result) {
+      int index = 0;
+      for (const auto &field: row) {
+        std::string field_name = query.fields[index++];
+        auto row_chars = field.c_str();
+        if (row_chars != nullptr) {
+          std::string value{row_chars};
+          auto pair = std::make_pair(field_name, value);
+          result.values.push_back(pair);
+        }
+      }
+    }
+    return result;
+  }
 
 pqxx::connection DatabaseConnection::getConnection() {
   std::string connectionString{("dbname = " + m_config.credentials.name +

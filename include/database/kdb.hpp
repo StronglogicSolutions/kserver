@@ -29,16 +29,63 @@ class KDB {
 
   QueryValues select(std::string table, Fields fields,
                      QueryFilter filter = {}) {
-    DatabaseQuery select_query{.table = table,
-                               .fields = fields,
-                               .type = QueryType::SELECT,
-                               .filter = filter};
-    QueryResult result = m_connection.query(select_query);
-    if (!result.values.empty()) {
-      return result.values;
+
+    try {
+      DatabaseQuery select_query{.table = table,
+                                .fields = fields,
+                                .type = QueryType::SELECT,
+                                .filter = filter};
+      QueryResult result = m_connection.query(select_query);
+      if (!result.values.empty()) {
+        return result.values;
+      }
+    } catch (const pqxx::sql_error &e) {
+      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+    } catch (const std::exception &e) {
+      KLOG->error("Error", e.what());
     }
     return {{}};
   }
+
+  QueryValues select(std::string table, Fields fields,
+                     QueryComparisonFilter filter = {}) {
+
+    try {
+      ComparisonSelectQuery select_query{.table = table,
+                                .fields = fields,
+                                .filter = filter};
+      QueryResult result = m_connection.query(select_query);
+      if (!result.values.empty()) {
+        return result.values;
+      }
+    } catch (const pqxx::sql_error &e) {
+      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+    } catch (const std::exception &e) {
+      KLOG->error("Error", e.what());
+    }
+    return {{}};
+  }
+
+
+  QueryValues selectCompare(std::string table, Fields fields,
+                     QueryComparisonBetweenFilter filter = {}) {
+
+    try {
+      ComparisonBetweenSelectQuery select_query{.table = table,
+                                .fields = fields,
+                                .filter = filter};
+      QueryResult result = m_connection.query(select_query);
+      if (!result.values.empty()) {
+        return result.values;
+      }
+    } catch (const pqxx::sql_error &e) {
+      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+    } catch (const std::exception &e) {
+      KLOG->error("Error", e.what());
+    }
+    return {{}};
+  }
+
 
   bool insert(std::string table, Fields fields, Values values) {
     DatabaseQuery insert_query{.table= table,
