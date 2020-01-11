@@ -413,6 +413,7 @@ class KServer : public SocketListener {
         KLOG->info("Testing scheduler");
         m_request_handler(client_socket_fd, "Test", Request::DevTest::Schedule);
       }
+      sendEvent(client_socket_fd, "Message Received", {"Message received by KServer"});
     }
   }
 

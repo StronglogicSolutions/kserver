@@ -41,6 +41,11 @@ struct KSession {
   uuid id;
 };
 
+std::string get_cwd() {
+  char* working_dir_path = realpath(".", NULL);
+  return std::string{working_dir_path};
+}
+
 /**
  * JSON Tools
  */

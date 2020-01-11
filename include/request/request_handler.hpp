@@ -17,15 +17,8 @@
 #include <utility>
 #include <vector>
 
-std::string get_cwd() {
-  char *working_dir_path = realpath(".", NULL);
-  return std::string{working_dir_path};
-}
-
 namespace Request {
-  enum DevTest {
-    Schedule = 1
-  };
+enum DevTest { Schedule = 1 };
 using namespace KData;
 
 flatbuffers::FlatBufferBuilder builder(1024);
@@ -95,6 +88,9 @@ class RequestHandler {
         });
     m_system_callback_fn = system_callback_fn;
     m_event_callback_fn = event_callback_fn;
+    m_scheduler = new Executor::Scheduler([this](std::string result, int mask, int client_socket_fd) {
+          onProcessComplete(result, mask, client_socket_fd);
+      });
   }
 
   std::string operator()(KOperation op, std::vector<std::string> argv,
@@ -148,7 +144,7 @@ class RequestHandler {
           FileUtils::saveEnvFile(env_file_string, env_filename);
 
           std::string media_filename = get_cwd();
-          media_filename += "/data/" + uuid + "/" +  filename;
+          media_filename += "/data/" + uuid + "/" + filename;
 
           auto validate = true;  // TODO: Replace this with actual validation
           if (validate) {
@@ -174,16 +170,30 @@ class RequestHandler {
 
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      Executor::Scheduler scheduler{};
-      std::vector<Executor::Task> tasks = scheduler.fetchTasks();
+      std::vector<Executor::Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
         KLOG->info("There are tasks to be reviewed");
         for (const auto& task : tasks) {
-          KLOG->info("Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution Flags", task.datetime, std::to_string(task.execution_mask), task.filename, task.envfile);
+          KLOG->info(
+              "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
+              "Flags",
+              task.datetime, std::to_string(task.execution_mask), task.filename,
+              task.envfile);
         }
         std::string tasks_message = std::to_string(tasks.size());
         tasks_message += " tasks scheduled to run in the next 24 hours";
-        m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY, {tasks_message});
+        m_system_callback_fn(client_socket_fd,
+                             SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
+                             {tasks_message});
+
+        // for (const auto& task : tasks) {
+        m_scheduler->executeTask(client_socket_fd, tasks.at(0));
+        // }
+      } else {
+        KLOG->info("There are currently no tasks ready for execution");
+        m_system_callback_fn(
+            client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
+            {"There are currently no tasks ready for execution"});
       }
     }
   }
@@ -226,7 +236,7 @@ class RequestHandler {
 
     for (const auto& row : result.values) {
       KLOG->info("Field: {}, Value: {}", row.first, row.second);
-      m_executor->request(row.second, mask, client_socket_fd);
+      m_executor->request(row.second, mask, client_socket_fd, {});
     }
 
     return std::string{"Process hopefully complete"};
@@ -278,6 +288,7 @@ class RequestHandler {
   std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
 
   ProcessExecutor* m_executor;
+  Executor::Scheduler* m_scheduler;
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;
 };

@@ -99,6 +99,7 @@ std::string selectStatement(ComparisonSelectQuery query) {
     }
     return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + filter_string};
   }
+  return std::string{"SELECT 1"};
 }
 
 std::string selectStatement(ComparisonBetweenSelectQuery query) {
@@ -116,6 +117,7 @@ std::string selectStatement(ComparisonBetweenSelectQuery query) {
     }
     return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + filter_string};
   }
+  return std::string{"SELECT 1"};
 }
 
 // TODO: Update query

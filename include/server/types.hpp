@@ -3,6 +3,7 @@
 
 static const int SYSTEM_EVENTS__FILE_UPDATE = 1;
 static const int SYSTEM_EVENTS__SCHEDULED_TASKS_READY = 2;
+static const int SYSTEM_EVENTS__SCHEDULED_TASKS_NONE = 3;
 
 typedef struct {
   int timestamp;
