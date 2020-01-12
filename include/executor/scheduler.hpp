@@ -43,13 +43,10 @@ auto KLOG = KLogger::GetInstance() -> get_logger();
 
 class Scheduler : public DeferInterface, CalendarManagerInterface {
  public:
-
   Scheduler() {}
   Scheduler(EventCallback fn) : m_event_callback(fn) {}
 
-  ~Scheduler() {
-    KLOG->info("Scheduler destroyed");
-  }
+  ~Scheduler() { KLOG->info("Scheduler destroyed"); }
 
   virtual void schedule(Task task) {
     // verify and put in database
@@ -66,7 +63,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   static KApplication getAppInfo(int mask) {
     Database::KDB kdb{};
     KApplication k_app{};
-    QueryValues values = kdb.select("apps", {"path", "data", "name"}, {{"mask", std::to_string(mask)}});
+    QueryValues values = kdb.select("apps", {"path", "data", "name"},
+                                    {{"mask", std::to_string(mask)}});
 
     for (const auto& value_pair : values) {
       if (value_pair.first == "path") {
@@ -151,23 +149,23 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     auto envfile = task.envfile;
 
     if (is_ready_to_execute) {
-      // Make this member?
-      ProcessExecutor* executor = new ProcessExecutor();
-      executor->setEventCallback(
+      ProcessExecutor executor{};
+      executor.setEventCallback(
           [this](std::string result, int mask, int client_socket_fd) {
             onProcessComplete(result, mask, client_socket_fd);
           });
+
       std::string temp_path = get_cwd();
       temp_path += "/config/execute_script.sh";
       std::string id_value{std::to_string(task.id)};
 
-      executor->request(temp_path, task.execution_mask, client_socket_fd, {id_value});
+      executor.request(temp_path, task.execution_mask, client_socket_fd,
+                       {id_value});
     }
   }
 
-  private:
-
-    EventCallback m_event_callback;
+ private:
+  EventCallback m_event_callback;
 };
 
 }  // namespace

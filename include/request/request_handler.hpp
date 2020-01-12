@@ -88,9 +88,10 @@ class RequestHandler {
         });
     m_system_callback_fn = system_callback_fn;
     m_event_callback_fn = event_callback_fn;
-    m_scheduler = new Executor::Scheduler([this](std::string result, int mask, int client_socket_fd) {
+    m_scheduler = new Executor::Scheduler(
+        [this](std::string result, int mask, int client_socket_fd) {
           onProcessComplete(result, mask, client_socket_fd);
-      });
+        });
   }
 
   std::string operator()(KOperation op, std::vector<std::string> argv,
@@ -168,6 +169,22 @@ class RequestHandler {
     return std::string{"Operation failed"};
   }
 
+  /**
+   *
+   * generic functor overload for running operations during development
+   *
+   * Calls the scheduler to fetch tasks which need to be executed soon and
+   * returns them to the KServer. These tasks can be performed iteratively on a
+   * message loop, to ensure each execution completes before another one begins.
+   *
+   * @overload
+   *
+   * @param[in] {int} client_socket_fd The client socket file descriptor
+   * @param[in] {KOperation} op The operation requested
+   * @param[in] {DevTest} test An enum value representing the type of operation
+   * to perform
+   *
+   */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
       std::vector<Executor::Task> tasks = m_scheduler->fetchTasks();
@@ -198,6 +215,12 @@ class RequestHandler {
     }
   }
 
+  /**
+   * fetchAvailableApplications
+   *
+   * Fetches the available applications that can be requested for execution by a
+   * client
+   */
   std::map<int, std::string> operator()(KOperation op) {
     // TODO: We need to fix the DB query so it is orderable and groupable
     DatabaseQuery select_query{.table = "apps",
@@ -225,7 +248,19 @@ class RequestHandler {
     return command_map;
   }
 
-  std::string operator()(uint32_t mask, int client_socket_fd) {
+  /**
+   * runApplication
+   *
+   * Calls on the ProcessExecutor and requests that it execute an appication
+   * whose mask value matches those contained within the value passed as a
+   * parameter
+   *
+   * @overload
+   * @param[in] {uint32_t} mask The requested mask
+   * @param[in] {int} client_socket_fd The file descriptor for the client making
+   * the request
+   */
+  void operator()(uint32_t mask, int client_socket_fd) {
     QueryResult result = m_connection.query(
         DatabaseQuery{.table = "apps",
                       .fields = {"path"},
@@ -238,8 +273,12 @@ class RequestHandler {
       KLOG->info("Field: {}, Value: {}", row.first, row.second);
       m_executor->request(row.second, mask, client_socket_fd, {});
     }
-
-    return std::string{"Process hopefully complete"};
+    std::string info_string{
+        "Process execution requested for applications matching the mask "};
+    info_string += std::to_string(mask);
+    m_system_callback_fn(client_socket_fd,
+                         SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
+                         {info_string});
   }
 
   std::pair<uint8_t*, int> operator()(std::vector<uint32_t> bits) {
