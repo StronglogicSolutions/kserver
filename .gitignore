@@ -8,3 +8,5 @@ data
 **/CMakeCache.txt
 **/Makefile
 **/executor/main.cpp
+**/*.mp4
+**/*.cmake
