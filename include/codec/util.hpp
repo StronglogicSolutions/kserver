@@ -5,8 +5,8 @@
 #include <codec/uuid.h>
 
 #include <bitset>
-#include <filesystem>
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -28,6 +28,9 @@ using namespace KData;
 
 static const int MAX_PACKET_SIZE = 4096;
 static const int HEADER_SIZE = 4;
+
+static const int SESSION_ACTIVE = 1;
+static const int SESSION_INACTIVE = 2;
 
 typedef std::string KOperation;
 typedef std::map<int, std::string> CommandMap;
@@ -188,6 +191,33 @@ CommandMap getArgMap(const char* data) {
     }
   }
   return cm;
+}
+
+std::string createSessionEvent(
+    int status, std::string message = "",
+    std::vector<std::pair<std::string, std::string>> args = {}) {
+  StringBuffer s;
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("event");
+  w.Key("event");
+  w.String("Session Message");
+  w.Key("status");
+  w.Int(status);
+  w.Key("message");
+  w.String(message.c_str());
+  w.Key("info");
+  w.StartObject();
+  if (!args.empty()) {
+    for (const auto& v : args) {
+      w.Key(v.first.c_str());
+      w.String(v.second.c_str());
+    }
+  }
+  w.EndObject();
+  w.EndObject();
+  return s.GetString();
 }
 
 std::string createMessage(
