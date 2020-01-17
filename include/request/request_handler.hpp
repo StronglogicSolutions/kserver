@@ -5,6 +5,7 @@
 #include <database/DatabaseConnection.h>
 #include <log/logger.h>
 #include <stdlib.h>
+#include <chrono>
 
 #include <codec/util.hpp>
 #include <config/config_parser.hpp>
@@ -12,13 +13,19 @@
 #include <executor/executor.hpp>
 #include <executor/scheduler.hpp>
 #include <iostream>
+#include <map>
 #include <server/types.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace Request {
-enum DevTest { Schedule = 1 };
+
+enum DevTest {
+  Schedule = 1,
+  ExecuteTask = 2
+};
+
 using namespace KData;
 
 flatbuffers::FlatBufferBuilder builder(1024);
@@ -76,11 +83,17 @@ class RequestHandler {
     if (m_executor != nullptr) {
       delete m_executor;
     }
+    if (m_maintenance_worker.valid()) {
+      KLOG->info("Waiting for maintenance worker to complete");
+      m_maintenance_worker.get();
+    }
   }
 
-  void initialize(std::function<void(std::string, int, int)> event_callback_fn,
-                  std::function<void(int, int, std::vector<std::string>)>
-                      system_callback_fn) {
+  void initialize(
+      std::function<void(std::string, int, int)> event_callback_fn,
+      std::function<void(int, int, std::vector<std::string>)>
+          system_callback_fn,
+      std::function<void(int, std::vector<Executor::Task>)> task_callback_fn) {
     m_executor = new ProcessExecutor();
     m_executor->setEventCallback(
         [this](std::string result, int mask, int client_socket_fd) {
@@ -88,10 +101,74 @@ class RequestHandler {
         });
     m_system_callback_fn = system_callback_fn;
     m_event_callback_fn = event_callback_fn;
-    m_scheduler = new Executor::Scheduler(
-        [this](std::string result, int mask, int client_socket_fd) {
-          onProcessComplete(result, mask, client_socket_fd);
-        });
+    m_task_callback_fn = task_callback_fn;
+
+    // Begin maintenance loop to process scheduled tasks as they become ready
+    m_maintenance_worker = std::async(std::launch::async, &RequestHandler::maintenanceLoop, this);
+  }
+
+  Executor::Scheduler getScheduler() {
+    return Executor::Scheduler{
+      [this](std::string result, int mask, int client_socket_fd) {
+        onProcessComplete(result, mask, client_socket_fd);
+      }
+    };
+  }
+
+  void maintenanceLoop() {
+    KLOG->info("Beginning maintenance loop");
+    for (;;) {
+      int client_socket_fd = -1;
+      Executor::Scheduler scheduler = getScheduler();
+      std::vector<Executor::Task> tasks = scheduler.fetchTasks();
+      if (!tasks.empty()) {
+        KLOG->info("There are tasks to be reviewed");
+        for (const auto& task : tasks) {
+          KLOG->info(
+              "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
+              "Flags",
+              task.datetime, std::to_string(task.execution_mask), task.filename,
+              task.envfile);
+        }
+        std::string tasks_message = std::to_string(tasks.size());
+        tasks_message += " tasks scheduled to run in the next 24 hours";
+        m_system_callback_fn(client_socket_fd,
+                            SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
+                            {tasks_message});
+
+        // for (const auto& task : tasks) {
+        // scheduler.executeTask(client_socket_fd, tasks.at(0));
+        // m_task_callback_fn(client_socket_fd, tasks);
+        auto it = m_tasks_map.find(client_socket_fd);
+        if (it == m_tasks_map.end()) {
+          m_tasks_map.insert(std::pair<int, std::vector<Executor::Task>>(
+              client_socket_fd, tasks));
+        } else {
+          it->second.insert(it->second.end(), tasks.begin(), tasks.end());
+        }
+        KLOG->info("{} currently has {} tasks pending execution",
+                  client_socket_fd, m_tasks_map.at(client_socket_fd).size());
+      } else {
+        KLOG->info("There are currently no tasks ready for execution");
+        m_system_callback_fn(
+            client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
+            {"There are currently no tasks ready for execution"});
+      }
+      std::this_thread::sleep_for(std::chrono::minutes(5));
+    }
+  }
+
+  void handlePendingTasks() {
+    Executor::Scheduler scheduler = getScheduler();
+    if (!m_tasks_map.empty()) {
+      for (const auto& client_tasks : m_tasks_map) {
+        if (!client_tasks.second.empty()) {
+          for (const auto& task : client_tasks.second) {
+            scheduler.executeTask(client_tasks.first, task);
+          }
+        }
+      }
+    }
   }
 
   std::string operator()(KOperation op, std::vector<std::string> argv,
@@ -187,7 +264,11 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      std::vector<Executor::Task> tasks = m_scheduler->fetchTasks();
+      Executor::Scheduler scheduler{
+          [this](std::string result, int mask, int client_socket_fd) {
+            onProcessComplete(result, mask, client_socket_fd);
+          }};
+      std::vector<Executor::Task> tasks = scheduler.fetchTasks();
       if (!tasks.empty()) {
         KLOG->info("There are tasks to be reviewed");
         for (const auto& task : tasks) {
@@ -204,8 +285,17 @@ class RequestHandler {
                              {tasks_message});
 
         // for (const auto& task : tasks) {
-        m_scheduler->executeTask(client_socket_fd, tasks.at(0));
-        // }
+        scheduler.executeTask(client_socket_fd, tasks.at(0));
+        // m_task_callback_fn(client_socket_fd, tasks);
+        auto it = m_tasks_map.find(client_socket_fd);
+        if (it == m_tasks_map.end()) {
+          m_tasks_map.insert(std::pair<int, std::vector<Executor::Task>>(
+              client_socket_fd, tasks));
+        } else {
+          it->second.insert(it->second.end(), tasks.begin(), tasks.end());
+        }
+        KLOG->info("{} currently has {} tasks pending execution",
+                   client_socket_fd, m_tasks_map.at(client_socket_fd).size());
       } else {
         KLOG->info("There are currently no tasks ready for execution");
         m_system_callback_fn(
@@ -325,11 +415,14 @@ class RequestHandler {
 
   std::function<void(std::string, int, int)> m_event_callback_fn;
   std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
+  std::function<void(int, std::vector<Executor::Task>)> m_task_callback_fn;
+
+  std::map<int, std::vector<Executor::Task>> m_tasks_map;
 
   ProcessExecutor* m_executor;
-  Executor::Scheduler* m_scheduler;
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;
+  std::future<void> m_maintenance_worker;
 };
 }  // namespace Request
 #endif  // __REQUEST_HANDLER_HPP__
