@@ -28,5 +28,9 @@ std::string getDBPass() {
 std::string getDBName() { return reader.Get("database", "name", "NAME_ERROR"); }
 
 std::string getDBUser() { return reader.Get("database", "user", "USER_ERROR"); }
+
+std::string getExecutorScript() {
+  return reader.Get("executor", "script", "EXECUTOR_SCRIPT_ERROR");
+}
 }  // namespace ConfigParser
-#endif // __CONFIG_PARSER_HPP__
+#endif  // __CONFIG_PARSER_HPP__
