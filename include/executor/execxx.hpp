@@ -81,10 +81,10 @@ std::string qx_debug(const char* path, std::vector<std::string> args,
   //   raw_args[i] = const_cast<char*>(args[i - 1].c_str());
   // }
 
-  char* raw_args[3];
+  char* raw_args[2];
   raw_args[0] = const_cast<char*>(path);
-  raw_args[1] = const_cast<char*>("test");
-  raw_args[2] = NULL;
+  // raw_args[1] = const_cast<char*>("test");
+  raw_args[1] = NULL;
   // raw_args[args.size() + 1] = NULL;
   std::string execution_string{path};
   execution_string += " ";
