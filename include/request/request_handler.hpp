@@ -19,14 +19,9 @@
 #include <utility>
 #include <vector>
 
-namespace Request
-{
+namespace Request {
 
-enum DevTest
-{
-  Schedule = 1,
-  ExecuteTask = 2
-};
+enum DevTest { Schedule = 1, ExecuteTask = 2 };
 
 using namespace KData;
 
@@ -34,13 +29,10 @@ flatbuffers::FlatBufferBuilder builder(1024);
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
 
-class RequestHandler
-{
-public:
-  RequestHandler() : m_executor(nullptr)
-  {
-    if (!ConfigParser::initConfig())
-    {
+class RequestHandler {
+ public:
+  RequestHandler() : m_executor(nullptr) {
+    if (!ConfigParser::initConfig()) {
       KLOG->info("Unable to load config");
       return;
     }
@@ -59,30 +51,24 @@ public:
   RequestHandler(RequestHandler &&r)
       : m_executor(r.m_executor),
         m_connection(r.m_connection),
-        m_credentials(r.m_credentials)
-  {
+        m_credentials(r.m_credentials) {
     r.m_executor = nullptr;
   }
 
   RequestHandler(const RequestHandler &r)
-      : m_executor(nullptr), // We do not copy the Executor
+      : m_executor(nullptr),  // We do not copy the Executor
         m_connection(r.m_connection),
-        m_credentials(r.m_credentials)
-  {
-  }
+        m_credentials(r.m_credentials) {}
 
-  RequestHandler &operator=(const RequestHandler &handler)
-  {
+  RequestHandler &operator=(const RequestHandler &handler) {
     this->m_executor = nullptr;
     this->m_connection = handler.m_connection;
     this->m_credentials = handler.m_credentials;
     return *this;
   }
 
-  RequestHandler &operator=(RequestHandler &&handler)
-  {
-    if (&handler != this)
-    {
+  RequestHandler &operator=(RequestHandler &&handler) {
+    if (&handler != this) {
       delete m_executor;
       m_executor = handler.m_executor;
       handler.m_executor = nullptr;
@@ -90,14 +76,11 @@ public:
     return *this;
   }
 
-  ~RequestHandler()
-  {
-    if (m_executor != nullptr)
-    {
+  ~RequestHandler() {
+    if (m_executor != nullptr) {
       delete m_executor;
     }
-    if (m_maintenance_worker.valid())
-    {
+    if (m_maintenance_worker.valid()) {
       KLOG->info("Waiting for maintenance worker to complete");
       m_maintenance_worker.get();
     }
@@ -107,8 +90,7 @@ public:
       std::function<void(std::string, int, std::string, int)> event_callback_fn,
       std::function<void(int, int, std::vector<std::string>)>
           system_callback_fn,
-      std::function<void(int, std::vector<Executor::Task>)> task_callback_fn)
-  {
+      std::function<void(int, std::vector<Executor::Task>)> task_callback_fn) {
     m_executor = new ProcessExecutor();
     m_executor->setEventCallback([this](std::string result, int mask,
                                         std::string request_id,
@@ -124,27 +106,22 @@ public:
         std::async(std::launch::async, &RequestHandler::maintenanceLoop, this);
   }
 
-  Executor::Scheduler getScheduler()
-  {
-    return Executor::Scheduler{[this](std::string result, int mask,
-                                      int client_socket_fd) {
-      onProcessComplete(result, mask, std::string{""}, client_socket_fd);
-    }};
+  Executor::Scheduler getScheduler() {
+    return Executor::Scheduler{
+        [this](std::string result, int mask, int client_socket_fd) {
+          onProcessComplete(result, mask, std::string{""}, client_socket_fd);
+        }};
   }
 
-  void maintenanceLoop()
-  {
+  void maintenanceLoop() {
     KLOG->info("Beginning maintenance loop");
-    for (;;)
-    {
+    for (;;) {
       int client_socket_fd = -1;
       Executor::Scheduler scheduler = getScheduler();
       std::vector<Executor::Task> tasks = scheduler.fetchTasks();
-      if (!tasks.empty())
-      {
+      if (!tasks.empty()) {
         KLOG->info("There are tasks to be reviewed");
-        for (const auto &task : tasks)
-        {
+        for (const auto &task : tasks) {
           KLOG->info(
               "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
               "Flags",
@@ -161,22 +138,17 @@ public:
         // scheduler.executeTask(client_socket_fd, tasks.at(0));
         // m_task_callback_fn(client_socket_fd, tasks);
         auto it = m_tasks_map.find(client_socket_fd);
-        if (it == m_tasks_map.end())
-        {
+        if (it == m_tasks_map.end()) {
           m_tasks_map.insert(std::pair<int, std::vector<Executor::Task>>(
               client_socket_fd, tasks));
-        }
-        else
-        {
+        } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
         KLOG->info(
             "KServer has {} {} pending execution",
             m_tasks_map.at(client_socket_fd).size(),
             m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
-      }
-      else
-      {
+      } else {
         KLOG->info("There are currently no tasks ready for execution");
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
@@ -187,17 +159,12 @@ public:
     }
   }
 
-  void handlePendingTasks()
-  {
+  void handlePendingTasks() {
     Executor::Scheduler scheduler = getScheduler();
-    if (!m_tasks_map.empty())
-    {
-      for (const auto &client_tasks : m_tasks_map)
-      {
-        if (!client_tasks.second.empty())
-        {
-          for (const auto &task : client_tasks.second)
-          {
+    if (!m_tasks_map.empty()) {
+      for (const auto &client_tasks : m_tasks_map) {
+        if (!client_tasks.second.empty()) {
+          for (const auto &task : client_tasks.second) {
             //  scheduler.executeTask(client_tasks.first, task);
             KLOG->info(
                 "RequestHandler::handlePendingTasks() - Would be handling task "
@@ -210,11 +177,15 @@ public:
   }
 
   std::string operator()(KOperation op, std::vector<std::string> argv,
-                         int client_socket_fd, std::string uuid)
-  {
-    if (op == "Schedule")
-    {
+                         int client_socket_fd, std::string uuid) {
+    if (op == "Schedule") {
       KLOG->info("RequestHandler:: Handling schedule request");
+      if (argv.empty()) {
+        KLOG->info(
+            "RequestHandler::Scheduler - Can't handle a task with no "
+            "arguments");
+        return "";
+      }
       auto mask = argv.at(argv.size() - 1);
       auto kdb = Database::KDB();
 
@@ -222,23 +193,18 @@ public:
           kdb.select("apps", {"name", "path"}, {{"mask", mask}});
       std::string name{};
       std::string path{};
-      for (const auto &value : result)
-      {
-        if (value.first == "name")
-        {
+      for (const auto &value : result) {
+        if (value.first == "name") {
           name += value.second;
           continue;
         }
-        if (value.first == "path")
-        {
+        if (value.first == "path") {
           path += value.second;
           continue;
         }
       }
-      if (!path.empty() && !name.empty())
-      {
-        if (name == "Instagram")
-        {
+      if (!path.empty() && !name.empty()) {
+        if (name == "Instagram") {
           KLOG->info("RequestHandler:: Instagram task");
           auto filename = argv.at(0);
           m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
@@ -269,9 +235,8 @@ public:
           std::string media_filename = get_cwd();
           media_filename += "/data/" + uuid + "/" + filename;
 
-          auto validate = true; // TODO: Replace this with actual validation
-          if (validate)
-          {
+          auto validate = true;  // TODO: Replace this with actual validation
+          if (validate) {
             KLOG->info("Sending task request to Scheduler");
             Executor::Scheduler scheduler{};
             Executor::Task task{
@@ -308,21 +273,17 @@ public:
    * to perform
    *
    */
-  void operator()(int client_socket_fd, KOperation op, DevTest test)
-  {
-    if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule)
-    {
+  void operator()(int client_socket_fd, KOperation op, DevTest test) {
+    if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
       Executor::Scheduler scheduler{[this](std::string result, int mask,
 
                                            int client_socket_fd) {
         onProcessComplete(result, mask, "", client_socket_fd);
       }};
       std::vector<Executor::Task> tasks = scheduler.fetchTasks();
-      if (!tasks.empty())
-      {
+      if (!tasks.empty()) {
         KLOG->info("There are tasks to be reviewed");
-        for (const auto &task : tasks)
-        {
+        for (const auto &task : tasks) {
           KLOG->info(
               "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
               "Flags",
@@ -339,20 +300,15 @@ public:
         scheduler.executeTask(client_socket_fd, tasks.at(0));
         // m_task_callback_fn(client_socket_fd, tasks);
         auto it = m_tasks_map.find(client_socket_fd);
-        if (it == m_tasks_map.end())
-        {
+        if (it == m_tasks_map.end()) {
           m_tasks_map.insert(std::pair<int, std::vector<Executor::Task>>(
               client_socket_fd, tasks));
-        }
-        else
-        {
+        } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
         KLOG->info("{} currently has {} tasks pending execution",
                    client_socket_fd, m_tasks_map.at(client_socket_fd).size());
-      }
-      else
-      {
+      } else {
         KLOG->info("There are currently no tasks ready for execution");
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
@@ -367,8 +323,7 @@ public:
    * Fetches the available applications that can be requested for execution by a
    * client
    */
-  std::map<int, std::string> operator()(KOperation op)
-  {
+  std::map<int, std::string> operator()(KOperation op) {
     // TODO: We need to fix the DB query so it is orderable and groupable
     DatabaseQuery select_query{.table = "apps",
                                .fields = {"name", "path", "data", "mask"},
@@ -380,21 +335,15 @@ public:
     std::vector<int> masks{};
     // int mask = -1;
     std::string name{""};
-    for (const auto &row : result.values)
-    {
-      if (row.first == "name")
-      {
+    for (const auto &row : result.values) {
+      if (row.first == "name") {
         names.push_back(row.second);
-      }
-      else if (row.first == "mask")
-      {
+      } else if (row.first == "mask") {
         masks.push_back(stoi(row.second));
       }
     }
-    if (masks.size() == names.size())
-    {
-      for (int i = 0; i < masks.size(); i++)
-      {
+    if (masks.size() == names.size()) {
+      for (int i = 0; i < masks.size(); i++) {
         command_map.emplace(masks.at(i), names.at(i));
       }
     }
@@ -413,8 +362,7 @@ public:
    * @param[in] {int} client_socket_fd The file descriptor for the client making
    * the request
    */
-  void operator()(uint32_t mask, std::string request_id, int client_socket_fd)
-  {
+  void operator()(uint32_t mask, std::string request_id, int client_socket_fd) {
     QueryResult result = m_connection.query(
         DatabaseQuery{.table = "apps",
                       .fields = {"path"},
@@ -423,8 +371,7 @@ public:
                       .filter = QueryFilter{std::make_pair(
                           std::string("mask"), std::to_string(mask))}});
 
-    for (const auto &row : result.values)
-    {
+    for (const auto &row : result.values) {
       KLOG->info("Field: {}, Value: {}", row.first, row.second);
       m_executor->request(row.second, mask, client_socket_fd, request_id, {});
     }
@@ -436,12 +383,10 @@ public:
                          {info_string, request_id});
   }
 
-  std::pair<uint8_t *, int> operator()(std::vector<uint32_t> bits)
-  {
+  std::pair<uint8_t *, int> operator()(std::vector<uint32_t> bits) {
     QueryFilter filter{};
 
-    for (const auto &bit : bits)
-    {
+    for (const auto &bit : bits) {
       filter.push_back(
           std::make_pair(std::string("mask"), std::to_string(bit)));
     }
@@ -452,12 +397,9 @@ public:
                                .filter = filter};
     QueryResult result = m_connection.query(select_query);
     std::string paths{};
-    if (!result.values.empty())
-    {
-      for (const auto &row : result.values)
-      {
-        if (row.first == "path")
-          paths += row.second + "\n";
+    if (!result.values.empty()) {
+      for (const auto &row : result.values) {
+        if (row.first == "path") paths += row.second + "\n";
       }
       unsigned char message_bytes[] = {33, 34, 45, 52, 52, 122, 101, 35};
       auto byte_vector = builder.CreateVector(message_bytes, 8);
@@ -477,11 +419,10 @@ public:
     return std::make_pair(&byte_array[0], 6);
   }
 
-private:
+ private:
   // Callback
   void onProcessComplete(std::string value, int mask, std::string request_id,
-                         int client_socket_fd)
-  {
+                         int client_socket_fd) {
     m_event_callback_fn(value, mask, request_id, client_socket_fd);
   }
 
@@ -496,5 +437,5 @@ private:
   DatabaseCredentials m_credentials;
   std::future<void> m_maintenance_worker;
 };
-} // namespace Request
-#endif // __REQUEST_HANDLER_HPP__
+}  // namespace Request
+#endif  // __REQUEST_HANDLER_HPP__

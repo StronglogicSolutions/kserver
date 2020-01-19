@@ -45,7 +45,7 @@ struct KSession {
 };
 
 std::string get_cwd() {
-  char* working_dir_path = realpath(".", NULL);
+  char *working_dir_path = realpath(".", NULL);
   return std::string{working_dir_path};
 }
 
@@ -62,7 +62,7 @@ std::string getJsonString(std::string s) {
   return buffer.GetString();
 }
 
-std::string createMessage(const char* data, std::string args = "") {
+std::string createMessage(const char *data, std::string args = "") {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -76,7 +76,7 @@ std::string createMessage(const char* data, std::string args = "") {
   return s.GetString();
 }
 
-std::string createEvent(const char* event, int mask, std::string stdout) {
+std::string createEvent(const char *event, int mask, std::string stdout) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -90,7 +90,7 @@ std::string createEvent(const char* event, int mask, std::string stdout) {
   return s.GetString();
 }
 
-std::string createEvent(const char* event, std::vector<std::string> args) {
+std::string createEvent(const char *event, std::vector<std::string> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -101,7 +101,7 @@ std::string createEvent(const char* event, std::vector<std::string> args) {
   w.Key("args");
   w.StartArray();
   if (!args.empty()) {
-    for (const auto& arg : args) {
+    for (const auto &arg : args) {
       w.String(arg.c_str());
     }
   }
@@ -110,7 +110,7 @@ std::string createEvent(const char* event, std::vector<std::string> args) {
   return s.GetString();
 }
 
-std::string createEvent(const char* event, int mask,
+std::string createEvent(const char *event, int mask,
                         std::vector<std::string> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
@@ -122,7 +122,7 @@ std::string createEvent(const char* event, int mask,
   w.Key("args");
   w.StartArray();
   if (!args.empty()) {
-    for (const auto& arg : args) {
+    for (const auto &arg : args) {
       w.String(arg.c_str());
     }
   }
@@ -131,7 +131,7 @@ std::string createEvent(const char* event, int mask,
   return s.GetString();
 }
 
-std::string createOperation(const char* op, std::vector<std::string> args) {
+std::string createOperation(const char *op, std::vector<std::string> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -142,7 +142,7 @@ std::string createOperation(const char* op, std::vector<std::string> args) {
   w.Key("args");
   w.StartArray();
   if (!args.empty()) {
-    for (const auto& arg : args) {
+    for (const auto &arg : args) {
       w.String(arg.c_str());
     }
   }
@@ -151,7 +151,7 @@ std::string createOperation(const char* op, std::vector<std::string> args) {
   return s.GetString();
 }
 
-std::string getOperation(const char* data) {
+std::string getOperation(const char *data) {
   Document d;
   d.Parse(data);
   if (d.HasMember("command")) {
@@ -160,7 +160,7 @@ std::string getOperation(const char* data) {
   return "";
 }
 
-std::string getMessage(const char* data) {
+std::string getMessage(const char *data) {
   Document d;
   d.Parse(data);
   if (d.HasMember("message")) {
@@ -169,24 +169,24 @@ std::string getMessage(const char* data) {
   return "";
 }
 
-std::vector<std::string> getArgs(const char* data) {
+std::vector<std::string> getArgs(const char *data) {
   Document d;
   d.Parse(data);
   std::vector<std::string> args{};
   if (d.HasMember("args")) {
-    for (const auto& v : d["args"].GetArray()) {
+    for (const auto &v : d["args"].GetArray()) {
       args.push_back(v.GetString());
     }
   }
   return args;
 }
 
-CommandMap getArgMap(const char* data) {
+CommandMap getArgMap(const char *data) {
   Document d;
   d.Parse(data);
   CommandMap cm{};
   if (d.HasMember("args")) {
-    for (const auto& m : d["args"].GetObject()) {
+    for (const auto &m : d["args"].GetObject()) {
       cm.emplace(std::stoi(m.name.GetString()), m.value.GetString());
     }
   }
@@ -210,7 +210,7 @@ std::string createSessionEvent(
   w.Key("info");
   w.StartObject();
   if (!args.empty()) {
-    for (const auto& v : args) {
+    for (const auto &v : args) {
       w.Key(v.first.c_str());
       w.String(v.second.c_str());
     }
@@ -221,7 +221,7 @@ std::string createSessionEvent(
 }
 
 std::string createMessage(
-    const char* data, std::vector<std::pair<std::string, std::string>> args) {
+    const char *data, std::vector<std::pair<std::string, std::string>> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -232,7 +232,7 @@ std::string createMessage(
   w.Key("args");
   w.StartObject();
   if (!args.empty()) {
-    for (const auto& v : args) {
+    for (const auto &v : args) {
       w.Key(v.first.c_str());
       w.String(v.second.c_str());
     }
@@ -242,7 +242,7 @@ std::string createMessage(
   return s.GetString();
 }
 
-std::string createMessage(const char* data,
+std::string createMessage(const char *data,
                           std::map<int, std::string> map = {}) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
@@ -254,7 +254,7 @@ std::string createMessage(const char* data,
   w.Key("args");
   w.StartObject();
   if (!map.empty()) {
-    for (const auto& [k, v] : map) {
+    for (const auto &[k, v] : map) {
       w.Key(std::to_string(k).c_str());
       w.String(v.c_str());
     }
@@ -264,7 +264,7 @@ std::string createMessage(const char* data,
   return s.GetString();
 }
 
-std::string createMessage(const char* data,
+std::string createMessage(const char *data,
                           std::map<int, std::vector<std::string>> map = {}) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
@@ -276,11 +276,11 @@ std::string createMessage(const char* data,
   w.Key("args");
   w.StartObject();
   if (!map.empty()) {
-    for (const auto& [k, v] : map) {
+    for (const auto &[k, v] : map) {
       w.Key(std::to_string(k).c_str());
       if (!v.empty()) {
         w.StartArray();
-        for (const auto& arg : v) {
+        for (const auto &arg : v) {
           w.String(arg.c_str());
         }
         w.EndArray();
@@ -296,42 +296,71 @@ std::string createMessage(const char* data,
  * Operations
  */
 
-bool isMessage(const char* data) {
+bool isMessage(const char *data) {
   Document d;
   d.Parse(data);
   return d.HasMember("message");
 }
 
-bool isOperation(const char* data) {
+bool isOperation(const char *data) {
   Document d;
   d.Parse(data);
   return strcmp(d["type"].GetString(), "operation") == 0;
 }
 
-bool isExecuteOperation(const char* data) {
+bool isExecuteOperation(const char *data) {
   return strcmp(data, "Execute") == 0;
 }
 
-bool isScheduleOperation(const char* data) {
+bool isScheduleOperation(const char *data) {
   return strcmp(data, "Schedule") == 0;
 }
 
-bool isFileUploadOperation(const char* data) {
+bool isFileUploadOperation(const char *data) {
   return strcmp(data, "FileUpload") == 0;
 }
 
-bool isStartOperation(const char* data) { return strcmp(data, "start") == 0; }
+bool isStartOperation(const char *data) { return strcmp(data, "start") == 0; }
 
-bool isStopOperation(const char* data) { return strcmp(data, "stop") == 0; }
+bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
 
 /**
  * General
  */
 
+std::string getSafeDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
+  // Make sure not an empty buffer
+  // Obtain the raw buffer so we can read the header
+  uint8_t *raw_buffer = s_buffer_ptr.get();
+  auto val1 = *raw_buffer;
+  auto val2 = *(raw_buffer + 1);
+  auto val3 = *(raw_buffer + 2);
+  auto val4 = *(raw_buffer + 3);
+
+  uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
+                                *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
+  // TODO: Copying into a new buffer for readability - switch to using the
+  // original buffer
+  uint8_t decode_buffer[message_byte_size];
+  flatbuffers::Verifier verifier(&raw_buffer[0 + 4], message_byte_size);
+  if (VerifyMessageBuffer(verifier)) {
+    std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
+    // Parse the bytes into an encoded message structure
+    auto k_message = GetMessage(&decode_buffer);
+    auto id = k_message->id();  // message ID
+    // Get the message bytes and create a string
+    const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
+
+    return std::string{message_bytes->begin(), message_bytes->end()};
+  } else {
+    return "{}";
+  }
+}
+
 std::string getDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
   // Make sure not an empty buffer
   // Obtain the raw buffer so we can read the header
-  uint8_t* raw_buffer = s_buffer_ptr.get();
+  uint8_t *raw_buffer = s_buffer_ptr.get();
   auto val1 = *raw_buffer;
   auto val2 = *(raw_buffer + 1);
   auto val3 = *(raw_buffer + 2);
@@ -347,12 +376,12 @@ std::string getDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
   auto k_message = GetMessage(&decode_buffer);
   auto id = k_message->id();  // message ID
   // Get the message bytes and create a string
-  const flatbuffers::Vector<uint8_t>* message_bytes = k_message->data();
-  std::string decoded_message{message_bytes->begin(), message_bytes->end()};
-  return decoded_message;
+  const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
+
+  return std::string{message_bytes->begin(), message_bytes->end()};
 }
 
-bool isNewSession(const char* data) {
+bool isNewSession(const char *data) {
   Document d;
   d.Parse(data);
   if (d.HasMember("message")) {
@@ -363,28 +392,28 @@ bool isNewSession(const char* data) {
 
 namespace FileUtils {
 
-void createDirectory(const char* dir_name) {
+void createDirectory(const char *dir_name) {
   std::string directory_name = {"data/"};
   directory_name += dir_name;
   std::filesystem::create_directory(directory_name.c_str());
 }
 
-void saveFile(std::vector<char> bytes, const char* filename) {
+void saveFile(std::vector<char> bytes, const char *filename) {
   std::ofstream output(filename,
                        std::ios::binary | std::ios::out | std::ios::app);
-  char* raw_data = bytes.data();
+  char *raw_data = bytes.data();
   for (size_t i = 0; i < bytes.size(); i++) {
-    output.write(const_cast<const char*>(&raw_data[i]), 1);
+    output.write(const_cast<const char *>(&raw_data[i]), 1);
   }
   output.close();
 }
 
-void saveFile(uint8_t* bytes, int size, std::string filename) {
+void saveFile(uint8_t *bytes, int size, std::string filename) {
   std::ofstream output(filename.c_str(),
                        std::ios::binary | std::ios::out | std::ios::app);
 
   for (int i = 0; i < size; i++) {
-    output.write((const char*)(&bytes[i]), 1);
+    output.write((const char *)(&bytes[i]), 1);
   }
   output.close();
 }
@@ -399,7 +428,7 @@ void test() {
   std::ofstream output("output.bmp",
                        std::ios::binary | std::ios::out | std::ios::app);
   for (size_t i = 0; i < 5; i++) {
-    output.write((char*)&pixels[i], 1);
+    output.write((char *)&pixels[i], 1);
   }
   output.close();
 }
@@ -410,7 +439,7 @@ void loadAndPrintFile(std::string_view file_path) {
   ifs.seekg(0, std::ios::beg);
   ifs.read(&result[0], pos);
 
-  for (const auto& c : result) {
+  for (const auto &c : result) {
     std::cout << c;
   }
 }
@@ -418,10 +447,10 @@ void loadAndPrintFile(std::string_view file_path) {
 
 // Bit helpers
 
-inline size_t findNullIndex(uint8_t* data) {
+inline size_t findNullIndex(uint8_t *data) {
   size_t index = 0;
   while (data) {
-    if (strcmp(const_cast<const char*>((char*)data), "\0") == 0) {
+    if (strcmp(const_cast<const char *>((char *)data), "\0") == 0) {
       break;
     }
     index++;
@@ -431,7 +460,7 @@ inline size_t findNullIndex(uint8_t* data) {
 }
 
 template <typename T>
-static std::string toBinaryString(const T& x) {
+static std::string toBinaryString(const T &x) {
   std::stringstream ss;
   ss << std::bitset<sizeof(T) * 8>(x);
   return ss.str();
@@ -446,7 +475,7 @@ bool hasNthBitSet(int value, int n) {
 }
 
 // aka isNumber
-bool isdigits(const std::string& s) {
+bool isdigits(const std::string &s) {
   for (char c : s)
     if (!isdigit(c)) {
       return false;
