@@ -353,39 +353,12 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
     if (VerifyIGTaskBuffer(verifier)) {
       std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
       const KData::IGTask *ig_task = GetIGTask(&decode_buffer);
-      /* std::vector<std::string> sv(std::initializer_list<std::string>{ */
-      /*     ig_task->filename()->str(), std::to_string(ig_task->time()), */
-      /*     ig_task->description()->str(), ig_task->hashtags()->str(), */
-      /*     ig_task->requested_by()->str(),
-       * ig_task->requested_by_phrase()->str(), */
-      /*     ig_task->promote_share()->str(), ig_task->link_bio()->str()}); */
-      /* sv.push_back(ig_task->filename()->str()); */
-      /* sv.push_back(std::to_string(ig_task->time())); */
-      /* sv.push_back(ig_task->description()->str()); */
-      /* sv.push_back(ig_task->hashtags()->str()); */
-      /* sv.push_back(ig_task->requested_by()->str()); */
-      /* sv.push_back(ig_task->requested_by_phrase()->str()); */
-      /* sv.push_back(ig_task->promote_share()->str()); */
-      /* sv.push_back(ig_task->link_bio()->str()); */
-      std::string filename = ig_task->filename()->str();
-      std::string time = std::to_string(ig_task->time());
-      std::string description = ig_task->description()->str();
-      std::string hashtags = ig_task->hashtags()->str();
-      std::string requested_by = ig_task->requested_by()->str();
-      std::string requested_by_phrase = ig_task->requested_by_phrase()->str();
-      std::string promote_share = ig_task->promote_share()->str();
-      std::string link_bio = ig_task->link_bio()->str();
-      std::vector<std::string> sv(8);
-      sv.push_back(filename);
-      sv.push_back(time);
-      sv.push_back(description);
-      sv.push_back(hashtags);
-      sv.push_back(requested_by);
-      sv.push_back(requested_by_phrase);
-      sv.push_back(promote_share);
-      sv.push_back(link_bio);
 
-      return right(std::move(sv));
+      return right(std::move(std::vector<std::string>{
+          ig_task->filename()->str(), std::to_string(ig_task->time()),
+          ig_task->description()->str(), ig_task->hashtags()->str(),
+          ig_task->requested_by()->str(), ig_task->requested_by_phrase()->str(),
+          ig_task->promote_share()->str(), ig_task->link_bio()->str()}));
     } else {
       // TODO: Copying into a new buffer for readability - switch to using the
       // original buffer
