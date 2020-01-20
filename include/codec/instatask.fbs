@@ -1,0 +1,15 @@
+namespace KData;
+
+table IGTask {
+  id: int;
+  filename: string;
+  time: ushort;
+  description: string;
+  hashtags: string;
+  requested_by: string;
+  requested_by_phrase: string;
+  promote_share: string;
+  link_bio: string;
+}
+
+root_type IGTask;

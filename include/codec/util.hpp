@@ -1,6 +1,7 @@
 #ifndef __UTIL_HPP__
 #define __UTIL_HPP__
 
+#include <codec/instatask_generated.h>
 #include <codec/kmessage_generated.h>
 #include <codec/uuid.h>
 
@@ -9,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <neither/either.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -24,6 +26,7 @@
 
 using namespace rapidjson;
 using namespace uuids;
+using namespace neither;
 using namespace KData;
 
 static const int MAX_PACKET_SIZE = 4096;
@@ -328,7 +331,8 @@ bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
  * General
  */
 
-std::string getSafeDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
+Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
+    std::shared_ptr<uint8_t[]> s_buffer_ptr) {
   // Make sure not an empty buffer
   // Obtain the raw buffer so we can read the header
   uint8_t *raw_buffer = s_buffer_ptr.get();
@@ -339,21 +343,66 @@ std::string getSafeDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
 
   uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
                                 *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
-  // TODO: Copying into a new buffer for readability - switch to using the
-  // original buffer
-  uint8_t decode_buffer[message_byte_size];
-  flatbuffers::Verifier verifier(&raw_buffer[0 + 4], message_byte_size);
-  if (VerifyMessageBuffer(verifier)) {
-    std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
-    // Parse the bytes into an encoded message structure
-    auto k_message = GetMessage(&decode_buffer);
-    auto id = k_message->id();  // message ID
-    // Get the message bytes and create a string
-    const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
 
-    return std::string{message_bytes->begin(), message_bytes->end()};
-  } else {
-    return "{}";
+  uint8_t task_byte_code = *(raw_buffer + 4);
+
+  uint8_t decode_buffer[message_byte_size];
+
+  if (task_byte_code == 0xFF) {
+    flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
+    if (VerifyIGTaskBuffer(verifier)) {
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      const KData::IGTask *ig_task = GetIGTask(&decode_buffer);
+      /* std::vector<std::string> sv(std::initializer_list<std::string>{ */
+      /*     ig_task->filename()->str(), std::to_string(ig_task->time()), */
+      /*     ig_task->description()->str(), ig_task->hashtags()->str(), */
+      /*     ig_task->requested_by()->str(),
+       * ig_task->requested_by_phrase()->str(), */
+      /*     ig_task->promote_share()->str(), ig_task->link_bio()->str()}); */
+      /* sv.push_back(ig_task->filename()->str()); */
+      /* sv.push_back(std::to_string(ig_task->time())); */
+      /* sv.push_back(ig_task->description()->str()); */
+      /* sv.push_back(ig_task->hashtags()->str()); */
+      /* sv.push_back(ig_task->requested_by()->str()); */
+      /* sv.push_back(ig_task->requested_by_phrase()->str()); */
+      /* sv.push_back(ig_task->promote_share()->str()); */
+      /* sv.push_back(ig_task->link_bio()->str()); */
+      std::string filename = ig_task->filename()->str();
+      std::string time = std::to_string(ig_task->time());
+      std::string description = ig_task->description()->str();
+      std::string hashtags = ig_task->hashtags()->str();
+      std::string requested_by = ig_task->requested_by()->str();
+      std::string requested_by_phrase = ig_task->requested_by_phrase()->str();
+      std::string promote_share = ig_task->promote_share()->str();
+      std::string link_bio = ig_task->link_bio()->str();
+      std::vector<std::string> sv(8);
+      sv.push_back(filename);
+      sv.push_back(time);
+      sv.push_back(description);
+      sv.push_back(hashtags);
+      sv.push_back(requested_by);
+      sv.push_back(requested_by_phrase);
+      sv.push_back(promote_share);
+      sv.push_back(link_bio);
+
+      return right(std::move(sv));
+    } else {
+      // TODO: Copying into a new buffer for readability - switch to using the
+      // original buffer
+      flatbuffers::Verifier verifier(&raw_buffer[0 + 4], message_byte_size);
+      if (VerifyMessageBuffer(verifier)) {
+        std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
+        // Parse the bytes into an encoded message structure
+        auto k_message = GetMessage(&decode_buffer);
+        auto id = k_message->id();  // message ID
+        // Get the message bytes and create a string
+        const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
+
+        left(std::string{message_bytes->begin(), message_bytes->end()});
+      } else {
+        left(std::string(""));
+      }
+    }
   }
 }
 
