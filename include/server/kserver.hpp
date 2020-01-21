@@ -517,6 +517,7 @@ class KServer : public SocketListener {
     }
     // For other cases, handle operations or read messages
     neither::Either<std::string, std::vector<std::string>> decoded =
+        // neither::Either<std::string, int> decoded =
         getSafeDecodedMessage(s_buffer_ptr);  //
     decoded
         .leftMap([this, client_socket_fd](auto decoded_message) {
@@ -550,7 +551,18 @@ class KServer : public SocketListener {
             return decoded_message;
           }
         })
-        .rightMap([](auto task_args) { return task_args; });
+        .rightMap([this, client_socket_fd](auto task_args) {
+          KLOG->info("New message schema type received");
+          if (!task_args.empty()) {
+            m_request_handler(
+                "DevTest", task_args, client_socket_fd,
+                uuids::to_string(uuids::uuid_system_generator{}()));
+            KLOG->info("Task delivered to request handler");
+          } else {
+            KLOG->info("Empty task");
+          }
+          return task_args;
+        });
   }
 
  private:
