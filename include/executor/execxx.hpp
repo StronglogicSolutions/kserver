@@ -1,16 +1,17 @@
+#include <log/logger.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 #include <codec/util.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <log/logger.h>
 
 namespace {
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
 
-std::string qx( std::vector<std::string> args,
+std::string qx(std::vector<std::string> args,
                const std::string& working_directory = "") {
   int stdout_fds[2];
   pipe(stdout_fds);
@@ -67,7 +68,7 @@ std::string qx( std::vector<std::string> args,
 }
 
 std::string qx_debug(const char* path, std::vector<std::string> args,
-               const std::string& working_directory = "") {
+                     const std::string& working_directory = "") {
   int stdout_fds[2];
   pipe(stdout_fds);
 
@@ -133,4 +134,4 @@ std::string qx_debug(const char* path, std::vector<std::string> args,
 
   return out;
 }
-}
+}  // namespace
