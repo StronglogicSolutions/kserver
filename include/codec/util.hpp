@@ -1,6 +1,7 @@
 #ifndef __UTIL_HPP__
 #define __UTIL_HPP__
 
+#define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
 #include <codec/instatask_generated.h>
 #include <codec/kmessage_generated.h>
 #include <codec/uuid.h>
@@ -28,6 +29,7 @@ using namespace rapidjson;
 using namespace uuids;
 using namespace neither;
 using namespace KData;
+using namespace IGData;
 
 static const int MAX_PACKET_SIZE = 4096;
 static const int HEADER_SIZE = 4;
@@ -336,32 +338,42 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
   // Obtain the raw buffer so we can read the header
   uint8_t *raw_buffer = s_buffer_ptr.get();
 
-  uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
-                                *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
+  auto byte1 = *raw_buffer << 24;
+  auto byte2 = *(raw_buffer + 1) << 16;
+  auto byte3 = *(raw_buffer + 2) << 8;
+  auto byte4 = *(raw_buffer + 3);
 
-  uint8_t task_byte_code = *(raw_buffer + 4);
+  // uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16 |
+  //                               *(raw_buffer + 2) << 8 | (*(raw_buffer +
+  //                               3)));
+
+  uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
+
+  uint8_t msg_type_byte_code = *(raw_buffer + 4);
 
   uint8_t decode_buffer[message_byte_size];
 
-  if (task_byte_code == 0xFF) {
-    flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
-    if (VerifyIGTaskBuffer(verifier)) {
-      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-      const KData::IGTask *ig_task = GetIGTask(&decode_buffer);
+  if (msg_type_byte_code == 0xFF) {
+    // flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
+    // if (VerifyIGTaskBuffer(verifier))
+    // {
+    std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+    const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
 
-      return right(std::move(std::vector<std::string>{
-          ig_task->filename()->str(), std::to_string(ig_task->time()),
-          ig_task->description()->str(), ig_task->hashtags()->str(),
-          ig_task->requested_by()->str(), ig_task->requested_by_phrase()->str(),
-          ig_task->promote_share()->str(), ig_task->link_bio()->str()}));
-    }
-    return right(std::move(std::vector<std::string>{}));
-  } else {
+    return right(std::move(std::vector<std::string>{
+        ig_task->filename()->str(), ig_task->time()->str(),
+        ig_task->description()->str(), ig_task->hashtags()->str(),
+        ig_task->requested_by()->str(), ig_task->requested_by_phrase()->str(),
+        ig_task->promote_share()->str(), ig_task->link_bio()->str(),
+        std::to_string(ig_task->mask())}));
+    // }
+    // return right(std::move(std::vector<std::string>{}));
+  } else if (msg_type_byte_code == 0xFE) {
     // TODO: Copying into a new buffer for readability - switch to using the
     // original buffer
-    flatbuffers::Verifier verifier(&raw_buffer[0 + 4], message_byte_size);
+    flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
     if (VerifyMessageBuffer(verifier)) {
-      std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
       // Parse the bytes into an encoded message structure
       auto k_message = GetMessage(&decode_buffer);
       auto id = k_message->id();  // message ID
@@ -424,8 +436,12 @@ void saveFile(std::vector<char> bytes, const char *filename) {
 void saveFile(uint8_t *bytes, int size, std::string filename) {
   std::ofstream output(filename.c_str(),
                        std::ios::binary | std::ios::out | std::ios::app);
+  std::cout << "FileUtils::saveFile() - FIRST TWO :: " << std::hex
+            << int(+bytes[0]) << std::hex << int(+bytes[1]) << std::endl;
 
   for (int i = 0; i < size; i++) {
+    // std::cout << "WRITING" << std::hex << int(+bytes[i]) << std::endl;
+
     output.write((const char *)(&bytes[i]), 1);
   }
   output.close();

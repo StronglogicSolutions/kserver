@@ -1,15 +1,16 @@
-namespace KData;
+namespace IGData;
 
 table IGTask {
   id: int;
   filename: string;
-  time: ushort;
+  time: string;
   description: string;
   hashtags: string;
   requested_by: string;
   requested_by_phrase: string;
   promote_share: string;
   link_bio: string;
+  mask: int;
 }
 
 root_type IGTask;
