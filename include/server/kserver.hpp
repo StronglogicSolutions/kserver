@@ -338,7 +338,7 @@ class KServer : public SocketListener {
       if (result == FILE_HANDLE__SUCCESS) {
         // Push to received files immediately so that we ensure it's ready to be
         // used in subsequent client requests
-        if (f_ptr != NULL && size > 0) {
+        if (size > 0) {
           m_received_files.push_back(
               ReceivedFile{.timestamp = TimeUtils::unixtime(),
                            .client_fd = socket_fd,
@@ -448,15 +448,7 @@ class KServer : public SocketListener {
       if (it_session != m_sessions.end()) {
         m_sessions.erase(it_session);
       }
-      if (!m_file_handlers.empty()) {
-        for (auto it = m_file_handlers.begin(); it != m_file_handlers.end();
-             it++) {
-          if (it->isHandlingSocket(client_socket_fd)) {
-            m_file_handlers.erase(it);
-            break;
-          }
-        }
-      }
+      if (!m_file_handlers.empty()) eraseFileHandler(client_socket_fd);
       sendEvent(client_socket_fd, "Close Session",
                 {"KServer is shutting down the socket connection"});
       shutdown(client_socket_fd, SHUT_RDWR);
@@ -555,7 +547,7 @@ class KServer : public SocketListener {
           KLOG->info("New message schema type received");
           if (!task_args.empty()) {
             m_request_handler(
-                "DevTest", task_args, client_socket_fd,
+                "Schedule", task_args, client_socket_fd,
                 uuids::to_string(uuids::uuid_system_generator{}()));
             KLOG->info("Task delivered to request handler");
           } else {
@@ -566,17 +558,21 @@ class KServer : public SocketListener {
   }
 
  private:
-  virtual void onConnectionClose(int client_socket_fd) {
+  virtual void onConnectionClose(int client_socket_fd) {}
+
+  bool eraseFileHandler(int client_socket_fd) {
     if (!m_file_handlers.empty()) {
       for (auto it = m_file_handlers.begin(); it != m_file_handlers.end();
            it++) {
         if (it->isHandlingSocket(client_socket_fd)) {
           m_file_handlers.erase(it);
-          break;
+          return true;
         }
       }
     }
+    return false;
   }
+
   Request::RequestHandler m_request_handler;
   bool file_pending;
   int file_pending_fd;
