@@ -42,18 +42,21 @@ std::vector<FileInfo> parseFileInfo(std::string file_info)
   // 1580057341filename|image::
   std::vector<FileInfo> info_v{};
   info_v.reserve(file_info.size() / 25); // Estimating number of files being represented
-  size_t index, pipe_index = 0;
+  size_t pipe_pos = 0;
+  size_t index = 0;
+  size_t delim_pos = 0;
   do
   {
-    pipe_index = file_info.find_first_of("|");
     auto timestamp = file_info.substr(index, index + 10);
-    auto file_name = file_info.substr(index + 10, pipe_index);
-    auto type = file_info.substr(index + 10 + file_name.size(), file_info.find_first_of("::"));
+    pipe_pos = (file_info.find_first_of("|") - timestamp.size());
+    auto file_name = file_info.substr(index + 10, pipe_pos);
+    delim_pos = (file_info.find_first_of("::") - (index + 10 + file_name.size()));
+    auto type = file_info.substr(index + 10 + file_name.size() + 1, delim_pos - 1);
     KLOG->info(timestamp);
     KLOG->info(file_name);
     KLOG->info(type);
     info_v.push_back(FileInfo{file_name, timestamp});
-    index += timestamp.size() + file_name.size() + type.size();
+    index += timestamp.size() + file_name.size() + type.size() + 3; // 3 strings + | + ::
   } while (index < file_info.size());
   return info_v;
 }
@@ -318,6 +321,7 @@ public:
           if (validate)
           {
             KLOG->info("Sending task request to Scheduler");
+            KLOG->info("Filename is {}", filenames.at(0));
             Executor::Scheduler scheduler{};
             Executor::Task task{
                 .execution_mask = std::stoi(mask),
