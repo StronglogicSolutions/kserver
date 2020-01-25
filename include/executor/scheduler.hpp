@@ -12,84 +12,114 @@
 #include <string>
 #include <vector>
 
-namespace Executor {
+namespace Executor
+{
 
 typedef std::function<void(std::string, int, int)> EventCallback;
 
-struct Task {
+struct Task
+{
   int execution_mask;
   std::string datetime;
-  std::string filename;
+  bool file;
+  std::vector<std::string> file_names;
   std::string envfile;
   std::string execution_flags;
   int id = 0;
 };
 
-namespace {
-class DeferInterface {
- public:
+namespace
+{
+class DeferInterface
+{
+public:
   virtual void schedule(Task task) = 0;
 };
 
-class CalendarManagerInterface {
- public:
+class CalendarManagerInterface
+{
+public:
   virtual std::vector<Task> fetchTasks() = 0;
 
- private:
+private:
   virtual void executeTask(int client_id, Task task) = 0;
 };
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
 
-class Scheduler : public DeferInterface, CalendarManagerInterface {
- public:
+class Scheduler : public DeferInterface, CalendarManagerInterface
+{
+public:
   Scheduler() {}
-  Scheduler(EventCallback fn) : m_event_callback(fn) {
-    if (!ConfigParser::initConfig()) {
+  Scheduler(EventCallback fn) : m_event_callback(fn)
+  {
+    if (!ConfigParser::initConfig())
+    {
       KLOG->info("Unable to load config");
     }
   }
 
   ~Scheduler() { KLOG->info("Scheduler destroyed"); }
 
-  virtual void schedule(Task task) {
+  virtual void schedule(Task task)
+  {
     // verify and put in database
     Database::KDB kdb{};
 
-    auto result =
-        kdb.insert("schedule", {"time", "mask", "file", "flags", "envfile"},
+    std::string insert_id =
+        kdb.insert("schedule", {"time", "mask", "flags", "envfile"},
                    {task.datetime, std::to_string(task.execution_mask),
-                    task.filename, task.execution_flags, task.envfile});
-    KLOG->info("Request to schedule task was {}",
-               result ? "Accepted" : "Rejected");
+                    task.execution_flags, task.envfile},
+                   "id");
+    KLOG->info("Request to schedule task was {}\nID {}",
+               !insert_id.empty() ? "Accepted" : "Rejected", insert_id);
+
+    if (!insert_id.empty())
+    {
+      for (const auto &filename : task.file_names)
+      {
+        KLOG->info("Recording file in DB: {}", filename);
+        kdb.insert("file", {"name", "sid"}, {filename, insert_id});
+      }
+    }
   }
 
-  static KApplication getAppInfo(int mask) {
+  static KApplication getAppInfo(int mask)
+  {
     Database::KDB kdb{};
     KApplication k_app{};
     QueryValues values = kdb.select("apps", {"path", "data", "name"},
                                     {{"mask", std::to_string(mask)}});
 
-    for (const auto &value_pair : values) {
-      if (value_pair.first == "path") {
+    for (const auto &value_pair : values)
+    {
+      if (value_pair.first == "path")
+      {
         k_app.path = value_pair.second;
-      } else if (value_pair.first == "data") {
+      }
+      else if (value_pair.first == "data")
+      {
         k_app.data = value_pair.second;
-      } else if (value_pair.first == "name") {
+      }
+      else if (value_pair.first == "name")
+      {
         k_app.name = value_pair.second;
       }
     }
     return k_app;
   }
 
-  void onProcessComplete(std::string value, int mask, int client_fd) {
+  void onProcessComplete(std::string value, int mask, int client_fd)
+  {
     KLOG->info("Value returned from process:\n{}", value);
-    if (m_event_callback != nullptr) {
+    if (m_event_callback != nullptr)
+    {
       m_event_callback(value, mask, client_fd);
     }
   }
 
-  virtual std::vector<Task> fetchTasks() {
+  virtual std::vector<Task> fetchTasks()
+  {
     // get tasks from database
     // now' a good time to execute them, or place them in cron
     Database::KDB kdb{};
@@ -103,33 +133,43 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         {"time", current_timestamp, future_timestamp_24hr}};
     // TODO: Implement >, <, <> filtering
     auto result = kdb.selectCompare(
-        "schedule", {"id", "time", "file", "mask", "flags", "envfile"}, filter);
-    if (!result.empty() && result.at(0).first.size() > 0) {
+        "schedule", {"id", "time", "mask", "flags", "envfile"}, filter);
+    if (!result.empty() && result.at(0).first.size() > 0)
+    {
       std::string mask, flags, envfile, time, filename;
-      for (const auto &v : result) {
-        if (v.first == "mask") {
+      for (const auto &v : result)
+      {
+        if (v.first == "mask")
+        {
           mask = v.second;
         }
-        if (v.first == "flags") {
+        if (v.first == "flags")
+        {
           flags = v.second;
         }
-        if (v.first == "envfile") {
+        if (v.first == "envfile")
+        {
           envfile = v.second;
         }
-        if (v.first == "time") {
+        if (v.first == "time")
+        {
           time = v.second;
         }
-        if (v.first == "file") {
+        if (v.first == "file")
+        {
           filename = v.second;
         }
-        if (v.first == "id") {
+        if (v.first == "id")
+        {
           id = std::stoi(v.second);
         }
         if (!filename.empty() && !envfile.empty() && !flags.empty() &&
-            !time.empty() && !mask.empty() && id > 0) {
+            !time.empty() && !mask.empty() && id > 0)
+        {
           tasks.push_back(Task{.execution_mask = std::stoi(mask),
                                .datetime = time,
-                               .filename = filename,
+                               .file = true, // Change this default value later after we implement booleans in the DB abstraction
+                               .file_names = {},
                                .envfile = envfile,
                                .execution_flags = flags,
                                .id = id});
@@ -145,14 +185,16 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return tasks;
   }
 
-  virtual void executeTask(int client_socket_fd, Task task) {
+  virtual void executeTask(int client_socket_fd, Task task)
+  {
     KLOG->info("Executing task");
     KApplication app_info = getAppInfo(task.execution_mask);
-    auto is_ready_to_execute = std::stoi(task.datetime) > 0;  // if close to now
+    auto is_ready_to_execute = std::stoi(task.datetime) > 0; // if close to now
     auto flags = task.execution_flags;
     auto envfile = task.envfile;
 
-    if (is_ready_to_execute) {
+    if (is_ready_to_execute)
+    {
       ProcessExecutor executor{};
       executor.setEventCallback(
           [this](std::string result, int mask, int client_socket_fd) {
@@ -166,11 +208,11 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     }
   }
 
- private:
+private:
   EventCallback m_event_callback;
 };
 
-}  // namespace
-}  // namespace Executor
+} // namespace
+} // namespace Executor
 
-#endif  // __SCHEDULER_HPP__
+#endif // __SCHEDULER_HPP__

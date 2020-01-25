@@ -41,7 +41,8 @@ std::vector<FileInfo> parseFileInfo(std::string file_info)
   KLOG->info("Request::parseFileInfo() - Parsing: {}", file_info);
   // 1580057341filename|image::
   std::vector<FileInfo> info_v{};
-  info_v.reserve(file_info.size() / 25); // Estimating number of files being represented
+  info_v.reserve(file_info.size() /
+                 25); // Estimating number of files being represented
   size_t pipe_pos = 0;
   size_t index = 0;
   size_t delim_pos = 0;
@@ -50,13 +51,16 @@ std::vector<FileInfo> parseFileInfo(std::string file_info)
     auto timestamp = file_info.substr(index, index + 10);
     pipe_pos = (file_info.find_first_of("|") - timestamp.size());
     auto file_name = file_info.substr(index + 10, pipe_pos);
-    delim_pos = (file_info.find_first_of("::") - (index + 10 + file_name.size()));
-    auto type = file_info.substr(index + 10 + file_name.size() + 1, delim_pos - 1);
+    delim_pos =
+        (file_info.find_first_of("::") - (index + 10 + file_name.size()));
+    auto type =
+        file_info.substr(index + 10 + file_name.size() + 1, delim_pos - 1);
     KLOG->info(timestamp);
     KLOG->info(file_name);
     KLOG->info(type);
     info_v.push_back(FileInfo{file_name, timestamp});
-    index += timestamp.size() + file_name.size() + type.size() + 3; // 3 strings + | + ::
+    index += timestamp.size() + file_name.size() + type.size() +
+             3; // 3 strings + | + ::
   } while (index < file_info.size());
   return info_v;
 }
@@ -175,7 +179,7 @@ public:
           KLOG->info(
               "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
               "Flags",
-              task.datetime, std::to_string(task.execution_mask), task.filename,
+              task.datetime, std::to_string(task.execution_mask), task.file ? "hasFile(s)" : "",
               task.envfile);
         }
         std::string tasks_message = std::to_string(tasks.size());
@@ -281,12 +285,14 @@ public:
           auto file_index = 0;
           for (const auto &file_info : files_to_update)
           {
-            std::vector<std::string> callback_args{file_info.first, file_info.second, uuid};
+            std::vector<std::string> callback_args{file_info.first,
+                                                   file_info.second, uuid};
             if (file_index == files_to_update.size() - 1)
             {
               callback_args.push_back("final file");
             }
-            m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE, callback_args);
+            m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
+                                 callback_args);
             std::string media_filename = get_cwd();
             media_filename += "/data/" + uuid + "/" + file_info.first;
             filenames.push_back(media_filename);
@@ -321,12 +327,12 @@ public:
           if (validate)
           {
             KLOG->info("Sending task request to Scheduler");
-            KLOG->info("Filename is {}", filenames.at(0));
             Executor::Scheduler scheduler{};
             Executor::Task task{
                 .execution_mask = std::stoi(mask),
                 .datetime = datetime,
-                .filename = filenames.at(0), // We need to change DB Schema to support multiple files
+                .file = (!filenames.empty()),
+                .file_names = filenames,
                 .envfile = env_filename,
                 .execution_flags =
                     "--description=$DESCRIPTION --hashtags=$HASHTAGS "
@@ -375,7 +381,7 @@ public:
           KLOG->info(
               "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
               "Flags",
-              task.datetime, std::to_string(task.execution_mask), task.filename,
+              task.datetime, std::to_string(task.execution_mask), task.file ? "hasFile(s)" : "",
               task.envfile);
         }
         std::string tasks_message = std::to_string(tasks.size());

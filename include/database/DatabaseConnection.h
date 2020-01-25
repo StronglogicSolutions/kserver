@@ -4,7 +4,8 @@
 #ifndef DATABASECONNECTION_H
 #define DATABASECONNECTION_H
 
-class DatabaseConnection {
+class DatabaseConnection
+{
 public:
   // constructor
   DatabaseConnection();
@@ -12,6 +13,7 @@ public:
   bool setConfig(DatabaseConfiguration config);
   // work
   QueryResult query(DatabaseQuery query);
+  std::string query(InsertReturnQuery query);
   QueryResult query(ComparisonSelectQuery query);
   QueryResult query(ComparisonBetweenSelectQuery query);
   // state
@@ -23,10 +25,11 @@ private:
   pqxx::connection getConnection();
   std::string getConnectionString();
   pqxx::result performInsert(DatabaseQuery query);
+  pqxx::result performInsert(InsertReturnQuery query, std::string returning);
   pqxx::result performSelect(DatabaseQuery query);
   pqxx::result performSelect(ComparisonSelectQuery query);
   pqxx::result performSelect(ComparisonBetweenSelectQuery query);
-//  bool connected;
+  //  bool connected;
 };
 
 #endif // DATABASECONNECTION_H
