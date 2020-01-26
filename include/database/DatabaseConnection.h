@@ -1,12 +1,12 @@
-#include "structs.h"
 #include <pqxx/pqxx>
+
+#include "structs.h"
 
 #ifndef DATABASECONNECTION_H
 #define DATABASECONNECTION_H
 
-class DatabaseConnection
-{
-public:
+class DatabaseConnection {
+ public:
   // constructor
   DatabaseConnection();
   // init db
@@ -19,7 +19,7 @@ public:
   // state
   std::string getDbName();
 
-private:
+ private:
   DatabaseConfiguration m_config;
   std::string m_db_name;
   pqxx::connection getConnection();
@@ -32,4 +32,4 @@ private:
   //  bool connected;
 };
 
-#endif // DATABASECONNECTION_H
+#endif  // DATABASECONNECTION_H

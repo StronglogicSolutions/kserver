@@ -19,20 +19,26 @@
 #include <utility>
 
 class FileHandler {
-public:
+ public:
   class File {
-  public:
+   public:
     uint8_t *b_ptr;
     uint32_t size;
     bool complete;
   };
 
   class Decoder {
-  public:
+   public:
     Decoder(int fd, std::string name,
             std::function<void(uint8_t *, int, std::string)> file_callback)
-        : index(0), file_buffer(nullptr), total_packets(0), packet_offset(0),
-          buffer_offset(0), file_size(0), filename(name), m_fd(fd),
+        : index(0),
+          file_buffer(nullptr),
+          total_packets(0),
+          packet_offset(0),
+          buffer_offset(0),
+          file_size(0),
+          filename(name),
+          m_fd(fd),
           m_file_cb(file_callback) {}
 
     ~Decoder() {
@@ -87,7 +93,7 @@ public:
       }
     }
 
-  private:
+   private:
     uint8_t *file_buffer;
     uint32_t index;
     uint32_t total_packets;
@@ -151,7 +157,7 @@ public:
   void processPacket(uint8_t *data) { m_decoder->processPacket(data); }
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
 
-private:
+ private:
   Decoder *m_decoder;
   int socket_fd;
 };
@@ -163,7 +169,7 @@ KLogger *k_logger_ptr = KLogger::GetInstance();
 auto KLOG = k_logger_ptr -> get_logger();
 
 class KServer : public SocketListener {
-public:
+ public:
   /**
    * Constructor
    */
@@ -188,95 +194,96 @@ public:
   void systemEventNotify(int client_socket_fd, int system_event,
                          std::vector<std::string> args) {
     switch (system_event) {
-    case SYSTEM_EVENTS__SCHEDULED_TASKS_READY: {
-      if (client_socket_fd == -1) {
-        KLOG->info(
-            "Maintenance worker found tasks. Sending system-wide broadcast "
-            "to all clients.");
-        args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
-        for (const auto &session : m_sessions) {
-          sendEvent(session.fd, "Scheduled Tasks Ready", args);
-        }
-        break;
-      } else {
-        KLOG->info("Informing client {} about scheduled tasks",
-                   client_socket_fd);
-        sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
-        break;
-      }
-    }
-    case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE: {
-      if (client_socket_fd == -1) {
-        KLOG->info("Sending system-wide broadcast. There are currently no "
-                   "tasks ready for execution.");
-        args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
-        for (const auto &session : m_sessions) {
-          sendEvent(session.fd, "No tasks ready", args);
-        }
-        break;
-      } else {
-        KLOG->info("Informing client {} about scheduled tasks",
-                   client_socket_fd);
-        sendEvent(client_socket_fd, "No tasks ready to run", args);
-        break;
-      }
-      break;
-    }
-    case SYSTEM_EVENTS__FILE_UPDATE: {
-      // incoming file has new information, such as a filename to be
-      // assigned to it
-      KLOG->info(
-          "SYSTEM EVENT:: Updating information file information for client "
-          "{} and file with ID",
-          client_socket_fd);
-      auto timestamp = args.at(1);
-      auto received_file =
-          std::find_if(m_received_files.begin(), m_received_files.end(),
-                       [client_socket_fd, timestamp](ReceivedFile &file) {
-                         // TODO: We need to change this so we are matching
-                         // by UUID
-                         return (file.client_fd == client_socket_fd &&
-                                 std::to_string(file.timestamp) == timestamp);
-                       });
-
-      if (received_file != m_received_files.end()) {
-        // We must assume that these files match, just by virtue of the
-        // client file descriptor ID. Again, we should be matching by UUID.
-        // // TODO: We must do this
-        std::string uuid = args.at(2);
-        std::string filename{"data/"};
-        filename += uuid.c_str();
-        filename += +"/";
-        filename += args.at(0);
-        FileUtils::createDirectory(uuid.c_str());
-        FileUtils::saveFile(received_file->f_ptr, received_file->size,
-                            filename.c_str());
-        m_received_files.erase(received_file);
-
-        if (args.size() == 4 && args.at(3) == "final file") {
-          auto it =
-              std::find_if(m_file_handlers.begin(), m_file_handlers.end(),
-                           [client_socket_fd](FileHandler &handler) {
-                             return handler.isHandlingSocket(client_socket_fd);
-                           });
-          if (it != m_file_handlers.end()) {
-            m_file_handlers.erase(it);
-          } else {
-            KLOG->info("Problem removing file handler for client {}",
-                       client_socket_fd);
+      case SYSTEM_EVENTS__SCHEDULED_TASKS_READY: {
+        if (client_socket_fd == -1) {
+          KLOG->info(
+              "Maintenance worker found tasks. Sending system-wide broadcast "
+              "to all clients.");
+          args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
+          for (const auto &session : m_sessions) {
+            sendEvent(session.fd, "Scheduled Tasks Ready", args);
           }
+          break;
+        } else {
+          KLOG->info("Informing client {} about scheduled tasks",
+                     client_socket_fd);
+          sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
+          break;
         }
-        sendEvent(client_socket_fd, "File Save Success", {});
-      } else {
-        KLOG->info("Unable to find file");
-        sendEvent(client_socket_fd, "File Save Failure", {});
       }
-      break;
-    }
-    case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED: {
-      sendEvent(client_socket_fd, "Process Execution Requested", args);
-      break;
-    }
+      case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE: {
+        if (client_socket_fd == -1) {
+          KLOG->info(
+              "Sending system-wide broadcast. There are currently no "
+              "tasks ready for execution.");
+          args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
+          for (const auto &session : m_sessions) {
+            sendEvent(session.fd, "No tasks ready", args);
+          }
+          break;
+        } else {
+          KLOG->info("Informing client {} about scheduled tasks",
+                     client_socket_fd);
+          sendEvent(client_socket_fd, "No tasks ready to run", args);
+          break;
+        }
+        break;
+      }
+      case SYSTEM_EVENTS__FILE_UPDATE: {
+        // incoming file has new information, such as a filename to be
+        // assigned to it
+        KLOG->info(
+            "SYSTEM EVENT:: Updating information file information for client "
+            "{} and file with ID",
+            client_socket_fd);
+        auto timestamp = args.at(1);
+        auto received_file =
+            std::find_if(m_received_files.begin(), m_received_files.end(),
+                         [client_socket_fd, timestamp](ReceivedFile &file) {
+                           // TODO: We need to change this so we are matching
+                           // by UUID
+                           return (file.client_fd == client_socket_fd &&
+                                   std::to_string(file.timestamp) == timestamp);
+                         });
+
+        if (received_file != m_received_files.end()) {
+          // We must assume that these files match, just by virtue of the
+          // client file descriptor ID. Again, we should be matching by UUID.
+          // // TODO: We must do this
+          std::string uuid = args.at(2);
+          std::string filename{"data/"};
+          filename += uuid.c_str();
+          filename += +"/";
+          filename += args.at(0);
+          FileUtils::createDirectory(uuid.c_str());
+          FileUtils::saveFile(received_file->f_ptr, received_file->size,
+                              filename.c_str());
+          m_received_files.erase(received_file);
+
+          if (args.size() == 4 && args.at(3) == "final file") {
+            auto it = std::find_if(
+                m_file_handlers.begin(), m_file_handlers.end(),
+                [client_socket_fd](FileHandler &handler) {
+                  return handler.isHandlingSocket(client_socket_fd);
+                });
+            if (it != m_file_handlers.end()) {
+              m_file_handlers.erase(it);
+            } else {
+              KLOG->info("Problem removing file handler for client {}",
+                         client_socket_fd);
+            }
+          }
+          sendEvent(client_socket_fd, "File Save Success", {});
+        } else {
+          KLOG->info("Unable to find file");
+          sendEvent(client_socket_fd, "File Save Failure", {});
+        }
+        break;
+      }
+      case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED: {
+        sendEvent(client_socket_fd, "Process Execution Requested", args);
+        break;
+      }
     }
   }
 
@@ -323,8 +330,9 @@ public:
       sendMessage(client_socket_fd, process_executor_result_str.c_str(),
                   process_executor_result_str.size());
     } else {
-      KLOG->info("KServer::onProcessEvent() - result too big to send in one "
-                 "message");
+      KLOG->info(
+          "KServer::onProcessEvent() - result too big to send in one "
+          "message");
       std::vector<std::string> event_args{
           std::to_string(mask), request_id,
           "Result completed, but was too big to display"};
@@ -383,7 +391,7 @@ public:
           return;
         }
       }
-      sendEvent(socket_fd, "File Transfer Failed", {}); // Nothing saved
+      sendEvent(socket_fd, "File Transfer Failed", {});  // Nothing saved
     }
   }
 
@@ -467,11 +475,11 @@ public:
    */
   void handleOperation(std::string decoded_message, int client_socket_fd) {
     KOperation op = getOperation(decoded_message.c_str());
-    if (isStartOperation(op.c_str())) { // Start
+    if (isStartOperation(op.c_str())) {  // Start
       KLOG->info("Start operation");
       handleStart(decoded_message, client_socket_fd);
       return;
-    } else if (isStopOperation(op.c_str())) { // Stop
+    } else if (isStopOperation(op.c_str())) {  // Stop
       KLOG->info("Stop operation. Shutting down client and closing connection");
       auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
                                      [client_socket_fd](KSession session) {
@@ -480,8 +488,7 @@ public:
       if (it_session != m_sessions.end()) {
         m_sessions.erase(it_session);
       }
-      if (!m_file_handlers.empty())
-        eraseFileHandler(client_socket_fd);
+      if (!m_file_handlers.empty()) eraseFileHandler(client_socket_fd);
       sendEvent(client_socket_fd, "Close Session",
                 {"KServer is shutting down the socket connection"});
       shutdown(client_socket_fd, SHUT_RDWR);
@@ -490,11 +497,11 @@ public:
     } else if (isScheduleOperation(op.c_str())) {
       KLOG->info("Schedule operation. Processing request to schedule a task");
       handleSchedule(decoded_message, client_socket_fd);
-    } else if (isExecuteOperation(op.c_str())) { // Process execution request
+    } else if (isExecuteOperation(op.c_str())) {  // Process execution request
       KLOG->info("Execute operation");
       handleExecute(decoded_message, client_socket_fd);
       return;
-    } else if (isFileUploadOperation(op.c_str())) { // File upload request
+    } else if (isFileUploadOperation(op.c_str())) {  // File upload request
       KLOG->info("File upload operation");
       handleFileUploadRequest(client_socket_fd);
       return;
@@ -530,13 +537,12 @@ public:
   /**
    * Override
    */
-  virtual void
-  onMessageReceived(int client_socket_fd,
-                    std::weak_ptr<uint8_t[]> w_buffer_ptr) override {
+  virtual void onMessageReceived(
+      int client_socket_fd, std::weak_ptr<uint8_t[]> w_buffer_ptr) override {
     // Get ptr to data
     std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
 
-    if (file_pending) { // Handle packets for incoming file
+    if (file_pending) {  // Handle packets for incoming file
       KLOG->info("File to be processed");
       handlePendingFile(s_buffer_ptr, client_socket_fd);
       return;
@@ -544,7 +550,7 @@ public:
     // For other cases, handle operations or read messages
     neither::Either<std::string, std::vector<std::string>> decoded =
         // neither::Either<std::string, int> decoded =
-        getSafeDecodedMessage(s_buffer_ptr); //
+        getSafeDecodedMessage(s_buffer_ptr);  //
     decoded
         .leftMap([this, client_socket_fd](auto decoded_message) {
           std::string json_message = getJsonString(decoded_message);
@@ -591,7 +597,7 @@ public:
         });
   }
 
-private:
+ private:
   virtual void onConnectionClose(int client_socket_fd) {}
 
   bool eraseFileHandler(int client_socket_fd) {
@@ -615,5 +621,5 @@ private:
   std::vector<KSession> m_sessions;
   std::vector<ReceivedFile> m_received_files;
 };
-};     // namespace KYO
-#endif // __KSERVER_HPP__
+};      // namespace KYO
+#endif  // __KSERVER_HPP__

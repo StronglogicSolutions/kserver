@@ -44,7 +44,7 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
   KLOG->info("Request::parseFileInfo() - Parsing: {}", file_info);
   std::vector<FileInfo> info_v{};
   info_v.reserve(file_info.size() /
-                 25); // Estimating number of files being represented
+                 25);  // Estimating number of files being represented
   size_t pipe_pos = 0;
   size_t index = 0;
   size_t delim_pos = 0;
@@ -62,13 +62,13 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
 
     info_v.push_back(FileInfo{file_name, timestamp});
     index += timestamp.size() + file_name.size() + type.size() +
-             3; // 3 strings + 3 delim chars
+             3;  // 3 strings + 3 delim chars
   } while (index < file_info.size());
   return info_v;
 }
 
 class RequestHandler {
-public:
+ public:
   RequestHandler() : m_executor(nullptr) {
     if (!ConfigParser::initConfig()) {
       KLOG->info("Unable to load config");
@@ -87,14 +87,16 @@ public:
   }
 
   RequestHandler(RequestHandler &&r)
-      : m_executor(r.m_executor), m_connection(r.m_connection),
+      : m_executor(r.m_executor),
+        m_connection(r.m_connection),
         m_credentials(r.m_credentials) {
     r.m_executor = nullptr;
   }
 
   RequestHandler(const RequestHandler &r)
-      : m_executor(nullptr), // We do not copy the Executor
-        m_connection(r.m_connection), m_credentials(r.m_credentials) {}
+      : m_executor(nullptr),  // We do not copy the Executor
+        m_connection(r.m_connection),
+        m_credentials(r.m_credentials) {}
 
   RequestHandler &operator=(const RequestHandler &handler) {
     this->m_executor = nullptr;
@@ -180,10 +182,10 @@ public:
         } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
-        KLOG->info("KServer has {} {} pending execution",
-                   m_tasks_map.at(client_socket_fd).size(),
-                   m_tasks_map.at(client_socket_fd).size() == 1 ? "task"
-                                                                : "task");
+        KLOG->info(
+            "KServer has {} {} pending execution",
+            m_tasks_map.at(client_socket_fd).size(),
+            m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
       } else {
         KLOG->info("There are currently no tasks ready for execution");
         m_system_callback_fn(
@@ -217,8 +219,9 @@ public:
     if (op == "Schedule") {
       KLOG->info("RequestHandler:: Handling schedule request");
       if (argv.empty()) {
-        KLOG->info("RequestHandler::Scheduler - Can't handle a task with no "
-                   "arguments");
+        KLOG->info(
+            "RequestHandler::Scheduler - Can't handle a task with no "
+            "arguments");
         return "";
       }
       auto mask = argv.at(argv.size() - 1);
@@ -284,7 +287,7 @@ public:
 
           FileUtils::saveEnvFile(env_file_string, env_filename);
 
-          auto validate = true; // TODO: Replace this with actual validation
+          auto validate = true;  // TODO: Replace this with actual validation
           if (validate) {
             KLOG->info("Sending task request to Scheduler");
             Executor::Scheduler scheduler{};
@@ -449,8 +452,7 @@ public:
     std::string paths{};
     if (!result.values.empty()) {
       for (const auto &row : result.values) {
-        if (row.first == "path")
-          paths += row.second + "\n";
+        if (row.first == "path") paths += row.second + "\n";
       }
       unsigned char message_bytes[] = {33, 34, 45, 52, 52, 122, 101, 35};
       auto byte_vector = builder.CreateVector(message_bytes, 8);
@@ -470,7 +472,7 @@ public:
     return std::make_pair(&byte_array[0], 6);
   }
 
-private:
+ private:
   // Callback
   void onProcessComplete(std::string value, int mask, std::string request_id,
                          int client_socket_fd) {
@@ -488,5 +490,5 @@ private:
   DatabaseCredentials m_credentials;
   std::future<void> m_maintenance_worker;
 };
-} // namespace Request
-#endif // __REQUEST_HANDLER_HPP__
+}  // namespace Request
+#endif  // __REQUEST_HANDLER_HPP__

@@ -15,8 +15,7 @@ static const int SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 4;
 static const int FILE_HANDLE__SUCCESS = 1;
 static const int FILE_HANDLE__FAILURE = 2;
 
-typedef struct
-{
+typedef struct {
   int timestamp;
   int client_fd;
   uint8_t *f_ptr;
@@ -24,4 +23,4 @@ typedef struct
 
 } ReceivedFile;
 
-#endif // __TYPES_HPP__
+#endif  // __TYPES_HPP__

@@ -6,27 +6,19 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
-enum QueryType
-{
-  INSERT = 0,
-  DELETE = 1,
-  UPDATE = 2,
-  SELECT = 3
-};
+enum QueryType { INSERT = 0, DELETE = 1, UPDATE = 2, SELECT = 3 };
 
 typedef std::vector<std::pair<std::string, std::string>> TupVec;
 typedef std::vector<std::string> Fields;
 typedef std::vector<std::string> StringVec;
 
-struct DatabaseCredentials
-{
+struct DatabaseCredentials {
   std::string user;
   std::string password;
   std::string name;
 };
 
-struct DatabaseConfiguration
-{
+struct DatabaseConfiguration {
   /* credentials */ DatabaseCredentials credentials;
   /* address */ std::string address;
   /* port */ std::string port;
@@ -40,16 +32,14 @@ typedef std::vector<std::tuple<std::string, std::string, std::string>>
 typedef std::vector<std::string> Values;
 typedef std::vector<std::pair<std::string, std::string>> QueryValues;
 
-struct Query
-{
+struct Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* type */ QueryType type;
   /* values */ std::vector<std::string> values;
 };
 
-struct DatabaseQuery : Query
-{
+struct DatabaseQuery : Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* type */ QueryType type;
@@ -57,8 +47,7 @@ struct DatabaseQuery : Query
   /* filter */ QueryFilter filter;
 };
 
-struct InsertReturnQuery : Query
-{
+struct InsertReturnQuery : Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* type */ QueryType type = QueryType::INSERT;
@@ -66,36 +55,31 @@ struct InsertReturnQuery : Query
   /* returning */ std::string returning;
 };
 
-struct ComparisonSelectQuery
-{
+struct ComparisonSelectQuery {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* values */ std::vector<std::string> values;
   /* filter */ QueryComparisonFilter filter;
 };
 
-struct ComparisonBetweenSelectQuery
-{
+struct ComparisonBetweenSelectQuery {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* values */ std::vector<std::string> values;
   /* filter */ QueryComparisonBetweenFilter filter;
 };
 
-struct QueryResult
-{
+struct QueryResult {
   /* table */ std::string table;
   /* values */ std::vector<std::pair<std::string, std::string>> values;
 };
 
-struct KApplication
-{
+struct KApplication {
   std::string name;
   std::string path;
   std::string data;
 
-  friend std::ostream &operator<<(std::ostream &out, const KApplication &app)
-  {
+  friend std::ostream &operator<<(std::ostream &out, const KApplication &app) {
     out << "Name: " << app.name << "\nPath: " << app.path
         << "\nData: " << app.data << std::endl;
 
@@ -103,4 +87,4 @@ struct KApplication
   }
 };
 
-#endif // STRUCTS_H
+#endif  // STRUCTS_H
