@@ -395,18 +395,20 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
 
   if (msg_type_byte_code == 0xFF)
   {
-    // flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
-    // if (VerifyIGTaskBuffer(verifier))
-    // {
-    std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-    const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
+    flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
+    if (VerifyIGTaskBuffer(verifier))
+    {
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
 
-    return right(std::move(std::vector<std::string>{
-        ig_task->file_info()->str(), ig_task->time()->str(),
-        ig_task->description()->str(), ig_task->hashtags()->str(),
-        ig_task->requested_by()->str(), ig_task->requested_by_phrase()->str(),
-        ig_task->promote_share()->str(), ig_task->link_bio()->str(),
-        std::to_string(ig_task->is_video()), std::to_string(ig_task->mask())}));
+      return right(std::move(std::vector<std::string>{
+          ig_task->file_info()->str(), ig_task->time()->str(),
+          ig_task->description()->str(), ig_task->hashtags()->str(),
+          ig_task->requested_by()->str(), ig_task->requested_by_phrase()->str(),
+          ig_task->promote_share()->str(), ig_task->link_bio()->str(),
+          std::to_string(ig_task->is_video()), std::to_string(ig_task->mask())}));
+    }
+    return right(std::vector<std::string>{});
   }
   else if (msg_type_byte_code == 0xFE)
   {
