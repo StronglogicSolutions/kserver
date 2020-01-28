@@ -15,6 +15,7 @@
 #include <iostream>
 #include <map>
 #include <server/types.hpp>
+#include <system/cron.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -193,6 +194,12 @@ class RequestHandler {
             {"There are currently no tasks ready for execution"});
       }
       handlePendingTasks();
+      KLOG->info("Running Cron tasks");
+
+      System::Cron cron{};
+      std::string jobs = cron.listJobs();
+
+      KLOG->info("Cron returned the following jobs:\n{}", jobs);
       std::this_thread::sleep_for(std::chrono::minutes(5));
     }
   }
