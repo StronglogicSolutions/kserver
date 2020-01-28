@@ -128,14 +128,12 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         if (v.first == "time") {
           time = v.second;
         }
-        if (v.first == "file") {
-          filename = v.second;
-        }
         if (v.first == "id") {
           id = std::stoi(v.second);
         }
-        if (!filename.empty() && !envfile.empty() && !flags.empty() &&
-            !time.empty() && !mask.empty() && id > 0) {
+        if (!envfile.empty() && !flags.empty() && !time.empty() &&
+            !mask.empty() && id > 0) {
+          // TODO: Get files and add to task before pushing into vector
           tasks.push_back(
               Task{.execution_mask = std::stoi(mask),
                    .datetime = time,
