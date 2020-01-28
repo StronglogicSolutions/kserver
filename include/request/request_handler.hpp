@@ -196,10 +196,22 @@ class RequestHandler {
       handlePendingTasks();
       KLOG->info("Running Cron tasks");
 
-      System::Cron cron{};
+      System::Cron<System::SingleJob> cron{};
       std::string jobs = cron.listJobs();
 
       KLOG->info("Cron returned the following jobs:\n{}", jobs);
+      KLOG->info("Testing adding job to Cron");
+
+      System::SingleJob job{
+        .path = "ls -la ~",
+        .month = System::Month::DECEMBER,
+        .day_of_month = 25,
+        .hour = 23,
+        .minute = 59
+      };
+
+      cron.addJob(job);
+
       std::this_thread::sleep_for(std::chrono::minutes(5));
     }
   }
