@@ -15,8 +15,8 @@
 #include <iostream>
 #include <map>
 #include <server/types.hpp>
-#include <system/cron.hpp>
 #include <string>
+#include <system/cron.hpp>
 #include <utility>
 #include <vector>
 
@@ -194,24 +194,28 @@ class RequestHandler {
             {"There are currently no tasks ready for execution"});
       }
       handlePendingTasks();
-      KLOG->info("Running Cron tasks");
+      KLOG->info("Running scheduled tasks");
 
       System::Cron<System::SingleJob> cron{};
       std::string jobs = cron.listJobs();
 
-      KLOG->info("Cron returned the following jobs:\n{}", jobs);
-      KLOG->info("Testing adding job to Cron");
+      KLOG->info(
+          "System Cron returned the following jobs from the operating system: "
+          "\n{}",
+          jobs);
+      KLOG->info("Testing adding job to system cron");
 
-      System::SingleJob job{
-        .path = "ls -la ~",
-        .month = System::Month::DECEMBER,
-        .day_of_month = 25,
-        .hour = 23,
-        .minute = 59
-      };
-
+      System::SingleJob job{.path = "ls -la ~",
+                            .month = System::Month::DECEMBER,
+                            .day_of_month = 25,
+                            .hour = 23,
+                            .minute = 59};
       cron.addJob(job);
 
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      KLOG->info("Testing deleting job to system cron");
+
+      cron.deleteJob(job);
       std::this_thread::sleep_for(std::chrono::minutes(5));
     }
   }
