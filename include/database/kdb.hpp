@@ -29,12 +29,11 @@ class KDB {
 
   QueryValues select(std::string table, Fields fields,
                      QueryFilter filter = {}) {
-
     try {
       DatabaseQuery select_query{.table = table,
-                                .fields = fields,
-                                .type = QueryType::SELECT,
-                                .filter = filter};
+                                 .fields = fields,
+                                 .type = QueryType::SELECT,
+                                 .filter = filter};
       QueryResult result = m_connection.query(select_query);
       if (!result.values.empty()) {
         return result.values;
@@ -49,11 +48,9 @@ class KDB {
 
   QueryValues select(std::string table, Fields fields,
                      QueryComparisonFilter filter = {}) {
-
     try {
-      ComparisonSelectQuery select_query{.table = table,
-                                .fields = fields,
-                                .filter = filter};
+      ComparisonSelectQuery select_query{
+          .table = table, .fields = fields, .filter = filter};
       QueryResult result = m_connection.query(select_query);
       if (!result.values.empty()) {
         return result.values;
@@ -65,15 +62,12 @@ class KDB {
     }
     return {{}};
   }
-
 
   QueryValues selectCompare(std::string table, Fields fields,
-                     QueryComparisonBetweenFilter filter = {}) {
-
+                            QueryComparisonBetweenFilter filter = {}) {
     try {
-      ComparisonBetweenSelectQuery select_query{.table = table,
-                                .fields = fields,
-                                .filter = filter};
+      ComparisonBetweenSelectQuery select_query{
+          .table = table, .fields = fields, .filter = filter};
       QueryResult result = m_connection.query(select_query);
       if (!result.values.empty()) {
         return result.values;
@@ -86,9 +80,8 @@ class KDB {
     return {{}};
   }
 
-
   bool insert(std::string table, Fields fields, Values values) {
-    DatabaseQuery insert_query{.table= table,
+    DatabaseQuery insert_query{.table = table,
                                .fields = fields,
                                .type = QueryType::INSERT,
                                .values = values};

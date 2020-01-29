@@ -338,7 +338,7 @@ class KServer : public SocketListener {
       if (result == FILE_HANDLE__SUCCESS) {
         // Push to received files immediately so that we ensure it's ready to be
         // used in subsequent client requests
-        if (f_ptr != NULL && size > 0) {
+        if (size > 0) {
           m_received_files.push_back(
               ReceivedFile{.timestamp = TimeUtils::unixtime(),
                            .client_fd = socket_fd,
@@ -448,7 +448,7 @@ class KServer : public SocketListener {
       if (it_session != m_sessions.end()) {
         m_sessions.erase(it_session);
       }
-
+      if (!m_file_handlers.empty()) eraseFileHandler(client_socket_fd);
       sendEvent(client_socket_fd, "Close Session",
                 {"KServer is shutting down the socket connection"});
       shutdown(client_socket_fd, SHUT_RDWR);
@@ -508,37 +508,71 @@ class KServer : public SocketListener {
       return;
     }
     // For other cases, handle operations or read messages
-    std::string decoded_message = getSafeDecodedMessage(s_buffer_ptr);  //
-    std::string json_message = getJsonString(decoded_message);
-    KLOG->info("KServer::onMessageReceived() - Decoded: {}", decoded_message);
-    KLOG->info("KServer::onMessageReceived() - Pretty: {}", json_message);
-    if (isSafe(decoded_message)) {
-      // Handle operations
-      if (isOperation(decoded_message.c_str())) {
-        KLOG->info("Received operation");
-        handleOperation(decoded_message, client_socket_fd);
-      } else if (isMessage(decoded_message.c_str())) {
-        // isOperation
-        if (strcmp(getMessage(decoded_message.c_str()).c_str(), "scheduler") ==
-            0) {
-          KLOG->info("Testing scheduler");
-          m_request_handler(client_socket_fd, "Test",
-                            Request::DevTest::Schedule);
-        } else if (strcmp(getMessage(decoded_message.c_str()).c_str(),
-                          "execute") == 0) {
-          KLOG->info("Testing task execution");
-          m_request_handler(client_socket_fd, "Test",
-                            Request::DevTest::ExecuteTask);
-        }
-        sendEvent(
-            client_socket_fd, "Message Received",
-            {"Message received by KServer", "The following was your message",
-             getMessage(decoded_message.c_str())});
-      }
-    }
+    neither::Either<std::string, std::vector<std::string>> decoded =
+        // neither::Either<std::string, int> decoded =
+        getSafeDecodedMessage(s_buffer_ptr);  //
+    decoded
+        .leftMap([this, client_socket_fd](auto decoded_message) {
+          std::string json_message = getJsonString(decoded_message);
+          KLOG->info("KServer::onMessageReceived() - Decoded: {}",
+                     decoded_message);
+          KLOG->info("KServer::onMessageReceived() - Pretty: {}", json_message);
+          if (isSafe(decoded_message)) {
+            // Handle operations
+            if (isOperation(decoded_message.c_str())) {
+              KLOG->info("Received operation");
+              handleOperation(decoded_message, client_socket_fd);
+            } else if (isMessage(decoded_message.c_str())) {
+              // isOperation
+              if (strcmp(getMessage(decoded_message.c_str()).c_str(),
+                         "scheduler") == 0) {
+                KLOG->info("Testing scheduler");
+                m_request_handler(client_socket_fd, "Test",
+                                  Request::DevTest::Schedule);
+              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(),
+                                "execute") == 0) {
+                KLOG->info("Testing task execution");
+                m_request_handler(client_socket_fd, "Test",
+                                  Request::DevTest::ExecuteTask);
+              }
+              sendEvent(client_socket_fd, "Message Received",
+                        {"Message received by KServer",
+                         "The following was your message",
+                         getMessage(decoded_message.c_str())});
+            }
+            return decoded_message;
+          }
+        })
+        .rightMap([this, client_socket_fd](auto task_args) {
+          KLOG->info("New message schema type received");
+          if (!task_args.empty()) {
+            m_request_handler(
+                "Schedule", task_args, client_socket_fd,
+                uuids::to_string(uuids::uuid_system_generator{}()));
+            KLOG->info("Task delivered to request handler");
+          } else {
+            KLOG->info("Empty task");
+          }
+          return task_args;
+        });
   }
 
  private:
+  virtual void onConnectionClose(int client_socket_fd) {}
+
+  bool eraseFileHandler(int client_socket_fd) {
+    if (!m_file_handlers.empty()) {
+      for (auto it = m_file_handlers.begin(); it != m_file_handlers.end();
+           it++) {
+        if (it->isHandlingSocket(client_socket_fd)) {
+          m_file_handlers.erase(it);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   Request::RequestHandler m_request_handler;
   bool file_pending;
   int file_pending_fd;
