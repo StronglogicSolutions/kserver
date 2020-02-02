@@ -5,11 +5,12 @@ workflows:
   build:
     # Run the welcome/run job in its own container
     jobs:
-      docker:
-        - image: buildpack-deps:18:04
-      steps:
-        - run:
-            name: Compile
-            command: |
-              ./compile
+      compile:
+        docker:
+          - image: buildpack-deps:18:04
+        steps:
+          - run:
+              name: Run compile
+              command: |
+                ./compile
 
