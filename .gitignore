@@ -10,3 +10,5 @@ data
 **/executor/main.cpp
 **/*.mp4
 **/*.cmake
+cron
+cron.txt
