@@ -7,7 +7,7 @@ jobs:
       - run:
           name: compile
           command: |
-            ./compile
+            ls -la
 
 workflows:
  version: 2
