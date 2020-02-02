@@ -4,6 +4,7 @@ jobs:
     docker:
       - image: buildpack-deps:18.04
     steps:
+      - checkout
       - run:
           name: compile
           command: |
