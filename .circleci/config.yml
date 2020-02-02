@@ -10,6 +10,6 @@ workflows:
       steps:
         - run:
           name: Compile
-            command:
+            command: |
               ./compile
 
