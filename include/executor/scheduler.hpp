@@ -14,12 +14,13 @@
 
 namespace Executor {
 
-typedef std::function<void(std::string, int, int)> EventCallback;
+typedef std::function<void(std::string, int, int, int)> EventCallback;
 
 struct Task {
   int execution_mask;
   std::string datetime;
-  std::string filename;
+  bool file;
+  std::vector<std::string> file_names;
   std::string envfile;
   std::string execution_flags;
   int id = 0;
@@ -56,12 +57,20 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     // verify and put in database
     Database::KDB kdb{};
 
-    auto result =
-        kdb.insert("schedule", {"time", "mask", "file", "flags", "envfile"},
+    std::string insert_id =
+        kdb.insert("schedule", {"time", "mask", "flags", "envfile"},
                    {task.datetime, std::to_string(task.execution_mask),
-                    task.filename, task.execution_flags, task.envfile});
-    KLOG->info("Request to schedule task was {}",
-               result ? "Accepted" : "Rejected");
+                    task.execution_flags, task.envfile},
+                   "id");
+    KLOG->info("Request to schedule task was {}\nID {}",
+               !insert_id.empty() ? "Accepted" : "Rejected", insert_id);
+
+    if (!insert_id.empty()) {
+      for (const auto &filename : task.file_names) {
+        KLOG->info("Recording file in DB: {}", filename);
+        kdb.insert("file", {"name", "sid"}, {filename, insert_id});
+      }
+    }
   }
 
   static KApplication getAppInfo(int mask) {
@@ -82,10 +91,10 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return k_app;
   }
 
-  void onProcessComplete(std::string value, int mask, int client_fd) {
+  void onProcessComplete(std::string value, int mask, int id, int client_fd) {
     KLOG->info("Value returned from process:\n{}", value);
     if (m_event_callback != nullptr) {
-      m_event_callback(value, mask, client_fd);
+      m_event_callback(value, mask, id, client_fd);
     }
   }
 
@@ -103,7 +112,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         {"time", current_timestamp, future_timestamp_24hr}};
     // TODO: Implement >, <, <> filtering
     auto result = kdb.selectCompare(
-        "schedule", {"id", "time", "file", "mask", "flags", "envfile"}, filter);
+        "schedule", {"id", "time", "mask", "flags", "envfile"}, filter);
     if (!result.empty() && result.at(0).first.size() > 0) {
       std::string mask, flags, envfile, time, filename;
       for (const auto &v : result) {
@@ -119,20 +128,21 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         if (v.first == "time") {
           time = v.second;
         }
-        if (v.first == "file") {
-          filename = v.second;
-        }
         if (v.first == "id") {
           id = std::stoi(v.second);
         }
-        if (!filename.empty() && !envfile.empty() && !flags.empty() &&
-            !time.empty() && !mask.empty() && id > 0) {
-          tasks.push_back(Task{.execution_mask = std::stoi(mask),
-                               .datetime = time,
-                               .filename = filename,
-                               .envfile = envfile,
-                               .execution_flags = flags,
-                               .id = id});
+        if (!envfile.empty() && !flags.empty() && !time.empty() &&
+            !mask.empty() && id > 0) {
+          // TODO: Get files and add to task before pushing into vector
+          tasks.push_back(
+              Task{.execution_mask = std::stoi(mask),
+                   .datetime = time,
+                   .file = true,  // Change this default value later after we
+                                  // implement booleans in the DB abstraction
+                   .file_names = {},
+                   .envfile = envfile,
+                   .execution_flags = flags,
+                   .id = id});
           id = 0;
           filename.clear();
           envfile.clear();
@@ -155,8 +165,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     if (is_ready_to_execute) {
       ProcessExecutor executor{};
       executor.setEventCallback(
-          [this](std::string result, int mask, int client_socket_fd) {
-            onProcessComplete(result, mask, client_socket_fd);
+          [this, task](std::string result, int mask, int client_socket_fd) {
+            onProcessComplete(result, mask, task.id, client_socket_fd);
           });
 
       std::string id_value{std::to_string(task.id)};

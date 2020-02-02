@@ -2,7 +2,7 @@ namespace IGData;
 
 table IGTask {
   id: int;
-  filename: string;
+  file_info: string;
   time: string;
   description: string;
   hashtags: string;
@@ -10,6 +10,7 @@ table IGTask {
   requested_by_phrase: string;
   promote_share: string;
   link_bio: string;
+  is_video: bool;
   mask: int;
 }
 

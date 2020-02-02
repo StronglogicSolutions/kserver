@@ -91,6 +91,17 @@ class KDB {
     return true;
   }
 
+  std::string insert(std::string table, Fields fields, Values values,
+                     std::string returning) {
+    InsertReturnQuery insert_query{.table = table,
+                                   .fields = fields,
+                                   .type = QueryType::INSERT,
+                                   .values = values,
+                                   .returning = returning};
+
+    return m_connection.query(insert_query);
+  }
+
  private:
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;
