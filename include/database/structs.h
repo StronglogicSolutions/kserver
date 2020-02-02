@@ -10,6 +10,7 @@ enum QueryType { INSERT = 0, DELETE = 1, UPDATE = 2, SELECT = 3 };
 
 typedef std::vector<std::pair<std::string, std::string>> TupVec;
 typedef std::vector<std::string> Fields;
+typedef std::vector<std::string> StringVec;
 
 struct DatabaseCredentials {
   std::string user;
@@ -30,12 +31,28 @@ typedef std::vector<std::tuple<std::string, std::string, std::string>>
     QueryComparisonBetweenFilter;
 typedef std::vector<std::string> Values;
 typedef std::vector<std::pair<std::string, std::string>> QueryValues;
-struct DatabaseQuery {
+
+struct Query {
+  /* table */ std::string table;
+  /* fields */ std::vector<std::string> fields;
+  /* type */ QueryType type;
+  /* values */ std::vector<std::string> values;
+};
+
+struct DatabaseQuery : Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* type */ QueryType type;
   /* values */ std::vector<std::string> values;
   /* filter */ QueryFilter filter;
+};
+
+struct InsertReturnQuery : Query {
+  /* table */ std::string table;
+  /* fields */ std::vector<std::string> fields;
+  /* type */ QueryType type = QueryType::INSERT;
+  /* values */ StringVec values;
+  /* returning */ std::string returning;
 };
 
 struct ComparisonSelectQuery {
@@ -62,7 +79,7 @@ struct KApplication {
   std::string path;
   std::string data;
 
-  friend std::ostream& operator<<(std::ostream& out, const KApplication& app) {
+  friend std::ostream &operator<<(std::ostream &out, const KApplication &app) {
     out << "Name: " << app.name << "\nPath: " << app.path
         << "\nData: " << app.data << std::endl;
 

@@ -18,79 +18,95 @@
 #include <types/types.hpp>
 #include <utility>
 
-class Decoder {
- public:
-  Decoder(int fd, std::string name,
-          std::function<void(uint8_t *, int, std::string)> file_callback)
-      : index(0),
-        file_buffer(nullptr),
-        total_packets(0),
-        packet_offset(0),
-        buffer_offset(0),
-        file_size(0),
-        filename(name),
-        m_fd(fd),
-        m_file_cb(file_callback) {}
-
-  ~Decoder() {
-    if (file_buffer != nullptr) {
-      delete[] file_buffer;
-      file_buffer = nullptr;
-    }
-  }
-
-  void processPacket(uint8_t *data) {
-    bool is_first_packet = (index == 0);
-
-    if (is_first_packet) {
-      file_size = int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
-                  HEADER_SIZE;
-      total_packets = static_cast<uint32_t>(
-          ceil(static_cast<double>(file_size + HEADER_SIZE) / MAX_PACKET_SIZE));
-      file_buffer = new uint8_t[total_packets * MAX_PACKET_SIZE];
-      packet_offset = HEADER_SIZE;
-      buffer_offset = 0;
-      uint32_t first_packet_size =
-          total_packets == 1 ? (file_size - HEADER_SIZE) : MAX_PACKET_SIZE;
-      std::memcpy(file_buffer + buffer_offset, data + packet_offset,
-                  first_packet_size);
-      if (index == (total_packets - 1)) {
-        // handle file, cleanup, return
-        m_file_cb(file_buffer, file_size, filename);
-        return;
-      }
-      index++;
-      return;
-    } else {
-      buffer_offset = (index * MAX_PACKET_SIZE) - HEADER_SIZE;
-      bool is_last_packet = (index == (total_packets - 1));
-      if (!is_last_packet) {
-        std::memcpy(file_buffer + buffer_offset, data, MAX_PACKET_SIZE);
-      } else {
-        uint32_t last_packet_size = file_size - buffer_offset;
-        std::memcpy(file_buffer + buffer_offset, data, last_packet_size);
-        // completion callback
-        m_file_cb(file_buffer, file_size, filename);
-      }
-      index++;
-    }
-  }
-
- private:
-  uint8_t *file_buffer;
-  uint32_t index;
-  uint32_t total_packets;
-  uint32_t packet_offset;
-  uint32_t buffer_offset;
-  uint32_t file_size;
-  std::string filename;
-  int m_fd;
-  std::function<void(int)> m_cb;
-  std::function<void(uint8_t *data, int size, std::string)> m_file_cb;
-};
-
 class FileHandler {
  public:
+  class File {
+   public:
+    uint8_t *b_ptr;
+    uint32_t size;
+    bool complete;
+  };
+
+  class Decoder {
+   public:
+    Decoder(int fd, std::string name,
+            std::function<void(uint8_t *, int, std::string)> file_callback)
+        : index(0),
+          file_buffer(nullptr),
+          total_packets(0),
+          packet_offset(0),
+          buffer_offset(0),
+          file_size(0),
+          filename(name),
+          m_fd(fd),
+          m_file_cb(file_callback) {}
+
+    ~Decoder() {
+      if (file_buffer != nullptr) {
+        delete[] file_buffer;
+        file_buffer = nullptr;
+      }
+    }
+
+    void processPacket(uint8_t *data) {
+      bool is_first_packet = (index == 0);
+
+      if (is_first_packet) {
+        file_size =
+            int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
+            HEADER_SIZE;
+        total_packets = static_cast<uint32_t>(ceil(
+            static_cast<double>(file_size + HEADER_SIZE) / MAX_PACKET_SIZE));
+        file_buffer = new uint8_t[total_packets * MAX_PACKET_SIZE];
+        packet_offset = HEADER_SIZE;
+        buffer_offset = 0;
+        uint32_t first_packet_size =
+            total_packets == 1 ? (file_size - HEADER_SIZE) : MAX_PACKET_SIZE;
+        std::memcpy(file_buffer + buffer_offset, data + packet_offset,
+                    first_packet_size);
+        if (index == (total_packets - 1)) {
+          // handle file, cleanup, return
+          m_file_cb(file_buffer, file_size, filename);
+          return;
+        }
+        index++;
+        return;
+      } else {
+        buffer_offset = (index * MAX_PACKET_SIZE) - HEADER_SIZE;
+        bool is_last_packet = (index == (total_packets - 1));
+        if (!is_last_packet) {
+          std::memcpy(file_buffer + buffer_offset, data, MAX_PACKET_SIZE);
+          index++;
+        } else {
+          uint32_t last_packet_size = file_size - buffer_offset;
+          std::memcpy(file_buffer + buffer_offset, data, last_packet_size);
+          // completion callback
+          m_file_cb(file_buffer, file_size, filename);
+          m_files.push_back(
+              File{.b_ptr = file_buffer, .size = file_size, .complete = true});
+          index = 0;
+          packet_offset = 0;
+          total_packets = 0;
+          buffer_offset = 0;
+          file_size = 0;
+        }
+      }
+    }
+
+   private:
+    uint8_t *file_buffer;
+    uint32_t index;
+    uint32_t total_packets;
+    uint32_t packet_offset;
+    uint32_t buffer_offset;
+    uint32_t file_size;
+    std::string filename;
+    int m_fd;
+    std::vector<File> m_files;
+    std::function<void(int)> m_cb;
+    std::function<void(uint8_t *data, int size, std::string)> m_file_cb;
+  };
+
   FileHandler(int client_fd, std::string name, uint8_t *first_packet,
               std::function<void(int, int, uint8_t *, size_t)> callback)
       : socket_fd(client_fd) {
@@ -195,6 +211,24 @@ class KServer : public SocketListener {
           break;
         }
       }
+      case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE: {
+        if (client_socket_fd == -1) {
+          KLOG->info(
+              "Sending system-wide broadcast. There are currently no "
+              "tasks ready for execution.");
+          args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
+          for (const auto &session : m_sessions) {
+            sendEvent(session.fd, "No tasks ready", args);
+          }
+          break;
+        } else {
+          KLOG->info("Informing client {} about scheduled tasks",
+                     client_socket_fd);
+          sendEvent(client_socket_fd, "No tasks ready to run", args);
+          break;
+        }
+        break;
+      }
       case SYSTEM_EVENTS__FILE_UPDATE: {
         // incoming file has new information, such as a filename to be
         // assigned to it
@@ -202,19 +236,21 @@ class KServer : public SocketListener {
             "SYSTEM EVENT:: Updating information file information for client "
             "{} and file with ID",
             client_socket_fd);
+        auto timestamp = args.at(1);
         auto received_file =
             std::find_if(m_received_files.begin(), m_received_files.end(),
-                         [client_socket_fd](ReceivedFile &file) {
+                         [client_socket_fd, timestamp](ReceivedFile &file) {
                            // TODO: We need to change this so we are matching
                            // by UUID
-                           return file.client_fd == client_socket_fd;
+                           return (file.client_fd == client_socket_fd &&
+                                   std::to_string(file.timestamp) == timestamp);
                          });
 
         if (received_file != m_received_files.end()) {
           // We must assume that these files match, just by virtue of the
           // client file descriptor ID. Again, we should be matching by UUID.
           // // TODO: We must do this
-          std::string uuid = args.at(1);
+          std::string uuid = args.at(2);
           std::string filename{"data/"};
           filename += uuid.c_str();
           filename += +"/";
@@ -223,16 +259,19 @@ class KServer : public SocketListener {
           FileUtils::saveFile(received_file->f_ptr, received_file->size,
                               filename.c_str());
           m_received_files.erase(received_file);
-          auto it =
-              std::find_if(m_file_handlers.begin(), m_file_handlers.end(),
-                           [client_socket_fd](FileHandler &handler) {
-                             return handler.isHandlingSocket(client_socket_fd);
-                           });
-          if (it != m_file_handlers.end()) {
-            m_file_handlers.erase(it);
-          } else {
-            KLOG->info("Problem removing file handler for client {}",
-                       client_socket_fd);
+
+          if (args.size() == 4 && args.at(3) == "final file") {
+            auto it = std::find_if(
+                m_file_handlers.begin(), m_file_handlers.end(),
+                [client_socket_fd](FileHandler &handler) {
+                  return handler.isHandlingSocket(client_socket_fd);
+                });
+            if (it != m_file_handlers.end()) {
+              m_file_handlers.erase(it);
+            } else {
+              KLOG->info("Problem removing file handler for client {}",
+                         client_socket_fd);
+            }
           }
           sendEvent(client_socket_fd, "File Save Success", {});
         } else {
@@ -339,19 +378,20 @@ class KServer : public SocketListener {
         // Push to received files immediately so that we ensure it's ready to be
         // used in subsequent client requests
         if (size > 0) {
-          m_received_files.push_back(
-              ReceivedFile{.timestamp = TimeUtils::unixtime(),
-                           .client_fd = socket_fd,
-                           .f_ptr = f_ptr,
-                           .size = size});
+          auto timestamp = TimeUtils::unixtime();
+          m_received_files.push_back(ReceivedFile{.timestamp = timestamp,
+                                                  .client_fd = socket_fd,
+                                                  .f_ptr = f_ptr,
+                                                  .size = size});
+          KLOG->info("Finished handling file for client {}", socket_fd);
+          file_pending_fd = -1;
+          file_pending = false;
+          sendEvent(socket_fd, "File Transfer Complete",
+                    {std::to_string(timestamp)});
+          return;
         }
-        KLOG->info("Finished handling file for client {}", socket_fd);
-        file_pending_fd = -1;
-        file_pending = false;
-        sendEvent(socket_fd, "File Transfer Complete", {});
-      } else {
-        sendEvent(socket_fd, "File Transfer Failed", {});
       }
+      sendEvent(socket_fd, "File Transfer Failed", {});  // Nothing saved
     }
   }
 

@@ -16,6 +16,7 @@
 #include <map>
 #include <server/types.hpp>
 #include <string>
+#include <system/cron.hpp>
 #include <utility>
 #include <vector>
 
@@ -28,6 +29,44 @@ using namespace KData;
 flatbuffers::FlatBufferBuilder builder(1024);
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
+
+typedef std::pair<std::string, std::string> FileInfo;
+
+int findIndexAfter(std::string s, int pos, char c) {
+  for (int i = pos; i < s.size(); i++) {
+    if (s.at(i) == c) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+std::vector<FileInfo> parseFileInfo(std::string file_info) {
+  KLOG->info("Request::parseFileInfo() - Parsing: {}", file_info);
+  std::vector<FileInfo> info_v{};
+  info_v.reserve(file_info.size() /
+                 25);  // Estimating number of files being represented
+  size_t pipe_pos = 0;
+  size_t index = 0;
+  size_t delim_pos = 0;
+  std::string parsing{file_info, file_info.size()};
+  do {
+    auto timestamp = file_info.substr(index, 10);
+    pipe_pos = findIndexAfter(file_info, index, '|');
+    auto file_name = file_info.substr(index + 10, (pipe_pos - index - 10));
+    delim_pos = findIndexAfter(file_info, index, '::');
+    auto type =
+        file_info.substr(index + 10 + file_name.size() + 1,
+                         (delim_pos - index - 10 - file_name.size() - 1));
+    KLOG->info("Parsed file {} of type {} with timestamp {}", file_name, type,
+               timestamp);
+
+    info_v.push_back(FileInfo{file_name, timestamp});
+    index += timestamp.size() + file_name.size() + type.size() +
+             3;  // 3 strings + 3 delim chars
+  } while (index < file_info.size());
+  return info_v;
+}
 
 class RequestHandler {
  public:
@@ -125,8 +164,8 @@ class RequestHandler {
           KLOG->info(
               "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
               "Flags",
-              task.datetime, std::to_string(task.execution_mask), task.filename,
-              task.envfile);
+              task.datetime, std::to_string(task.execution_mask),
+              task.file ? "hasFile(s)" : "", task.envfile);
         }
         std::string tasks_message = std::to_string(tasks.size());
         tasks_message += " tasks scheduled to run in the next 24 hours";
@@ -155,6 +194,28 @@ class RequestHandler {
             {"There are currently no tasks ready for execution"});
       }
       handlePendingTasks();
+      KLOG->info("Running scheduled tasks");
+
+      System::Cron<System::SingleJob> cron{};
+      std::string jobs = cron.listJobs();
+
+      KLOG->info(
+          "System Cron returned the following jobs from the operating system: "
+          "\n{}",
+          jobs);
+      KLOG->info("Testing adding job to system cron");
+
+      System::SingleJob job{.path = "ls -la ~",
+                            .month = System::Month::DECEMBER,
+                            .day_of_month = 25,
+                            .hour = 23,
+                            .minute = 59};
+      cron.addJob(job);
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      KLOG->info("Testing deleting job to system cron");
+
+      cron.deleteJob(job);
       std::this_thread::sleep_for(std::chrono::minutes(5));
     }
   }
@@ -206,9 +267,23 @@ class RequestHandler {
       if (!path.empty() && !name.empty()) {
         if (name == "Instagram") {
           KLOG->info("RequestHandler:: Instagram task");
-          auto filename = argv.at(0);
-          m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
-                               {filename, uuid});
+          auto file_info = argv.at(0);
+          std::vector<FileInfo> files_to_update = parseFileInfo(file_info);
+          std::vector<std::string> filenames{};
+
+          auto file_index = 0;
+          for (const auto &file_info : files_to_update) {
+            std::vector<std::string> callback_args{file_info.first,
+                                                   file_info.second, uuid};
+            if (file_index == files_to_update.size() - 1) {
+              callback_args.push_back("final file");
+            }
+            m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
+                                 callback_args);
+            std::string media_filename = get_cwd();
+            media_filename += "/data/" + uuid + "/" + file_info.first;
+            filenames.push_back(media_filename);
+          }
           // notify KServer of filename received
           auto datetime = argv.at(1);
           auto description = argv.at(2);
@@ -217,6 +292,7 @@ class RequestHandler {
           auto requested_by_phrase = argv.at(5);
           auto promote_share = argv.at(6);
           auto link_bio = argv.at(7);
+          auto is_video = argv.at(8) == "1";
 
           std::string env_file_string{"#!/usr/bin/env bash\n"};
           env_file_string += "DESCRIPTION='" + description + "'\n";
@@ -226,14 +302,13 @@ class RequestHandler {
               "REQUESTED_BY_PHRASE='" + requested_by_phrase + "'\n";
           env_file_string += "PROMOTE_SHARE='" + promote_share + "'\n";
           env_file_string += "LINK_BIO='" + link_bio + "'\n";
+          env_file_string += "FILE_TYPE='";
+          env_file_string += is_video ? "video'\n" : "image'\n";
           std::string env_filename = {"data/"};
           env_filename += uuid;
           env_filename += "/v.env";
 
           FileUtils::saveEnvFile(env_file_string, env_filename);
-
-          std::string media_filename = get_cwd();
-          media_filename += "/data/" + uuid + "/" + filename;
 
           auto validate = true;  // TODO: Replace this with actual validation
           if (validate) {
@@ -242,11 +317,12 @@ class RequestHandler {
             Executor::Task task{
                 .execution_mask = std::stoi(mask),
                 .datetime = datetime,
-                .filename = media_filename,
+                .file = (!filenames.empty()),
+                .file_names = filenames,
                 .envfile = env_filename,
                 .execution_flags =
                     "--description=$DESCRIPTION --hashtags=$HASHTAGS "
-                    "--requested_by=$REQUESTED_BY "
+                    "--requested_by=$REQUESTED_BY --media=$FILE_TYPE "
                     "--requested_by_phrase=$REQUESTED_BY_PHRASE "
                     "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO"};
             scheduler.schedule(task);
@@ -287,8 +363,8 @@ class RequestHandler {
           KLOG->info(
               "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
               "Flags",
-              task.datetime, std::to_string(task.execution_mask), task.filename,
-              task.envfile);
+              task.datetime, std::to_string(task.execution_mask),
+              task.file ? "hasFile(s)" : "", task.envfile);
         }
         std::string tasks_message = std::to_string(tasks.size());
         tasks_message += " tasks scheduled to run in the next 24 hours";
