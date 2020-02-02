@@ -7,7 +7,7 @@ jobs:
       - run:
           name: compile
           command: |
-            echo 'Hello World!'
+            ./compile
 
 workflows:
  version: 2
