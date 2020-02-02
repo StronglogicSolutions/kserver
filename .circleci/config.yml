@@ -5,12 +5,12 @@ workflows:
   build:
     # Run the welcome/run job in its own container
     jobs:
-      compile:
+      build:
         docker:
-          - image: buildpack-deps:18:04
+          - image: buildpack-deps:18.04
         steps:
           - run:
-              name: Run compile
+              name: The First Step
               command: |
-                ./compile
-
+                echo 'Hello World!'
+                echo 'This is the delivery pipeline'
