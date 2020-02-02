@@ -1,16 +1,17 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
-# Orchestrate or schedule a set of jobs
+jobs:
+  compile:
+    docker:
+      - image: buildpack-deps:18.04
+    steps:
+      - run:
+          name: compile
+          command: |
+            echo 'Hello World!'
+
 workflows:
-  build:
-    # Run the welcome/run job in its own container
-    jobs:
-      build:
-        docker:
-          - image: buildpack-deps:18.04
-        steps:
-          - run:
-              name: The First Step
-              command: |
-                echo 'Hello World!'
-                echo 'This is the delivery pipeline'
+ version: 2
+ build:
+   jobs:
+     - compile
+
