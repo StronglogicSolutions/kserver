@@ -9,7 +9,7 @@ workflows:
         - image: buildpack-deps:18:04
       steps:
         - run:
-          name: Compile
+            name: Compile
             command: |
               ./compile
 
