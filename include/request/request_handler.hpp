@@ -121,7 +121,9 @@ class RequestHandler {
       delete m_executor;
     }
     if (m_maintenance_worker.valid()) {
-      KLOG->info("RequestHandler::~RequestHandler() - Waiting for maintenance worker to complete");
+      KLOG->info(
+          "RequestHandler::~RequestHandler() - Waiting for maintenance worker "
+          "to complete");
       m_maintenance_worker.get();
     }
   }
@@ -144,18 +146,19 @@ class RequestHandler {
     // Begin maintenance loop to process scheduled tasks as they become ready
     m_maintenance_worker =
         std::async(std::launch::async, &RequestHandler::maintenanceLoop, this);
-        KLOG->info("RequestHandler::initialize() - Initialization complete");
+    KLOG->info("RequestHandler::initialize() - Initialization complete");
   }
 
   Executor::Scheduler getScheduler() {
     return Executor::Scheduler{
-        [this](std::string result, int mask, int client_socket_fd) {
-          onProcessComplete(result, mask, std::string{""}, client_socket_fd);
+        [this](std::string result, int mask, int id, int client_socket_fd) {
+          onProcessComplete(result, mask, std::to_string(id), client_socket_fd);
         }};
   }
 
   void maintenanceLoop() {
-    KLOG->info("RequestHandler::maintenanceLoop() - Beginning maintenance loop");
+    KLOG->info(
+        "RequestHandler::maintenanceLoop() - Beginning maintenance loop");
     for (;;) {
       int client_socket_fd = -1;
       Executor::Scheduler scheduler = getScheduler();
@@ -186,11 +189,14 @@ class RequestHandler {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
         KLOG->info(
-            "RequestHandler::maintenanceLoop() - KServer has {} {} pending execution",
+            "RequestHandler::maintenanceLoop() - KServer has {} {} pending "
+            "execution",
             m_tasks_map.at(client_socket_fd).size(),
             m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
       } else {
-        KLOG->info("RequestHandler::maintenanceLoop() - There are currently no tasks ready for execution");
+        KLOG->info(
+            "RequestHandler::maintenanceLoop() - There are currently no tasks "
+            "ready for execution");
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
             {"There are currently no tasks ready for execution"});
@@ -202,10 +208,13 @@ class RequestHandler {
       std::string jobs = cron.listJobs();
 
       KLOG->info(
-          "RequestHandler::maintenanceLoop() - System Cron returned the following jobs from the operating system: "
+          "RequestHandler::maintenanceLoop() - System Cron returned the "
+          "following jobs from the operating system: "
           "\n{}",
           jobs);
-      KLOG->info("RequestHandler::maintenanceLoop() - Testing adding job to system cron");
+      KLOG->info(
+          "RequestHandler::maintenanceLoop() - Testing adding job to system "
+          "cron");
 
       System::SingleJob job{.path = "ls -la ~",
                             .month = System::Month::DECEMBER,
@@ -215,7 +224,9 @@ class RequestHandler {
       cron.addJob(job);
 
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
-      KLOG->info("RequestHandler::maintenanceLoop() - Testing deleting job to system cron");
+      KLOG->info(
+          "RequestHandler::maintenanceLoop() - Testing deleting job to system "
+          "cron");
 
       cron.deleteJob(job);
       std::this_thread::sleep_for(std::chrono::minutes(5));
@@ -228,7 +239,7 @@ class RequestHandler {
       for (const auto &client_tasks : m_tasks_map) {
         if (!client_tasks.second.empty()) {
           for (const auto &task : client_tasks.second) {
-            //  scheduler.executeTask(client_tasks.first, task);
+             scheduler.executeTask(client_tasks.first, task);
             KLOG->info(
                 "RequestHandler::handlePendingTasks() - Would be handling task "
                 "with ID {} scheduled for {}",
@@ -353,17 +364,16 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      Executor::Scheduler scheduler{[this](std::string result, int mask,
-
-                                           int client_socket_fd) {
-        onProcessComplete(result, mask, "", client_socket_fd);
+      Executor::Scheduler scheduler{[this](std::string result, int mask, int id, int client_socket_fd) {
+        onProcessComplete(result, mask, std::to_string(id), client_socket_fd);
       }};
       std::vector<Executor::Task> tasks = scheduler.fetchTasks();
       if (!tasks.empty()) {
         KLOG->info("There are tasks to be reviewed");
         for (const auto &task : tasks) {
           KLOG->info(
-              "RequestHandler:: OPERATION HANDLER - Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
+              "RequestHandler:: OPERATION HANDLER - Task info: {} - Mask: {}\n "
+              "Args: {}\n {}\n. Excluded: Execution "
               "Flags",
               task.datetime, std::to_string(task.execution_mask),
               task.file ? "hasFile(s)" : "", task.envfile);
@@ -375,6 +385,7 @@ class RequestHandler {
                              {tasks_message});
 
         // for (const auto& task : tasks) {
+        // We need to inform the client of available tasks, and let them decide if a task should be executed.
         scheduler.executeTask(client_socket_fd, tasks.at(0));
         // m_task_callback_fn(client_socket_fd, tasks);
         auto it = m_tasks_map.find(client_socket_fd);
@@ -384,8 +395,10 @@ class RequestHandler {
         } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
-        KLOG->info("RequestHandler:: OPERATION HANDLER - {} currently has {} tasks pending execution",
-                   client_socket_fd, m_tasks_map.at(client_socket_fd).size());
+        KLOG->info(
+            "RequestHandler:: OPERATION HANDLER - {} currently has {} tasks "
+            "pending execution",
+            client_socket_fd, m_tasks_map.at(client_socket_fd).size());
       } else {
         KLOG->info("There are currently no tasks ready for execution");
         m_system_callback_fn(
@@ -454,7 +467,8 @@ class RequestHandler {
       m_executor->request(row.second, mask, client_socket_fd, request_id, {});
     }
     std::string info_string{
-        "RequestHandler:: PROCESS RUNNER - Process execution requested for applications matching the mask "};
+        "RequestHandler:: PROCESS RUNNER - Process execution requested for "
+        "applications matching the mask "};
     info_string += std::to_string(mask);
     m_system_callback_fn(client_socket_fd,
                          SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
@@ -501,7 +515,10 @@ class RequestHandler {
   // Callback
   void onProcessComplete(std::string value, int mask, std::string request_id,
                          int client_socket_fd) {
-                           KLOG->info("RequestHandler::onProcessComplete() - Process complete notification for client {}'s request {}", client_socket_fd, request_id);
+    KLOG->info(
+        "RequestHandler::onProcessComplete() - Process complete notification "
+        "for client {}'s request {}",
+        client_socket_fd, request_id);
     m_event_callback_fn(value, mask, request_id, client_socket_fd);
   }
 

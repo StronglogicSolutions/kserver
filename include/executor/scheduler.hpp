@@ -14,7 +14,7 @@
 
 namespace Executor {
 
-typedef std::function<void(std::string, int, int)> EventCallback;
+typedef std::function<void(std::string, int, int, int)> EventCallback;
 
 struct Task {
   int execution_mask;
@@ -91,10 +91,10 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return k_app;
   }
 
-  void onProcessComplete(std::string value, int mask, int client_fd) {
+  void onProcessComplete(std::string value, int mask, int id, int client_fd) {
     KLOG->info("Value returned from process:\n{}", value);
     if (m_event_callback != nullptr) {
-      m_event_callback(value, mask, client_fd);
+      m_event_callback(value, mask, id, client_fd);
     }
   }
 
@@ -165,8 +165,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     if (is_ready_to_execute) {
       ProcessExecutor executor{};
       executor.setEventCallback(
-          [this](std::string result, int mask, int client_socket_fd) {
-            onProcessComplete(result, mask, client_socket_fd);
+          [this, task](std::string result, int mask, int client_socket_fd) {
+            onProcessComplete(result, mask, task.id, client_socket_fd);
           });
 
       std::string id_value{std::to_string(task.id)};
