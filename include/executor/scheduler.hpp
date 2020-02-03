@@ -108,11 +108,12 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         std::to_string(TimeUtils::unixtime() + 86400);
     std::vector<Task> tasks{};
     int id{};
-    QueryComparisonBetweenFilter filter{
-        {"time", current_timestamp, future_timestamp_24hr}};
-    // TODO: Implement >, <, <> filtering
-    auto result = kdb.selectCompare(
-        "schedule", {"id", "time", "mask", "flags", "envfile"}, filter);
+    std::vector<GenericFilter> filters{
+        GenericFilter{
+            .comparison = {"time", current_timestamp, future_timestamp_24hr}, .type=FilterTypes::COMPARISON},
+        GenericFilter{.comparison = {"completed", "=", "false"}, .type=FilterTypes::STANDARD}};
+    auto result = kdb.selectMultiFilter(
+        "schedule", {"id", "time", "mask", "flags", "envfile"}, filters);
     if (!result.empty() && result.at(0).first.size() > 0) {
       std::string mask, flags, envfile, time, filename;
       for (const auto &v : result) {
