@@ -29,9 +29,10 @@ class KLogger {
       auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("/tmp/kserver/k.log");
       file_sink->set_level(spdlog::level::trace);
       spdlog::sinks_init_list sink_list = { file_sink, console_sink };
-      g_logger =  std::make_shared<spdlog::logger>(spdlog::logger("multi_sink", sink_list.begin(), sink_list.end()));
-
+      g_logger =  std::make_shared<spdlog::logger>(spdlog::logger("KLOG", sink_list.begin(), sink_list.end()));
+      spdlog::set_default_logger(g_logger);
       spdlog::set_level(spdlog::level::trace);
+      spdlog::flush_on(spdlog::level::info);
       g_logger->info("Initializing logger");
     } catch (const spdlog::spdlog_ex& ex) {
       std::cout << "Error: " << ex.what() << std::endl;
