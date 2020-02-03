@@ -32,6 +32,20 @@ typedef std::vector<std::tuple<std::string, std::string, std::string>>
 typedef std::vector<std::string> Values;
 typedef std::vector<std::pair<std::string, std::string>> QueryValues;
 
+namespace FilterTypes {
+static constexpr int STANDARD = 1;
+static constexpr int COMPARISON = 2;
+}  // namespace FilterTypes
+
+struct GenericFilter {
+  std::tuple<std::string, std::string, std::string> comparison;
+  int type;
+};
+struct CompFilter : GenericFilter {
+  std::tuple<std::string, std::string, std::string> comparison;
+  int type = FilterTypes::COMPARISON;
+};
+
 struct Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
@@ -45,6 +59,12 @@ struct DatabaseQuery : Query {
   /* type */ QueryType type;
   /* values */ std::vector<std::string> values;
   /* filter */ QueryFilter filter;
+};
+
+struct MultiFilterSelect {
+  std::string table;
+  std::vector<std::string> fields;
+  std::vector<GenericFilter> filters;
 };
 
 struct InsertReturnQuery : Query {

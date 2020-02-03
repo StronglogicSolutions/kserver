@@ -80,6 +80,23 @@ class KDB {
     return {{}};
   }
 
+  QueryValues selectMultiFilter(std::string table, Fields fields,
+                                std::vector<GenericFilter> filters) {
+    try {
+      MultiFilterSelect select_query{
+          .table = table, .fields = fields, .filters = filters};
+      QueryResult result = m_connection.query(select_query);
+      if (!result.values.empty()) {
+        return result.values;
+      }
+    } catch (const pqxx::sql_error &e) {
+      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+    } catch (const std::exception &e) {
+      KLOG->error("Error", e.what());
+    }
+    return {{}};
+  }
+
   bool insert(std::string table, Fields fields, Values values) {
     DatabaseQuery insert_query{.table = table,
                                .fields = fields,
