@@ -239,7 +239,7 @@ class RequestHandler {
       for (const auto &client_tasks : m_tasks_map) {
         if (!client_tasks.second.empty()) {
           for (const auto &task : client_tasks.second) {
-             scheduler.executeTask(client_tasks.first, task);
+            scheduler.executeTask(client_tasks.first, task);
             KLOG->info(
                 "RequestHandler::handlePendingTasks() - Would be handling task "
                 "with ID {} scheduled for {}",
@@ -364,7 +364,8 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      Executor::Scheduler scheduler{[this](std::string result, int mask, int id, int client_socket_fd) {
+      Executor::Scheduler scheduler{[this](std::string result, int mask, int id,
+                                           int client_socket_fd) {
         onProcessComplete(result, mask, std::to_string(id), client_socket_fd);
       }};
       std::vector<Executor::Task> tasks = scheduler.fetchTasks();
@@ -385,7 +386,8 @@ class RequestHandler {
                              {tasks_message});
 
         // for (const auto& task : tasks) {
-        // We need to inform the client of available tasks, and let them decide if a task should be executed.
+        // We need to inform the client of available tasks, and let them decide
+        // if a task should be executed.
         scheduler.executeTask(client_socket_fd, tasks.at(0));
         // m_task_callback_fn(client_socket_fd, tasks);
         auto it = m_tasks_map.find(client_socket_fd);
