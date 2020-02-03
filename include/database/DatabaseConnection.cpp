@@ -154,7 +154,6 @@ std::string selectStatement(MultiFilterSelect query) {
       filter_string += delim + filter_statement;
       delim = " AND ";
     }
-    std::cout << "Filter Statement: " << filter_string << std::endl;
     return {"SELECT " + fieldsAsString(query.fields) + " FROM " +
             query.table + " " + filter_string};
   }

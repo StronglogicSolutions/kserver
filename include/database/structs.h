@@ -30,7 +30,8 @@ typedef std::vector<std::tuple<std::string, std::string, std::string>>
 typedef std::vector<std::tuple<std::string, std::string, std::string>>
     QueryComparisonBetweenFilter;
 typedef std::vector<std::string> Values;
-typedef std::vector<std::pair<std::string, std::string>> QueryValues;
+typedef std::pair<std::string, std::string> QueryValue;
+typedef std::vector<QueryValue> QueryValues;
 
 namespace FilterTypes {
 static constexpr int STANDARD = 1;
