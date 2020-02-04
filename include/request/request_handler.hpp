@@ -152,7 +152,7 @@ class RequestHandler {
   Executor::Scheduler getScheduler() {
     return Executor::Scheduler{
         [this](std::string result, int mask, int id, int client_socket_fd) {
-          onProcessComplete(result, mask, std::to_string(id), client_socket_fd);
+          onScheduledTaskComplete(result, mask, std::to_string(id), client_socket_fd);
         }};
   }
 
@@ -364,10 +364,7 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      Executor::Scheduler scheduler{[this](std::string result, int mask, int id,
-                                           int client_socket_fd) {
-        onProcessComplete(result, mask, std::to_string(id), client_socket_fd);
-      }};
+      Executor::Scheduler scheduler = getScheduler();
       std::vector<Executor::Task> tasks = scheduler.fetchTasks();
       if (!tasks.empty()) {
         KLOG->info("There are tasks to be reviewed");
@@ -515,13 +512,33 @@ class RequestHandler {
 
  private:
   // Callback
-  void onProcessComplete(std::string value, int mask, std::string request_id,
+    void onProcessComplete(std::string value, int mask, std::string request_id,
                          int client_socket_fd) {
     KLOG->info(
         "RequestHandler::onProcessComplete() - Process complete notification "
         "for client {}'s request {}",
         client_socket_fd, request_id);
     m_event_callback_fn(value, mask, request_id, client_socket_fd);
+  }
+
+  void onScheduledTaskComplete(std::string value, int mask, std::string id,
+                         int client_socket_fd) {
+    KLOG->info(
+        "RequestHandler::onScheduledTaskComplete() - Task complete notification "
+        "for client {}'s task {}",
+        client_socket_fd, id);
+
+    std::map<int, std::vector<Executor::Task>>::iterator it = m_tasks_map.find(client_socket_fd);
+    if (it != m_tasks_map.end()) {
+      auto task_it = std::find_if(it->second.begin(), it->second.end(), [id](Executor::Task task) {
+        return task.id == std::stoi(id);
+      });
+      if (task_it != it->second.end()) {
+        KLOG->info("RequestHandler::onScheduledTaskComplete() - removing completed task from memory");
+        it->second.erase(task_it);
+      }
+    }
+    m_event_callback_fn(value, mask, id, client_socket_fd);
   }
 
   std::function<void(std::string, int, std::string, int)> m_event_callback_fn;
