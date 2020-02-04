@@ -93,13 +93,20 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
   void onProcessComplete(std::string value, int mask, int id, int client_fd) {
     KLOG->info("Value returned from process:\n{}", value);
-    if (m_event_callback != nullptr) {
-      m_event_callback(value, mask, id, client_fd);
-    }
-    if (true) { // if success - how do we determine this from the output?
+
+    if (true) {  // if success - how do we determine this from the output?
       Database::KDB kdb{};
 
+      QueryFilter filter{{"id", std::to_string(id)}};
+      std::string result = kdb.update("schedule", {"completed"}, {"true"}, filter, "id");
 
+      if (!result.empty()) {
+        KLOG->info("Updated task {} to reflect its completion", result);
+      }
+      // TODO: We need to discriminate success and failure
+      if (m_event_callback != nullptr) {
+        m_event_callback(value, mask, id, client_fd);
+      }
     }
   }
 
@@ -126,16 +133,15 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
           !mask.empty() && id > 0) {
         // TODO: Get files and add to task before pushing into vector
-        tasks.push_back(Task{
-          .execution_mask = std::stoi(mask),
-          .datetime = time,
-          .file = true,  // Change this default value later after we
-                          // implement booleans in the DB abstraction
-          .file_names = {},
-          .envfile = envfile,
-          .execution_flags = flags,
-          .id = id
-        });
+        tasks.push_back(
+            Task{.execution_mask = std::stoi(mask),
+                 .datetime = time,
+                 .file = true,  // Change this default value later after we
+                                // implement booleans in the DB abstraction
+                 .file_names = {},
+                 .envfile = envfile,
+                 .execution_flags = flags,
+                 .id = id});
         id = 0;
         filename.clear();
         envfile.clear();
@@ -148,28 +154,21 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   }
 
   virtual std::vector<Task> fetchTasks() {
-    Database::KDB kdb{}; // get DB
+    Database::KDB kdb{};  // get DB
     std::string current_timestamp = std::to_string(TimeUtils::unixtime());
     std::string future_timestamp_24hr =
         std::to_string(TimeUtils::unixtime() + 86400);
     return parseTasks(kdb.selectMultiFilter(
-        "schedule", // table
-        {"id", "time", "mask", "flags", "envfile"}, // fields
-        {{
-          GenericFilter{
-          .comparison = { // BETWEEN
-            "time", current_timestamp, future_timestamp_24hr
-          },
-          .type=FilterTypes::COMPARISON
-          },
-          GenericFilter{
-          .comparison = { // EQUALS
-          "completed", "=", "false"
-          },
-          .type=FilterTypes::STANDARD
-          }
-        }}
-    ));
+        "schedule",                                  // table
+        {"id", "time", "mask", "flags", "envfile"},  // fields
+        {{GenericFilter{.comparison =
+                            {// BETWEEN
+                             "time", current_timestamp, future_timestamp_24hr},
+                        .type = FilterTypes::COMPARISON},
+          GenericFilter{.comparison =
+                            {// EQUALS
+                             "completed", "=", "false"},
+                        .type = FilterTypes::STANDARD}}}));
   }
 
   virtual void executeTask(int client_socket_fd, Task task) {
