@@ -4,8 +4,8 @@ jobs:
     docker:
       - image: buildpack-deps:18.04
         environment:
-          TZ: "America/Toronto"
-          DEBIAN_FRONTEND: "noninteractive"
+          - TZ: "America/Toronto"
+          - DEBIAN_FRONTEND: "noninteractive"
     steps:
       - checkout
       - run:
