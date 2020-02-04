@@ -11,7 +11,7 @@ jobs:
       - run:
           name: db deps
           command: |
-            apt-get update && apt-get install -y software-properties-common && add-apt-repository ppa:hnakamur/flatbuffers -y && apt-get update && apt-get install -y -qq cmake flatbuffers libpq-dev postgresql postgresql-contrib && git clone https://github.com/jtv/libpqxx && cd libpqxx && cmake -DPostgreSQL_TYPE_INCLUDE_DIR=/usr/include/postgresql/ . && make && make install
+            apt-get update && apt-get install -y software-properties-common && add-apt-repository ppa:hnakamur/flatbuffers -y && apt-get update && apt-get install -y -qq cmake flatbuffers libpq-dev postgresql postgresql-contrib && git clone https://github.com/google/flatbuffers.git && cd flatbuffers && cmake -G "Unix Makefiles" && make && make install && cd .. && git clone https://github.com/jtv/libpqxx && cd libpqxx && cmake -DPostgreSQL_TYPE_INCLUDE_DIR=/usr/include/postgresql/ . && make && make install
       - run:
           name: compile
           command: |
