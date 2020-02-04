@@ -5,6 +5,9 @@ jobs:
       - image: buildpack-deps:18.04
     steps:
       - checkout
+      -run:
+        name: env variables
+        command: echo 'DEBIAN_FRONTEND="noninteractive"' >> $BASH_ENV
       - run:
           name: db deps
           command: |
