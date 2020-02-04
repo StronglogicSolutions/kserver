@@ -8,7 +8,7 @@ jobs:
       - run:
           name: db deps
           command: |
-            git clone https://github.com/jtv/libpqxx && cd libpqxx && cmake . && make && make install
+            apt-get update && apt-get install cmake -y && git clone https://github.com/jtv/libpqxx && cd libpqxx && cmake . && make && make install
       - run:
           name: compile
           command: |
