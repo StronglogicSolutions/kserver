@@ -7,7 +7,8 @@ jobs:
       - checkout
       - run:
         name: env variables
-        command: echo 'DEBIAN_FRONTEND="noninteractive"' >> $BASH_ENV
+        command: |
+          echo 'export DEBIAN_FRONTEND="noninteractive"' >> $BASH_ENV
       - run:
           name: db deps
           command: |
