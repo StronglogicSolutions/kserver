@@ -76,6 +76,15 @@ struct InsertReturnQuery : Query {
   /* returning */ std::string returning;
 };
 
+struct UpdateReturnQuery : Query {
+  /* table */ std::string table;
+  /* fields */ std::vector<std::string> fields;
+  /* type */ QueryType type = QueryType::INSERT;
+  /* values */ StringVec values;
+  /* filter */ QueryFilter filter;
+  /* returning */ std::string returning;
+};
+
 struct ComparisonSelectQuery {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;

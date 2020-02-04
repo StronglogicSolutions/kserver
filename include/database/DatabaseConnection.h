@@ -14,6 +14,7 @@ class DatabaseConnection {
   // work
   QueryResult query(DatabaseQuery query);
   std::string query(InsertReturnQuery query);
+  std::string query(UpdateReturnQuery query);
   QueryResult query(ComparisonSelectQuery query);
   QueryResult query(ComparisonBetweenSelectQuery query);
   QueryResult query(MultiFilterSelect query);
@@ -31,6 +32,7 @@ class DatabaseConnection {
   pqxx::result performSelect(ComparisonSelectQuery query);
   pqxx::result performSelect(ComparisonBetweenSelectQuery query);
   pqxx::result performSelect(MultiFilterSelect query);
+  pqxx::result performUpdate(UpdateReturnQuery query, std::string returning);
   //  bool connected;
 };
 
