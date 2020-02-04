@@ -30,7 +30,22 @@ typedef std::vector<std::tuple<std::string, std::string, std::string>>
 typedef std::vector<std::tuple<std::string, std::string, std::string>>
     QueryComparisonBetweenFilter;
 typedef std::vector<std::string> Values;
-typedef std::vector<std::pair<std::string, std::string>> QueryValues;
+typedef std::pair<std::string, std::string> QueryValue;
+typedef std::vector<QueryValue> QueryValues;
+
+namespace FilterTypes {
+static constexpr int STANDARD = 1;
+static constexpr int COMPARISON = 2;
+}  // namespace FilterTypes
+
+struct GenericFilter {
+  std::tuple<std::string, std::string, std::string> comparison;
+  int type;
+};
+struct CompFilter : GenericFilter {
+  std::tuple<std::string, std::string, std::string> comparison;
+  int type = FilterTypes::COMPARISON;
+};
 
 struct Query {
   /* table */ std::string table;
@@ -47,11 +62,26 @@ struct DatabaseQuery : Query {
   /* filter */ QueryFilter filter;
 };
 
+struct MultiFilterSelect {
+  std::string table;
+  std::vector<std::string> fields;
+  std::vector<GenericFilter> filters;
+};
+
 struct InsertReturnQuery : Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* type */ QueryType type = QueryType::INSERT;
   /* values */ StringVec values;
+  /* returning */ std::string returning;
+};
+
+struct UpdateReturnQuery : Query {
+  /* table */ std::string table;
+  /* fields */ std::vector<std::string> fields;
+  /* type */ QueryType type = QueryType::INSERT;
+  /* values */ StringVec values;
+  /* filter */ QueryFilter filter;
   /* returning */ std::string returning;
 };
 

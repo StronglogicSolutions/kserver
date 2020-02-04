@@ -80,6 +80,40 @@ class KDB {
     return {{}};
   }
 
+  QueryValues selectMultiFilter(std::string table, Fields fields,
+                                std::vector<GenericFilter> filters) {
+    try {
+      MultiFilterSelect select_query{
+          .table = table, .fields = fields, .filters = filters};
+      QueryResult result = m_connection.query(select_query);
+      if (!result.values.empty()) {
+        return result.values;
+      }
+    } catch (const pqxx::sql_error &e) {
+      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+    } catch (const std::exception &e) {
+      KLOG->error("Error", e.what());
+    }
+    return {{}};
+  }
+
+  std::string update(std::string table, Fields fields, Values values,
+                     QueryFilter filter, std::string returning) {
+    try {
+      // TODO: At the moment, we are married to passing the "id" field name as the "returning" argument
+      UpdateReturnQuery update_query{
+          .table = table, .fields = fields, .values = values, .filter = filter, .returning = returning};
+      std::string result = m_connection.query(update_query);
+      KLOG->info("Returned result from DB layer: {}", result);
+      return result;
+    } catch (const pqxx::sql_error &e) {
+      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+    } catch (const std::exception &e) {
+      KLOG->error("Error", e.what());
+    }
+    return "";
+  }
+
   bool insert(std::string table, Fields fields, Values values) {
     DatabaseQuery insert_query{.table = table,
                                .fields = fields,
