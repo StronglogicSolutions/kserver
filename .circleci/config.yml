@@ -6,6 +6,10 @@ jobs:
     steps:
       - checkout
       - run:
+          name: db deps
+          command: |
+            git clone https://github.com/jtv/libpqxx && cd libpqxx && cmake . && make && make install
+      - run:
           name: compile
           command: |
             ./compile
