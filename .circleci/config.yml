@@ -3,12 +3,15 @@ jobs:
   compile:
     docker:
       - image: buildpack-deps:18.04
+      environment:
+        TZ: "America/Toronto"
+        DEBIAN_FRONTEND: "noninteractive"
     steps:
       - checkout
       - run:
           name: db deps
           command: |
-            DEBIAN_FRONTEND="noninteractive" && apt-get update && apt-get install -y -qq cmake postgresql postgresql-contrib && git clone https://github.com/jtv/libpqxx && cd libpqxx && cmake . && make && make install
+  apt-get update && apt-get install -y -qq cmake postgresql postgresql-contrib && git clone https://github.com/jtv/libpqxx && cd libpqxx && cmake . && make && make install
       - run:
           name: compile
           command: |
