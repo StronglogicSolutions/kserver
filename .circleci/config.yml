@@ -11,7 +11,7 @@ jobs:
       - run:
           name: db deps
           command: |
-            apt-get update && apt-get install -y software-properties-common && add-apt-repository ppa:ubuntu-toolchain-r/test -y && apt-get install -y gcc-9 g++-9 && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 && apt-get install -y -qq cmake libpq-dev uuid-dev postgresql postgresql-contrib && git clone https://github.com/google/flatbuffers.git && cd flatbuffers && cmake -G "Unix Makefiles" && make && make install && cd .. && git clone https://github.com/jtv/libpqxx && cd libpqxx && git checkout 9cda171e4f00a402ef80f029b0781c3c04343eae && cmake -DPostgreSQL_TYPE_INCLUDE_DIR=/usr/include/postgresql/ . && make && make install
+            apt-get update && apt-get install -y software-properties-common && add-apt-repository ppa:ubuntu-toolchain-r/test -y && apt-get install -y gcc-9 g++-9 && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 && apt-get install -y -qq cmake libpq-dev uuid-dev postgresql postgresql-contrib && git clone https://github.com/google/flatbuffers.git && cd flatbuffers && cmake -G "Unix Makefiles" && make && make install && cd .. && git clone https://github.com/jtv/libpqxx && cd libpqxx && git checkout 198091c2d0a00417542e3804559da4aaa655c36c && cmake -DPostgreSQL_TYPE_INCLUDE_DIR=/usr/include/postgresql/ . && make && make install
       - run:
           name: compile
           command: |
