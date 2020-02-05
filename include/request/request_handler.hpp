@@ -178,9 +178,6 @@ class RequestHandler {
                              SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
                              {tasks_message});
 
-        // for (const auto& task : tasks) {
-        // scheduler.executeTask(client_socket_fd, tasks.at(0));
-        // m_task_callback_fn(client_socket_fd, tasks);
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end()) {
           m_tasks_map.insert(std::pair<int, std::vector<Executor::Task>>(
@@ -201,34 +198,16 @@ class RequestHandler {
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
             {"There are currently no tasks ready for execution"});
       }
-      handlePendingTasks();
       KLOG->info("RequestHandler::maintenanceLoop() - Running scheduled tasks");
+      handlePendingTasks();
 
       System::Cron<System::SingleJob> cron{};
       std::string jobs = cron.listJobs();
-
-      KLOG->info(
-          "RequestHandler::maintenanceLoop() - System Cron returned the "
-          "following jobs from the operating system: "
-          "\n{}",
-          jobs);
-      KLOG->info(
-          "RequestHandler::maintenanceLoop() - Testing adding job to system "
-          "cron");
-
-      System::SingleJob job{.path = "ls -la ~",
-                            .month = System::Month::DECEMBER,
-                            .day_of_month = 25,
-                            .hour = 23,
-                            .minute = 59};
-      cron.addJob(job);
-
-      std::this_thread::sleep_for(std::chrono::milliseconds(250));
-      KLOG->info(
-          "RequestHandler::maintenanceLoop() - Testing deleting job to system "
-          "cron");
-
-      cron.deleteJob(job);
+      if (!jobs.empty()) {
+        KLOG->info("RequestHandler::maintenanceLoop() - Cron - There are currently no jobs");
+      } else {
+        KLOG->info("RequestHandler::maintenanceLoop() - Cron - There are currently the following cron jobs: \n {}", jobs);
+      }
       std::this_thread::sleep_for(std::chrono::minutes(1));
     }
   }
