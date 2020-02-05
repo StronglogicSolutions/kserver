@@ -229,7 +229,7 @@ class RequestHandler {
           "cron");
 
       cron.deleteJob(job);
-      std::this_thread::sleep_for(std::chrono::minutes(5));
+      std::this_thread::sleep_for(std::chrono::minutes(1));
     }
   }
 
@@ -248,6 +248,7 @@ class RequestHandler {
         }
       }
     }
+    return;
   }
 
   std::string operator()(KOperation op, std::vector<std::string> argv,
