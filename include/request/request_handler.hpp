@@ -198,9 +198,9 @@ class RequestHandler {
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
             {"There are currently no tasks ready for execution"});
       }
-      KLOG->info("RequestHandler::maintenanceLoop() - Running scheduled tasks");
-      handlePendingTasks();
-
+      if (!m_tasks_map.empty()) {
+        handlePendingTasks();
+      }
       System::Cron<System::SingleJob> cron{};
       std::string jobs = cron.listJobs();
       if (!jobs.empty()) {
@@ -213,6 +213,7 @@ class RequestHandler {
   }
 
   void handlePendingTasks() {
+    KLOG->info("RequestHandler::maintenanceLoop() - Running scheduled tasks");
     Executor::Scheduler scheduler = getScheduler();
     if (!m_tasks_map.empty()) {
       for (const auto &client_tasks : m_tasks_map) {
