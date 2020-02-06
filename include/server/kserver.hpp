@@ -320,13 +320,10 @@ class KServer : public SocketListener {
    */
   void onProcessEvent(std::string result, int mask, std::string request_id,
                       int client_socket_fd) {
+    std::string process_executor_result_str{};
+    std::vector<std::string> event_args;
     if (result.size() <= 2046) {
-      std::vector<std::string> event_args{std::to_string(mask), request_id,
-                                          result};
-      std::string process_executor_result_str =
-          createEvent("Process Result", event_args);
-      sendMessage(client_socket_fd, process_executor_result_str.c_str(),
-                  process_executor_result_str.size());
+      std::vector<std::string> event_args{std::to_string(mask), request_id, result};
     } else {
       KLOG->info(
           "KServer::onProcessEvent() - result too big to send in one "
@@ -339,6 +336,15 @@ class KServer : public SocketListener {
       sendMessage(client_socket_fd, process_executor_result_str.c_str(),
                   process_executor_result_str.size());
     }
+    if (client_socket_fd == -1) { // Send response to all active sessions
+      event_args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
+      for (const auto &session : m_sessions) {
+        sendEvent(session.fd, "Process Result", event_args);
+      }
+    } else { // Send response to specifically indicated session
+      sendEvent(client_socket_fd, "Process Result", event_args);
+    }
+
   }
 
   /**
