@@ -156,14 +156,14 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   virtual std::vector<Task> fetchTasks() {
     Database::KDB kdb{};  // get DB
     std::string current_timestamp = std::to_string(TimeUtils::unixtime());
-    std::string future_timestamp_24hr =
-        std::to_string(TimeUtils::unixtime() + 86400);
+    std::string future_15_minute_timestamp =
+        std::to_string(TimeUtils::unixtime() + 900);
     return parseTasks(kdb.selectMultiFilter(
         "schedule",                                  // table
         {"id", "time", "mask", "flags", "envfile"},  // fields
         {{GenericFilter{.comparison =
                             {// BETWEEN
-                             "time", current_timestamp, future_timestamp_24hr},
+                             "time", current_timestamp, future_15_minute_timestamp},
                         .type = FilterTypes::COMPARISON},
           GenericFilter{.comparison =
                             {// EQUALS

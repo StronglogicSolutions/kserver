@@ -228,7 +228,7 @@ class KServer : public SocketListener {
           }
           break;
         } else {
-          KLOG->info("KServer::systemEventNotify () - Informing client {} about scheduled tasks",
+          KLOG->info("KServer::systemEventNotify() - Informing client {} about scheduled tasks",
                      client_socket_fd);
           sendEvent(client_socket_fd, "No tasks ready to run", args);
           break;
@@ -519,17 +519,21 @@ class KServer : public SocketListener {
     // Get ptr to data
     std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
 
-    if (file_pending) {  // Handle packets for incoming file
+    if (file_pending) { // Handle packets for incoming file
       KLOG->info("KServer::onMessageReceived() - Handling packet for file");
       handlePendingFile(s_buffer_ptr, client_socket_fd);
       return;
     }
     // For other cases, handle operations or read messages
     neither::Either<std::string, std::vector<std::string>> decoded =
-        // neither::Either<std::string, int> decoded =
         getSafeDecodedMessage(s_buffer_ptr);  //
     decoded
         .leftMap([this, client_socket_fd](auto decoded_message) {
+          if (isPing(decoded_message)) {
+            KLOG->info("PING received from {}. Returning PONG", client_socket_fd);
+            sendMessage(client_socket_fd, PONG.c_str(), PONG.size());
+            return decoded_message;
+          }
           std::string json_message = getJsonString(decoded_message);
           KLOG->info("KServer::onMessageReceived() - Decoded: {}",
                      decoded_message);

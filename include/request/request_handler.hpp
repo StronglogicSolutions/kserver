@@ -173,7 +173,7 @@ class RequestHandler {
               task.file ? "hasFile(s)" : "", task.envfile);
         }
         std::string tasks_message = std::to_string(tasks.size());
-        tasks_message += " tasks scheduled to run in the next 24 hours";
+        tasks_message += " tasks scheduled to run in the next 15 minutes";
         m_system_callback_fn(client_socket_fd,
                              SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
                              {tasks_message});
