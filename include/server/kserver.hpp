@@ -16,7 +16,6 @@
 #include <iomanip>
 #include <string>
 #include <string_view>
-#include <types/types.hpp>
 #include <utility>
 
 namespace KYO {
