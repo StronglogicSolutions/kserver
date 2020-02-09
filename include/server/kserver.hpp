@@ -543,14 +543,6 @@ class KServer : public SocketListener {
       return;
     } else if (isStopOperation(op.c_str())) {  // Stop
       KLOG->info("Stop operation. Shutting down client and closing connection");
-      auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
-                                     [client_socket_fd](KSession session) {
-                                       return session.fd == client_socket_fd;
-                                     });
-      if (it_session != m_sessions.end()) {
-        m_sessions.erase(it_session);
-      }
-      if (!m_file_handlers.empty()) eraseFileHandler(client_socket_fd);
       sendEvent(client_socket_fd, "Close Session",
                 {"KServer is shutting down the socket connection"});
       shutdown(client_socket_fd, SHUT_RDWR);
@@ -571,7 +563,7 @@ class KServer : public SocketListener {
    * Override
    */
   virtual void onMessageReceived(
-      int client_socket_fd, std::weak_ptr<uint8_t[]> w_buffer_ptr, uint32_t& size) override {
+      int client_socket_fd, std::weak_ptr<uint8_t[]> w_buffer_ptr, ssize_t& size) override {
     if (size > 0 && size != 4294967295) { // TODO: Find out why SocketListener returns max int32
       // Get ptr to data
       std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
@@ -632,7 +624,16 @@ class KServer : public SocketListener {
   }
 
  private:
-  virtual void onConnectionClose(int client_socket_fd) {}
+  virtual void onConnectionClose(int client_socket_fd) {
+    auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
+                                     [client_socket_fd](KSession session) {
+                                       return session.fd == client_socket_fd;
+                                     });
+    if (it_session != m_sessions.end()) {
+      m_sessions.erase(it_session);
+    }
+    if (!m_file_handlers.empty()) eraseFileHandler(client_socket_fd);
+  }
 
   bool eraseFileHandler(int client_socket_fd) {
     KLOG->info("KServer::eraseFileHandler() called with {}", client_socket_fd);
