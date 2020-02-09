@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   compile:
     docker:
-      - image: logicp/kserver:0.0.1
+      - image: logicp/kserver:1.0.0
     steps:
       - checkout
       - run:
