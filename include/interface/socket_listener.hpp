@@ -35,12 +35,12 @@ class SocketListener : public SendInterface, public ListenInterface {
    */
   class MessageHandler {
    public:
-    MessageHandler(std::function<void(uint32_t)> cb) : m_cb(cb) {}
+    MessageHandler(std::function<void(ssize_t)> cb) : m_cb(cb) {}
 
-    void operator()(uint32_t size) { m_cb(size); }
+    void operator()(ssize_t size) { m_cb(size); }
 
    private:
-    std::function<void(uint32_t)> m_cb;
+    std::function<void(ssize_t)> m_cb;
   };
   // constructor
   SocketListener(int arg_num, char** args);
@@ -62,7 +62,7 @@ class SocketListener : public SendInterface, public ListenInterface {
 
   void sendMessage(int client_socket_fd, const char* message, size_t size);
 
-  MessageHandler createMessageHandler(std::function<void(uint32_t)> cb);
+  MessageHandler createMessageHandler(std::function<void(ssize_t)> cb);
   /**
    * Perform intialization work
    */
@@ -84,7 +84,7 @@ class SocketListener : public SendInterface, public ListenInterface {
 
   virtual void onMessageReceived(int client_socket_fd,
                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
-                                 uint32_t& size) override;
+                                 ssize_t& size) override;
 
   virtual void onConnectionClose(int client_socket_fd) override;
 
@@ -92,8 +92,7 @@ class SocketListener : public SendInterface, public ListenInterface {
 
   void handleClientSocket(int client_socket_fd,
                           SocketListener::MessageHandler message_handler,
-                          const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
-                          uint32_t& size);
+                          const std::shared_ptr<uint8_t[]>& s_buffer_ptr);
 
   /* private members */
   // Server arguments
