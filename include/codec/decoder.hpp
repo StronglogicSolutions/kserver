@@ -59,14 +59,13 @@ class FileHandler {
     }
 
     void processPacketBuffer(uint8_t* data, uint32_t size, bool last_packet = false) {
-      if (index == 0) { // First packet
-        uint32_t first_packet_size = MAX_PACKET_SIZE;
-        if (size == MAX_PACKET_SIZE) { // Don't use packet buffer, write to file buffer
-          std::memcpy(file_buffer + file_buffer_offset, data + HEADER_SIZE, // offset HEADER
-                    first_packet_size);
+      if (packet_buffer_offset == 0 && size == MAX_PACKET_SIZE) { // Clean, full packet
+          std::memcpy(file_buffer + file_buffer_offset, data + HEADER_SIZE, // no packet buffer needed
+                    MAX_PACKET_SIZE);
           index++;
           return;
-        }
+      }
+      if (index == 0) { // First packet, but incomplete
         std::memcpy(packet_buffer, data + HEADER_SIZE, size - HEADER_SIZE); // offset HEADER
         packet_buffer_offset = packet_buffer_offset + size;
         return;
@@ -102,7 +101,7 @@ class FileHandler {
               File{.b_ptr = file_buffer, .size = file_size, .complete = true});
           KLOG->info("Decoder::processPacketBuffer() - cleaning up");
           clearPacketBuffer();
-          reset();
+          reset(); // Reset the decoder, it's now ready to decode a new packet stream
         }
       }
     }
@@ -128,6 +127,7 @@ class FileHandler {
           m_file_cb(file_buffer, file_size, filename);
           return;
         }
+        // ALl subsequent packets
         total_packets = static_cast<uint32_t>(ceil(
             static_cast<double>(file_size + HEADER_SIZE) / MAX_PACKET_SIZE));
         file_buffer = new uint8_t[total_packets * MAX_PACKET_SIZE];
