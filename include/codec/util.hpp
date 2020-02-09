@@ -31,9 +31,6 @@ using namespace neither;
 using namespace KData;
 using namespace IGData;
 
-static const int MAX_PACKET_SIZE = 4096;
-static const int HEADER_SIZE = 4;
-
 static const int SESSION_ACTIVE = 1;
 static const int SESSION_INACTIVE = 2;
 
@@ -385,6 +382,8 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
       } else {
         return left(std::string(""));
       }
+    } else {
+      return left(std::string(""));
     }
   }
 }
