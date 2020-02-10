@@ -26,6 +26,9 @@ auto KLOG = k_logger_ptr->get_logger();
 
 using namespace Decoder;
 
+/**
+ * \mainpage The KServer implements logicp's SocketListener and provides the KIQ service to KStyleYo
+ */
 class KServer : public SocketListener {
  public:
   /**
