@@ -11,8 +11,19 @@ KLogger *k_logger_ptr = KLogger::GetInstance();
 
 auto KLOG = k_logger_ptr->get_logger();
 
+/**
+ * FileHandler
+ *
+ * Responsible for receiving and decoding file data for a client
+ */
 class FileHandler {
  public:
+
+ /**
+  * File
+  *
+  * What we make here
+  */
   class File {
    public:
     uint8_t *b_ptr;
@@ -20,8 +31,16 @@ class FileHandler {
     bool complete;
   };
 
+/**
+ * Decoder
+ *
+ * Does most of the heavy lifting
+ */
   class Decoder {
    public:
+   /**
+    * @constructor
+    */
     Decoder(int fd, std::string name,
             std::function<void(uint8_t *, int, std::string)> file_callback)
         : index(0),
@@ -36,21 +55,36 @@ class FileHandler {
           m_file_cb(file_callback) {
             KLOG->info("FileHandler::Decoder::Decoder() - instantiated");
           }
-
+  /**
+   * @destructor
+   */
     ~Decoder() {
       KLOG->info("FileHandler::Decoder::~Decoder() - destructor called");
       if (file_buffer != nullptr) {
-        KLOG->info("FileHandler::Decoder::~Decoder() - Deleting buffer");
+        KLOG->info("FileHandler::Decoder::~Decoder() - Deleting file buffer and packet buffer");
         delete[] file_buffer;
+        delete[] packet_buffer;
         file_buffer = nullptr;
+        packet_buffer = nullptr;
       }
     }
+
+    /**
+     * clearPacketBuffer
+     *
+     * Clear buffer before writing a new packet
+     */
 
     void clearPacketBuffer() {
       memset(packet_buffer, 0, MAX_PACKET_SIZE);
       packet_buffer_offset = 0;
     }
 
+    /**
+     * reset
+     *
+     * Reset the decoder's state so that it made be ready to decode a new file
+     */
     void reset() {
       index = 0;
       total_packets = 0;
@@ -58,6 +92,13 @@ class FileHandler {
       file_size = 0;
     }
 
+    /**
+     * processPacketBuffer
+     *
+     * @param[in] {uint8_t*} data
+     * @param[in] {uint32_t} size
+     * @param[in] {bool} last_packet
+     */
     void processPacketBuffer(uint8_t* data, uint32_t size, bool last_packet = false) {
       if (packet_buffer_offset == 0 && size == MAX_PACKET_SIZE) { // Clean, full packet
           std::memcpy(file_buffer + file_buffer_offset, data + HEADER_SIZE, // no packet buffer needed
@@ -106,6 +147,12 @@ class FileHandler {
       }
     }
 
+    /**
+     * processPacket
+     *
+     * @param[in] {uint8_t*} data
+     * @param[in] {uint32_t} size
+     */
     void processPacket(uint8_t *data, uint32_t size) {
       bool is_first_packet = (index == 0);
       if (is_first_packet) {
@@ -127,7 +174,7 @@ class FileHandler {
           m_file_cb(file_buffer, file_size, filename);
           return;
         }
-        // ALl subsequent packets
+        // Subsequent packets
         total_packets = static_cast<uint32_t>(ceil(
             static_cast<double>(file_size + HEADER_SIZE) / MAX_PACKET_SIZE));
         file_buffer = new uint8_t[total_packets * MAX_PACKET_SIZE];
@@ -156,6 +203,9 @@ class FileHandler {
     std::function<void(uint8_t *data, int size, std::string)> m_file_cb;
   };
 
+  /**
+   * @constructor
+   */
   FileHandler(int client_fd, std::string name, uint8_t *first_packet, uint32_t size,
               std::function<void(int, int, uint8_t *, size_t)> callback)
       : socket_fd(client_fd) {
@@ -177,10 +227,19 @@ class FileHandler {
     m_decoder->processPacket(first_packet, size);
   }
 
+  /**
+   * Move constructor
+   * @constructor
+   */
   FileHandler(FileHandler &&f)
       : m_decoder(f.m_decoder), socket_fd(f.socket_fd) {
     f.m_decoder = nullptr;
   }
+
+  /**
+   * Copy constructor
+   * @constructor
+   */
 
   FileHandler(const FileHandler &f)
       : m_decoder(new Decoder{*(f.m_decoder)}), socket_fd(f.socket_fd) {}
@@ -194,6 +253,10 @@ class FileHandler {
     return *this;
   }
 
+  /**
+   * Assignment operator
+   * @operator
+   */
   FileHandler &operator=(FileHandler &&f) {
     if (&f != this) {
       delete m_decoder;
@@ -203,7 +266,17 @@ class FileHandler {
     return *this;
   }
 
+  /**
+   * @destructor
+   */
   ~FileHandler() { delete m_decoder; }
+
+  /**
+   * processPacket
+   *
+   * @param[in] {uint8_t*} data
+   * @param[in] {uint32_t} size
+   */
   void processPacket(uint8_t *data, uint32_t size) { m_decoder->processPacket(data, size); }
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
 
