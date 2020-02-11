@@ -35,12 +35,12 @@ class SocketListener : public SendInterface, public ListenInterface {
    */
   class MessageHandler {
    public:
-    MessageHandler(std::function<void()> cb) : m_cb(cb) {}
+    MessageHandler(std::function<void(ssize_t)> cb) : m_cb(cb) {}
 
-    void operator()() { m_cb(); }
+    void operator()(ssize_t size) { m_cb(size); }
 
    private:
-    std::function<void()> m_cb;
+    std::function<void(ssize_t)> m_cb;
   };
   // constructor
   SocketListener(int arg_num, char** args);
@@ -62,7 +62,7 @@ class SocketListener : public SendInterface, public ListenInterface {
 
   void sendMessage(int client_socket_fd, const char* message, size_t size);
 
-  MessageHandler createMessageHandler(std::function<void()> cb);
+  MessageHandler createMessageHandler(std::function<void(ssize_t)> cb);
   /**
    * Perform intialization work
    */
@@ -82,8 +82,11 @@ class SocketListener : public SendInterface, public ListenInterface {
   // private methods
   int createSocket();
 
-  virtual void onMessageReceived(
-      int client_socket_fd, std::weak_ptr<uint8_t[]> w_buffer_ptr) override;
+  virtual void onMessageReceived(int client_socket_fd,
+                                 std::weak_ptr<uint8_t[]> w_buffer_ptr,
+                                 ssize_t& size) override;
+
+  virtual void onConnectionClose(int client_socket_fd) override;
 
   int waitForConnection(int listening);
 

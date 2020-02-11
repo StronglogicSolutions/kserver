@@ -4,6 +4,18 @@
 #include <string>
 #include <cstring>
 
+#define MAX_BUFFER_SIZE (49152)
+#define SMALL_BUFFER_SIZE (8192)
+
+static const int MAX_PACKET_SIZE = 4096;
+static const int HEADER_SIZE = 4;
+
+template <typename MessageProcessor>
+void MessageHandler(MessageProcessor processor, int client_socket_fd,
+                    std::string message) {
+  processor(client_socket_fd, message);
+}
+
 /**
  * SYSTEM EVENTS
  */
