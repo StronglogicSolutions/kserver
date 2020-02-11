@@ -4,8 +4,8 @@
 // Project libraries
 #include <interface/listen_interface.hpp>
 #include <interface/send_interface.hpp>
+#include <server/types.hpp>
 #include <task/task_queue.hpp>
-#include <types/types.hpp>
 
 // System libraries
 #include <sys/socket.h>
