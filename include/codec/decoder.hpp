@@ -107,7 +107,7 @@ class FileHandler {
           return;
       }
       if (index == 0) { // First packet, but incomplete (complete single-packet files handled in `processPacket()`)
-        std::memcpy(packet_buffer, data + HEADER_SIZE, size - HEADER_SIZE); // offset HEADER
+        std::memcpy(packet_buffer, data, size);
         packet_buffer_offset = packet_buffer_offset + size;
         return;
       }
@@ -167,9 +167,7 @@ class FileHandler {
         file_buffer = new uint8_t[file_size];
         if (file_size < size) { // The file is contained within this packet
           file_buffer = new uint8_t[file_size];
-          uint32_t file_packet_size =
-           total_packets == 1 ? file_size : (MAX_PACKET_SIZE - HEADER_SIZE);
-          std::memcpy(file_buffer, data + HEADER_SIZE, file_packet_size);
+          std::memcpy(file_buffer, data + HEADER_SIZE, file_size);
           m_file_cb(file_buffer, file_size, filename);
           return;
         }
@@ -178,11 +176,11 @@ class FileHandler {
             static_cast<double>(file_size / MAX_PACKET_SIZE)));
         packet_buffer = new uint8_t[MAX_PACKET_SIZE];
         file_buffer_offset = 0;
-        processPacketBuffer(data, size);
+        processPacketBuffer(data + HEADER_SIZE, size - HEADER_SIZE);
       } else { // Subsequent packets
         // offset safely assumes packets are MAX_PACKET_SIZE, because only the
         // last packet could be different
-        file_buffer_offset = (index * MAX_PACKET_SIZE - HEADER_SIZE); // offset for header from first packet
+        file_buffer_offset = (index * MAX_PACKET_SIZE) - HEADER_SIZE; // offset for header from first packet
         bool is_last_packet = (index == (total_packets - 1));
         processPacketBuffer(data, size, is_last_packet);
       }
