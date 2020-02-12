@@ -100,13 +100,16 @@ class FileHandler {
      * @param[in] {bool} last_packet
      */
     void processPacketBuffer(uint8_t* data, uint32_t size, bool last_packet = false) {
+      KLOG->info("processPacketBuffer index {} of {}", index, total_packets);
       if (packet_buffer_offset == 0 && size == MAX_PACKET_SIZE) { // Complete, non-initial packet
           std::memcpy(file_buffer + file_buffer_offset, data, // no packet buffer needed
                     MAX_PACKET_SIZE);
           index++;
+          KLOG->info("Incrementing packet index");
           return;
       }
       if (index == 0) { // First packet, but incomplete (complete single-packet files handled in `processPacket()`)
+        KLOG->info("Incomplete first packet");
         std::memcpy(packet_buffer, data, size);
         packet_buffer_offset = packet_buffer_offset + size;
         return;
@@ -117,9 +120,15 @@ class FileHandler {
         if (size >= bytes_to_full_packet) {
           uint32_t packet_offset = size - bytes_to_full_packet; // Bytes to read after finishing this packet
           std::memcpy(packet_buffer + packet_buffer_offset, data, bytes_to_full_packet); // complete current packet
+          if (index == 0) {
+            KLOG->info("Completed first packet");
+          } else {
+            KLOG->info("Completed packet {}", index);
+          }
           std::memcpy(file_buffer + file_buffer_offset, packet_buffer, MAX_PACKET_SIZE); // copy complete packet into file buffer
           clearPacketBuffer(); // packet buffer ready to read next packet
           index++; // increment packet index
+          KLOG->info("Incrementing packet index");
           if (size > bytes_to_full_packet) { // Start the next packet
             std::memcpy(packet_buffer, data + bytes_to_full_packet, packet_offset); // Copy remaining
             packet_buffer_offset = packet_buffer_offset + packet_offset;
@@ -154,6 +163,7 @@ class FileHandler {
      * @param[in] {uint32_t} size
      */
     void processPacket(uint8_t *data, uint32_t size) {
+      KLOG->info("processPacket() - index {} of {}", index, total_packets);
       bool is_first_packet = (index == 0);
       if (is_first_packet) {
         if (packet_buffer_offset > 0) { // We are still finishing the first packet
@@ -166,6 +176,7 @@ class FileHandler {
             HEADER_SIZE;
         file_buffer = new uint8_t[file_size];
         if (file_size < size) { // The file is contained within this packet
+          KLOG->info("File data contained within single packet");
           file_buffer = new uint8_t[file_size];
           std::memcpy(file_buffer, data + HEADER_SIZE, file_size);
           m_file_cb(file_buffer, file_size, filename);
@@ -178,6 +189,7 @@ class FileHandler {
         file_buffer_offset = 0;
         processPacketBuffer(data + HEADER_SIZE, size - HEADER_SIZE);
       } else { // Subsequent packets
+        KLOG->info("Subsequent packet");
         // offset safely assumes packets are MAX_PACKET_SIZE, because only the
         // last packet could be different
         file_buffer_offset = (index * MAX_PACKET_SIZE) - HEADER_SIZE; // offset for header from first packet
