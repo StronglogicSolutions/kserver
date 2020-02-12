@@ -108,7 +108,7 @@ class FileHandler {
           KLOG->info("Incrementing packet index");
           return;
       }
-      if (index == 0 && packet_buffer_offset > 0) { // First packet, but incomplete (complete single-packet files handled in `processPacket()`)
+      if (index == 0 && packet_buffer_offset == 0) { // First packet, but incomplete (complete single-packet files handled in `processPacket()`)
         KLOG->info("Incomplete first packet");
         std::memcpy(packet_buffer, data, size);
         packet_buffer_offset = packet_buffer_offset + size;
@@ -117,7 +117,9 @@ class FileHandler {
       // Other packets
       uint32_t bytes_to_full_packet = MAX_PACKET_SIZE - packet_buffer_offset;
       if (!last_packet) {
+        KLOG->info("processPacketBuffer() - Not last packet");
         if (size >= bytes_to_full_packet) {
+          KLOG->info("processPacketBuffer() - size greater or equal to remaining bytes for full packet");
           uint32_t packet_offset = size - bytes_to_full_packet; // Bytes to read after finishing this packet
           std::memcpy(packet_buffer + packet_buffer_offset, data, bytes_to_full_packet); // complete current packet
           if (index == 0) {
@@ -134,6 +136,8 @@ class FileHandler {
             packet_buffer_offset = packet_buffer_offset + packet_offset;
           }
           return;
+        } else {
+          KLOG->info("processPacketBuffer() - inadequate size to complete packet");
         }
         std::memcpy(packet_buffer + packet_buffer_offset, data, size); // Continue filling packet
         packet_buffer_offset = packet_buffer_offset + size;
