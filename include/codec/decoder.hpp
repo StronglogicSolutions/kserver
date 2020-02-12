@@ -108,7 +108,7 @@ class FileHandler {
           KLOG->info("Incrementing packet index");
           return;
       }
-      if (index == 0) { // First packet, but incomplete (complete single-packet files handled in `processPacket()`)
+      if (index == 0 && packet_buffer_offset > 0) { // First packet, but incomplete (complete single-packet files handled in `processPacket()`)
         KLOG->info("Incomplete first packet");
         std::memcpy(packet_buffer, data, size);
         packet_buffer_offset = packet_buffer_offset + size;
