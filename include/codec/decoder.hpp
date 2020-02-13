@@ -147,11 +147,12 @@ class FileHandler {
           uint32_t current_packet_bytes_remaining = MAX_PACKET_SIZE - packet_buffer_offset;
           if (size > current_packet_bytes_remaining) {
             uint32_t next_packet_byte_size = size - current_packet_bytes_remaining;
-            std::memcpy(packet_buffer, data + current_packet_bytes_remaining, next_packet_byte_size);
-            packet_buffer_offset = packet_buffer_offset + next_packet_byte_size;
-            std::memcpy(file_buffer + file_buffer_offset, packet_buffer, next_packet_byte_size);
+            std::memcpy(packet_buffer + packet_buffer_offset, data, current_packet_bytes_remaining);
+            bool packet_is_max = MAX_PACKET_SIZE == (packet_buffer_offset + current_packet_bytes_remaining);
+            // packet_buffer_offset = packet_buffer_offset + next_packet_byte_size;
+            std::memcpy(file_buffer + file_buffer_offset, packet_buffer, packet_is_max ? MAX_PACKET_SIZE : (packet_buffer_offset + current_packet_bytes_remaining));
             clearPacketBuffer();
-            std::memcpy(packet_buffer, data + bytes_to_full_packet, next_packet_byte_size); // Copy remaining
+            std::memcpy(packet_buffer, data + current_packet_bytes_remaining, next_packet_byte_size); // Copy remaining
             KLOG->info("Old packet offset: {}", packet_buffer_offset);
             packet_buffer_offset = packet_buffer_offset + next_packet_byte_size;
             KLOG->info("New packet offset: {}", packet_buffer_offset);
