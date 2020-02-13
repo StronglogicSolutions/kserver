@@ -118,30 +118,66 @@ class FileHandler {
         return;
       }
       // Other packets
-      uint32_t bytes_to_full_packet = MAX_PACKET_SIZE - packet_buffer_offset;
-      if (!last_packet) {
-        KLOG->info("processPacketBuffer() - Not last packet");
+      uint32_t bytes_to_full_packet = last_packet ? file_size - file_buffer_offset - packet_buffer_offset : MAX_PACKET_SIZE - packet_buffer_offset;
+      // if (!last_packet) {
+        // KLOG->info("processPacketBuffer() - Not last packet");
+      if (last_packet) {
         if (size >= bytes_to_full_packet) {
-          KLOG->info("processPacketBuffer() - size greater or equal to remaining bytes for full packet");
-          uint32_t next_packet_byte_size = size - bytes_to_full_packet; // Bytes to read after finishing this packet
-          std::memcpy(packet_buffer + packet_buffer_offset, data, bytes_to_full_packet); // complete current packet
-          if (index == 0) {
-            KLOG->info("Completed first packet");
-          } else {
-            KLOG->info("Completed packet {}", index);
+          uint32_t current_packet_bytes_remaining = MAX_PACKET_SIZE - packet_buffer_offset;
+          if (current_packet_bytes_remaining < bytes_to_full_packet) {
+            std::memcpy(packet_buffer + packet_buffer_offset, data, current_packet_bytes_remaining);
+            std::memcpy(file_buffer + file_buffer_offset, packet_buffer, MAX_PACKET_SIZE);
+            clearPacketBuffer();
+            index++; // increment packet index
+            file_buffer_offset = (index * MAX_PACKET_SIZE);
+            uint32_t bytes_to_complete_last_packet = file_size - file_buffer_offset;
+            uint32_t next_packet_bytes = size - current_packet_bytes_remaining;
+            // copy remaining
+            std::memcpy(packet_buffer, data + current_packet_bytes_remaining, next_packet_bytes);
+            packet_buffer_offset = packet_buffer_offset + next_packet_bytes;
+            if (bytes_to_complete_last_packet ==  next_packet_bytes) {
+              std::memcpy(file_buffer + file_buffer_offset, packet_buffer, next_packet_bytes);
+              clearPacketBuffer();
+              m_files.push_back(
+              File{.b_ptr = file_buffer, .size = file_size, .complete = true}); // push to received files
+              m_file_cb(file_buffer, file_size, filename); // Invoke callback to notify client
+              reset();
+              KLOG->info("Cleaning up");
+            }
           }
-          std::memcpy(file_buffer + file_buffer_offset, packet_buffer, MAX_PACKET_SIZE); // copy complete packet into file buffer
-          clearPacketBuffer(); // packet buffer ready to read next packet
-          index++; // increment packet index
-          file_buffer_offset = (index * MAX_PACKET_SIZE);
-          KLOG->info("Incrementing packet index");
-          if (size > bytes_to_full_packet) { // Start the next packet
-            std::memcpy(packet_buffer, data + bytes_to_full_packet, next_packet_byte_size); // Copy remaining
-            KLOG->info("Old packet offset: {}", packet_buffer_offset);
-            packet_buffer_offset = packet_buffer_offset + next_packet_byte_size;
-            KLOG->info("New packet offset: {}", packet_buffer_offset);
-          }
-          return;
+          // std::memcpy(packet_buffer + packet_buffer_offset, data, bytes_to_full_packet); // complete current packet
+          // uint32_t last_packet_size = file_size - file_buffer_offset;
+          // std::memcpy(file_buffer + file_buffer_offset, packet_buffer, last_packet_size);
+          // KLOG->info("Decoder::processPacketBuffer() - cleaning up");
+          // clearPacketBuffer();
+          // reset(); // Reset the decoder, it's now ready to decode a new packet stream
+        } else {
+          std::memcpy(packet_buffer + packet_buffer_offset, data, size);
+          packet_buffer_offset = packet_buffer_offset + size;
+        }
+        return;
+      }
+      if (size >= bytes_to_full_packet) {
+        KLOG->info("processPacketBuffer() - size greater or equal to remaining bytes for full packet");
+        uint32_t next_packet_byte_size = size - bytes_to_full_packet; // Bytes to read after finishing this packet
+        std::memcpy(packet_buffer + packet_buffer_offset, data, bytes_to_full_packet); // complete current packet
+        if (index == 0) {
+          KLOG->info("Completed first packet");
+        } else {
+          KLOG->info("Completed packet {}", index);
+        }
+        std::memcpy(file_buffer + file_buffer_offset, packet_buffer, MAX_PACKET_SIZE); // copy complete packet into file buffer
+        clearPacketBuffer(); // packet buffer ready to read next packet
+        index++; // increment packet index
+        file_buffer_offset = (index * MAX_PACKET_SIZE);
+        KLOG->info("Incrementing packet index");
+        if (size > bytes_to_full_packet) { // Start the next packet
+          std::memcpy(packet_buffer, data + bytes_to_full_packet, next_packet_byte_size); // Copy remaining
+          KLOG->info("Old packet offset: {}", packet_buffer_offset);
+          packet_buffer_offset = packet_buffer_offset + next_packet_byte_size;
+          KLOG->info("New packet offset: {}", packet_buffer_offset);
+        }
+        return;
         } else { // TODO: refactor to merge these two branches together
           KLOG->info("processPacketBuffer() - inadequate size to complete packet.\n File size: {}\n File offset: {}\n Size being iterated: {}\n, packet_buffer_offset: {}\n", file_size, file_buffer_offset, size, packet_buffer_offset);
           std::memcpy(packet_buffer + packet_buffer_offset, data, size);
@@ -152,27 +188,6 @@ class FileHandler {
         KLOG->info("Old packet offset: {}", packet_buffer_offset);
         packet_buffer_offset = packet_buffer_offset + size;
         KLOG->info("New packet offset: {}", packet_buffer_offset);
-      } else { // Last packet
-        KLOG->info("Decoder::processPacketBuffer() - processing last packet");
-        std::memcpy(packet_buffer + packet_buffer_offset, data, size);
-        uint32_t last_packet_size = file_size - file_buffer_offset;
-        KLOG->info("Last packet size: {}\n Received for last packet: {}", last_packet_size, size);
-        uint32_t bytes_still_expected = last_packet_size - packet_buffer_offset;
-        if (bytes_still_expected > size) { // Expecting more data to complete last packet
-          // KLOG->info("Expecting more data to complete last packet. Bytes expected: {}", bytes_still_expected);
-          // KLOG->info("Old packet offset: {}", packet_buffer_offset);
-          packet_buffer_offset = packet_buffer_offset + size;
-          // KLOG->info("New packet offset: {}", packet_buffer_offset);
-        } else { // We've received all of the data for this file
-          std::memcpy(file_buffer + file_buffer_offset, packet_buffer, last_packet_size);
-          m_files.push_back(
-              File{.b_ptr = file_buffer, .size = file_size, .complete = true}); // push to received files
-          m_file_cb(file_buffer, file_size, filename); // Invoke callback to notify client
-          KLOG->info("Decoder::processPacketBuffer() - cleaning up");
-          clearPacketBuffer();
-          reset(); // Reset the decoder, it's now ready to decode a new packet stream
-        }
-      }
     }
 
     /**
@@ -194,13 +209,6 @@ class FileHandler {
             int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
             HEADER_SIZE;
         file_buffer = new uint8_t[file_size];
-        if (file_size < size) { // The file is contained within this packet
-          KLOG->info("File data contained within single packet");
-          file_buffer = new uint8_t[file_size];
-          std::memcpy(file_buffer, data + HEADER_SIZE, file_size);
-          m_file_cb(file_buffer, file_size, filename);
-          return;
-        }
         // Received first packet and expecting subsequent packets
         total_packets = static_cast<uint32_t>(ceil(
             static_cast<double>(file_size / MAX_PACKET_SIZE)));
@@ -211,7 +219,6 @@ class FileHandler {
         KLOG->info("Subsequent packet");
         // offset safely assumes packets are MAX_PACKET_SIZE, because only the
         // last packet could be different
-        file_buffer_offset = (index * MAX_PACKET_SIZE) - HEADER_SIZE; // offset for header from first packet
         bool is_last_packet = (index == (total_packets - 1));
         processPacketBuffer(data, size, is_last_packet);
       }
