@@ -151,6 +151,7 @@ class FileHandler {
             bool packet_is_max = MAX_PACKET_SIZE == (packet_buffer_offset + current_packet_bytes_remaining);
             // packet_buffer_offset = packet_buffer_offset + next_packet_byte_size;
             std::memcpy(file_buffer + file_buffer_offset, packet_buffer, packet_is_max ? MAX_PACKET_SIZE : (packet_buffer_offset + current_packet_bytes_remaining));
+            file_buffer_offset = file_buffer_offset + packet_is_max ? MAX_PACKET_SIZE : (packet_buffer_offset + current_packet_bytes_remaining);
             clearPacketBuffer();
             std::memcpy(packet_buffer, data + current_packet_bytes_remaining, next_packet_byte_size); // Copy remaining
             KLOG->info("Old packet offset: {}", packet_buffer_offset);
