@@ -106,13 +106,13 @@ class FileHandler {
       uint32_t bytes_to_copy{};
       uint32_t current_packet_size{};
       bool current_packet_received{};
-      bool is_last_packet = index == (total_packets - 1);
+      bool is_last_packet = index == (total_packets);
       if (index == 0 && packet_buffer_offset == 0 && file_size > (MAX_PACKET_SIZE - HEADER_SIZE)) {
         bytes_to_complete = MAX_PACKET_SIZE - HEADER_SIZE;
         current_packet_size = 4092;
-      } else if (index == (total_packets - 1)) {
+      } else if (is_last_packet) {
         current_packet_size = file_size - file_buffer_offset;
-        bytes_to_complete =  current_packet_size - packet_buffer_offset;
+        bytes_to_complete = current_packet_size - packet_buffer_offset;
       } else {
         current_packet_size = MAX_PACKET_SIZE;
         bytes_to_complete = MAX_PACKET_SIZE - packet_buffer_offset;
@@ -123,6 +123,7 @@ class FileHandler {
 
       bytes_to_copy = current_packet_received ? bytes_to_complete : size;
       std::memcpy(packet_buffer + packet_buffer_offset, data, bytes_to_copy);
+      packet_buffer_offset = packet_buffer_offset + bytes_to_copy;
 
       if (current_packet_received) {
         std::memcpy(file_buffer + file_buffer_offset, packet_buffer, current_packet_size);
@@ -137,7 +138,7 @@ class FileHandler {
           m_files.push_back(
           File{.b_ptr = file_buffer, .size = file_size, .complete = true}); // push to received files
           m_file_cb(file_buffer, file_size, filename); // Invoke callback to notify client
-          reset();
+          // reset();
           KLOG->info("Cleaning up");
         }
       } else {
@@ -155,12 +156,12 @@ class FileHandler {
         total_packets = static_cast<uint32_t>(ceil(
             static_cast<double>(file_size / MAX_PACKET_SIZE)));
 
-        if (file_buffer == nullptr) {
+        // if (file_buffer == nullptr) {
           file_buffer = new uint8_t[file_size];
-        }
-        if (packet_buffer == nullptr) {
-          packet_buffer = new uint8_t[MAX_PACKET_SIZE];
-        }
+        // }
+        // if (packet_buffer == nullptr) {
+        packet_buffer = new uint8_t[MAX_PACKET_SIZE];
+        // }
         file_buffer_offset = 0;
         realProcessPacketBuffer(data + HEADER_SIZE, size - HEADER_SIZE);
       } else {
