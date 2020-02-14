@@ -99,6 +99,75 @@ class FileHandler {
      * @param[in] {uint32_t} size
      * @param[in] {bool} last_packet
      */
+
+    void realProcessPacketBuffer(uint8_t* data, uint32_t size) {
+      uint32_t bytes_to_complete{};
+      uint32_t remaining_bytes{};
+      uint32_t bytes_to_copy{};
+      uint32_t current_packet_size{};
+      bool current_packet_received{};
+      bool is_last_packet = index == (total_packets - 1);
+      if (index == 0 && packet_buffer_offset == 0 && file_size > (MAX_PACKET_SIZE - HEADER_SIZE)) {
+        bytes_to_complete = MAX_PACKET_SIZE - HEADER_SIZE;
+        current_packet_size = 4092;
+      } else if (index == (total_packets - 1)) {
+        current_packet_size = file_size - file_buffer_offset;
+        bytes_to_complete =  current_packet_size - packet_buffer_offset;
+      } else {
+        current_packet_size = MAX_PACKET_SIZE;
+        bytes_to_complete = MAX_PACKET_SIZE - packet_buffer_offset;
+      }
+
+      remaining_bytes = size - bytes_to_complete;
+      current_packet_received = (size >= bytes_to_complete);
+
+      bytes_to_copy = current_packet_received ? bytes_to_complete : size;
+      std::memcpy(packet_buffer + packet_buffer_offset, data, bytes_to_copy);
+
+      if (current_packet_received) {
+        std::memcpy(file_buffer + file_buffer_offset, packet_buffer, current_packet_size);
+        clearPacketBuffer();
+        index++;
+        file_buffer_offset = file_buffer_offset + current_packet_size;
+        if (remaining_bytes > 0) {
+          std::memcpy(packet_buffer, data + bytes_to_copy, remaining_bytes);
+          packet_buffer_offset = packet_buffer_offset + remaining_bytes;
+        }
+        if (is_last_packet) {
+          m_files.push_back(
+          File{.b_ptr = file_buffer, .size = file_size, .complete = true}); // push to received files
+          m_file_cb(file_buffer, file_size, filename); // Invoke callback to notify client
+          reset();
+          KLOG->info("Cleaning up");
+        }
+      } else {
+        KLOG->info("Still awaiting more data for packet {} of {} with packet_offset {}", index, total_packets, packet_buffer_offset);
+      }
+    }
+
+    void realProcessPacket(uint8_t* data, uint32_t size) {
+      bool is_first_packet = (index == 0);
+      if (is_first_packet && packet_buffer_offset == 0 && file_buffer_offset == 0) {
+        KLOG->info("Decoder::processPacket() - processing first packet");
+        file_size =
+            int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
+            HEADER_SIZE;
+        total_packets = static_cast<uint32_t>(ceil(
+            static_cast<double>(file_size / MAX_PACKET_SIZE)));
+
+        if (file_buffer == nullptr) {
+          file_buffer = new uint8_t[file_size];
+        }
+        if (packet_buffer == nullptr) {
+          packet_buffer = new uint8_t[MAX_PACKET_SIZE];
+        }
+        file_buffer_offset = 0;
+        realProcessPacketBuffer(data + HEADER_SIZE, size - HEADER_SIZE);
+      } else {
+        realProcessPacketBuffer(data, size);
+      }
+    }
+
     void processPacketBuffer(uint8_t* data, uint32_t size, bool last_packet = false) {
       KLOG->info("processPacketBuffer index {} of {}", index, total_packets);
       if (packet_buffer_offset == 0 && size == MAX_PACKET_SIZE) { // Complete, non-initial packet
@@ -267,7 +336,7 @@ class FileHandler {
                         }
                       }
                     });
-    m_decoder->processPacket(first_packet, size);
+    m_decoder->realProcessPacket(first_packet, size);
   }
 
   /**
@@ -320,7 +389,7 @@ class FileHandler {
    * @param[in] {uint8_t*} data
    * @param[in] {uint32_t} size
    */
-  void processPacket(uint8_t *data, uint32_t size) { m_decoder->processPacket(data, size); }
+  void processPacket(uint8_t *data, uint32_t size) { m_decoder->realProcessPacket(data, size); }
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
 
  private:
