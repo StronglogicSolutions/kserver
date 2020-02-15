@@ -11,7 +11,7 @@ jobs:
             ./ci_compile
       - store_artifacts:
           path: kserver
-          destination: kserver-latest
+          destination: kserver
       - run:
           name: notify_production
           command: |
