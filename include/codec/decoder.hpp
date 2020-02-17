@@ -44,7 +44,7 @@ class FileHandler {
     Decoder(int fd, std::string name,
             std::function<void(uint8_t *, int, std::string)> file_callback)
         : index(0),
-          file_buffer(nullptr),
+          current_buffer(0),
           packet_buffer(nullptr),
           total_packets(0),
           packet_buffer_offset(0),
@@ -60,12 +60,13 @@ class FileHandler {
    */
     ~Decoder() {
       KLOG->info("FileHandler::Decoder::~Decoder() - destructor called");
-      if (file_buffer != nullptr) {
-        KLOG->info("FileHandler::Decoder::~Decoder() - Deleting file buffer and packet buffer");
-        delete[] file_buffer;
+      if (!file_buffers.empty()) {
+        KLOG->info("FileHandler::Decoder::~Decoder() - Deleting file buffers and packet buffer");
         delete[] packet_buffer;
-        file_buffer = nullptr;
         packet_buffer = nullptr;
+        for (const auto& buffer : file_buffers) {
+          delete[] buffer;
+        }
       }
     }
 
@@ -89,6 +90,7 @@ class FileHandler {
       index = 0;
       total_packets = 0;
       file_buffer_offset = 0;
+      current_buffer++;
       file_size = 0;
     }
 
@@ -128,7 +130,7 @@ class FileHandler {
       packet_buffer_offset = packet_buffer_offset + bytes_to_copy; // Adjust the packet buffer offset, important if packet is incomplete
 
       if (current_packet_received) { // All data was received for this packet
-        std::memcpy(file_buffer + file_buffer_offset, packet_buffer, current_packet_size); // Copy into file buffer
+        std::memcpy(file_buffers.at(current_buffer) + file_buffer_offset, packet_buffer, current_packet_size); // Copy into file buffer
         clearPacketBuffer(); // clear packet buffer
         index++; // increment file buffer index
         file_buffer_offset = file_buffer_offset + current_packet_size; // Adjust the file buffer offset for new index
@@ -138,8 +140,8 @@ class FileHandler {
         }
         if (is_last_packet) { // If last packet is complete
           m_files.push_back( // Push into our received files
-          File{.b_ptr = file_buffer, .size = file_size, .complete = true});
-          m_file_cb(file_buffer, file_size, filename); // Invoke callback to notify client
+          File{.b_ptr = file_buffers.at(current_buffer), .size = file_size, .complete = true});
+          m_file_cb(file_buffers.at(current_buffer), file_size, filename); // Invoke callback to notify client
           reset(); // Reset the decoder so it's ready to decode a new file
           KLOG->info("Cleaning up");
         }
@@ -165,9 +167,7 @@ class FileHandler {
         total_packets = static_cast<uint32_t>(ceil(
             static_cast<double>(file_size / MAX_PACKET_SIZE)));
         // Reserve memory for file buffer
-        if (file_buffer == nullptr) {
-          file_buffer = new uint8_t[file_size];
-        }
+        file_buffers.push_back(new uint8_t[file_size]);
         // Reserve memory for packet buffer
         if (packet_buffer == nullptr) {
           packet_buffer = new uint8_t[MAX_PACKET_SIZE];
@@ -180,9 +180,10 @@ class FileHandler {
     }
 
    private:
-    uint8_t *file_buffer;
+    std::vector<uint8_t*> file_buffers;
     uint8_t *packet_buffer;
     uint32_t index;
+    uint32_t current_buffer;
     uint32_t packet_buffer_offset;
     uint32_t total_packets;
     uint32_t file_buffer_offset;
