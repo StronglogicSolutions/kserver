@@ -90,6 +90,7 @@ class FileHandler {
       total_packets = 0;
       file_buffer_offset = 0;
       file_size = 0;
+      clearPacketBuffer();
     }
 
     /**
@@ -137,9 +138,7 @@ class FileHandler {
           packet_buffer_offset = packet_buffer_offset + remaining_bytes; // Adjust packet buffer for the new index
         }
         if (is_last_packet) { // If last packet is complete
-          m_files.push_back( // Push into our received files
-          File{.b_ptr = file_buffer, .size = file_size, .complete = true});
-          m_file_cb(file_buffer, file_size, filename); // Invoke callback to notify client
+          m_file_cb(std::move(file_buffer), file_size, filename); // Invoke callback to notify client
           reset(); // Reset the decoder so it's ready to decode a new file
           KLOG->info("Cleaning up");
         }
@@ -165,9 +164,7 @@ class FileHandler {
         total_packets = static_cast<uint32_t>(ceil(
             static_cast<double>(file_size / MAX_PACKET_SIZE)));
         // Reserve memory for file buffer
-        if (file_buffer == nullptr) {
-          file_buffer = new uint8_t[file_size];
-        }
+        file_buffer = new uint8_t[file_size];
         // Reserve memory for packet buffer
         if (packet_buffer == nullptr) {
           packet_buffer = new uint8_t[MAX_PACKET_SIZE];
@@ -189,7 +186,6 @@ class FileHandler {
     uint32_t file_size;
     std::string filename;
     int m_fd;
-    std::vector<File> m_files;
     std::function<void(int)> m_cb;
     std::function<void(uint8_t *data, int size, std::string)> m_file_cb;
   };
@@ -203,7 +199,7 @@ class FileHandler {
         KLOG->info("FileHandler() - Instantiated. Creating new Decoder");
     m_decoder =
         new Decoder(client_fd, name,
-                    [this, client_fd, callback](uint8_t *data, int size,
+                    [this, client_fd, callback](uint8_t*&& data, int size,
                                                 std::string filename) {
                       if (size > 0) {
                         if (!filename.empty()) {
@@ -211,7 +207,7 @@ class FileHandler {
                           // null and size > 0?
                           FileUtils::saveFile(data, size, filename);
                         } else {
-                          callback(client_fd, FILE_HANDLE__SUCCESS, data, size);
+                          callback(client_fd, FILE_HANDLE__SUCCESS, std::move(data), size);
                         }
                       }
                     });
