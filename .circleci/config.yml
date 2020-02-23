@@ -9,6 +9,13 @@ jobs:
           name: compile
           command: |
             ./ci_compile
+      - store_artifacts:
+          path: kserver
+          destination: kserver
+      - run:
+          name: notify_production
+          command: |
+            curl http://artifact.stronglogicsolutions.com/?artifact=kserver
 
 workflows:
  version: 2
