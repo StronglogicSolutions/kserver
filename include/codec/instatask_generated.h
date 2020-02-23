@@ -22,7 +22,8 @@ struct IGTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_PROMOTE_SHARE = 18,
     VT_LINK_BIO = 20,
     VT_IS_VIDEO = 22,
-    VT_MASK = 24
+    VT_MASK = 24,
+    VT_HEADER = 26
   };
   int32_t id() const {
     return GetField<int32_t>(VT_ID, 0);
@@ -57,6 +58,9 @@ struct IGTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   int32_t mask() const {
     return GetField<int32_t>(VT_MASK, 0);
   }
+  const flatbuffers::String *header() const {
+    return GetPointer<const flatbuffers::String *>(VT_HEADER);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int32_t>(verifier, VT_ID) &&
@@ -78,6 +82,8 @@ struct IGTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyString(link_bio()) &&
            VerifyField<uint8_t>(verifier, VT_IS_VIDEO) &&
            VerifyField<int32_t>(verifier, VT_MASK) &&
+           VerifyOffset(verifier, VT_HEADER) &&
+           verifier.VerifyString(header()) &&
            verifier.EndTable();
   }
 };
@@ -118,6 +124,9 @@ struct IGTaskBuilder {
   void add_mask(int32_t mask) {
     fbb_.AddElement<int32_t>(IGTask::VT_MASK, mask, 0);
   }
+  void add_header(flatbuffers::Offset<flatbuffers::String> header) {
+    fbb_.AddOffset(IGTask::VT_HEADER, header);
+  }
   explicit IGTaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -142,8 +151,10 @@ inline flatbuffers::Offset<IGTask> CreateIGTask(
     flatbuffers::Offset<flatbuffers::String> promote_share = 0,
     flatbuffers::Offset<flatbuffers::String> link_bio = 0,
     bool is_video = false,
-    int32_t mask = 0) {
+    int32_t mask = 0,
+    flatbuffers::Offset<flatbuffers::String> header = 0) {
   IGTaskBuilder builder_(_fbb);
+  builder_.add_header(header);
   builder_.add_mask(mask);
   builder_.add_link_bio(link_bio);
   builder_.add_promote_share(promote_share);
@@ -170,7 +181,8 @@ inline flatbuffers::Offset<IGTask> CreateIGTaskDirect(
     const char *promote_share = nullptr,
     const char *link_bio = nullptr,
     bool is_video = false,
-    int32_t mask = 0) {
+    int32_t mask = 0,
+    const char *header = nullptr) {
   auto file_info__ = file_info ? _fbb.CreateString(file_info) : 0;
   auto time__ = time ? _fbb.CreateString(time) : 0;
   auto description__ = description ? _fbb.CreateString(description) : 0;
@@ -179,6 +191,7 @@ inline flatbuffers::Offset<IGTask> CreateIGTaskDirect(
   auto requested_by_phrase__ = requested_by_phrase ? _fbb.CreateString(requested_by_phrase) : 0;
   auto promote_share__ = promote_share ? _fbb.CreateString(promote_share) : 0;
   auto link_bio__ = link_bio ? _fbb.CreateString(link_bio) : 0;
+  auto header__ = header ? _fbb.CreateString(header) : 0;
   return IGData::CreateIGTask(
       _fbb,
       id,
@@ -191,7 +204,8 @@ inline flatbuffers::Offset<IGTask> CreateIGTaskDirect(
       promote_share__,
       link_bio__,
       is_video,
-      mask);
+      mask,
+      header__);
 }
 
 inline const IGData::IGTask *GetIGTask(const void *buf) {

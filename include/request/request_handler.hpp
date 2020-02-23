@@ -241,7 +241,7 @@ class RequestHandler {
             "arguments");
         return "";
       }
-      auto mask = argv.at(argv.size() - 1);
+      auto mask = argv.at(argv.size() - 2);
       auto kdb = Database::KDB();
 
       QueryValues result =
@@ -287,8 +287,10 @@ class RequestHandler {
           auto promote_share = argv.at(6);
           auto link_bio = argv.at(7);
           auto is_video = argv.at(8) == "1";
+          auto header = argv.at(10);
 
           std::string env_file_string{"#!/usr/bin/env bash\n"};
+          env_file_string += "HEADER='" + header + "'\n";
           env_file_string += "DESCRIPTION='" + description + "'\n";
           env_file_string += "HASHTAGS='" + hashtags + "'\n";
           env_file_string += "REQUESTED_BY='" + requested_by + "'\n";
@@ -318,7 +320,8 @@ class RequestHandler {
                     "--description=$DESCRIPTION --hashtags=$HASHTAGS "
                     "--requested_by=$REQUESTED_BY --media=$FILE_TYPE "
                     "--requested_by_phrase=$REQUESTED_BY_PHRASE "
-                    "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO"};
+                    "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
+                    "--header=$HEADER"};
             scheduler.schedule(task);
           }
         }
