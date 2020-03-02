@@ -1,11 +1,10 @@
-#ifndef __SOCKET_LISTENER_H__
-#define __SOCKET_LISTENER_H__
+#ifndef __SOCKET_LISTENER_HPP__
+#define __SOCKET_LISTENER_HPP__
 
 // Project libraries
 #include <interface/listen_interface.hpp>
 #include <interface/send_interface.hpp>
 #include <task/task_queue.hpp>
-
 // System libraries
 #include <sys/socket.h>
 
@@ -100,4 +99,4 @@ class SocketListener : public SendInterface, public ListenInterface {
   std::unique_ptr<TaskQueue> u_task_queue_ptr;
 };
 
-#endif  // __SOCKET_LISTENER_H__
+#endif  // __SOCKET_LISTENER_HPP__
