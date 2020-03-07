@@ -64,7 +64,7 @@ class KDB {
   }
 
   QueryValues selectCompare(std::string table, Fields fields,
-                            QueryComparisonBetweenFilter filter = {}) {
+                            std::vector<CompFilter> filter = {}) {
     try {
       ComparisonBetweenSelectQuery select_query{
           .table = table, .fields = fields, .filter = filter};
@@ -84,7 +84,7 @@ class KDB {
                                 std::vector<GenericFilter> filters) {
     try {
       MultiFilterSelect select_query{
-          .table = table, .fields = fields, .filters = filters};
+          .table = table, .fields = fields, .filter = filters};
       QueryResult result = m_connection.query(select_query);
       if (!result.values.empty()) {
         return result.values;

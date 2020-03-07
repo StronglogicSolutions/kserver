@@ -24,11 +24,11 @@ struct DatabaseConfiguration {
   /* port */ std::string port;
 };
 
+typedef std::tuple<std::string, std::string, std::string> FTuple;
+
 typedef std::vector<std::pair<std::string, std::string>> QueryFilter;
-typedef std::vector<std::tuple<std::string, std::string, std::string>>
-    QueryComparisonFilter;
-typedef std::vector<std::tuple<std::string, std::string, std::string>>
-    QueryComparisonBetweenFilter;
+typedef std::vector<FTuple> QueryComparisonFilter;
+typedef std::vector<FTuple> QueryComparisonBetweenFilter;
 typedef std::vector<std::string> Values;
 typedef std::pair<std::string, std::string> QueryValue;
 typedef std::vector<QueryValue> QueryValues;
@@ -39,18 +39,27 @@ static constexpr int COMPARISON = 2;
 }  // namespace FilterTypes
 
 struct GenericFilter {
-  std::tuple<std::string, std::string, std::string> comparison;
-  int type;
+  std::string a;
+  std::string b;
+  std::string comparison;
+  int type = FilterTypes::STANDARD;
+
+  GenericFilter(std::string&& a, std::string&&comparison, std::string&& b, int type = FilterTypes::STANDARD) : a(std::move(a)), comparison(std::move(comparison)), b(std::move(b)), type(type) {}
 };
+
 struct CompFilter : GenericFilter {
-  std::tuple<std::string, std::string, std::string> comparison;
+  std::string a;
+  std::string b;
+  std::string c;
   int type = FilterTypes::COMPARISON;
+
+  CompFilter(std::string&& a, std::string&& b, std::string&&c, int type = FilterTypes::COMPARISON) : GenericFilter(std::move(a), std::move(c), std::move(b), type) {}
 };
 
 struct Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
-  /* type */ QueryType type;
+  // /* type */ QueryType type;
   /* values */ std::vector<std::string> values;
 };
 
@@ -62,10 +71,11 @@ struct DatabaseQuery : Query {
   /* filter */ QueryFilter filter;
 };
 
+
 struct MultiFilterSelect {
   std::string table;
   std::vector<std::string> fields;
-  std::vector<GenericFilter> filters;
+  std::vector<GenericFilter> filter;
 };
 
 struct InsertReturnQuery : Query {
@@ -85,18 +95,18 @@ struct UpdateReturnQuery : Query {
   /* returning */ std::string returning;
 };
 
-struct ComparisonSelectQuery {
+struct ComparisonSelectQuery : Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* values */ std::vector<std::string> values;
   /* filter */ QueryComparisonFilter filter;
 };
 
-struct ComparisonBetweenSelectQuery {
+struct ComparisonBetweenSelectQuery : Query {
   /* table */ std::string table;
   /* fields */ std::vector<std::string> fields;
   /* values */ std::vector<std::string> values;
-  /* filter */ QueryComparisonBetweenFilter filter;
+  /* filter */ std::vector<CompFilter> filter;
 };
 
 struct QueryResult {

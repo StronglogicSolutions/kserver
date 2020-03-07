@@ -28,12 +28,9 @@ class DatabaseConnection {
   std::string getConnectionString();
   pqxx::result performInsert(DatabaseQuery query);
   pqxx::result performInsert(InsertReturnQuery query, std::string returning);
-  pqxx::result performSelect(DatabaseQuery query);
-  pqxx::result performSelect(ComparisonSelectQuery query);
-  pqxx::result performSelect(ComparisonBetweenSelectQuery query);
-  pqxx::result performSelect(MultiFilterSelect query);
+  template <typename T>
+  pqxx::result performSelect(T query);
   pqxx::result performUpdate(UpdateReturnQuery query, std::string returning);
-  //  bool connected;
 };
 
 #endif  // DATABASECONNECTION_H
