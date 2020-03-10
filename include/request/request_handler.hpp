@@ -41,6 +41,15 @@ int findIndexAfter(std::string s, int pos, char c) {
   return -1;
 }
 
+/**
+ * parseFileInfo
+ *
+ * Deduces information about a files sent by a client using KY_GUI
+ *
+ * @param[in] {std::string} `file_info` The information string
+ * @returns {std::vector<FileInfo>} A vector of FileInfo objects
+ *
+ */
 std::vector<FileInfo> parseFileInfo(std::string file_info) {
   KLOG->info("Request::parseFileInfo() - Parsing: {}", file_info);
   std::vector<FileInfo> info_v{};
@@ -68,8 +77,20 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
   return info_v;
 }
 
+/**
+ * RequestHandler
+ *
+ * Handles incoming requests coming from the KY_GUI Application
+ */
 class RequestHandler {
  public:
+  /**
+   * RequestHandler()
+   * @constructor
+   *
+   * Loads configuration and instantiates a DatabaseConfiguration object
+   *
+   */
   RequestHandler() : m_executor(nullptr) {
     if (!ConfigParser::initConfig()) {
       KLOG->info("RequestHandler::RequestHandler() - Unable to load config");
@@ -88,6 +109,11 @@ class RequestHandler {
     KLOG->info("RequestHandler::RequestHandler - set database credentials");
   }
 
+  /**
+   * @constructor
+   *
+   * The move constructor
+   */
   RequestHandler(RequestHandler &&r)
       : m_executor(r.m_executor),
         m_connection(r.m_connection),
@@ -95,11 +121,21 @@ class RequestHandler {
     r.m_executor = nullptr;
   }
 
+  /**
+   * @constructor
+   *
+   * The copy constructor
+   */
   RequestHandler(const RequestHandler &r)
       : m_executor(nullptr),  // We do not copy the Executor
         m_connection(r.m_connection),
         m_credentials(r.m_credentials) {}
 
+  /**
+   * @operator
+   *
+   * The copy assignment operator
+   */
   RequestHandler &operator=(const RequestHandler &handler) {
     this->m_executor = nullptr;
     this->m_connection = handler.m_connection;
@@ -107,6 +143,11 @@ class RequestHandler {
     return *this;
   }
 
+  /**
+   * @operator
+   *
+   * The move assignment operator
+   */
   RequestHandler &operator=(RequestHandler &&handler) {
     if (&handler != this) {
       delete m_executor;
@@ -116,6 +157,12 @@ class RequestHandler {
     return *this;
   }
 
+  /**
+   * @destructor
+   *
+   * Deletes the process executor and ensures that the maintenance worker thread
+   * completes
+   */
   ~RequestHandler() {
     if (m_executor != nullptr) {
       delete m_executor;
@@ -128,6 +175,14 @@ class RequestHandler {
     }
   }
 
+  /**
+   * initialize
+   *
+   * Initializes the RequestHandler with callbacks for sending system events and
+   * process execution results. Instantiates a ProcessExecutor and provides a
+   * callback. Starts a thread to perform work on the maintenance loop
+   *
+   */
   void initialize(
       std::function<void(std::string, int, std::string, int)> event_callback_fn,
       std::function<void(int, int, std::vector<std::string>)>
@@ -152,10 +207,18 @@ class RequestHandler {
   Executor::Scheduler getScheduler() {
     return Executor::Scheduler{
         [this](std::string result, int mask, int id, int client_socket_fd) {
-          onScheduledTaskComplete(result, mask, std::to_string(id), client_socket_fd);
+          onScheduledTaskComplete(result, mask, std::to_string(id),
+                                  client_socket_fd);
         }};
   }
 
+  /**
+   * maintenanceLoop
+   *
+   * Maintenance work performed on a separate thread. Includs checking for
+   * scheduled tasks, invoking the process executor and delegating work to the
+   * system cron.
+   */
   void maintenanceLoop() {
     KLOG->info(
         "RequestHandler::maintenanceLoop() - Beginning maintenance loop");
@@ -204,33 +267,58 @@ class RequestHandler {
       System::Cron<System::SingleJob> cron{};
       std::string jobs = cron.listJobs();
       if (!jobs.empty()) {
-        KLOG->info("RequestHandler::maintenanceLoop() - Cron - There are currently no jobs");
+        KLOG->info(
+            "RequestHandler::maintenanceLoop() - Cron - There are currently no "
+            "jobs");
       } else {
-        KLOG->info("RequestHandler::maintenanceLoop() - Cron - There are currently the following cron jobs: \n {}", jobs);
+        KLOG->info(
+            "RequestHandler::maintenanceLoop() - Cron - There are currently "
+            "the following cron jobs: \n {}",
+            jobs);
       }
-      std::this_thread::sleep_for(std::chrono::minutes(1));
+      std::this_thread::sleep_for(std::chrono::seconds(30));
     }
   }
 
+  /**
+   * handlePendingTasks
+   *
+   * Iterates pending tasks and requests their execution
+   */
   void handlePendingTasks() {
     KLOG->info("RequestHandler::maintenanceLoop() - Running scheduled tasks");
     Executor::Scheduler scheduler = getScheduler();
     if (!m_tasks_map.empty()) {
+      std::vector<std::future<void>> futures{};
+      futures.reserve(m_tasks_map.size() * m_tasks_map.begin()->second.size());
       for (const auto &client_tasks : m_tasks_map) {
         if (!client_tasks.second.empty()) {
           for (const auto &task : client_tasks.second) {
-            scheduler.executeTask(client_tasks.first, task);
-            KLOG->info(
-                "RequestHandler::handlePendingTasks() - Would be handling task "
-                "with ID {} scheduled for {}",
-                task.id, task.datetime);
+            futures.push_back(std::async(&Executor::Scheduler::executeTask, scheduler, client_tasks.first, task));
           }
         }
+      }
+      for (auto &future : futures) {
+        future.get();
       }
     }
     return;
   }
 
+  /**
+   * \b SCHEDULE \b TASK
+   *
+   * \overload
+   * @request
+   *
+   * Processes requests to schedule a task
+   *
+   * @param[in] {KOperation} `op` The operation requested
+   * @param[in] {std::vector<std::string>} `argv` The task
+   * @param[in] {int} `client_socket_fd` The client socket file descriptor
+   * @param[in] {std::string> `uuid` The unique universal identifier to
+   * distinguish the task
+   */
   std::string operator()(KOperation op, std::vector<std::string> argv,
                          int client_socket_fd, std::string uuid) {
     if (op == "Schedule") {
@@ -331,19 +419,22 @@ class RequestHandler {
   }
 
   /**
+   * \b EXECUTE \b SCHEDULED \b TASK
    *
-   * generic functor overload for running operations during development
+   * \overload
+   *
+   * @request
+   * @development
    *
    * Calls the scheduler to fetch tasks which need to be executed soon and
    * returns them to the KServer. These tasks can be performed iteratively on a
    * message loop, to ensure each execution completes before another one begins.
    *
-   * @overload
    *
-   * @param[in] {int} client_socket_fd The client socket file descriptor
-   * @param[in] {KOperation} op The operation requested
-   * @param[in] {DevTest} test An enum value representing the type of operation
-   * to perform
+   * @param[in] {int} `client_socket_fd` The client socket file descriptor
+   * @param[in] {KOperation} `op` The operation requested
+   * @param[in] {DevTest} `test` An enum value representing the type of
+   * operation to perform
    *
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
@@ -392,10 +483,17 @@ class RequestHandler {
   }
 
   /**
-   * fetchAvailableApplications
+   * \b FETCH \b PROCESSES
    *
-   * Fetches the available applications that can be requested for execution by a
-   * client
+   * \overload
+   *
+   * @request
+   *
+   * Fetches the available applications that can be requested for execution by
+   * clients using KY_GUI
+   *
+   * @param[in] {KOperation} `op` The operation requested
+   *
    */
   std::map<int, std::string> operator()(KOperation op) {
     // TODO: We need to fix the DB query so it is orderable and groupable
@@ -425,16 +523,19 @@ class RequestHandler {
   }
 
   /**
-   * runApplication
+   * \b EXECUTE \b PROCESS
    *
-   * Calls on the ProcessExecutor and requests that it execute an appication
+   * \overload
+   *
+   * @request
+   *
+   * Calls on the ProcessExecutor and requests that it execute an application
    * whose mask value matches those contained within the value passed as a
    * parameter
    *
-   * @overload
-   * @param[in] {uint32_t} mask The requested mask
-   * @param[in] {int} client_socket_fd The file descriptor for the client making
-   * the request
+   * @param[in] {uint32_t} `mask` The requested mask
+   * @param[in] {int} `client_socket_fd` The file descriptor of the client
+   * making the request
    */
   void operator()(uint32_t mask, std::string request_id, int client_socket_fd) {
     QueryResult result = m_connection.query(
@@ -458,45 +559,23 @@ class RequestHandler {
                          {info_string, request_id});
   }
 
-  std::pair<uint8_t *, int> operator()(std::vector<uint32_t> bits) {
-    QueryFilter filter{};
-
-    for (const auto &bit : bits) {
-      filter.push_back(
-          std::make_pair(std::string("mask"), std::to_string(bit)));
-    }
-    DatabaseQuery select_query{.table = "apps",
-                               .fields = {"name", "path", "data"},
-                               .type = QueryType::SELECT,
-                               .values = {},
-                               .filter = filter};
-    QueryResult result = m_connection.query(select_query);
-    std::string paths{};
-    if (!result.values.empty()) {
-      for (const auto &row : result.values) {
-        if (row.first == "path") paths += row.second + "\n";
-      }
-      unsigned char message_bytes[] = {33, 34, 45, 52, 52, 122, 101, 35};
-      auto byte_vector = builder.CreateVector(message_bytes, 8);
-      auto message = CreateMessage(builder, 0, byte_vector);
-      builder.Finish(message);
-
-      uint8_t *message_buffer = builder.GetBufferPointer();
-      int size = builder.GetSize();
-
-      std::pair<uint8_t *, int> ret_tuple =
-          std::make_pair(message_buffer, std::ref(size));
-
-      return ret_tuple;
-    }
-    /* return std::string{"Application not found"}; */
-    uint8_t byte_array[6]{1, 2, 3, 4, 5, 6};
-    return std::make_pair(&byte_array[0], 6);
-  }
-
  private:
-  // Callback
-    void onProcessComplete(std::string value, int mask, std::string request_id,
+  /**
+   * onProcessComplete
+   *
+   * The callback function called by the ProcessExecutor after completing a
+   * process
+   *
+   * @param[in] <std::string> `value`      The stdout from value from the
+   * executed process
+   * @param[in] <int> `mask`               The bitmask associated with the
+   * process
+   * @param[in] <std::string> `request_id` The request ID for the process
+   * @param[in] <int> `client_socket_fd`   The file descriptor for the client
+   * who made the request
+   *
+   */
+  void onProcessComplete(std::string value, int mask, std::string request_id,
                          int client_socket_fd) {
     KLOG->info(
         "RequestHandler::onProcessComplete() - Process complete notification "
@@ -504,27 +583,51 @@ class RequestHandler {
         client_socket_fd, request_id);
     m_event_callback_fn(value, mask, request_id, client_socket_fd);
   }
+  /**
+   * onScheduledTaskComplete
+   *
+   * @request
+   *
+   * The callback function called by the Executor::Scheduler after a scheduled
+   * task completes
+   *
+   * @param[in] <std::string> `value`             The stdout from value from the
+   * executed process
+   * @param[in] <int>         `mask`              The bitmask associated with
+   * the process
+   * @param[in] <std::string> `id`                The task ID as it is tracked
+   * in the DB
+   * @param[in] <int>         `client_socket_fd`  The file descriptor of the
+   * client requesting the task
+   */
 
   void onScheduledTaskComplete(std::string value, int mask, std::string id,
-                         int client_socket_fd) {
+                               int client_socket_fd) {
     KLOG->info(
-        "RequestHandler::onScheduledTaskComplete() - Task complete notification "
+        "RequestHandler::onScheduledTaskComplete() - Task complete "
+        "notification "
         "for client {}'s task {}",
         client_socket_fd, id);
 
-    std::map<int, std::vector<Executor::Task>>::iterator it = m_tasks_map.find(client_socket_fd);
+    std::map<int, std::vector<Executor::Task>>::iterator it =
+        m_tasks_map.find(client_socket_fd);
     if (it != m_tasks_map.end()) {
-      auto task_it = std::find_if(it->second.begin(), it->second.end(), [id](Executor::Task task) {
-        return task.id == std::stoi(id);
-      });
+      auto task_it = std::find_if(
+          it->second.begin(), it->second.end(),
+          [id](Executor::Task task) { return task.id == std::stoi(id); });
       if (task_it != it->second.end()) {
-        KLOG->info("RequestHandler::onScheduledTaskComplete() - removing completed task from memory");
+        KLOG->info(
+            "RequestHandler::onScheduledTaskComplete() - removing completed "
+            "task from memory");
         it->second.erase(task_it);
       }
     }
     m_event_callback_fn(value, mask, id, client_socket_fd);
   }
 
+  /**
+   * callback functions
+   */
   std::function<void(std::string, int, std::string, int)> m_event_callback_fn;
   std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
   std::function<void(int, std::vector<Executor::Task>)> m_task_callback_fn;

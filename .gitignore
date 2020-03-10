@@ -12,3 +12,4 @@ data
 **/*.cmake
 cron
 cron.txt
+gendocs.sh
