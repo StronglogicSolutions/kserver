@@ -20,7 +20,7 @@ struct Task {
   int execution_mask;
   std::string datetime;
   bool file;
-  std::vector<std::string> file_names;
+  std::vector<FileInfo> files;
   std::string envfile;
   std::string execution_flags;
   int id = 0;
@@ -66,9 +66,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
                !insert_id.empty() ? "Accepted" : "Rejected", insert_id);
 
     if (!insert_id.empty()) {
-      for (const auto &filename : task.file_names) {
-        KLOG->info("Recording file in DB: {}", filename);
-        kdb.insert("file", {"name", "sid"}, {filename, insert_id});
+      for (const auto &file : task.files) {
+        KLOG->info("Recording file in DB: {}", file.first);
+        kdb.insert("file", {"name", "sid"}, {file.first, insert_id});
       }
     }
   }
@@ -138,7 +138,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
                  .datetime = time,
                  .file = true,  // Change this default value later after we
                                 // implement booleans in the DB abstraction
-                 .file_names = {},
+                 .files = {},
                  .envfile = envfile,
                  .execution_flags = flags,
                  .id = id});
