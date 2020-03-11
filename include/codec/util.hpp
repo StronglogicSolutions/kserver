@@ -25,6 +25,8 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
+#include <iostream>
+
 using namespace rapidjson;
 using namespace uuids;
 using namespace neither;
@@ -34,12 +36,17 @@ using namespace IGData;
 static const int SESSION_ACTIVE = 1;
 static const int SESSION_INACTIVE = 2;
 
+static const std::string_view APP_NAME = "kserver";
+static constexpr int APP_NAME_LENGTH = 7;
+
 typedef std::string KOperation;
 typedef std::map<int, std::string> CommandMap;
 typedef std::vector<std::pair<std::string, std::string>> TupVec;
 typedef std::vector<std::map<int, std::string>> MapVec;
 typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
 typedef std::map<int, std::string> ServerData;
+typedef std::pair<std::string, std::string> FileInfo;
+
 struct KSession {
   int fd;
   int status;
@@ -49,6 +56,21 @@ struct KSession {
 std::string get_cwd() {
   char *working_dir_path = realpath(".", NULL);
   return std::string{working_dir_path};
+}
+
+std::string get_executable_cwd() {
+  char *working_dir_path = realpath("/proc/self/exe", NULL);
+  std::string_view executable_path{working_dir_path};
+  return std::string{executable_path.begin(), executable_path.end() - (APP_NAME_LENGTH + 1)};
+}
+
+int findIndexAfter(std::string s, int pos, char c) {
+  for (int i = pos; i < s.size(); i++) {
+    if (s.at(i) == c) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 /**
@@ -419,10 +441,41 @@ bool isNewSession(const char *data) {
 
 namespace FileUtils {
 
-void createDirectory(const char *dir_name) {
-  std::string directory_name = {"data/"};
-  directory_name += dir_name;
-  std::filesystem::create_directory(directory_name.c_str());
+/**
+ * parseFileInfo
+ *
+ * Deduces information about a files sent by a client using KY_GUI
+ *
+ * @param[in] {std::string} `file_info` The information string
+ * @returns {std::vector<FileInfo>} A vector of FileInfo objects
+ *
+ */
+std::vector<FileInfo> parseFileInfo(std::string file_info) {
+  std::cout << file_info << std::endl;
+  std::vector<FileInfo> info_v{};
+  info_v.reserve(file_info.size() /
+                 25);  // Estimating number of files being represented
+  size_t pipe_pos = 0;
+  size_t index = 0;
+  size_t delim_pos = 0;
+  std::string parsing{file_info, file_info.size()};
+  do {
+    auto timestamp = file_info.substr(index, 10);
+    pipe_pos = findIndexAfter(file_info, index, '|');
+    auto file_name = file_info.substr(index + 10, (pipe_pos - index - 10));
+    delim_pos = findIndexAfter(file_info, index, '::');
+    auto type =
+        file_info.substr(index + 10 + file_name.size() + 1,
+                         (delim_pos - index - 10 - file_name.size() - 1));
+    info_v.push_back(FileInfo{file_name, timestamp});
+    index += timestamp.size() + file_name.size() + type.size() +
+             3;  // 3 strings + 3 delim chars
+  } while (index < file_info.size());
+  return info_v;
+}
+
+bool createDirectory(const char *dir_name) {
+  return std::filesystem::create_directory(dir_name);
 }
 
 void saveFile(std::vector<char> bytes, const char *filename) {
@@ -436,6 +489,7 @@ void saveFile(std::vector<char> bytes, const char *filename) {
 }
 
 void saveFile(uint8_t *bytes, int size, std::string filename) {
+  std::cout << "Filename: " << filename << std::endl;
   std::ofstream output(filename.c_str(),
                        std::ios::binary | std::ios::out | std::ios::app);
   std::cout << "FileUtils::saveFile() - FIRST TWO :: " << std::hex
@@ -449,30 +503,17 @@ void saveFile(uint8_t *bytes, int size, std::string filename) {
   output.close();
 }
 
-void saveEnvFile(std::string env_file_string, std::string filename) {
-  std::ofstream out{filename};
+std::string saveEnvFile(std::string env_file_string, std::string uuid) {
+  std::string relative_path{"data/" + uuid + "/v.env"};
+  std::string filename{get_executable_cwd() + "/" + relative_path};
+  std::ofstream out{filename.c_str()};
   out << env_file_string;
+  return relative_path;
 }
 
-void test() {
-  char pixels[5];
-  std::ofstream output("output.bmp",
-                       std::ios::binary | std::ios::out | std::ios::app);
-  for (size_t i = 0; i < 5; i++) {
-    output.write((char *)&pixels[i], 1);
-  }
-  output.close();
-}
-void loadAndPrintFile(std::string_view file_path) {
-  std::ifstream ifs("./disgusted_girl.jpg", std::ios::binary);
-  std::ifstream::pos_type pos = ifs.tellg();
-  std::vector<char> result(pos);
-  ifs.seekg(0, std::ios::beg);
-  ifs.read(&result[0], pos);
-
-  for (const auto &c : result) {
-    std::cout << c;
-  }
+bool createTaskDirectory(std::string uuid) {
+  std::string directory_name{get_executable_cwd() + "/data/" + uuid};
+  return createDirectory(directory_name.c_str());
 }
 }  // namespace FileUtils
 
