@@ -12,6 +12,7 @@
 #include <database/kdb.hpp>
 #include <executor/executor.hpp>
 #include <executor/scheduler.hpp>
+#include <request/task_handlers/instagram.hpp>
 #include <iostream>
 #include <map>
 #include <server/types.hpp>
@@ -29,53 +30,6 @@ using namespace KData;
 flatbuffers::FlatBufferBuilder builder(1024);
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
-
-typedef std::pair<std::string, std::string> FileInfo;
-
-int findIndexAfter(std::string s, int pos, char c) {
-  for (int i = pos; i < s.size(); i++) {
-    if (s.at(i) == c) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-/**
- * parseFileInfo
- *
- * Deduces information about a files sent by a client using KY_GUI
- *
- * @param[in] {std::string} `file_info` The information string
- * @returns {std::vector<FileInfo>} A vector of FileInfo objects
- *
- */
-std::vector<FileInfo> parseFileInfo(std::string file_info) {
-  KLOG->info("Request::parseFileInfo() - Parsing: {}", file_info);
-  std::vector<FileInfo> info_v{};
-  info_v.reserve(file_info.size() /
-                 25);  // Estimating number of files being represented
-  size_t pipe_pos = 0;
-  size_t index = 0;
-  size_t delim_pos = 0;
-  std::string parsing{file_info, file_info.size()};
-  do {
-    auto timestamp = file_info.substr(index, 10);
-    pipe_pos = findIndexAfter(file_info, index, '|');
-    auto file_name = file_info.substr(index + 10, (pipe_pos - index - 10));
-    delim_pos = findIndexAfter(file_info, index, '::');
-    auto type =
-        file_info.substr(index + 10 + file_name.size() + 1,
-                         (delim_pos - index - 10 - file_name.size() - 1));
-    KLOG->info("Parsed file {} of type {} with timestamp {}", file_name, type,
-               timestamp);
-
-    info_v.push_back(FileInfo{file_name, timestamp});
-    index += timestamp.size() + file_name.size() + type.size() +
-             3;  // 3 strings + 3 delim chars
-  } while (index < file_info.size());
-  return info_v;
-}
 
 /**
  * RequestHandler
@@ -349,67 +303,24 @@ class RequestHandler {
       if (!path.empty() && !name.empty()) {
         if (name == "Instagram") {
           KLOG->info("RequestHandler:: Instagram task");
-          auto file_info = argv.at(0);
-          std::vector<FileInfo> files_to_update = parseFileInfo(file_info);
-          std::vector<std::string> filenames{};
-
+          Executor::Task task = Task::IGTaskHandler::prepareTask(argv, uuid);
+          auto num = task.files.size();
+          std::cout << "Task file num: " << num << std::endl;
           auto file_index = 0;
-          for (const auto &file_info : files_to_update) {
+          for (const auto &file_info : task.files) {
+            std::cout << "task file: " << file_info.first << std::endl;
             std::vector<std::string> callback_args{file_info.first,
                                                    file_info.second, uuid};
-            if (file_index == files_to_update.size() - 1) {
+            if (file_index == task.files.size() - 1) {
               callback_args.push_back("final file");
             }
             m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
                                  callback_args);
-            std::string media_filename = get_cwd();
-            media_filename += "/data/" + uuid + "/" + file_info.first;
-            filenames.push_back(media_filename);
           }
-          // notify KServer of filename received
-          auto datetime = argv.at(1);
-          auto description = argv.at(2);
-          auto hashtags = argv.at(3);
-          auto requested_by = argv.at(4);
-          auto requested_by_phrase = argv.at(5);
-          auto promote_share = argv.at(6);
-          auto link_bio = argv.at(7);
-          auto is_video = argv.at(8) == "1";
-          auto header = argv.at(10);
-
-          std::string env_file_string{"#!/usr/bin/env bash\n"};
-          env_file_string += "HEADER='" + header + "'\n";
-          env_file_string += "DESCRIPTION='" + description + "'\n";
-          env_file_string += "HASHTAGS='" + hashtags + "'\n";
-          env_file_string += "REQUESTED_BY='" + requested_by + "'\n";
-          env_file_string +=
-              "REQUESTED_BY_PHRASE='" + requested_by_phrase + "'\n";
-          env_file_string += "PROMOTE_SHARE='" + promote_share + "'\n";
-          env_file_string += "LINK_BIO='" + link_bio + "'\n";
-          env_file_string += "FILE_TYPE='";
-          env_file_string += is_video ? "video'\n" : "image'\n";
-          std::string env_filename = {"data/"};
-          env_filename += uuid;
-          env_filename += "/v.env";
-
-          FileUtils::saveEnvFile(env_file_string, env_filename);
-
           auto validate = true;  // TODO: Replace this with actual validation
           if (validate) {
             KLOG->info("Sending task request to Scheduler");
             Executor::Scheduler scheduler{};
-            Executor::Task task{
-                .execution_mask = std::stoi(mask),
-                .datetime = datetime,
-                .file = (!filenames.empty()),
-                .file_names = filenames,
-                .envfile = env_filename,
-                .execution_flags =
-                    "--description=$DESCRIPTION --hashtags=$HASHTAGS "
-                    "--requested_by=$REQUESTED_BY --media=$FILE_TYPE "
-                    "--requested_by_phrase=$REQUESTED_BY_PHRASE "
-                    "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
-                    "--header=$HEADER"};
             scheduler.schedule(task);
           }
         }
