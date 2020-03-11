@@ -123,12 +123,7 @@ class KServer : public SocketListener {
           KLOG->info(
               "KServer::systemEventNotify() - Data buffer found. Creating "
               "directory and saving file");
-          std::string uuid = args.at(2);
-          std::string filename{"data/"};
-          filename += uuid.c_str();
-          filename += +"/";
-          filename += args.at(0);
-          FileUtils::createDirectory(uuid.c_str());
+          std::string filename = args.at(0);
           FileUtils::saveFile(received_file->f_ptr, received_file->size,
                               filename.c_str());
           m_received_files.erase(received_file);
