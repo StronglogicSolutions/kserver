@@ -13,3 +13,7 @@ data
 cron
 cron.txt
 gendocs.sh
+**/*.sql
+html
+upload_db.sh
+logs
