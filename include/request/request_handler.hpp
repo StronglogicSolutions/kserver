@@ -6,18 +6,22 @@
 #include <log/logger.h>
 #include <stdlib.h>
 
+#include <atomic>
 #include <chrono>
 #include <codec/util.hpp>
+#include <condition_variable>
 #include <config/config_parser.hpp>
 #include <database/kdb.hpp>
 #include <executor/executor.hpp>
 #include <executor/scheduler.hpp>
-#include <request/task_handlers/instagram.hpp>
 #include <iostream>
 #include <map>
+#include <mutex>
+#include <request/task_handlers/instagram.hpp>
 #include <server/types.hpp>
 #include <string>
 #include <system/cron.hpp>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -121,11 +125,12 @@ class RequestHandler {
     if (m_executor != nullptr) {
       delete m_executor;
     }
-    if (m_maintenance_worker.valid()) {
+    //    if (m_maintenance_worker.valid()) {
+    if (m_maintenance_worker.joinable()) {
       KLOG->info(
           "RequestHandler::~RequestHandler() - Waiting for maintenance worker "
           "to complete");
-      m_maintenance_worker.get();
+      m_maintenance_worker.join();
     }
   }
 
@@ -153,10 +158,16 @@ class RequestHandler {
     m_task_callback_fn = task_callback_fn;
 
     // Begin maintenance loop to process scheduled tasks as they become ready
+    /* m_maintenance_worker = */
+    /*     std::async(std::launch::async, &RequestHandler::maintenanceLoop,
+     * this); */
     m_maintenance_worker =
-        std::async(std::launch::async, &RequestHandler::maintenanceLoop, this);
+        std::thread(std::bind(&RequestHandler::maintenanceLoop, this));
+    maintenance_loop_condition.notify_one();
     KLOG->info("RequestHandler::initialize() - Initialization complete");
   }
+
+  void setHandlingData(bool is_handling) { handling_data = is_handling; }
 
   Executor::Scheduler getScheduler() {
     return Executor::Scheduler{
@@ -177,6 +188,10 @@ class RequestHandler {
     KLOG->info(
         "RequestHandler::maintenanceLoop() - Beginning maintenance loop");
     for (;;) {
+      std::unique_lock<std::mutex> lock(m_mutex);
+      maintenance_loop_condition.wait(lock,
+                                      [this]() { return !handling_data; });
+      KLOG->info("RequestHandler::maintenanceLoop() - condition met");
       int client_socket_fd = -1;
       Executor::Scheduler scheduler = getScheduler();
       std::vector<Executor::Task> tasks = scheduler.fetchTasks();
@@ -248,7 +263,9 @@ class RequestHandler {
       for (const auto &client_tasks : m_tasks_map) {
         if (!client_tasks.second.empty()) {
           for (const auto &task : client_tasks.second) {
-            futures.push_back(std::async(&Executor::Scheduler::executeTask, scheduler, client_tasks.first, task));
+            futures.push_back(std::async(std::launch::async,
+                                         &Executor::Scheduler::executeTask,
+                                         scheduler, client_tasks.first, task));
           }
         }
       }
@@ -544,11 +561,15 @@ class RequestHandler {
   std::function<void(int, std::vector<Executor::Task>)> m_task_callback_fn;
 
   std::map<int, std::vector<Executor::Task>> m_tasks_map;
+  std::mutex m_mutex;
+  std::condition_variable maintenance_loop_condition;
+  std::atomic<bool> handling_data;
 
   ProcessExecutor *m_executor;
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;
-  std::future<void> m_maintenance_worker;
+  //  std::future<void> m_maintenance_worker;
+  std::thread m_maintenance_worker;
 };
 }  // namespace Request
 #endif  // __REQUEST_HANDLER_HPP__

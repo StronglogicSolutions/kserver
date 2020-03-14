@@ -18,6 +18,8 @@
 #include <string_view>
 #include <utility>
 
+#define IF_NOT_HANDLING_PACKETS_FOR_CLIENT(x) if (file_pending_fd != x)
+
 namespace KYO {
 
 KLogger *k_logger_ptr = KLogger::GetInstance();
@@ -52,6 +54,8 @@ class KServer : public SocketListener {
    * @param[in] {int} client_socket_fd
    * @param[in] {int} system_event
    * @param[in] {std::vector<std::string>}
+   *
+   * TODO: place messages in queue if handling file for client
    */
   void systemEventNotify(int client_socket_fd, int system_event,
                          std::vector<std::string> args) {
@@ -64,6 +68,7 @@ class KServer : public SocketListener {
               "to all clients.");
           args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
           for (const auto &session : m_sessions) {
+            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
             sendEvent(session.fd, "Scheduled Tasks Ready", args);
           }
           break;
@@ -72,6 +77,7 @@ class KServer : public SocketListener {
               "KServer::systemEventNotify() - Informing client {} about "
               "scheduled tasks",
               client_socket_fd);
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
           sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
           break;
         }
@@ -84,6 +90,7 @@ class KServer : public SocketListener {
               "tasks ready for execution.");
           args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
           for (const auto &session : m_sessions) {
+            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
             sendEvent(session.fd, "No tasks ready", args);
           }
           break;
@@ -92,6 +99,7 @@ class KServer : public SocketListener {
               "KServer::systemEventNotify() - Informing client {} about "
               "scheduled tasks",
               client_socket_fd);
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
           sendEvent(client_socket_fd, "No tasks ready to run", args);
           break;
         }
@@ -140,6 +148,7 @@ class KServer : public SocketListener {
         break;
       }
       case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED: {
+        IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
         sendEvent(client_socket_fd, "Process Execution Requested", args);
         break;
       }
@@ -178,6 +187,8 @@ class KServer : public SocketListener {
    * param[in] {std::string} result
    * param[in] {int} mask
    * param[in] {int} client_socket_fd
+   *
+   * TODO: Place results in a queue if handling file for client
    */
   void onProcessEvent(std::string result, int mask, std::string request_id,
                       int client_socket_fd) {
@@ -262,6 +273,7 @@ class KServer : public SocketListener {
               socket_fd, timestamp);
           file_pending_fd = -1;
           file_pending = false;
+          m_request_handler.setHandlingData(false);
           sendEvent(socket_fd, "File Transfer Complete",
                     {std::to_string(timestamp)});
 
@@ -346,6 +358,8 @@ class KServer : public SocketListener {
   void handleFileUploadRequest(int client_socket_fd) {
     file_pending = true;
     file_pending_fd = client_socket_fd;
+    m_request_handler.setHandlingData(true);
+
     std::string file_ready_message = createMessage("File Ready", "");
     sendMessage(client_socket_fd, file_ready_message.c_str(),
                 file_ready_message.size());
