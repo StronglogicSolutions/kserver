@@ -83,7 +83,7 @@ class FileHandler {
     /**
      * reset
      *
-     * Reset the decoder's state so that it made be ready to decode a new file
+     * Reset the decoder's state so it's ready to decode a new file
      */
     void reset() {
       index = 0;
@@ -96,8 +96,8 @@ class FileHandler {
     /**
      * processPacketBuffer
      *
-     * @param[in] {uint8_t*} data
-     * @param[in] {uint32_t} size
+     * @param[in] {uint8_t*} `data` A pointer to the beginning of a byte sequence
+     * @param[in] {uint32_t} `size` The number of bytes to process
      */
 
     void processPacketBuffer(uint8_t* data, uint32_t size) {
@@ -149,8 +149,8 @@ class FileHandler {
     /**
      * processPacket
      *
-     * @param[in] {uint8_t*} data
-     * @param[in] {uint32_t} size
+     * @param[in] {uint8_t*} `data` A pointer to the beginning of a byte sequence
+     * @param[in] {uint32_t} `size` The number of bytes to process
      */
     void processPacket(uint8_t* data, uint32_t size) {
       bool is_first_packet = (index == 0);
@@ -218,7 +218,7 @@ class FileHandler {
    * Move constructor
    * @constructor
    */
-  FileHandler(FileHandler &&f)
+  FileHandler(FileHandler&& f)
       : m_decoder(f.m_decoder), socket_fd(f.socket_fd) {
     f.m_decoder = nullptr;
   }
@@ -228,10 +228,10 @@ class FileHandler {
    * @constructor
    */
 
-  FileHandler(const FileHandler &f)
+  FileHandler(const FileHandler& f)
       : m_decoder(new Decoder{*(f.m_decoder)}), socket_fd(f.socket_fd) {}
 
-  FileHandler &operator=(const FileHandler &f) {
+  FileHandler &operator=(const FileHandler& f) {
     if (&f != this) {
       delete m_decoder;
       m_decoder = nullptr;
@@ -261,8 +261,8 @@ class FileHandler {
   /**
    * processPacket
    *
-   * @param[in] {uint8_t*} data
-   * @param[in] {uint32_t} size
+   * @param[in] {uint8_t*} `data` A pointer to the first memory address of a
+   * @param[in] {uint32_t} `size` The size of the packet, in bytes
    */
   void processPacket(uint8_t *data, uint32_t size) { m_decoder->processPacket(data, size); }
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
