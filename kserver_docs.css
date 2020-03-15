@@ -1,0 +1,52 @@
+body, .header, div.header {
+  color: #f0f0f0;
+  background: #333;
+}
+
+.groupheader, h2.groupheader {
+  background-color: #333;
+  color:  #f5f5f5;;
+}
+
+.memproto, .memTemplParams {
+  background-color: #333;
+  color:  #f5f5f5;;
+  text-shadow: none;
+}
+
+.memitem, .memdoc, .memItemLeft, .memItemRight {
+  background-color: #333;
+}
+
+.memdoc .fragment, .memTemplParams, .memTemplItemLeft, .memTemplItemRight {
+  background-color: #2f002e;
+}
+.memtitle {
+  color: #000;
+  background-image: none;
+  background-color: #616161;
+}
+
+.paramname, .contents a:visited, .contents a, a, #nav-path ul a {
+  color: #ff00f6;
+}
+
+td.paramname + td code {
+  color: #0de20d;
+}
+
+.directory tr.even {
+  background-color: #424242;
+}
+.sm-dox, #main-menu, #nav-path ul, #nav-path ul a {
+  background-image: none;
+  text-shadow: none;
+}
+.sm-dox a, #nav-path ul {
+  text-shadow: none;
+  color: #f5f5f5;
+}
+
+.dyncontent .center img {
+  filter: hue-rotate(65deg);
+}
