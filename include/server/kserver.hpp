@@ -13,7 +13,7 @@
 #include <interface/socket_listener.hpp>
 #include <iomanip>
 #include <request/request_handler.hpp>
-#include <server/types.hpp>
+// #include <server/types.hpp>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -197,11 +197,11 @@ class KServer : public SocketListener {
     } else {
       KLOG->info(
           "KServer::onProcessEvent() - result too big to send in one "
-          "message. Result was \n{}",
+          "message. Returning back the bottom 2000 bytes of: \n{}",
           result);
       event_args.insert(event_args.end(),
                         {std::to_string(mask), request_id,
-                         "Result completed, but was too big to display"});
+                         std::string{result.end() - 2000, result.end()}});
     }
     if (client_socket_fd == -1) {  // Send response to all active sessions
       event_args.push_back(
@@ -377,6 +377,10 @@ class KServer : public SocketListener {
                 {"KServer is shutting down the socket connection"});
       shutdown(client_socket_fd, SHUT_RDWR);
       close(client_socket_fd);
+      if (file_pending && file_pending_fd == client_socket_fd) {
+        file_pending = false;
+        file_pending_fd = -1;
+      }
       return;
     } else if (isExecuteOperation(op.c_str())) {  // Process execution request
       KLOG->info("Execute operation");

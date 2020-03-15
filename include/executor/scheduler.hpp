@@ -161,14 +161,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return parseTasks(kdb.selectMultiFilter(
         "schedule",                                  // table
         {"id", "time", "mask", "flags", "envfile"},  // fields
-        {{GenericFilter{.comparison =
-                            {// BETWEEN
-                             "time", current_timestamp, future_15_minute_timestamp},
-                        .type = FilterTypes::COMPARISON},
-          GenericFilter{.comparison =
-                            {// EQUALS
-                             "completed", "=", "false"},
-                        .type = FilterTypes::STANDARD}}}));
+        {CompFilter{"time", std::move(current_timestamp), std::move(future_15_minute_timestamp)},
+          GenericFilter{"completed", "=", "false"}}));
   }
 
   virtual void executeTask(int client_socket_fd, Task task) {

@@ -4,8 +4,8 @@
 #include <pqxx/pqxx>
 #include <sstream>
 #include <utility>
-
-#include "structs.h"
+#include <memory>
+#include <type_traits>
 
 std::string fieldsAsString(std::vector<std::string> fields) {
   std::string field_string{""};
@@ -17,27 +17,6 @@ std::string fieldsAsString(std::vector<std::string> fields) {
   }
   return std::move(field_string);
 }
-
-// https://en.wikipedia.oraaaaaaaag/wiki/Row-_and_column-major_order
-// std::string valuesAsString(std::vector<std::string> values, size_t
-// number_of_fields) {
-//   std::string value_string{"VALUES"};
-//   std::string delim{""};
-//   // TODO: fix this to work with multiple fields again
-//   /*
-//   if (index % number_of_fields) {
-//     value_string += "),("
-//   }
-//    */
-//   for (const auto &value : values) {
-//       value_string += delim + "(" + value + ")";
-//       delim = ",";
-//   }
-
-//   value_string.erase(value_string.end() - 2);
-//   value_string += ")";
-//   return std::move(value_string);
-// }
 
 std::string valuesAsString(StringVec values, size_t number_of_fields) {
   std::string value_string{"VALUES ("};
@@ -93,115 +72,100 @@ std::string updateStatement(UpdateReturnQuery query, std::string returning, bool
           delim = " AND ";
         }
       }
-      auto return_string = std::string{"UPDATE " + query.table + " " + update_string + " " +
+      return std::string{"UPDATE " + query.table + " " + update_string + " " +
                           filter_string + " RETURNING " + returning};
-
-                          std::cout << "Returning string for execution in UPDATE query: \n" << return_string << std::endl;
-      return return_string;
     }
   }
   return "";
 }
-// To filter properly, you must have the same number of values as fields
-std::string selectStatement(DatabaseQuery query) {
-  if (!query.filter.empty()) {
-    if (query.filter.size() > 1 &&
-        query.filter.at(0).first == query.filter.at(1).first) {
-      std::string filter_string{"WHERE " + query.filter.at(0).first + " in ("};
-      std::string delim{""};
-      for (const auto &filter_pair : query.filter) {
-        filter_string += delim + filter_pair.second;
-        delim = ",";
-      }
-      return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
-                         query.table + " " + filter_string + ")"};
-    }
-    size_t index = 0;
-    std::string filter_string{"WHERE "};
-    std::string delim{""};
-    for (const auto &filter_pair : query.filter) {
-      filter_string +=
-          delim + filter_pair.first + "='" + filter_pair.second + "'";
-      delim = " AND ";
-    }
-    return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
-                       query.table + " " + filter_string};
-  }
-  return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
-                     query.table};
-}
-
-std::string selectStatement(ComparisonSelectQuery query) {
-  if (!query.filter.empty()) {
-    if (query.filter.size() > 1) {
-      // We do not curently support multiple comparisons in a single query
-      return std::string{"SELECT 1"};
-    }
-    size_t index = 0;
-    std::string filter_string{"WHERE "};
-    std::string delim{""};
-    for (const auto &filter_tup : query.filter) {
-      filter_string += delim + std::get<0>(filter_tup) +
-                       std::get<1>(filter_tup) + std::get<2>(filter_tup);
-      delim = " AND ";
-    }
-    return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
-                       query.table + " " + filter_string};
-  }
-  return std::string{"SELECT 1"};
-}
 
 std::string getFilterStatement(GenericFilter filter) {
-  if (filter.type == FilterTypes::STANDARD) {
-    return std::string{std::get<0>(filter.comparison) +
-                       std::get<1>(filter.comparison) +
-                       std::get<2>(filter.comparison)};
-  } else if (filter.type == FilterTypes::COMPARISON) {
-    return std::string{std::get<0>(filter.comparison) + " BETWEEN " +
-                       std::get<1>(filter.comparison) + " AND " +
-                       std::get<2>(filter.comparison)};
+  if (filter.type == FilterTypes::COMPARISON) {
+    return std::string{filter.a + " BETWEEN " +
+                       filter.b + " AND " +
+                       filter.comparison};
+  } else {
+    return std::string{filter.a + filter.comparison + filter.b};
   }
 }
 
-std::string selectStatement(MultiFilterSelect query) {
-  if (!query.filters.empty()) {
-    size_t index = 0;
-    std::string filter_string{"WHERE "};
-    std::string delim{""};
-    for (const auto &filter : query.filters) {
-      std::string filter_statement = getFilterStatement(filter);
-      filter_string += delim + filter_statement;
-      delim = " AND ";
-    }
-    return {"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table +
-            " " + filter_string};
-  }
-  return std::string{"SELECT 1"};
-}
-
-std::string selectStatement(ComparisonBetweenSelectQuery query) {
+template <typename T>
+std::string selectStatement(T query) {
+  std::string delim{""};
+  std::string filter_string{"WHERE "};
+  size_t index = 0;
   if (!query.filter.empty()) {
-    if (query.filter.size() > 1) {
-      // We do not curently support multiple comparisons in a single query
-      return std::string{"SELECT 1"};
+    if constexpr (std::is_same_v<T, Query>) {
+      if (query.filter.size() > 1 &&
+          query.filter.at(0).first == query.filter.at(1).first) {
+        filter_string += query.filter.at(0).first + " in (";
+        for (const auto &filter_pair : query.filter) {
+          filter_string += delim + filter_pair.second;
+          delim = ",";
+        }
+        return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
+                          query.table + " " + filter_string + ")"};
+      }
+      for (const auto &filter_pair : query.filter) {
+        filter_string +=
+            delim + filter_pair.first + "='" + filter_pair.second + "'";
+        delim = " AND ";
+      }
+      return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
+                        query.table + " " + filter_string};
+    } else if constexpr (std::is_same_v<T, DatabaseQuery>) {
+      if (query.filter.size() > 1 &&
+          query.filter.at(0).first == query.filter.at(1).first) {
+        filter_string += query.filter.at(0).first + " in (";
+        for (const auto &filter_pair : query.filter) {
+          filter_string += delim + filter_pair.second;
+          delim = ",";
+        }
+        return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
+                          query.table + " " + filter_string + ")"};
+      }
+      for (const auto &filter_pair : query.filter) {
+        filter_string +=
+            delim + filter_pair.first + "='" + filter_pair.second + "'";
+        delim = " AND ";
+      }
+      return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
+                        query.table + " " + filter_string};
+    } else if constexpr (std::is_same_v<T, ComparisonSelectQuery>) {
+      if (query.filter.size() > 1) {
+        // We do not curently support multiple comparisons in a single query
+        return std::string{"SELECT 1"};
+      }
+      for (const auto &filter_tup : query.filter) {
+        filter_string += delim + std::get<0>(filter_tup) +
+                          std::get<1>(filter_tup) + std::get<2>(filter_tup);
+        delim = " AND ";
+      }
+      return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
+                      query.table + " " + filter_string};
+    } else if constexpr (std::is_same_v<T, ComparisonBetweenSelectQuery>) {
+      if (query.filter.size() > 1) {
+        // We do not curently support multiple comparisons in a single query
+        return std::string{"SELECT 1"};
+      }
+      for (const auto &filter : query.filter) {
+        filter_string += delim + getFilterStatement(filter);
+      }
+      return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
+                        query.table + " " + filter_string};
+    } else if constexpr (std::is_same_v<T, MultiFilterSelect>) {
+      for (const auto &filter : query.filter) {
+        filter_string += delim + getFilterStatement(filter);
+        delim = " AND ";
+      }
+      return {"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table +
+              " " + filter_string};
     }
-    size_t index = 0;
-    std::string filter_string{"WHERE "};
-    std::string delim{""};
-    for (const auto &filter_tup : query.filter) {
-      filter_string += delim + std::get<0>(filter_tup) + " BETWEEN " +
-                       std::get<1>(filter_tup) + " AND " +
-                       std::get<2>(filter_tup);
-      //  + "'";
-    }
+  } else {
     return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
-                       query.table + " " + filter_string};
+                    query.table};
   }
-  return std::string{"SELECT 1"};
 }
-
-// TODO: Update query
-// TODO: Filtering
 
 DatabaseConnection::DatabaseConnection() {}
 
@@ -244,7 +208,8 @@ pqxx::result DatabaseConnection::performUpdate(UpdateReturnQuery query,
   return pqxx_result;
 }
 
-pqxx::result DatabaseConnection::performSelect(DatabaseQuery query) {
+template <typename T>
+pqxx::result DatabaseConnection::performSelect(T query) {
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
   pqxx::result pqxx_result = worker.exec(selectStatement(query));
@@ -252,36 +217,6 @@ pqxx::result DatabaseConnection::performSelect(DatabaseQuery query) {
 
   return pqxx_result;
 }
-
-pqxx::result DatabaseConnection::performSelect(ComparisonSelectQuery query) {
-  pqxx::connection connection(getConnectionString().c_str());
-  pqxx::work worker(connection);
-  pqxx::result pqxx_result = worker.exec(selectStatement(query));
-  worker.commit();
-
-  return pqxx_result;
-}
-
-pqxx::result DatabaseConnection::performSelect(
-    ComparisonBetweenSelectQuery query) {
-  pqxx::connection connection(getConnectionString().c_str());
-  pqxx::work worker(connection);
-  pqxx::result pqxx_result = worker.exec(selectStatement(query));
-  worker.commit();
-
-  return pqxx_result;
-}
-
-pqxx::result DatabaseConnection::performSelect(MultiFilterSelect query) {
-  pqxx::connection connection(getConnectionString().c_str());
-  pqxx::work worker(connection);
-  pqxx::result pqxx_result = worker.exec(selectStatement(query));
-  worker.commit();
-
-  return pqxx_result;
-}
-
-// std::string DatabaseConnection::getDbName(){return }
 
 std::string DatabaseConnection::getConnectionString() {
   std::string connectionString{};
@@ -312,10 +247,8 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
     }
     case QueryType::SELECT: {
       pqxx::result pqxx_result = performSelect(query);
-
       QueryResult result{};
       result.table = query.table;
-
       auto count = query.fields.size();
 
       for (auto row : pqxx_result) {
@@ -335,7 +268,6 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
 
     case QueryType::DELETE: {
       std::stringstream query_stream{};
-
       query_stream << " " << query.table << " VALUES (\"test\")";
       QueryResult result{};
       return result;
@@ -346,10 +278,8 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
 
 QueryResult DatabaseConnection::query(ComparisonSelectQuery query) {
   pqxx::result pqxx_result = performSelect(query);
-
   QueryResult result{};
   result.table = query.table;
-
   auto count = query.fields.size();
 
   for (auto row : pqxx_result) {
@@ -369,10 +299,8 @@ QueryResult DatabaseConnection::query(ComparisonSelectQuery query) {
 
 QueryResult DatabaseConnection::query(MultiFilterSelect query) {
   pqxx::result pqxx_result = performSelect(query);
-
   QueryResult result{};
   result.table = query.table;
-
   auto count = query.fields.size();
 
   for (auto row : pqxx_result) {
@@ -392,10 +320,8 @@ QueryResult DatabaseConnection::query(MultiFilterSelect query) {
 
 QueryResult DatabaseConnection::query(ComparisonBetweenSelectQuery query) {
   pqxx::result pqxx_result = performSelect(query);
-
   QueryResult result{};
   result.table = query.table;
-
   auto count = query.fields.size();
 
   for (auto row : pqxx_result) {
