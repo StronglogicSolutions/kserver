@@ -105,6 +105,18 @@ class KServer : public SocketListener {
         }
         break;
       }
+      case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
+        KLOG->info("KServer::systemEventNotify() - Task successfully scheduled");
+        if (client_socket_fd == -1) {
+          for (const auto &session : m_sessions) {
+            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
+            sendEvent(session.fd, "Task Scheduled", args);
+          }
+        } else {
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+          sendEvent(client_socket_fd, "Task Scheduled", args);
+        }
+      }
       case SYSTEM_EVENTS__FILE_UPDATE: {
         // incoming file has new information, such as a filename to be
         // assigned to it
@@ -366,9 +378,10 @@ class KServer : public SocketListener {
   }
 
   void handleSchedule(std::vector<std::string> task, int client_socket_fd) {
-    m_request_handler("Schedule", task, client_socket_fd,
-                      uuids::to_string(uuids::uuid_system_generator{}()));
+    auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
+    m_request_handler("Schedule", task, client_socket_fd, uuid);
     KLOG->info("KServer::handleSchedule() - Task delivered to request handler");
+    sendEvent(client_socket_fd, "Processing Request", {"Schedule Task", uuid});
   }
 
   /**
