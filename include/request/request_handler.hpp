@@ -181,9 +181,9 @@ class RequestHandler {
 
   Executor::Scheduler* getScheduler() {
     return new Executor::Scheduler{
-        [this](std::string result, int mask, int id, int client_socket_fd) {
-          onScheduledTaskComplete(result, mask, std::to_string(id),
-                                  client_socket_fd);
+        [this](std::string result, int mask, int id, int client_socket_fd, std::vector<std::string> args) {
+          onSchedulerEvent(result, mask, std::to_string(id),
+                                  client_socket_fd, args);
         }};
   }
 
@@ -205,19 +205,23 @@ class RequestHandler {
       int client_socket_fd = -1;
       std::vector<Executor::Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
+        std::string scheduled_times{"Scheduled time(s): "};
         KLOG->info("There are tasks to be reviewed");
         for (const auto &task : tasks) {
+          auto formatted_time = TimeUtils::format_timestamp(task.datetime);
+          scheduled_times += formatted_time;
+          scheduled_times += " ";
           KLOG->info(
-              "Task info: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
+              "Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
               "Flags",
-              task.datetime, std::to_string(task.execution_mask),
+              formatted_time, std::to_string(task.execution_mask),
               task.file ? "hasFile(s)" : "", task.envfile);
         }
         std::string tasks_message = std::to_string(tasks.size());
-        tasks_message += " tasks scheduled to run in the next 15 minutes";
+        tasks_message += " tasks need to be executed";
         m_system_callback_fn(client_socket_fd,
                              SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
-                             {tasks_message});
+                             {tasks_message, scheduled_times});
 
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end()) {
@@ -534,30 +538,37 @@ class RequestHandler {
    * in the DB
    * @param[in] <int>         `client_socket_fd`  The file descriptor of the
    * client requesting the task
+   *
+   * TODO: We need to move away from sending process execution results via the scheduler's callback, and only use this to inform of scheduling events. Process execution results should come from the ProcessExecutor and its respective callback.
    */
 
-  void onScheduledTaskComplete(std::string value, int mask, std::string id,
-                               int client_socket_fd) {
-    KLOG->info(
+  void onSchedulerEvent(std::string value, int mask, std::string id,
+                               int client_socket_fd, std::vector<std::string> args = {}) {
+    if (args.empty()) {
+      KLOG->info(
         "RequestHandler::onScheduledTaskComplete() - Task complete "
         "notification "
         "for client {}'s task {}",
         client_socket_fd, id);
 
-    std::map<int, std::vector<Executor::Task>>::iterator it =
-        m_tasks_map.find(client_socket_fd);
-    if (it != m_tasks_map.end()) {
-      auto task_it = std::find_if(
-          it->second.begin(), it->second.end(),
-          [id](Executor::Task task) { return task.id == std::stoi(id); });
-      if (task_it != it->second.end()) {
-        KLOG->info(
-            "RequestHandler::onScheduledTaskComplete() - removing completed "
-            "task from memory");
-        it->second.erase(task_it);
+      std::map<int, std::vector<Executor::Task>>::iterator it =
+          m_tasks_map.find(client_socket_fd);
+      if (it != m_tasks_map.end()) {
+        auto task_it = std::find_if(
+            it->second.begin(), it->second.end(),
+            [id](Executor::Task task) { return task.id == std::stoi(id); });
+        if (task_it != it->second.end()) {
+          KLOG->info(
+              "RequestHandler::onScheduledTaskComplete() - removing completed "
+              "task from memory");
+          it->second.erase(task_it);
+        }
       }
+      m_event_callback_fn(value, mask, id, client_socket_fd);
+    } else {
+      m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, args);
     }
-    m_event_callback_fn(value, mask, id, client_socket_fd);
+
   }
 
   /**
