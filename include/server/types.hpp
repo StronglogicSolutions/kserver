@@ -22,7 +22,8 @@ void MessageHandler(MessageProcessor processor, int client_socket_fd,
 static const int SYSTEM_EVENTS__FILE_UPDATE = 1;
 static const int SYSTEM_EVENTS__SCHEDULED_TASKS_READY = 2;
 static const int SYSTEM_EVENTS__SCHEDULED_TASKS_NONE = 3;
-static const int SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 4;
+static const int SYSTEM_EVENTS__SCHEDULER_SUCCESS = 4;
+static const int SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 5;
 
 /**
  * FILE HANDLING STATES
