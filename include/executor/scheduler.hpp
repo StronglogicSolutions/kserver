@@ -14,7 +14,7 @@
 
 namespace Executor {
 
-typedef std::function<void(std::string, int, int, int)> EventCallback;
+typedef std::function<void(std::string, int, int, int, std::vector<std::string>)> EventCallback;
 
 struct Task {
   int execution_mask;
@@ -62,10 +62,11 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
                    {task.datetime, std::to_string(task.execution_mask),
                     task.execution_flags, task.envfile},
                    "id");
-    KLOG->info("Request to schedule task was {}\nID {}",
-               !insert_id.empty() ? "Accepted" : "Rejected", insert_id);
+    auto result = !insert_id.empty();
 
     if (!insert_id.empty()) {
+      KLOG->info("Request to schedule task was accepted\nID {}", insert_id);
+      m_event_callback("", -1, 0, 0, {"Schedule Task", "Success", std::to_string(task.id), std::to_string(task.files.size())});
       for (const auto &file : task.files) {
         KLOG->info("Recording file in DB: {}", file.first);
         kdb.insert("file", {"name", "sid"}, {file.first, insert_id});
@@ -105,7 +106,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       }
       // TODO: We need to discriminate success and failure
       if (m_event_callback != nullptr) {
-        m_event_callback(value, mask, id, client_fd);
+        m_event_callback(value, mask, id, client_fd, {});
       }
     }
   }
@@ -155,13 +156,13 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
   virtual std::vector<Task> fetchTasks() {
     Database::KDB kdb{};  // get DB
-    std::string current_timestamp = std::to_string(TimeUtils::unixtime());
-    std::string future_15_minute_timestamp =
-        std::to_string(TimeUtils::unixtime() + 900);
+    std::string past_15_minute_timestamp = std::to_string(TimeUtils::unixtime() - 900);
+    std::string future_5_minute_timestamp =
+        std::to_string(TimeUtils::unixtime() + 300);
     return parseTasks(kdb.selectMultiFilter(
         "schedule",                                  // table
         {"id", "time", "mask", "flags", "envfile"},  // fields
-        {CompFilter{"time", std::move(current_timestamp), std::move(future_15_minute_timestamp)},
+        {CompFilter{"time", std::move(past_15_minute_timestamp), std::move(future_5_minute_timestamp)},
           GenericFilter{"completed", "=", "false"}}));
   }
 
