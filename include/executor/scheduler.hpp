@@ -12,9 +12,9 @@
 #include <string>
 #include <vector>
 
-namespace Executor {
+namespace Scheduler {
 
-typedef std::function<void(std::string, int, int, int, std::vector<std::string>)> EventCallback;
+typedef std::function<void(std::string, int, int, int, std::vector<std::string>)> ScheduleEventCallback;
 
 struct Task {
   int execution_mask;
@@ -26,7 +26,6 @@ struct Task {
   int id = 0;
 };
 
-namespace {
 class DeferInterface {
  public:
   virtual void schedule(Task task) = 0;
@@ -35,9 +34,6 @@ class DeferInterface {
 class CalendarManagerInterface {
  public:
   virtual std::vector<Task> fetchTasks() = 0;
-
- private:
-  virtual void executeTask(int client_id, Task task) = 0;
 };
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
@@ -45,11 +41,13 @@ auto KLOG = KLogger::GetInstance() -> get_logger();
 class Scheduler : public DeferInterface, CalendarManagerInterface {
  public:
   Scheduler() {}
-  Scheduler(EventCallback fn) : m_event_callback(fn) {
+  Scheduler(ScheduleEventCallback fn) : m_event_callback(fn) {
     if (!ConfigParser::initConfig()) {
       KLOG->info("Unable to load config");
     }
   }
+
+  // TODO: Implement move / copy constructor
 
   ~Scheduler() { KLOG->info("Scheduler destroyed"); }
 
@@ -66,47 +64,10 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
     if (!insert_id.empty()) {
       KLOG->info("Request to schedule task was accepted\nID {}", insert_id);
-      m_event_callback("", -1, 0, 0, {"Schedule Task", "Success", std::to_string(task.id), std::to_string(task.files.size())});
+      m_event_callback("", task.execution_mask, task.id, -1, {"Schedule Task", "Success", std::to_string(task.id), std::to_string(task.files.size())});
       for (const auto &file : task.files) {
         KLOG->info("Recording file in DB: {}", file.first);
         kdb.insert("file", {"name", "sid"}, {file.first, insert_id});
-      }
-    }
-  }
-
-  static KApplication getAppInfo(int mask) {
-    Database::KDB kdb{};
-    KApplication k_app{};
-    QueryValues values = kdb.select("apps", {"path", "data", "name"},
-                                    {{"mask", std::to_string(mask)}});
-
-    for (const auto &value_pair : values) {
-      if (value_pair.first == "path") {
-        k_app.path = value_pair.second;
-      } else if (value_pair.first == "data") {
-        k_app.data = value_pair.second;
-      } else if (value_pair.first == "name") {
-        k_app.name = value_pair.second;
-      }
-    }
-    return k_app;
-  }
-
-  void onProcessComplete(std::string value, int mask, int id, int client_fd) {
-    KLOG->info("Value returned from process:\n{}", value);
-
-    if (true) {  // if success - how do we determine this from the output?
-      Database::KDB kdb{};
-
-      QueryFilter filter{{"id", std::to_string(id)}};
-      std::string result = kdb.update("schedule", {"completed"}, {"true"}, filter, "id");
-
-      if (!result.empty()) {
-        KLOG->info("Updated task {} to reflect its completion", result);
-      }
-      // TODO: We need to discriminate success and failure
-      if (m_event_callback != nullptr) {
-        m_event_callback(value, mask, id, client_fd, {});
       }
     }
   }
@@ -166,32 +127,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           GenericFilter{"completed", "=", "false"}}));
   }
 
-  virtual void executeTask(int client_socket_fd, Task task) {
-    KLOG->info("Executing task");
-    KApplication app_info = getAppInfo(task.execution_mask);
-    auto is_ready_to_execute = std::stoi(task.datetime) > 0;  // if close to now
-    auto flags = task.execution_flags;
-    auto envfile = task.envfile;
-
-    if (is_ready_to_execute) {
-      ProcessExecutor executor{};
-      executor.setEventCallback(
-          [this, task](std::string result, int mask, int client_socket_fd) {
-            onProcessComplete(result, mask, task.id, client_socket_fd);
-          });
-
-      std::string id_value{std::to_string(task.id)};
-
-      executor.request(ConfigParser::getExecutorScript(), task.execution_mask,
-                       client_socket_fd, {id_value});
-    }
-  }
-
  private:
-  EventCallback m_event_callback;
+  ScheduleEventCallback m_event_callback;
 };
-
-}  // namespace
-}  // namespace Executor
+}  // namespace Scheduler
 
 #endif  // __SCHEDULER_HPP__
