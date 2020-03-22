@@ -60,9 +60,10 @@ std::string get_cwd() {
 }
 
 std::string get_executable_cwd() {
-  char *working_dir_path = realpath("/proc/self/exe", NULL);
-  std::string_view executable_path{working_dir_path};
-  return std::string{executable_path.begin(), executable_path.end() - (APP_NAME_LENGTH + 1)};
+  std::string full_path{realpath("/proc/self/exe", NULL)};
+  auto return_value = full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
+  std::cout << return_value << std::endl;
+  return return_value;
 }
 
 int findIndexAfter(std::string s, int pos, char c) {
@@ -490,15 +491,9 @@ void saveFile(std::vector<char> bytes, const char *filename) {
 }
 
 void saveFile(uint8_t *bytes, int size, std::string filename) {
-  std::cout << "Filename: " << filename << std::endl;
   std::ofstream output(filename.c_str(),
                        std::ios::binary | std::ios::out | std::ios::app);
-  std::cout << "FileUtils::saveFile() - FIRST TWO :: " << std::hex
-            << int(+bytes[0]) << std::hex << int(+bytes[1]) << std::endl;
-
   for (int i = 0; i < size; i++) {
-    // std::cout << "WRITING" << std::hex << int(+bytes[i]) << std::endl;
-
     output.write((const char *)(&bytes[i]), 1);
   }
   output.close();
@@ -514,6 +509,7 @@ std::string saveEnvFile(std::string env_file_string, std::string uuid) {
 
 bool createTaskDirectory(std::string uuid) {
   std::string directory_name{get_executable_cwd() + "/data/" + uuid};
+  std::cout << directory_name << std::endl;
   return createDirectory(directory_name.c_str());
 }
 }  // namespace FileUtils
