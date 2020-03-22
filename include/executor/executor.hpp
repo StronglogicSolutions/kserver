@@ -13,6 +13,11 @@ namespace Executor {
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
 
+enum ExecutionRequestType {
+  IMMEDIATE = 0,
+  SCHEDULED = 1
+};
+
 /** Function Types */
 typedef std::function<void(std::string, int, int)> ProcessEventCallback;
 typedef std::function<void(std::string, int, std::string, int)>
@@ -23,8 +28,8 @@ class ProcessManager {
   virtual void request(std::string_view path, int mask, int client_id,
                        std::vector<std::string> argv) = 0;
   virtual void request(std::string_view path, int mask, int client_id,
-                       std::string request_id,
-                       std::vector<std::string> argv, bool is_scheduled_task) = 0;
+                       std::string id,
+                       std::vector<std::string> argv, ExecutionRequestType type) = 0;
 
   virtual void setEventCallback(ProcessEventCallback callback_function) = 0;
   virtual void setEventCallback(TrackedEventCallback callback_function) = 0;
@@ -32,7 +37,7 @@ class ProcessManager {
   virtual void notifyProcessEvent(std::string status, int mask,
                                   int client_id) = 0;
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
-                                         std::string request_id,
+                                         std::string id,
                                          int client_id) = 0;
 };
 
@@ -124,9 +129,9 @@ class ProcessExecutor : public ProcessManager {
     m_callback(status, mask, client_socket_fd);
   }
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
-                                         std::string request_id,
+                                         std::string id,
                                          int client_socket_fd) override {
-    m_tracked_callback(status, mask, request_id, client_socket_fd);
+    m_tracked_callback(status, mask, id, client_socket_fd);
   }
 
   /* Request execution of an anonymous task */
@@ -143,18 +148,18 @@ class ProcessExecutor : public ProcessManager {
   }
   /** Request the running of a process being tracked with an ID */
   virtual void request(std::string_view path, int mask, int client_socket_fd,
-                       std::string request_id,
-                       std::vector<std::string> argv, bool scheduled_task) override {
+                       std::string id,
+                       std::vector<std::string> argv, ExecutionRequestType type) override {
     if (path[0] != '\0') {
       ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
       auto process_std_out = pd_ptr->run();
       if (!process_std_out.empty()) {
-        notifyTrackedProcessEvent(process_std_out, mask, request_id,
+        notifyTrackedProcessEvent(process_std_out, mask, id,
                                   client_socket_fd);
-        if (scheduled_task) {
+        if (type == ExecutionRequestType::SCHEDULED) {
           Database::KDB kdb{};
 
-          QueryFilter filter{{"id", request_id}};
+          QueryFilter filter{{"id", id}};
           std::string result = kdb.update("schedule", {"completed"}, {"true"}, filter, "id");
 
           if (!result.empty()) {
@@ -174,10 +179,10 @@ class ProcessExecutor : public ProcessManager {
     auto envfile = task.envfile;
 
     if (is_ready_to_execute) {
-      std::string id_value{std::to_string(task.id)};
+      std::string id{std::to_string(task.id)};
 
       request(ConfigParser::getExecutorScript(), task.execution_mask,
-                       client_socket_fd, id_value, {id_value}, true);
+                       client_socket_fd, id, {id}, ExecutionRequestType::SCHEDULED);
     }
   }
 

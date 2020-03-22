@@ -14,7 +14,7 @@
 
 namespace Scheduler {
 
-typedef std::function<void(std::string, int, int, int, std::vector<std::string>)> ScheduleEventCallback;
+typedef std::function<void(std::string, int, int, std::vector<std::string>)> ScheduleEventCallback;
 
 struct Task {
   int execution_mask;
@@ -24,11 +24,16 @@ struct Task {
   std::string envfile;
   std::string execution_flags;
   int id = 0;
+
+  bool validate() {
+    return execution_mask > 0 && !datetime.empty() && !envfile.empty() && !execution_flags.empty();
+  }
+
 };
 
 class DeferInterface {
  public:
-  virtual void schedule(Task task) = 0;
+  virtual std::string schedule(Task task) = 0;
 };
 
 class CalendarManagerInterface {
@@ -51,25 +56,25 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
   ~Scheduler() { KLOG->info("Scheduler destroyed"); }
 
-  virtual void schedule(Task task) {
+  virtual std::string schedule(Task task) {
     // verify and put in database
     Database::KDB kdb{};
 
-    std::string insert_id =
+    std::string id =
         kdb.insert("schedule", {"time", "mask", "flags", "envfile"},
                    {task.datetime, std::to_string(task.execution_mask),
                     task.execution_flags, task.envfile},
                    "id");
-    auto result = !insert_id.empty();
+    auto result = !id.empty();
 
-    if (!insert_id.empty()) {
-      KLOG->info("Request to schedule task was accepted\nID {}", insert_id);
-      m_event_callback("", task.execution_mask, task.id, -1, {"Schedule Task", "Success", std::to_string(task.id), std::to_string(task.files.size())});
+    if (!id.empty()) {
+      KLOG->info("Request to schedule task was accepted\nID {}", id);
       for (const auto &file : task.files) {
         KLOG->info("Recording file in DB: {}", file.first);
-        kdb.insert("file", {"name", "sid"}, {file.first, insert_id});
+        kdb.insert("file", {"name", "sid"}, {file.first, id});
       }
     }
+    return id;
   }
 
   std::vector<Task> parseTasks(QueryValues&& result) {

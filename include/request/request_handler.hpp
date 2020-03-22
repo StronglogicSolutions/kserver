@@ -181,9 +181,8 @@ class RequestHandler {
 
   Scheduler::Scheduler* getScheduler() {
     return new Scheduler::Scheduler{
-        [this](std::string result, int mask, int id, int client_socket_fd, std::vector<std::string> args) {
-          onSchedulerEvent(result, mask, std::to_string(id),
-                                  client_socket_fd, args);
+        [this](std::string id, int client_socket_fd, int event, std::vector<std::string> args) {
+          onSchedulerEvent(id, client_socket_fd, event, args);
         }};
   }
 
@@ -343,10 +342,9 @@ class RequestHandler {
       }
       if (!path.empty() && !name.empty()) {
         if (name == "Instagram") {
-          KLOG->info("RequestHandler:: Instagram task");
+          KLOG->info("RequestHandler - New Instagram Task requested");
           Scheduler::Task task = Task::IGTaskHandler::prepareTask(argv, uuid);
           auto num = task.files.size();
-          std::cout << "Task file num: " << num << std::endl;
           auto file_index = 0;
           for (const auto &file_info : task.files) {
             std::cout << "task file: " << file_info.first << std::endl;
@@ -358,15 +356,21 @@ class RequestHandler {
             m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
                                  callback_args);
           }
-          auto validate = true;  // TODO: Replace this with actual validation
-          if (validate) {
+
+          if (task.validate()) {
             KLOG->info("Sending task request to Scheduler");
-            m_scheduler->schedule(task);
+            auto id = m_scheduler->schedule(task);
+            if(!id.empty()) {
+              m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, {
+                uuid, id, std::to_string(num)
+              });
+              return "Operation succeeded";
+            }
           }
         }
       }
+      return std::string{"Operation failed"};
     }
-    return std::string{"Operation failed"};
   }
 
   /**
@@ -494,7 +498,7 @@ class RequestHandler {
 
     for (const auto &row : result.values) {
       KLOG->info("Field: {}, Value: {}", row.first, row.second);
-      m_executor->request(row.second, mask, client_socket_fd, request_id, {}, false);
+      m_executor->request(row.second, mask, client_socket_fd, request_id, {}, Executor::ExecutionRequestType::IMMEDIATE);
     }
     std::string info_string{
         "RequestHandler:: PROCESS RUNNER - Process execution requested for "
@@ -564,15 +568,16 @@ class RequestHandler {
    * the process
    * @param[in] <std::string> `id`                The task ID as it is tracked
    * in the DB
+   * @param[in] <int>         `event`             The type of event
+   *
    * @param[in] <int>         `client_socket_fd`  The file descriptor of the
    * client requesting the task
    *
    * TODO: We need to move away from sending process execution results via the scheduler's callback, and only use this to inform of scheduling events. Process execution results should come from the ProcessExecutor and its respective callback.
    */
 
-  void onSchedulerEvent(std::string value, int mask, std::string id,
-                               int client_socket_fd, std::vector<std::string> args = {}) {
-    m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, args);
+  void onSchedulerEvent(std::string id, int client_socket_fd, int event, std::vector<std::string> args = {}) {
+    m_system_callback_fn(client_socket_fd, event, args);
   }
 
   /**

@@ -438,7 +438,7 @@ class KServer : public SocketListener {
           .leftMap([this, client_socket_fd](auto decoded_message) {
             if (isPing(decoded_message)) {
               KLOG->info("Client {} - keepAlive", client_socket_fd);
-              sendMessage(client_socket_fd, PONG.c_str(), PONG.size());
+              sendMessage(client_socket_fd, PONG, PONG_SIZE);
               return decoded_message;
             }
             std::string json_message = getJsonString(decoded_message);
