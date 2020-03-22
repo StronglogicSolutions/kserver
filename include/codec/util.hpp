@@ -15,7 +15,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <time.h>
+#include <ctime>
 
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
@@ -567,16 +567,16 @@ std::string_view format_timestamp(int unixtime) {
   char       buf[80];
   const std::time_t time = static_cast<std::time_t>(unixtime);
   struct tm ts = *localtime(&time);
-  strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
-  return std::string_view{buf};
+  std::strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
+  return std::string{buf};
 }
 
-std::string_view format_timestamp(std::string unixtime) {
+std::string format_timestamp(std::string unixtime) {
   char       buf[80];
   const std::time_t time = static_cast<std::time_t>(stoi(unixtime));
   struct tm ts = *localtime(&time);
-  strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
-  return std::string_view{buf};
+  std::strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
+  return std::string{buf};
 }
 }  // namespace TimeUtils
 
