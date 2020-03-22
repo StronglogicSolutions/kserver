@@ -153,8 +153,8 @@ class RequestHandler {
       std::function<void(std::string, int, std::string, int)> event_callback_fn,
       std::function<void(int, int, std::vector<std::string>)>
           system_callback_fn,
-      std::function<void(int, std::vector<Executor::Task>)> task_callback_fn) {
-    m_executor = new ProcessExecutor();
+      std::function<void(int, std::vector<Scheduler::Task>)> task_callback_fn) {
+    m_executor = new Executor::ProcessExecutor();
     m_scheduler = getScheduler();
     m_executor->setEventCallback([this](std::string result, int mask,
                                         std::string request_id,
@@ -179,8 +179,8 @@ class RequestHandler {
     }
   }
 
-  Executor::Scheduler* getScheduler() {
-    return new Executor::Scheduler{
+  Scheduler::Scheduler* getScheduler() {
+    return new Scheduler::Scheduler{
         [this](std::string result, int mask, int id, int client_socket_fd, std::vector<std::string> args) {
           onSchedulerEvent(result, mask, std::to_string(id),
                                   client_socket_fd, args);
@@ -203,13 +203,14 @@ class RequestHandler {
                                       [this]() { return !handling_data; });
       KLOG->info("RequestHandler::maintenanceLoop() - condition met");
       int client_socket_fd = -1;
-      std::vector<Executor::Task> tasks = m_scheduler->fetchTasks();
+      std::vector<Scheduler::Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
         std::string scheduled_times{"Scheduled time(s): "};
         KLOG->info("There are tasks to be reviewed");
         for (const auto &task : tasks) {
           auto formatted_time = TimeUtils::format_timestamp(task.datetime);
-          scheduled_times += formatted_time;
+          std::cout << formatted_time << std::endl;
+          scheduled_times.append(formatted_time);
           scheduled_times += " ";
           KLOG->info(
               "Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
@@ -225,7 +226,7 @@ class RequestHandler {
 
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end()) {
-          m_tasks_map.insert(std::pair<int, std::vector<Executor::Task>>(
+          m_tasks_map.insert(std::pair<int, std::vector<Scheduler::Task>>(
               client_socket_fd, tasks));
         } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
@@ -272,16 +273,22 @@ class RequestHandler {
    */
   bool handlePendingTasks() {
     KLOG->info("RequestHandler::maintenanceLoop() - Running scheduled tasks");
-    Executor::Scheduler* scheduler = getScheduler();
+    Scheduler::Scheduler* scheduler = getScheduler();
     if (!m_tasks_map.empty()) {
+      Executor::ProcessExecutor executor{};
+      bool is_scheduled_task = true;
+      executor.setEventCallback(
+          [this, is_scheduled_task](std::string result, int mask, std::string id, int client_socket_fd) {
+            onProcessComplete(result, mask, id, client_socket_fd, is_scheduled_task);
+          });
+
       std::vector<std::future<void>> futures{};
       futures.reserve(m_tasks_map.size() * m_tasks_map.begin()->second.size());
-      for (const auto &client_tasks : m_tasks_map) {
+      for (const auto& client_tasks : m_tasks_map) {
         if (!client_tasks.second.empty()) {
-          for (const auto &task : client_tasks.second) {
-            futures.push_back(std::async(std::launch::async,
-                                         &Executor::Scheduler::executeTask,
-                                         scheduler, client_tasks.first, task));
+          for (const auto& task : client_tasks.second) {
+            futures.push_back(std::async(std::launch::deferred,
+              &Executor::ProcessExecutor::executeTask, std::ref(executor), client_tasks.first, task));
           }
         }
       }
@@ -337,7 +344,7 @@ class RequestHandler {
       if (!path.empty() && !name.empty()) {
         if (name == "Instagram") {
           KLOG->info("RequestHandler:: Instagram task");
-          Executor::Task task = Task::IGTaskHandler::prepareTask(argv, uuid);
+          Scheduler::Task task = Task::IGTaskHandler::prepareTask(argv, uuid);
           auto num = task.files.size();
           std::cout << "Task file num: " << num << std::endl;
           auto file_index = 0;
@@ -383,7 +390,7 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      std::vector<Executor::Task> tasks = m_scheduler->fetchTasks();
+      std::vector<Scheduler::Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
         KLOG->info("There are tasks to be reviewed");
         for (const auto &task : tasks) {
@@ -401,10 +408,10 @@ class RequestHandler {
                              {tasks_message});
         // We need to inform the client of available tasks, and let them decide
         // if a task should be executed.
-        m_scheduler->executeTask(client_socket_fd, tasks.at(0));
+        m_executor->executeTask(client_socket_fd, tasks.at(0));
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end()) {
-          m_tasks_map.insert(std::pair<int, std::vector<Executor::Task>>(
+          m_tasks_map.insert(std::pair<int, std::vector<Scheduler::Task>>(
               client_socket_fd, tasks));
         } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
@@ -487,7 +494,7 @@ class RequestHandler {
 
     for (const auto &row : result.values) {
       KLOG->info("Field: {}, Value: {}", row.first, row.second);
-      m_executor->request(row.second, mask, client_socket_fd, request_id, {});
+      m_executor->request(row.second, mask, client_socket_fd, request_id, {}, false);
     }
     std::string info_string{
         "RequestHandler:: PROCESS RUNNER - Process execution requested for "
@@ -509,18 +516,39 @@ class RequestHandler {
    * executed process
    * @param[in] <int> `mask`               The bitmask associated with the
    * process
-   * @param[in] <std::string> `request_id` The request ID for the process
+   * @param[in] <std::string> `id`         The request ID for the process
    * @param[in] <int> `client_socket_fd`   The file descriptor for the client
    * who made the request
    *
    */
-  void onProcessComplete(std::string value, int mask, std::string request_id,
-                         int client_socket_fd) {
+  void onProcessComplete(std::string value, int mask, std::string id,
+                         int client_socket_fd, bool scheduled_task = false) {
     KLOG->info(
         "RequestHandler::onProcessComplete() - Process complete notification "
         "for client {}'s request {}",
-        client_socket_fd, request_id);
-    m_event_callback_fn(value, mask, request_id, client_socket_fd);
+        client_socket_fd, id);
+    m_event_callback_fn(value, mask, id, client_socket_fd);
+    if (scheduled_task) {
+      KLOG->info(
+        "RequestHandler::onScheduledTaskComplete() - Task complete "
+        "notification "
+        "for client {}'s task {}",
+        client_socket_fd, id);
+
+      std::map<int, std::vector<Scheduler::Task>>::iterator it =
+          m_tasks_map.find(client_socket_fd);
+      if (it != m_tasks_map.end()) {
+        auto task_it = std::find_if(
+            it->second.begin(), it->second.end(),
+            [id](Scheduler::Task task) { return task.id == std::stoi(id); });
+        if (task_it != it->second.end()) {
+          KLOG->info(
+              "RequestHandler::onProcessComplete() - removing completed "
+              "task from memory");
+          it->second.erase(task_it);
+        }
+      }
+    }
   }
   /**
    * onScheduledTaskComplete
@@ -544,31 +572,7 @@ class RequestHandler {
 
   void onSchedulerEvent(std::string value, int mask, std::string id,
                                int client_socket_fd, std::vector<std::string> args = {}) {
-    if (args.empty()) {
-      KLOG->info(
-        "RequestHandler::onScheduledTaskComplete() - Task complete "
-        "notification "
-        "for client {}'s task {}",
-        client_socket_fd, id);
-
-      std::map<int, std::vector<Executor::Task>>::iterator it =
-          m_tasks_map.find(client_socket_fd);
-      if (it != m_tasks_map.end()) {
-        auto task_it = std::find_if(
-            it->second.begin(), it->second.end(),
-            [id](Executor::Task task) { return task.id == std::stoi(id); });
-        if (task_it != it->second.end()) {
-          KLOG->info(
-              "RequestHandler::onScheduledTaskComplete() - removing completed "
-              "task from memory");
-          it->second.erase(task_it);
-        }
-      }
-      m_event_callback_fn(value, mask, id, client_socket_fd);
-    } else {
-      m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, args);
-    }
-
+    m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, args);
   }
 
   /**
@@ -576,15 +580,15 @@ class RequestHandler {
    */
   std::function<void(std::string, int, std::string, int)> m_event_callback_fn;
   std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
-  std::function<void(int, std::vector<Executor::Task>)> m_task_callback_fn;
+  std::function<void(int, std::vector<Scheduler::Task>)> m_task_callback_fn;
 
-  std::map<int, std::vector<Executor::Task>> m_tasks_map;
+  std::map<int, std::vector<Scheduler::Task>> m_tasks_map;
   std::mutex m_mutex;
   std::condition_variable maintenance_loop_condition;
   std::atomic<bool> handling_data;
 
-  ProcessExecutor* m_executor;
-  Executor::Scheduler* m_scheduler;
+  Executor::ProcessExecutor* m_executor;
+  Scheduler::Scheduler* m_scheduler;
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;
   std::thread m_maintenance_worker;
