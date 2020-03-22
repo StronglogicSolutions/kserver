@@ -24,9 +24,6 @@ class ProcessManager {
                        std::vector<std::string> argv) = 0;
   virtual void request(std::string_view path, int mask, int client_id,
                        std::string request_id,
-                       std::vector<std::string> argv) = 0;
-  virtual void request(std::string_view path, int mask, int client_id,
-                       std::string request_id,
                        std::vector<std::string> argv, bool is_scheduled_task) = 0;
 
   virtual void setEventCallback(ProcessEventCallback callback_function) = 0;
@@ -147,7 +144,7 @@ class ProcessExecutor : public ProcessManager {
   /** Request the running of a process being tracked with an ID */
   virtual void request(std::string_view path, int mask, int client_socket_fd,
                        std::string request_id,
-                       std::vector<std::string> argv, bool scheduled_task = false) override {
+                       std::vector<std::string> argv, bool scheduled_task) override {
     if (path[0] != '\0') {
       ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
       auto process_std_out = pd_ptr->run();
