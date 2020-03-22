@@ -116,6 +116,7 @@ class KServer : public SocketListener {
           IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
           sendEvent(client_socket_fd, "Task Scheduled", args);
         }
+        break;
       }
       case SYSTEM_EVENTS__FILE_UPDATE: {
         // incoming file has new information, such as a filename to be
@@ -182,12 +183,12 @@ class KServer : public SocketListener {
                std::vector<std::string> args) {
           systemEventNotify(client_socket_fd, system_event, args);
         },
-        [this](int client_socket_fd, std::vector<Executor::Task> tasks) {
+        [this](int client_socket_fd, std::vector<Scheduler::Task> tasks) {
           onTasksReady(client_socket_fd, tasks);
         });
   }
 
-  void onTasksReady(int client_socket_fd, std::vector<Executor::Task> tasks) {
+  void onTasksReady(int client_socket_fd, std::vector<Scheduler::Task> tasks) {
     KLOG->info("Scheduler has delivered {} tasks for processing", tasks.size());
   }
 
