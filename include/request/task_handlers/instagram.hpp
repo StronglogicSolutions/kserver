@@ -12,11 +12,11 @@ namespace Task {
 
     public:
 
-    static Executor::Task prepareTask(std::vector<std::string> argv, std::string uuid) {
+    static Scheduler::Task prepareTask(std::vector<std::string> argv, std::string uuid) {
 
       if (!FileUtils::createTaskDirectory(uuid)) {
         std::cout << "UNABLE TO CREATE TASK DIRECTORY! Returning empty task" << std::endl;
-        return Executor::Task{};
+        return Scheduler::Task{};
       }
 
       auto file_info = argv.at(0);
@@ -54,7 +54,7 @@ namespace Task {
 
       std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);
 
-      return Executor::Task{
+      return Scheduler::Task{
         .execution_mask = std::stoi(mask),
         .datetime = datetime,
         .file = (!task_files.empty()),
