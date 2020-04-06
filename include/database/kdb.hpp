@@ -119,9 +119,13 @@ class KDB {
                                .fields = fields,
                                .type = QueryType::INSERT,
                                .values = values};
-
-    QueryResult result = m_connection.query(insert_query);
-    // TODO: add try/catch and handle accordingly
+    try {
+      QueryResult result = m_connection.query(insert_query);
+    } catch (const pqxx::sql_error &e) {
+      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+    } catch (const std::exception &e) {
+      KLOG->error("Error", e.what());
+    }
     return true;
   }
 
@@ -132,8 +136,13 @@ class KDB {
                                    .type = QueryType::INSERT,
                                    .values = values,
                                    .returning = returning};
-
-    return m_connection.query(insert_query);
+    try {
+      return m_connection.query(insert_query);
+    } catch (const pqxx::sql_error &e) {
+      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+    } catch (const std::exception &e) {
+      KLOG->error("Error", e.what());
+    }
   }
 
  private:
