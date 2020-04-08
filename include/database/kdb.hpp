@@ -33,6 +33,7 @@ class KDB {
       DatabaseQuery select_query{.table = table,
                                  .fields = fields,
                                  .type = QueryType::SELECT,
+                                 .values = {},
                                  .filter = filter};
       QueryResult result = m_connection.query(select_query);
       if (!result.values.empty()) {
@@ -50,7 +51,7 @@ class KDB {
                      QueryComparisonFilter filter = {}) {
     try {
       ComparisonSelectQuery select_query{
-          .table = table, .fields = fields, .filter = filter};
+          .table = table, .fields = fields, .values={}, .filter = filter};
       QueryResult result = m_connection.query(select_query);
       if (!result.values.empty()) {
         return result.values;
@@ -67,7 +68,7 @@ class KDB {
                             std::vector<CompFilter> filter = {}) {
     try {
       ComparisonBetweenSelectQuery select_query{
-          .table = table, .fields = fields, .filter = filter};
+          .table = table, .fields = fields, .values = {}, .filter = filter};
       QueryResult result = m_connection.query(select_query);
       if (!result.values.empty()) {
         return result.values;
@@ -102,7 +103,7 @@ class KDB {
     try {
       // TODO: At the moment, we are married to passing the "id" field name as the "returning" argument
       UpdateReturnQuery update_query{
-          .table = table, .fields = fields, .values = values, .filter = filter, .returning = returning};
+          .table = table, .fields = fields, .type = QueryType::UPDATE, .values = values, .filter = filter, .returning = returning};
       std::string result = m_connection.query(update_query);
       KLOG->info("Returned result from DB layer: {}", result);
       return result;
