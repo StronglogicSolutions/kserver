@@ -10,6 +10,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <iterator>
 #include <neither/either.hpp>
 #include <string>
@@ -505,6 +506,13 @@ std::string saveEnvFile(std::string env_file_string, std::string uuid) {
   std::ofstream out{filename.c_str()};
   out << env_file_string;
   return relative_path;
+}
+
+std::string readEnvFile(std::string env_file_path) {
+    std::ifstream file_stream{env_file_path};
+    std::stringstream env_file_stream{};
+    env_file_stream << file_stream.rdbuf();
+    return env_file_stream.str();
 }
 
 bool createTaskDirectory(std::string uuid) {
