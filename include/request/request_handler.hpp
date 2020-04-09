@@ -179,11 +179,12 @@ class RequestHandler {
     }
   }
 
-  Scheduler::Scheduler* getScheduler() {
-    return new Scheduler::Scheduler{
-        [this](std::string id, int client_socket_fd, int event, std::vector<std::string> args) {
-          onSchedulerEvent(id, client_socket_fd, event, args);
-        }};
+  Scheduler::Scheduler *getScheduler() {
+    return new Scheduler::Scheduler{[this](std::string id, int client_socket_fd,
+                                           int event,
+                                           std::vector<std::string> args) {
+      onSchedulerEvent(id, client_socket_fd, event, args);
+    }};
   }
 
   /**
@@ -212,7 +213,8 @@ class RequestHandler {
           scheduled_times.append(formatted_time);
           scheduled_times += " ";
           KLOG->info(
-              "Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: Execution "
+              "Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: "
+              "Execution "
               "Flags",
               formatted_time, std::to_string(task.execution_mask),
               task.file ? "hasFile(s)" : "", task.envfile);
@@ -246,7 +248,8 @@ class RequestHandler {
       if (!m_tasks_map.empty()) {
         if (!handlePendingTasks()) {
           KLOG->error(
-            "RequestHandler::maintenanceLoop() - ERROR handling pending tasks");
+              "RequestHandler::maintenanceLoop() - ERROR handling pending "
+              "tasks");
         }
       }
       System::Cron<System::SingleJob> cron{};
@@ -272,22 +275,25 @@ class RequestHandler {
    */
   bool handlePendingTasks() {
     KLOG->info("RequestHandler::maintenanceLoop() - Running scheduled tasks");
-    Scheduler::Scheduler* scheduler = getScheduler();
+    Scheduler::Scheduler *scheduler = getScheduler();
     if (!m_tasks_map.empty()) {
       Executor::ProcessExecutor executor{};
       bool is_scheduled_task = true;
       executor.setEventCallback(
-          [this, is_scheduled_task](std::string result, int mask, std::string id, int client_socket_fd) {
-            onProcessComplete(result, mask, id, client_socket_fd, is_scheduled_task);
+          [this, is_scheduled_task](std::string result, int mask,
+                                    std::string id, int client_socket_fd) {
+            onProcessComplete(result, mask, id, client_socket_fd,
+                              is_scheduled_task);
           });
 
       std::vector<std::future<void>> futures{};
       futures.reserve(m_tasks_map.size() * m_tasks_map.begin()->second.size());
-      for (const auto& client_tasks : m_tasks_map) {
+      for (const auto &client_tasks : m_tasks_map) {
         if (!client_tasks.second.empty()) {
-          for (const auto& task : client_tasks.second) {
-            futures.push_back(std::async(std::launch::deferred,
-              &Executor::ProcessExecutor::executeTask, std::ref(executor), client_tasks.first, task));
+          for (const auto &task : client_tasks.second) {
+            futures.push_back(std::async(
+                std::launch::deferred, &Executor::ProcessExecutor::executeTask,
+                std::ref(executor), client_tasks.first, task));
           }
         }
       }
@@ -360,10 +366,11 @@ class RequestHandler {
           if (task.validate()) {
             KLOG->info("Sending task request to Scheduler");
             auto id = m_scheduler->schedule(task);
-            if(!id.empty()) {
-              m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, {
-                uuid, id, std::to_string(num)
-              });
+            if (!id.empty()) {
+              auto env_file_data = FileUtils::readEnvFile(task.envfile);
+              m_system_callback_fn(client_socket_fd,
+                                   SYSTEM_EVENTS__SCHEDULER_SUCCESS,
+                                   {uuid, id, std::to_string(num), env_file_data});
               return "Operation succeeded";
             }
           }
@@ -498,7 +505,8 @@ class RequestHandler {
 
     for (const auto &row : result.values) {
       KLOG->info("Field: {}, Value: {}", row.first, row.second);
-      m_executor->request(row.second, mask, client_socket_fd, request_id, {}, Executor::ExecutionRequestType::IMMEDIATE);
+      m_executor->request(row.second, mask, client_socket_fd, request_id, {},
+                          Executor::ExecutionRequestType::IMMEDIATE);
     }
     std::string info_string{
         "RequestHandler:: PROCESS RUNNER - Process execution requested for "
@@ -534,10 +542,10 @@ class RequestHandler {
     m_event_callback_fn(value, mask, id, client_socket_fd);
     if (scheduled_task) {
       KLOG->info(
-        "RequestHandler::onScheduledTaskComplete() - Task complete "
-        "notification "
-        "for client {}'s task {}",
-        client_socket_fd, id);
+          "RequestHandler::onScheduledTaskComplete() - Task complete "
+          "notification "
+          "for client {}'s task {}",
+          client_socket_fd, id);
 
       std::map<int, std::vector<Scheduler::Task>>::iterator it =
           m_tasks_map.find(client_socket_fd);
@@ -573,10 +581,14 @@ class RequestHandler {
    * @param[in] <int>         `client_socket_fd`  The file descriptor of the
    * client requesting the task
    *
-   * TODO: We need to move away from sending process execution results via the scheduler's callback, and only use this to inform of scheduling events. Process execution results should come from the ProcessExecutor and its respective callback.
+   * TODO: We need to move away from sending process execution results via the
+   * scheduler's callback, and only use this to inform of scheduling events.
+   * Process execution results should come from the ProcessExecutor and its
+   * respective callback.
    */
 
-  void onSchedulerEvent(std::string id, int client_socket_fd, int event, std::vector<std::string> args = {}) {
+  void onSchedulerEvent(std::string id, int client_socket_fd, int event,
+                        std::vector<std::string> args = {}) {
     m_system_callback_fn(client_socket_fd, event, args);
   }
 
@@ -592,8 +604,8 @@ class RequestHandler {
   std::condition_variable maintenance_loop_condition;
   std::atomic<bool> handling_data;
 
-  Executor::ProcessExecutor* m_executor;
-  Scheduler::Scheduler* m_scheduler;
+  Executor::ProcessExecutor *m_executor;
+  Scheduler::Scheduler *m_scheduler;
   DatabaseConnection m_connection;
   DatabaseCredentials m_credentials;
   std::thread m_maintenance_worker;
