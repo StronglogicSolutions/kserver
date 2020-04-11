@@ -211,6 +211,7 @@ class KServer : public SocketListener {
 
     if (error) {
       event_args.reserve(4);
+      event_args.resize(4, "");
       event_args[3] = "Executed process returned an ERROR";
     } else {
       event_args.reserve(3);
