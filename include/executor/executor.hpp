@@ -155,15 +155,12 @@ class ProcessExecutor : public ProcessManager {
       if (!result.output.empty()) {
         notifyTrackedProcessEvent(result.output, mask, id,
                                   client_socket_fd, result.error);
-        if (type == ExecutionRequestType::SCHEDULED) {
+        if (!result.error && type == ExecutionRequestType::SCHEDULED) {
           Database::KDB kdb{};
 
           QueryFilter filter{{"id", id}};
           std::string result = kdb.update("schedule", {"completed"}, {"true"}, filter, "id");
-
-          if (!result.empty()) {
-            KLOG->info("Updated task {} to reflect its completion", result);
-          }
+          KLOG->info("Updated task {} to reflect its completion", result);
         }
       }
       delete pd_ptr;

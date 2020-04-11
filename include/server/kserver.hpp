@@ -211,8 +211,6 @@ class KServer : public SocketListener {
 
     if (error) {
       event_args.reserve(4);
-      event_args.resize(4, "");
-      event_args[3] = "Executed process returned an ERROR";
     } else {
       event_args.reserve(3);
     }
@@ -230,6 +228,9 @@ class KServer : public SocketListener {
       event_args.insert(event_args.end(),
                         {std::to_string(mask), request_id,
                          std::string{result.end() - 2000, result.end()}});
+    }
+    if (error) {
+      event_args.push_back("Executed process returned an ERROR");
     }
     if (client_socket_fd == -1) {  // Send response to all active sessions
       event_args.push_back(

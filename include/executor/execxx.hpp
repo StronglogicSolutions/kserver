@@ -94,4 +94,4 @@ ProcessResult qx(std::vector<std::string> args,
   return result;
 }
 }  // namespace
-#endif / __EXECXX_HPP__
+#endif // __EXECXX_HPP__

@@ -542,10 +542,10 @@ class RequestHandler {
     m_event_callback_fn(value, mask, id, client_socket_fd, error);
     if (scheduled_task) {
       KLOG->info(
-          "RequestHandler::onScheduledTaskComplete() - Task complete "
+          "RequestHandler::onProcessComplete() - Task complete "
           "notification "
-          "for client {}'s task {}",
-          client_socket_fd, id);
+          "for client {}'s task {}{}",
+          client_socket_fd, id, error ? "ERROR WAS RETURNED" : "");
 
       std::map<int, std::vector<Scheduler::Task>>::iterator it =
           m_tasks_map.find(client_socket_fd);
