@@ -150,7 +150,7 @@ class RequestHandler {
    *
    */
   void initialize(
-      std::function<void(std::string, int, std::string, int)> event_callback_fn,
+      std::function<void(std::string, int, std::string, int, bool)> event_callback_fn,
       std::function<void(int, int, std::vector<std::string>)>
           system_callback_fn,
       std::function<void(int, std::vector<Scheduler::Task>)> task_callback_fn) {
@@ -158,8 +158,8 @@ class RequestHandler {
     m_scheduler = getScheduler();
     m_executor->setEventCallback([this](std::string result, int mask,
                                         std::string request_id,
-                                        int client_socket_fd) {
-      onProcessComplete(result, mask, request_id, client_socket_fd);
+                                        int client_socket_fd, bool error) {
+      onProcessComplete(result, mask, request_id, client_socket_fd, error);
     });
     m_system_callback_fn = system_callback_fn;
     m_event_callback_fn = event_callback_fn;
@@ -281,9 +281,9 @@ class RequestHandler {
       bool is_scheduled_task = true;
       executor.setEventCallback(
           [this, is_scheduled_task](std::string result, int mask,
-                                    std::string id, int client_socket_fd) {
+                                    std::string id, int client_socket_fd, bool error) {
             onProcessComplete(result, mask, id, client_socket_fd,
-                              is_scheduled_task);
+                              is_scheduled_task, error);
           });
 
       std::vector<std::future<void>> futures{};
@@ -534,12 +534,12 @@ class RequestHandler {
    *
    */
   void onProcessComplete(std::string value, int mask, std::string id,
-                         int client_socket_fd, bool scheduled_task = false) {
+                         int client_socket_fd, bool error, bool scheduled_task = false) {
     KLOG->info(
         "RequestHandler::onProcessComplete() - Process complete notification "
         "for client {}'s request {}",
         client_socket_fd, id);
-    m_event_callback_fn(value, mask, id, client_socket_fd);
+    m_event_callback_fn(value, mask, id, client_socket_fd, error);
     if (scheduled_task) {
       KLOG->info(
           "RequestHandler::onScheduledTaskComplete() - Task complete "
@@ -595,7 +595,7 @@ class RequestHandler {
   /**
    * callback functions
    */
-  std::function<void(std::string, int, std::string, int)> m_event_callback_fn;
+  std::function<void(std::string, int, std::string, int, bool)> m_event_callback_fn;
   std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
   std::function<void(int, std::vector<Scheduler::Task>)> m_task_callback_fn;
 

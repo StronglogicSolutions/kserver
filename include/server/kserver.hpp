@@ -176,8 +176,8 @@ class KServer : public SocketListener {
     m_request_handler = handler;
     m_request_handler.initialize(
         [this](std::string result, int mask, std::string request_id,
-               int client_socket_fd) {
-          onProcessEvent(result, mask, request_id, client_socket_fd);
+               int client_socket_fd, bool error) {
+          onProcessEvent(result, mask, request_id, client_socket_fd, error);
         },
         [this](int client_socket_fd, int system_event,
                std::vector<std::string> args) {
@@ -200,14 +200,22 @@ class KServer : public SocketListener {
    * param[in] {std::string} result
    * param[in] {int} mask
    * param[in] {int} client_socket_fd
+   * param[in] {bool} error
    *
    * TODO: Place results in a queue if handling file for client
    */
   void onProcessEvent(std::string result, int mask, std::string request_id,
-                      int client_socket_fd) {
+                      int client_socket_fd, bool error) {
     std::string process_executor_result_str{};
-    std::vector<std::string> event_args;
-    event_args.reserve(3);
+    std::vector<std::string> event_args{};
+
+    if (error) {
+      event_args.reserve(4);
+      event_args[3] = "Executed process returned an ERROR";
+    } else {
+      event_args.reserve(3);
+    }
+
     KLOG->info("Received result {}", result);
     if (result.size() <=
         2046) {  // if process' stdout is small enough to send in one packet
@@ -380,9 +388,9 @@ class KServer : public SocketListener {
 
   void handleSchedule(std::vector<std::string> task, int client_socket_fd) {
     auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
+    sendEvent(client_socket_fd, "Processing Request", {"Schedule Task", uuid});
     m_request_handler("Schedule", task, client_socket_fd, uuid);
     KLOG->info("KServer::handleSchedule() - Task delivered to request handler");
-    sendEvent(client_socket_fd, "Processing Request", {"Schedule Task", uuid});
   }
 
   /**
