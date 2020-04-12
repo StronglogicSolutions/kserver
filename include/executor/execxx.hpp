@@ -21,14 +21,16 @@ auto KLOG = KLogger::GetInstance() -> get_logger();
 
 constexpr int buf_size = 32768;
 
-void readFd(int fd, std::string& s) {
+std::string readFd(int fd) {
   char buffer[32768];
+  std::string s{};
   do {
     const ssize_t r = read(fd, buffer, buf_size);
     if (r > 0) {
       s.append(buffer, r);
     }
   } while (errno == EAGAIN || errno == EINTR);
+  return s;
 }
 
 ProcessResult qx(std::vector<std::string> args,
@@ -60,30 +62,22 @@ ProcessResult qx(std::vector<std::string> args,
     execvp(vc[0], &vc[0]);
     exit(0);
   }
-
   close(stdout_fds[1]);
 
   ProcessResult result{};
-  std::future<void> stdout_future = std::async(&readFd, stdout_fds[0], std::ref(result.output));
-  std::future<void> stderr_future = std::async(&readFd, stderr_fds[0], std::ref(result.output));
 
-  bool finished_reading_output = false;
-
-  while (!finished_reading_output) {
-    if (stdout_future.valid()) {
-      stdout_future.get();
-      finished_reading_output = true;
-    } else if (stderr_future.valid()) {
-      stderr_future.get();
-      result.error = true;
-      finished_reading_output = true;
-    }
+  std::string stdout_string = readFd(stdout_fds[0]);
+  if (stdout_string.size() <= 1) { // an empty stdout might be a single whitespace
+    std::string stderr_string = readFd(stderr_fds[0]);
+    result.output = stderr_string;
+    result.error = true;
+  } else {
+    result.output = stdout_string;
+    std::cout << "STDOUT SIZE WAS: " << stdout_string.size() << std::endl;
   }
 
   close(stdout_fds[0]);
-  close(stdout_fds[1]);
-
-  close(stderr_fds[0]); // changed order
+  close(stderr_fds[0]);
   close(stderr_fds[1]);
 
   int r, status;
