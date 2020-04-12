@@ -73,7 +73,6 @@ ProcessResult qx(std::vector<std::string> args,
     result.error = true;
   } else {
     result.output = stdout_string;
-    std::cout << "STDOUT SIZE WAS: " << stdout_string.size() << std::endl;
   }
 
   close(stdout_fds[0]);
