@@ -66,7 +66,6 @@ class KServer : public SocketListener {
               "KServer::systemEventNotify() - "
               "Maintenance worker found tasks. Sending system-wide broadcast "
               "to all clients.");
-          args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
             sendEvent(session.fd, "Scheduled Tasks Ready", args);
@@ -88,7 +87,6 @@ class KServer : public SocketListener {
               "KServer::systemEventNotify() - "
               "Sending system-wide broadcast. There are currently no "
               "tasks ready for execution.");
-          args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
             sendEvent(session.fd, "No tasks ready", args);
@@ -106,7 +104,8 @@ class KServer : public SocketListener {
         break;
       }
       case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
-        KLOG->info("KServer::systemEventNotify() - Task successfully scheduled");
+        KLOG->info(
+            "KServer::systemEventNotify() - Task successfully scheduled");
         if (client_socket_fd == -1) {
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
@@ -233,8 +232,6 @@ class KServer : public SocketListener {
       event_args.push_back("Executed process returned an ERROR");
     }
     if (client_socket_fd == -1) {  // Send response to all active sessions
-      event_args.push_back(
-          "SYSTEM-WIDE BROADCAST was intended for all clients");
       for (const auto &session : m_sessions) {
         sendEvent(session.fd, "Process Result", event_args);
       }
