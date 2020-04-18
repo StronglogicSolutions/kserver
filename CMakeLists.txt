@@ -1,14 +1,36 @@
-cmake_minimum_required(VERSION 2.8)
+# CMake version
+cmake_minimum_required(VERSION 3.6)
+
+# Compiler version
+set(CMAKE_CXX_STANDARD 17)
+
+# Project name
 project(kserver)
-set(LISTENERLIB "socket_listener")
+
+# External dependencies
+set(LISTENERLIB "${CMAKE_SOURCE_DIR}/include/server/libsocket_listener.a")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+set(PQXX /usr/local/include/pqxx)
+find_library(UUID uuid)
+find_library(PQXX_LIB pqxx)
+find_library(PQ_LIB pq)
 find_package(Threads REQUIRED)
-set(SOURCES "src/main.cpp" "/usr/local/lib/libpqxx.a" "include/server/libsocket_listener.a" "include/database/DatabaseConnection.cpp")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -std=c++17 -pthread -lpq")
-add_executable(${PROJECT_NAME} ${SOURCES})
-target_include_directories(${PROJECT_NAME} PRIVATE
-  "include",
-  "minlog"
+
+# Sources
+set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp" ${LISTENERLIB} "/usr/local/lib/libpqxx.a")
+
+#Flags
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -I ./include -L /usr/local/include/pqxx")
+
+# Includes
+target_include_directories(${PROJECT_NAME} PUBLIC
+   "include"
 )
-target_link_libraries(${PROJECT_NAME} Threads::Threads)
+
+# Linking
+target_link_libraries(${PROJECT_NAME} ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
+
+# Outputs
+add_executable(${PROJECT_NAME} ${SOURCES})
+add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 
