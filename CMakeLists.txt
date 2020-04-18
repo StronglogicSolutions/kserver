@@ -21,16 +21,17 @@ set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp" ${LISTENERL
 
 #Flags
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -I ./include -L /usr/local/include/pqxx")
-
-# Includes
-target_include_directories(${PROJECT_NAME} PUBLIC
-   "include"
-)
-
-# Linking
-target_link_libraries(${PROJECT_NAME} ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
-
-# Outputs
 add_executable(${PROJECT_NAME} ${SOURCES})
 add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
+# Linking
+target_link_libraries(${PROJECT_NAME} ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
+target_link_libraries(${PROJECT_NAME}_lib ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
+
+# Includes
+target_include_directories(${PROJECT_NAME} PRIVATE
+    "include"
+ )
+target_include_directories(${PROJECT_NAME}_lib PRIVATE
+    "include"
+ )
 
