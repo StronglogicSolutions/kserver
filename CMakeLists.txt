@@ -34,4 +34,4 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_include_directories(${PROJECT_NAME}_lib PRIVATE
     "include"
  )
-
+ add_subdirectory(test)

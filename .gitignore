@@ -20,3 +20,4 @@ logs
 libkserver_lib.a
 **/.git
 test/googletest
+**/kserver_test
