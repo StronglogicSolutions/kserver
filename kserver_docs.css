@@ -3,6 +3,9 @@ body, .header, div.header {
   background: #333;
 }
 
+.dyncontent {
+  background-color: #6b6b6b;
+}
 .groupheader, h2.groupheader {
   background-color: #333;
   color:  #f5f5f5;;
