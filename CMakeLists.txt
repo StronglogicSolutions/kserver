@@ -17,7 +17,12 @@ find_library(PQ_LIB pq)
 find_package(Threads REQUIRED)
 
 # Sources
-set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp" ${LISTENERLIB} "/usr/local/lib/libpqxx.a")
+if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
+  set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp")
+else ()
+  set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp" ${LISTENERLIB} "/usr/local/lib/libpqxx.a")
+endif()
+
 
 #Flags
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -I ./include -L /usr/local/include/pqxx")
