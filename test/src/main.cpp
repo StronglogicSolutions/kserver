@@ -36,22 +36,30 @@ class KServerTestEnvironment {
  * TESTING GLOBALS
  */
 auto util_cwd = get_executable_cwd();
-auto cwd = std::string{util_cwd.begin(), util_cwd.end() - 5};
+auto cwd = std::string{util_cwd.begin(), util_cwd.end() - 4};
 KServerTestEnvironment* ktest_env;
 
+/****************************************************
+ *************** TEST SUITE *************************
+ ****************************************************/
+
 /**
- * TEST SUITE
+ * FileUtils::readEnvFile
  */
 TEST(KUtilities, readEnvFileTest) {
   auto env_file_path = cwd + "/mock_data/mock_v.env";
-  std::cout << env_file_path << std::endl;
+  std::cout << cwd << std::endl;
   EXPECT_NE("", readEnvFile(env_file_path));
 }
 
+/**
+ * KServer instantiation test
+ */
 TEST(KServer, instantiateKServerTest) {
-  KServer* kserver = new KServer{ktest_env->getArgc(),
-                                 ktest_env->getArgv()};
-  EXPECT_NE(nullptr, kserver);
+  char* argv[3] = {"127.0.0.1", "9876", "argument_string"};
+  int argc = 3;
+  KServer kserver{std::move(argc), std::move(argv)};
+  EXPECT_NE(nullptr, &kserver);
 }
 
 int main(int argc, char** argv) {

@@ -11,6 +11,7 @@ find_library(PQ_LIB pq)
 find_library(UUID uuid)
 find_package(Threads REQUIRED)
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 file(GLOB_RECURSE TEST_SOURCES true src/*.cpp src/*.h* ../include/database/DatabaseConnection.cpp ../src/socket_listener.cpp ../src/task_queue.cpp ${KSERVER_SRC})
 set(FULL_SOURCES ${TEST_SOURCES})
 add_executable(${PROJECT_NAME} ${FULL_SOURCES})
