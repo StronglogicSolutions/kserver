@@ -14,7 +14,7 @@ jobs:
       - run:
           name: compile_try
           command: |
-            ci_compile
+            ./ci_compile
       - run:
           name: compile
           command: |
