@@ -10,7 +10,7 @@ jobs:
       - run:
           name: compile
           command: |
-            ln -s /usr/include/pqxx /usr/local/include/pqxx && cmake . && make
+            ln -s /usr/include/pqxx /usr/local/include/pqxx && ln -s /usr/lib/libpqxx.a /usr/local/lib/libpqxx.a && cmake . && make
       - store_artifacts:
           path: kserver
           destination: kserver
