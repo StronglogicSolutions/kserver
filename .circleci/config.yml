@@ -7,10 +7,10 @@ jobs:
       - checkout
       - run: git submodule sync
       - run: git submodule update --init
-      - run:
-          name: create_sym_links
-          command: |
-            ln -s /usr/include/pqxx /usr/local/include/pqxx && cp /usr/lib/libpqxx.a /usr/local/lib/libpqxx.a
+      # - run:
+      #     name: create_sym_links
+      #     command: |
+      #       ln -s /usr/include/pqxx /usr/local/include/pqxx && cp /usr/lib/libpqxx.a /usr/local/lib/libpqxx.a
       - run:
           name: see_dirs
           command: |
