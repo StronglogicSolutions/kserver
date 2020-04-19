@@ -12,9 +12,9 @@
 #include <string>
 #include <vector>
 
-namespace Executor {
+namespace Scheduler {
 
-typedef std::function<void(std::string, int, int, int)> EventCallback;
+typedef std::function<void(std::string, int, int, std::vector<std::string>)> ScheduleEventCallback;
 
 struct Task {
   int execution_mask;
@@ -24,20 +24,21 @@ struct Task {
   std::string envfile;
   std::string execution_flags;
   int id = 0;
+
+  bool validate() {
+    return execution_mask > 0 && !datetime.empty() && !envfile.empty() && !execution_flags.empty();
+  }
+
 };
 
-namespace {
 class DeferInterface {
  public:
-  virtual void schedule(Task task) = 0;
+  virtual std::string schedule(Task task) = 0;
 };
 
 class CalendarManagerInterface {
  public:
   virtual std::vector<Task> fetchTasks() = 0;
-
- private:
-  virtual void executeTask(int client_id, Task task) = 0;
 };
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
@@ -45,69 +46,35 @@ auto KLOG = KLogger::GetInstance() -> get_logger();
 class Scheduler : public DeferInterface, CalendarManagerInterface {
  public:
   Scheduler() {}
-  Scheduler(EventCallback fn) : m_event_callback(fn) {
+  Scheduler(ScheduleEventCallback fn) : m_event_callback(fn) {
     if (!ConfigParser::initConfig()) {
       KLOG->info("Unable to load config");
     }
   }
 
+  // TODO: Implement move / copy constructor
+
   ~Scheduler() { KLOG->info("Scheduler destroyed"); }
 
-  virtual void schedule(Task task) {
+  virtual std::string schedule(Task task) {
     // verify and put in database
     Database::KDB kdb{};
 
-    std::string insert_id =
+    std::string id =
         kdb.insert("schedule", {"time", "mask", "flags", "envfile"},
                    {task.datetime, std::to_string(task.execution_mask),
                     task.execution_flags, task.envfile},
                    "id");
-    KLOG->info("Request to schedule task was {}\nID {}",
-               !insert_id.empty() ? "Accepted" : "Rejected", insert_id);
+    auto result = !id.empty();
 
-    if (!insert_id.empty()) {
+    if (!id.empty()) {
+      KLOG->info("Request to schedule task was accepted\nID {}", id);
       for (const auto &file : task.files) {
         KLOG->info("Recording file in DB: {}", file.first);
-        kdb.insert("file", {"name", "sid"}, {file.first, insert_id});
+        kdb.insert("file", {"name", "sid"}, {file.first, id});
       }
     }
-  }
-
-  static KApplication getAppInfo(int mask) {
-    Database::KDB kdb{};
-    KApplication k_app{};
-    QueryValues values = kdb.select("apps", {"path", "data", "name"},
-                                    {{"mask", std::to_string(mask)}});
-
-    for (const auto &value_pair : values) {
-      if (value_pair.first == "path") {
-        k_app.path = value_pair.second;
-      } else if (value_pair.first == "data") {
-        k_app.data = value_pair.second;
-      } else if (value_pair.first == "name") {
-        k_app.name = value_pair.second;
-      }
-    }
-    return k_app;
-  }
-
-  void onProcessComplete(std::string value, int mask, int id, int client_fd) {
-    KLOG->info("Value returned from process:\n{}", value);
-
-    if (true) {  // if success - how do we determine this from the output?
-      Database::KDB kdb{};
-
-      QueryFilter filter{{"id", std::to_string(id)}};
-      std::string result = kdb.update("schedule", {"completed"}, {"true"}, filter, "id");
-
-      if (!result.empty()) {
-        KLOG->info("Updated task {} to reflect its completion", result);
-      }
-      // TODO: We need to discriminate success and failure
-      if (m_event_callback != nullptr) {
-        m_event_callback(value, mask, id, client_fd);
-      }
-    }
+    return id;
   }
 
   std::vector<Task> parseTasks(QueryValues&& result) {
@@ -155,42 +122,19 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
   virtual std::vector<Task> fetchTasks() {
     Database::KDB kdb{};  // get DB
-    std::string current_timestamp = std::to_string(TimeUtils::unixtime());
-    std::string future_15_minute_timestamp =
-        std::to_string(TimeUtils::unixtime() + 900);
+    std::string past_15_minute_timestamp = std::to_string(TimeUtils::unixtime() - 900);
+    std::string future_5_minute_timestamp =
+        std::to_string(TimeUtils::unixtime() + 300);
     return parseTasks(kdb.selectMultiFilter(
         "schedule",                                  // table
         {"id", "time", "mask", "flags", "envfile"},  // fields
-        {CompFilter{"time", std::move(current_timestamp), std::move(future_15_minute_timestamp)},
+        {CompFilter{"time", std::move(past_15_minute_timestamp), std::move(future_5_minute_timestamp)},
           GenericFilter{"completed", "=", "false"}}));
   }
 
-  virtual void executeTask(int client_socket_fd, Task task) {
-    KLOG->info("Executing task");
-    KApplication app_info = getAppInfo(task.execution_mask);
-    auto is_ready_to_execute = std::stoi(task.datetime) > 0;  // if close to now
-    auto flags = task.execution_flags;
-    auto envfile = task.envfile;
-
-    if (is_ready_to_execute) {
-      ProcessExecutor executor{};
-      executor.setEventCallback(
-          [this, task](std::string result, int mask, int client_socket_fd) {
-            onProcessComplete(result, mask, task.id, client_socket_fd);
-          });
-
-      std::string id_value{std::to_string(task.id)};
-
-      executor.request(ConfigParser::getExecutorScript(), task.execution_mask,
-                       client_socket_fd, {id_value});
-    }
-  }
-
  private:
-  EventCallback m_event_callback;
+  ScheduleEventCallback m_event_callback;
 };
-
-}  // namespace
-}  // namespace Executor
+}  // namespace Scheduler
 
 #endif  // __SCHEDULER_HPP__

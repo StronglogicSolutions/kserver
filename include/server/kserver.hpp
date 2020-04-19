@@ -105,6 +105,19 @@ class KServer : public SocketListener {
         }
         break;
       }
+      case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
+        KLOG->info("KServer::systemEventNotify() - Task successfully scheduled");
+        if (client_socket_fd == -1) {
+          for (const auto &session : m_sessions) {
+            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
+            sendEvent(session.fd, "Task Scheduled", args);
+          }
+        } else {
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+          sendEvent(client_socket_fd, "Task Scheduled", args);
+        }
+        break;
+      }
       case SYSTEM_EVENTS__FILE_UPDATE: {
         // incoming file has new information, such as a filename to be
         // assigned to it
@@ -170,12 +183,12 @@ class KServer : public SocketListener {
                std::vector<std::string> args) {
           systemEventNotify(client_socket_fd, system_event, args);
         },
-        [this](int client_socket_fd, std::vector<Executor::Task> tasks) {
+        [this](int client_socket_fd, std::vector<Scheduler::Task> tasks) {
           onTasksReady(client_socket_fd, tasks);
         });
   }
 
-  void onTasksReady(int client_socket_fd, std::vector<Executor::Task> tasks) {
+  void onTasksReady(int client_socket_fd, std::vector<Scheduler::Task> tasks) {
     KLOG->info("Scheduler has delivered {} tasks for processing", tasks.size());
   }
 
@@ -366,9 +379,10 @@ class KServer : public SocketListener {
   }
 
   void handleSchedule(std::vector<std::string> task, int client_socket_fd) {
-    m_request_handler("Schedule", task, client_socket_fd,
-                      uuids::to_string(uuids::uuid_system_generator{}()));
+    auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
+    m_request_handler("Schedule", task, client_socket_fd, uuid);
     KLOG->info("KServer::handleSchedule() - Task delivered to request handler");
+    sendEvent(client_socket_fd, "Processing Request", {"Schedule Task", uuid});
   }
 
   /**
@@ -424,7 +438,7 @@ class KServer : public SocketListener {
           .leftMap([this, client_socket_fd](auto decoded_message) {
             if (isPing(decoded_message)) {
               KLOG->info("Client {} - keepAlive", client_socket_fd);
-              sendMessage(client_socket_fd, PONG.c_str(), PONG.size());
+              sendMessage(client_socket_fd, PONG, PONG_SIZE);
               return decoded_message;
             }
             std::string json_message = getJsonString(decoded_message);

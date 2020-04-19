@@ -4,9 +4,22 @@
 #include <string>
 #include <string_view>
 
-#include "execxx.hpp"
+#include <executor/execxx.hpp>
+#include <executor/scheduler.hpp>
+#include <log/logger.h>
+#include <database/kdb.hpp>
+
+namespace Executor {
+
+auto KLOG = KLogger::GetInstance() -> get_logger();
+
+enum ExecutionRequestType {
+  IMMEDIATE = 0,
+  SCHEDULED = 1
+};
+
 /** Function Types */
-typedef std::function<void(std::string, int, int)> EventCallback;
+typedef std::function<void(std::string, int, int)> ProcessEventCallback;
 typedef std::function<void(std::string, int, std::string, int)>
     TrackedEventCallback;
 /** Manager Interface */
@@ -15,16 +28,16 @@ class ProcessManager {
   virtual void request(std::string_view path, int mask, int client_id,
                        std::vector<std::string> argv) = 0;
   virtual void request(std::string_view path, int mask, int client_id,
-                       std::string request_id,
-                       std::vector<std::string> argv) = 0;
+                       std::string id,
+                       std::vector<std::string> argv, ExecutionRequestType type) = 0;
 
-  virtual void setEventCallback(EventCallback callback_function) = 0;
+  virtual void setEventCallback(ProcessEventCallback callback_function) = 0;
   virtual void setEventCallback(TrackedEventCallback callback_function) = 0;
 
   virtual void notifyProcessEvent(std::string status, int mask,
                                   int client_id) = 0;
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
-                                         std::string request_id,
+                                         std::string id,
                                          int client_id) = 0;
 };
 
@@ -82,12 +95,31 @@ class ProcessExecutor : public ProcessManager {
               << std::endl; /* Kill processes? Log for processes? */
   }
   /** Disable copying */
-  ProcessExecutor(const ProcessExecutor &) = delete;
-  ProcessExecutor(ProcessExecutor &&) = delete;
-  ProcessExecutor &operator=(const ProcessExecutor &) = delete;
-  ProcessExecutor &operator=(ProcessExecutor &&) = delete;
+  ProcessExecutor(const ProcessExecutor & e) : m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback) {}
+  ProcessExecutor(ProcessExecutor && e) : m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback) {
+    e.m_callback = nullptr;
+    e.m_tracked_callback = nullptr;
+  }
+
+  ProcessExecutor &operator=(const ProcessExecutor& e) {
+    this->m_callback = nullptr;
+    this->m_tracked_callback = nullptr;
+    this->m_callback = e.m_callback;
+    this->m_tracked_callback = e.m_tracked_callback;
+    return *this;
+  };
+
+  ProcessExecutor &operator=(ProcessExecutor && e) {
+    if (&e != this) {
+      m_callback = e.m_callback;
+      m_tracked_callback = e.m_tracked_callback;
+      e.m_callback = nullptr;
+      e.m_tracked_callback = nullptr;
+    }
+    return *this;
+  }
   /** Set the callback */
-  virtual void setEventCallback(EventCallback f) override { m_callback = f; }
+  virtual void setEventCallback(ProcessEventCallback f) override { m_callback = f; }
   virtual void setEventCallback(TrackedEventCallback f) override {
     m_tracked_callback = f;
   }
@@ -97,9 +129,9 @@ class ProcessExecutor : public ProcessManager {
     m_callback(status, mask, client_socket_fd);
   }
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
-                                         std::string request_id,
+                                         std::string id,
                                          int client_socket_fd) override {
-    m_tracked_callback(status, mask, request_id, client_socket_fd);
+    m_tracked_callback(status, mask, id, client_socket_fd);
   }
 
   /* Request execution of an anonymous task */
@@ -116,21 +148,64 @@ class ProcessExecutor : public ProcessManager {
   }
   /** Request the running of a process being tracked with an ID */
   virtual void request(std::string_view path, int mask, int client_socket_fd,
-                       std::string request_id,
-                       std::vector<std::string> argv) override {
+                       std::string id,
+                       std::vector<std::string> argv, ExecutionRequestType type) override {
     if (path[0] != '\0') {
       ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
       auto process_std_out = pd_ptr->run();
       if (!process_std_out.empty()) {
-        notifyTrackedProcessEvent(process_std_out, mask, request_id,
+        notifyTrackedProcessEvent(process_std_out, mask, id,
                                   client_socket_fd);
+        if (type == ExecutionRequestType::SCHEDULED) {
+          Database::KDB kdb{};
+
+          QueryFilter filter{{"id", id}};
+          std::string result = kdb.update("schedule", {"completed"}, {"true"}, filter, "id");
+
+          if (!result.empty()) {
+            KLOG->info("Updated task {} to reflect its completion", result);
+          }
+        }
       }
       delete pd_ptr;
     }
   }
 
+  void executeTask(int client_socket_fd, Scheduler::Task task) {
+    KLOG->info("Executing task");
+    KApplication app_info = getAppInfo(task.execution_mask);
+    auto is_ready_to_execute = std::stoi(task.datetime) > 0;  // if close to now
+    auto flags = task.execution_flags;
+    auto envfile = task.envfile;
+
+    if (is_ready_to_execute) {
+      std::string id{std::to_string(task.id)};
+
+      request(ConfigParser::getExecutorScript(), task.execution_mask,
+                       client_socket_fd, id, {id}, ExecutionRequestType::SCHEDULED);
+    }
+  }
+
  private:
-  EventCallback m_callback;
+  static KApplication getAppInfo(int mask) {
+    Database::KDB kdb{};
+    KApplication k_app{};
+    QueryValues values = kdb.select("apps", {"path", "data", "name"},
+                                    {{"mask", std::to_string(mask)}});
+
+    for (const auto &value_pair : values) {
+      if (value_pair.first == "path") {
+        k_app.path = value_pair.second;
+      } else if (value_pair.first == "data") {
+        k_app.data = value_pair.second;
+      } else if (value_pair.first == "name") {
+        k_app.name = value_pair.second;
+      }
+    }
+    return k_app;
+  }
+
+  ProcessEventCallback m_callback;
   TrackedEventCallback m_tracked_callback;
-  void *m_config;
 };
+} //namespace
