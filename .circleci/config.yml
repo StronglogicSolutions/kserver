@@ -14,9 +14,8 @@ jobs:
           destination: kserver
       - run:
         name: test
-        working_directory: test
         command: |
-          ./kserver_test
+          test/./kserver_test
       - run:
           name: notify_production
           command: |
