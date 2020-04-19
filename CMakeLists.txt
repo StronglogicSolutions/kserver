@@ -10,10 +10,10 @@ project(kserver)
 # Conditionals
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
   set(PQXX /usr/include/pqxx)
-  set(PQXX_STATIC_LIB "/usr/lib/libpqxx.a")
+  set(PQXX_STATIC_LIB "") # Not needed
 else ()
   set(PQXX /usr/local/include/pqxx)
-  set(PQXX_STATIC_LIB "/usr/lib/libpqxx.a")
+  set(PQXX_STATIC_LIB "/usr/local/lib/libpqxx.a")
 endif()
 
 # External dependencies
