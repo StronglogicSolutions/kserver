@@ -8,8 +8,7 @@ jobs:
       - run:
           name: compile
           command: |
-            ln -s /usr/include/pqxx /usr/local/include/pqxx && \
-            cmake . && make
+            ln -s /usr/include/pqxx /usr/local/include/pqxx && cmake . && make
       - store_artifacts:
           path: kserver
           destination: kserver
@@ -28,4 +27,3 @@ workflows:
  build:
    jobs:
      - compile
-
