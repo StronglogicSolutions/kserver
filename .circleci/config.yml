@@ -16,6 +16,10 @@ jobs:
           command: |
             ls -la /usr/local/include/pqxx && ls -la /usr/local/lib
       - run:
+          name: compile_try
+          command: |
+            ci_compile
+      - run:
           name: compile
           command: |
             BUILD_ENV=CIRCLECI cmake . && make
