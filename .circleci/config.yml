@@ -15,7 +15,7 @@ jobs:
           destination: kserver
       - run:
         name: test
-        working_directory: $CIRCLE_WORKING_DIRECTORY/test
+        working_directory: test
         command: |
           ./kserver_test
       - run:
