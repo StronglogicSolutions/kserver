@@ -8,10 +8,16 @@ jobs:
       - run:
           name: compile
           command: |
-            ./ci_compile
+            ln -s /usr/include/pqxx /usr/local/include/pqxx && \
+            cmake . && make
       - store_artifacts:
           path: kserver
           destination: kserver
+      - run:
+        name: test
+        working_directory: $CIRCLE_WORKING_DIRECTORY/test
+        command: |
+          ./kserver_test
       - run:
           name: notify_production
           command: |
