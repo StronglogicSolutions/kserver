@@ -7,25 +7,34 @@ set(CMAKE_CXX_STANDARD 17)
 # Project name
 project(kserver)
 
+# Conditionals
+if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
+  set(PQXX /usr/include/pqxx)
+  set(PQXX_STATIC_LIB "/usr/lib/libpqxx.a")
+else ()
+  set(PQXX /usr/local/include/pqxx)
+  set(PQXX_STATIC_LIB "/usr/lib/libpqxx.a")
+endif()
+
 # External dependencies
 set(LISTENERLIB "${CMAKE_SOURCE_DIR}/include/server/libsocket_listener.a")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-set(PQXX /usr/local/include/pqxx)
 find_library(UUID uuid)
 find_library(PQXX_LIB pqxx)
 find_library(PQ_LIB pq)
 find_package(Threads REQUIRED)
 
-# Sources
+# Flags
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
-  set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -I ./include -L /usr/include/pqxx")
 else ()
-  set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp" ${LISTENERLIB} "/usr/local/lib/libpqxx.a")
+   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -I ./include -L /usr/local/include/pqxx")
 endif()
 
+# Sources
+set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp" ${LISTENERLIB} ${PQXX_STATIC_LIB})
 
-#Flags
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -I ./include -L /usr/local/include/pqxx")
+
 add_executable(${PROJECT_NAME} ${SOURCES})
 add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 # Linking
