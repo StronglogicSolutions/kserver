@@ -13,6 +13,7 @@ table IGTask {
   is_video: bool;
   mask: int;
   header: string;
+  user: string;
 }
 
 root_type IGTask;

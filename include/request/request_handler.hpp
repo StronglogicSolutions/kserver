@@ -323,7 +323,7 @@ class RequestHandler {
             "arguments");
         return "";
       }
-      auto mask = argv.at(argv.size() - 2);
+      auto mask = argv.at(argv.size() - 3);
       auto kdb = Database::KDB();
 
       QueryValues result =

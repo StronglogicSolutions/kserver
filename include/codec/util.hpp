@@ -387,7 +387,7 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
             ig_task->promote_share()->str(), ig_task->link_bio()->str(),
             std::to_string(ig_task->is_video()),
             std::to_string(ig_task->mask()),
-            ig_task->header()->str()
+            ig_task->header()->str(), ig_task->user()->str()
           }
         ));
       }
