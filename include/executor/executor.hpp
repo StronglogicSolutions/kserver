@@ -177,7 +177,7 @@ class ProcessExecutor : public ProcessManager {
     if (is_ready_to_execute) {
       std::string id{std::to_string(task.id)};
 
-      request(ConfigParser::getExecutorScript(), task.execution_mask,
+      request(ConfigParser::Process::executor(), task.execution_mask,
                        client_socket_fd, id, {id}, ExecutionRequestType::SCHEDULED);
     }
   }

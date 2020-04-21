@@ -50,14 +50,14 @@ class RequestHandler {
    *
    */
   RequestHandler() : m_executor(nullptr) {
-    if (!ConfigParser::initConfig()) {
+    if (!ConfigParser::init()) {
       KLOG->info("RequestHandler::RequestHandler() - Unable to load config");
       return;
     }
 
-    m_credentials = {.user = ConfigParser::getDBUser(),
-                     .password = ConfigParser::getDBPass(),
-                     .name = ConfigParser::getDBName()};
+    m_credentials = {.user = ConfigParser::Database::user(),
+                     .password = ConfigParser::Database::pass(),
+                     .name = ConfigParser::Database::name()};
 
     DatabaseConfiguration configuration{
         .credentials = m_credentials, .address = "127.0.0.1", .port = "5432"};
