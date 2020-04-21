@@ -66,7 +66,6 @@ class KServer : public SocketListener {
               "KServer::systemEventNotify() - "
               "Maintenance worker found tasks. Sending system-wide broadcast "
               "to all clients.");
-          args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
             sendEvent(session.fd, "Scheduled Tasks Ready", args);
@@ -88,7 +87,6 @@ class KServer : public SocketListener {
               "KServer::systemEventNotify() - "
               "Sending system-wide broadcast. There are currently no "
               "tasks ready for execution.");
-          args.push_back("SYSTEM-WIDE BROADCAST was intended for all clients");
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
             sendEvent(session.fd, "No tasks ready", args);
@@ -106,7 +104,8 @@ class KServer : public SocketListener {
         break;
       }
       case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
-        KLOG->info("KServer::systemEventNotify() - Task successfully scheduled");
+        KLOG->info(
+            "KServer::systemEventNotify() - Task successfully scheduled");
         if (client_socket_fd == -1) {
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
@@ -176,8 +175,8 @@ class KServer : public SocketListener {
     m_request_handler = handler;
     m_request_handler.initialize(
         [this](std::string result, int mask, std::string request_id,
-               int client_socket_fd) {
-          onProcessEvent(result, mask, request_id, client_socket_fd);
+               int client_socket_fd, bool error) {
+          onProcessEvent(result, mask, request_id, client_socket_fd, error);
         },
         [this](int client_socket_fd, int system_event,
                std::vector<std::string> args) {
@@ -200,14 +199,21 @@ class KServer : public SocketListener {
    * param[in] {std::string} result
    * param[in] {int} mask
    * param[in] {int} client_socket_fd
+   * param[in] {bool} error
    *
    * TODO: Place results in a queue if handling file for client
    */
   void onProcessEvent(std::string result, int mask, std::string request_id,
-                      int client_socket_fd) {
+                      int client_socket_fd, bool error) {
     std::string process_executor_result_str{};
-    std::vector<std::string> event_args;
-    event_args.reserve(3);
+    std::vector<std::string> event_args{};
+
+    if (error) {
+      event_args.reserve(4);
+    } else {
+      event_args.reserve(3);
+    }
+
     KLOG->info("Received result {}", result);
     if (result.size() <=
         2046) {  // if process' stdout is small enough to send in one packet
@@ -222,9 +228,10 @@ class KServer : public SocketListener {
                         {std::to_string(mask), request_id,
                          std::string{result.end() - 2000, result.end()}});
     }
+    if (error) {
+      event_args.push_back("Executed process returned an ERROR");
+    }
     if (client_socket_fd == -1) {  // Send response to all active sessions
-      event_args.push_back(
-          "SYSTEM-WIDE BROADCAST was intended for all clients");
       for (const auto &session : m_sessions) {
         sendEvent(session.fd, "Process Result", event_args);
       }
@@ -380,9 +387,9 @@ class KServer : public SocketListener {
 
   void handleSchedule(std::vector<std::string> task, int client_socket_fd) {
     auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
+    sendEvent(client_socket_fd, "Processing Request", {"Schedule Task", uuid});
     m_request_handler("Schedule", task, client_socket_fd, uuid);
     KLOG->info("KServer::handleSchedule() - Task delivered to request handler");
-    sendEvent(client_socket_fd, "Processing Request", {"Schedule Task", uuid});
   }
 
   /**

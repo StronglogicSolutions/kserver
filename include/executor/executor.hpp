@@ -19,8 +19,8 @@ enum ExecutionRequestType {
 };
 
 /** Function Types */
-typedef std::function<void(std::string, int, int)> ProcessEventCallback;
-typedef std::function<void(std::string, int, std::string, int)>
+typedef std::function<void(std::string, int, int, bool)> ProcessEventCallback;
+typedef std::function<void(std::string, int, std::string, int, bool)>
     TrackedEventCallback;
 /** Manager Interface */
 class ProcessManager {
@@ -35,10 +35,10 @@ class ProcessManager {
   virtual void setEventCallback(TrackedEventCallback callback_function) = 0;
 
   virtual void notifyProcessEvent(std::string status, int mask,
-                                  int client_id) = 0;
+                                  int client_id, bool error) = 0;
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
                                          std::string id,
-                                         int client_id) = 0;
+                                         int client_id, bool error) = 0;
 };
 
 const char *findWorkDir(std::string_view path) {
@@ -46,7 +46,7 @@ const char *findWorkDir(std::string_view path) {
 }
 
 /** Impl */
-std::string run_(std::string_view path, std::vector<std::string> argv) {
+ProcessResult run_(std::string_view path, std::vector<std::string> argv) {
   std::vector<std::string> v_args{};
   v_args.push_back(std::string(path));
   for (const auto &arg : argv) {
@@ -58,7 +58,7 @@ std::string run_(std::string_view path, std::vector<std::string> argv) {
   std::string work_dir{findWorkDir(path)};
 
   /* qx wraps calls to fork() and exec() */
-  return std::string(qx(v_args, work_dir));
+  return qx(v_args, work_dir);
 }
 /** Process Executor - implements Manager interface */
 class ProcessExecutor : public ProcessManager {
@@ -77,11 +77,10 @@ class ProcessExecutor : public ProcessManager {
     ProcessDaemon &operator=(ProcessDaemon &&) = delete;
 
     /** Uses async and future to call implementation*/
-    std::string run() {
-      std::future<std::string> result_future =
+    ProcessResult run() {
+      std::future<ProcessResult> result_future =
           std::async(std::launch::async, &run_, m_path, m_argv);
-      std::string result = result_future.get();
-      return result;
+      return result_future.get();
     }
 
    private:
@@ -125,13 +124,13 @@ class ProcessExecutor : public ProcessManager {
   }
   /** Callback to be used upon process completion */
   virtual void notifyProcessEvent(std::string status, int mask,
-                                  int client_socket_fd) override {
-    m_callback(status, mask, client_socket_fd);
+                                  int client_socket_fd, bool error) override {
+    m_callback(status, mask, client_socket_fd, error);
   }
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
                                          std::string id,
-                                         int client_socket_fd) override {
-    m_tracked_callback(status, mask, id, client_socket_fd);
+                                         int client_socket_fd, bool error) override {
+    m_tracked_callback(status, mask, id, client_socket_fd, error);
   }
 
   /* Request execution of an anonymous task */
@@ -139,9 +138,9 @@ class ProcessExecutor : public ProcessManager {
                        std::vector<std::string> argv) override {
     if (path[0] != '\0') {
       ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
-      auto process_std_out = pd_ptr->run();
-      if (!process_std_out.empty()) {
-        notifyProcessEvent(process_std_out, mask, client_socket_fd);
+      auto result = pd_ptr->run();
+      if (!result.output.empty()) {
+        notifyProcessEvent(result.output, mask, client_socket_fd, result.error);
       }
       delete pd_ptr;
     }
@@ -152,19 +151,16 @@ class ProcessExecutor : public ProcessManager {
                        std::vector<std::string> argv, ExecutionRequestType type) override {
     if (path[0] != '\0') {
       ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
-      auto process_std_out = pd_ptr->run();
-      if (!process_std_out.empty()) {
-        notifyTrackedProcessEvent(process_std_out, mask, id,
-                                  client_socket_fd);
-        if (type == ExecutionRequestType::SCHEDULED) {
+      auto result = pd_ptr->run();
+      if (!result.output.empty()) {
+        notifyTrackedProcessEvent(result.output, mask, id,
+                                  client_socket_fd, result.error);
+        if (!result.error && type == ExecutionRequestType::SCHEDULED) {
           Database::KDB kdb{};
 
           QueryFilter filter{{"id", id}};
           std::string result = kdb.update("schedule", {"completed"}, {"true"}, filter, "id");
-
-          if (!result.empty()) {
-            KLOG->info("Updated task {} to reflect its completion", result);
-          }
+          KLOG->info("Updated task {} to reflect its completion", result);
         }
       }
       delete pd_ptr;
