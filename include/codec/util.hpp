@@ -381,14 +381,18 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
         std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
         const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
 
+        /**
+         * /note The specification for the order of these arguments can be found
+         * in namespace: Task::IGTaskIndex
+         */
         return right(std::move(
           std::vector<std::string>{
+            std::to_string(ig_task->mask()), // Mask always comes first
             ig_task->file_info()->str(), ig_task->time()->str(),
             ig_task->description()->str(), ig_task->hashtags()->str(),
             ig_task->requested_by()->str(), ig_task->requested_by_phrase()->str(),
             ig_task->promote_share()->str(), ig_task->link_bio()->str(),
             std::to_string(ig_task->is_video()),
-            std::to_string(ig_task->mask()),
             ig_task->header()->str(), ig_task->user()->str()
           }
         ));

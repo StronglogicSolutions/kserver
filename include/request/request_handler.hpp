@@ -17,7 +17,8 @@
 #include <iostream>
 #include <map>
 #include <mutex>
-#include <request/task_handlers/instagram.hpp>
+#include <executor/task_handlers/task.hpp>
+#include <executor/task_handlers/instagram.hpp>
 #include <server/types.hpp>
 #include <string>
 #include <system/cron.hpp>
@@ -329,8 +330,7 @@ class RequestHandler {
             "arguments");
         return "";
       }
-      // TODO: mask should be the first element
-      auto mask = argv.at(argv.size() - 3);
+      auto mask = argv.at(Task::TaskIndexes::MASK);
       auto kdb = Database::KDB();
 
       QueryValues result =
