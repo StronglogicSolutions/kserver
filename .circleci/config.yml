@@ -5,13 +5,19 @@ jobs:
       - image: logicp/kserver:1.0.0
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: compile
           command: |
-            ./ci_compile
+            BUILD_ENV=CIRCLECI cmake . && make
       - store_artifacts:
           path: kserver
           destination: kserver
+      - run:
+          name: test
+          command: |
+            test/./kserver_test
       - run:
           name: notify_production
           command: |
@@ -22,4 +28,3 @@ workflows:
  build:
    jobs:
      - compile
-

@@ -17,3 +17,7 @@ gendocs.sh
 html
 upload_db.sh
 logs
+libkserver_lib.a
+**/.git
+**/kserver_test
+lib
