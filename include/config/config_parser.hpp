@@ -2,7 +2,6 @@
 #define __CONFIG_PARSER_HPP__
 
 #include <string>
-#include <type_traits>
 #include "INIReader.h"
 
 namespace ConfigParser {
