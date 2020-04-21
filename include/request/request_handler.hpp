@@ -329,6 +329,7 @@ class RequestHandler {
             "arguments");
         return "";
       }
+      // TODO: mask should be the first element
       auto mask = argv.at(argv.size() - 3);
       auto kdb = Database::KDB();
 
