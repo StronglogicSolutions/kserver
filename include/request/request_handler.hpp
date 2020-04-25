@@ -553,6 +553,7 @@ class RequestHandler {
       }
       if (error) {
         // Send email to the administrator
+        KLOG->info("Sending email to administrator about failed task");
         SystemUtils::sendMail(ConfigParser::Admin::email(), std::string{Scheduler::TASK_ERROR_EMAIL_MESSAGE + value});
       }
     }
