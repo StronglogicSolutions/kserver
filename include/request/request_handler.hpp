@@ -202,12 +202,11 @@ class RequestHandler {
       std::unique_lock<std::mutex> lock(m_mutex);
       maintenance_loop_condition.wait(lock,
                                       [this]() { return !handling_data; });
-      KLOG->info("RequestHandler::maintenanceLoop() - condition met");
       int client_socket_fd = -1;
       std::vector<Scheduler::Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
         std::string scheduled_times{"Scheduled time(s): "};
-        KLOG->info("There are tasks to be reviewed");
+        KLOG->info("Scheduled tasks found: {}", tasks.size());
         for (const auto &task : tasks) {
           auto formatted_time = TimeUtils::format_timestamp(task.datetime);
           std::cout << formatted_time << std::endl;
@@ -234,14 +233,11 @@ class RequestHandler {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
         KLOG->info(
-            "RequestHandler::maintenanceLoop() - KServer has {} {} pending "
-            "execution",
+            "KServer has {} {} pending execution",
             m_tasks_map.at(client_socket_fd).size(),
             m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
       } else {
-        KLOG->info(
-            "RequestHandler::maintenanceLoop() - There are currently no tasks "
-            "ready for execution");
+        KLOG->info("No tasks ready for execution");
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
             {"There are currently no tasks ready for execution"});
@@ -255,11 +251,7 @@ class RequestHandler {
       }
       System::Cron<System::SingleJob> cron{};
       std::string jobs = cron.listJobs();
-      if (!jobs.empty()) {
-        KLOG->info(
-            "RequestHandler::maintenanceLoop() - Cron - There are currently no "
-            "jobs");
-      } else {
+      if (jobs.empty()) {
         KLOG->info(
             "RequestHandler::maintenanceLoop() - Cron - There are currently "
             "the following cron jobs: \n {}",
@@ -275,8 +267,6 @@ class RequestHandler {
    * Iterates pending tasks and requests their execution
    */
   bool handlePendingTasks() {
-    KLOG->info("RequestHandler::maintenanceLoop() - Running scheduled tasks");
-    Scheduler::Scheduler *scheduler = getScheduler();
     if (!m_tasks_map.empty()) {
       Executor::ProcessExecutor executor{};
       bool is_scheduled_task = true;
@@ -302,7 +292,6 @@ class RequestHandler {
         future.get();
       }
     }
-    delete scheduler;
     return true;
   }
 
@@ -561,6 +550,10 @@ class RequestHandler {
               "task from memory");
           it->second.erase(task_it);
         }
+      }
+      if (error) {
+        // Send email to the administrator
+        SystemUtils::sendMail(ConfigParser::Admin::email(), std::string{Scheduler::TASK_ERROR_EMAIL_MESSAGE + value});
       }
     }
   }

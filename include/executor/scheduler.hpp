@@ -24,12 +24,15 @@ struct Task {
   std::string envfile;
   std::string execution_flags;
   int id = 0;
+  bool error_retry;
 
   bool validate() {
     return execution_mask > 0 && !datetime.empty() && !envfile.empty() && !execution_flags.empty();
   }
 
 };
+
+static constexpr const char* TASK_ERROR_EMAIL_MESSAGE = "Scheduled task ran but returned an error:\n";
 
 class DeferInterface {
  public:

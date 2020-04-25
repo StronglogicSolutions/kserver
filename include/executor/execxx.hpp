@@ -68,6 +68,7 @@ ProcessResult qx(std::vector<std::string> args,
 
   std::string stdout_string = readFd(stdout_fds[0]);
   if (stdout_string.size() <= 1) { // an empty stdout might be a single whitespace
+    // TODO: Find out what's missing from the output (thrown exception messages aren't included)
     std::string stderr_string = readFd(stderr_fds[0]);
     result.output = stderr_string;
     result.error = true;

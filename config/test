@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+VAR="/data/www/simyoung/run --description='These aren't the \"args\" you are looking for!' --header='Learn to speak like native Korean speakers 🙆♀️🇰🇷' --promote_share='Sharthe post through IG story if you enjoy the phrase 🙋♀️' --requested_by='@aklsjdklasjdklsajd' --requested_by_phrase='The phrase was requested by ' --hashtags='#hashtagsahsaf' --link_bio='Subscribe to my YouTube channel (link 🔗in bio) to learn more about Korean language and culture ❤' --media='image' --filename='/data/c/kserver/data/d5a46141-5415-4c64-8935-da6915df29d4/20190227_212424-preview.jpg'"
+echo $VAR
