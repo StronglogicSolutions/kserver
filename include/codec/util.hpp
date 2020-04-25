@@ -449,7 +449,9 @@ bool isNewSession(const char *data) {
 
 namespace SystemUtils {
   void sendMail(std::string recipient, std::string message) {
-    std::system(std::string{"echo " + message + " | mail -s 'KServer notification' " + recipient}.c_str());
+    std::string command{"echo " + message + " | mail -s 'KServer notification' " + recipient};
+    std::cout << command << std::endl;
+    std::system(std::string{"echo '" + message + "' | mail -s 'KServer notification' " + recipient}.c_str());
   }
 }
 
