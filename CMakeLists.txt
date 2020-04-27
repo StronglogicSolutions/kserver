@@ -33,9 +33,9 @@ endif()
 
 # Sources
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
-  set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp" ${LISTENERLIB})
+  set(SOURCES "src/main.cpp" "src/database_connection.cpp" ${LISTENERLIB})
 else ()
-  set(SOURCES "src/main.cpp" "include/database/DatabaseConnection.cpp" ${LISTENERLIB} ${PQXX_STATIC_LIB})
+  set(SOURCES "src/main.cpp" "src/database_connection.cpp" ${LISTENERLIB} ${PQXX_STATIC_LIB})
 endif()
 
 

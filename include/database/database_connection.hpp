@@ -1,9 +1,8 @@
+#ifndef __DATABASECONNECTION_HPP__
+#define __DATABASECONNECTION_HPP__
+
 #include <pqxx/pqxx>
-
-#include "structs.h"
-
-#ifndef DATABASECONNECTION_H
-#define DATABASECONNECTION_H
+#include <database/db_structs.hpp>
 
 class DatabaseConnection {
  public:
@@ -18,6 +17,7 @@ class DatabaseConnection {
   QueryResult query(ComparisonSelectQuery query);
   QueryResult query(ComparisonBetweenSelectQuery query);
   QueryResult query(MultiFilterSelect query);
+  QueryResult query(MultiVariantFilterSelect query);
   // state
   std::string getDbName();
 
@@ -33,4 +33,4 @@ class DatabaseConnection {
   pqxx::result performUpdate(UpdateReturnQuery query, std::string returning);
 };
 
-#endif  // DATABASECONNECTION_H
+#endif  // __DATABASECONNECTION_HPP__

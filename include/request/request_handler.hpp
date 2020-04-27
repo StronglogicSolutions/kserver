@@ -2,10 +2,8 @@
 #define __REQUEST_HANDLER_HPP__
 
 #include <codec/kmessage_generated.h>
-#include <database/DatabaseConnection.h>
 #include <log/logger.h>
 #include <stdlib.h>
-
 #include <atomic>
 #include <chrono>
 #include <codec/util.hpp>
@@ -257,7 +255,7 @@ class RequestHandler {
             "the following cron jobs: \n {}",
             jobs);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(30));
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
   }
 
@@ -531,6 +529,7 @@ class RequestHandler {
         client_socket_fd, id);
     m_event_callback_fn(value, mask, id, client_socket_fd, error);
     if (scheduled_task) {
+      std::vector<Scheduler::Task>::iterator task_it;
     // TODO: Check ERROR and inform administrator and client accordingly. Delay task? Change schedule time?
       KLOG->info(
           "RequestHandler::onProcessComplete() - Task complete "
@@ -541,20 +540,28 @@ class RequestHandler {
       std::map<int, std::vector<Scheduler::Task>>::iterator it =
           m_tasks_map.find(client_socket_fd);
       if (it != m_tasks_map.end()) {
-        auto task_it = std::find_if(
+        task_it = std::find_if(
             it->second.begin(), it->second.end(),
             [id](Scheduler::Task task) { return task.id == std::stoi(id); });
         if (task_it != it->second.end()) {
+          if (error) {
+            // Send email to the administrator
+            KLOG->info("Sending email to administrator about failed task");
+            SystemUtils::sendMail(ConfigParser::Admin::email(), std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value});
+            if (task_it->completed == Scheduler::Completed::FAILED) {
+              // TODO: Have scheduler do this
+              Database::KDB kdb{};
+              QueryFilter filter{{"id", id}};
+              auto RETRY_FAIL = Scheduler::Completed::STRINGS[Scheduler::Completed::RETRY_FAIL];
+              std::string result = kdb.update("schedule", {"completed"}, {RETRY_FAIL}, filter, "id");
+              KLOG->info("Updated task {} to reflect its completion", result);
+            }
+          }
           KLOG->info(
               "RequestHandler::onProcessComplete() - removing completed "
               "task from memory");
           it->second.erase(task_it);
         }
-      }
-      if (error) {
-        // Send email to the administrator
-        KLOG->info("Sending email to administrator about failed task");
-        SystemUtils::sendMail(ConfigParser::Admin::email(), std::string{Scheduler::TASK_ERROR_EMAIL_MESSAGE + value});
       }
     }
   }

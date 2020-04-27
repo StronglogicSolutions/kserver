@@ -157,9 +157,14 @@ class ProcessExecutor : public ProcessManager {
                                   client_socket_fd, result.error);
         if (!result.error && type == ExecutionRequestType::SCHEDULED) {
           Database::KDB kdb{};
-
-          QueryFilter filter{{"id", id}};
-          std::string result = kdb.update("schedule", {"completed"}, {"true"}, filter, "id");
+          auto SUCCESS = Scheduler::Completed::STRINGS[Scheduler::Completed::SUCCESS];
+          std::string result = kdb.update(
+            "schedule", // table
+            {"completed"}, // field
+            {SUCCESS}, // value
+            QueryFilter{{"id", id}}, // filter
+            "id" // field value to return
+          );
           KLOG->info("Updated task {} to reflect its completion", result);
         }
       }

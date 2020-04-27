@@ -1,10 +1,11 @@
+#ifndef __DB_STRUCTS_H__
+#define __DB_STRUCTS_H__
+
 #include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
-
-#ifndef STRUCTS_H
-#define STRUCTS_H
+#include <variant>
 
 enum QueryType { INSERT = 0, DELETE = 1, UPDATE = 2, SELECT = 3 };
 
@@ -43,32 +44,38 @@ struct GenericFilter {
   std::string b;
   std::string comparison;
   int type = FilterTypes::STANDARD;
-
-  GenericFilter(std::string&& a, std::string&&comparison, std::string&& b, int type = FilterTypes::STANDARD) : a(std::move(a)), comparison(std::move(comparison)), b(std::move(b)), type(type) {}
 };
 
-struct CompFilter : GenericFilter {
+struct CompFilter {
   std::string a;
   std::string b;
-  std::string c;
-  int type = FilterTypes::COMPARISON;
+  std::string sign;
+};
 
-  CompFilter(std::string&& a, std::string&& b, std::string&&c, int type = FilterTypes::COMPARISON) : GenericFilter(std::move(a), std::move(c), std::move(b), type) {}
+struct CompBetweenFilter {
+  std::string field;
+  std::string a;
+  std::string b;
+};
+
+struct MultiOptionFilter {
+  std::string a;
+  std::string comparison;
+  std::vector<std::string> options;
 };
 
 struct Query {
-  /* table */ std::string table;
-  /* fields */ std::vector<std::string> fields;
-  // /* type */ QueryType type;
-  /* values */ std::vector<std::string> values;
+  std::string table;
+  std::vector<std::string> fields;
+  std::vector<std::string> values;
 };
 
 struct DatabaseQuery : Query {
-  /* table */ std::string table;
-  /* fields */ std::vector<std::string> fields;
-  /* type */ QueryType type;
-  /* values */ std::vector<std::string> values;
-  /* filter */ QueryFilter filter;
+  std::string table;
+  std::vector<std::string> fields;
+  QueryType type;
+  std::vector<std::string> values;
+  QueryFilter filter;
 };
 
 
@@ -78,40 +85,46 @@ struct MultiFilterSelect {
   std::vector<GenericFilter> filter;
 };
 
+struct MultiVariantFilterSelect {
+  std::string table;
+  std::vector<std::string> fields;
+  std::vector<std::variant<CompBetweenFilter, MultiOptionFilter>> filter;
+};
+
 struct InsertReturnQuery : Query {
-  /* table */ std::string table;
-  /* fields */ std::vector<std::string> fields;
-  /* type */ QueryType type = QueryType::INSERT;
-  /* values */ StringVec values;
-  /* returning */ std::string returning;
+  std::string table;
+  std::vector<std::string> fields;
+  QueryType type = QueryType::INSERT;
+  StringVec values;
+  std::string returning;
 };
 
 struct UpdateReturnQuery : Query {
-  /* table */ std::string table;
-  /* fields */ std::vector<std::string> fields;
-  /* type */ QueryType type = QueryType::INSERT;
-  /* values */ StringVec values;
-  /* filter */ QueryFilter filter;
-  /* returning */ std::string returning;
+  std::string table;
+  std::vector<std::string> fields;
+  QueryType type = QueryType::INSERT;
+  StringVec values;
+  QueryFilter filter;
+  std::string returning;
 };
 
 struct ComparisonSelectQuery : Query {
-  /* table */ std::string table;
-  /* fields */ std::vector<std::string> fields;
-  /* values */ std::vector<std::string> values;
-  /* filter */ QueryComparisonFilter filter;
+  std::string table;
+  std::vector<std::string> fields;
+  std::vector<std::string> values;
+  QueryComparisonFilter filter;
 };
 
 struct ComparisonBetweenSelectQuery : Query {
-  /* table */ std::string table;
-  /* fields */ std::vector<std::string> fields;
-  /* values */ std::vector<std::string> values;
-  /* filter */ std::vector<CompFilter> filter;
+  std::string table;
+  std::vector<std::string> fields;
+  std::vector<std::string> values;
+  std::vector<CompFilter> filter;
 };
 
 struct QueryResult {
-  /* table */ std::string table;
-  /* values */ std::vector<std::pair<std::string, std::string>> values;
+  std::string table;
+  std::vector<std::pair<std::string, std::string>> values;
 };
 
 struct KApplication {
@@ -122,9 +135,8 @@ struct KApplication {
   friend std::ostream &operator<<(std::ostream &out, const KApplication &app) {
     out << "Name: " << app.name << "\nPath: " << app.path
         << "\nData: " << app.data << std::endl;
-
     return out;
   }
 };
 
-#endif  // STRUCTS_H
+#endif  // __DB_STRUCTS_H__

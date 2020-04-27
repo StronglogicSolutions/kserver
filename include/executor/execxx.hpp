@@ -42,7 +42,6 @@ ProcessResult qx(std::vector<std::string> args,
   pipe(stderr_fds);
 
   const pid_t pid = fork();
-  std::cout << pid << std::endl;
   if (!pid) {
     if (!working_directory.empty()) {
       chdir(working_directory.c_str());
