@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "codec/util_test.hpp"
 #include "kserver/kserver_test.hpp"
+#include "database/database_connection_test.hpp"
 /**
  * KServerTestEnvironment
  *

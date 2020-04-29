@@ -229,8 +229,6 @@ std::string selectStatement(T query) {
   }
 }
 
-DatabaseConnection::DatabaseConnection() {}
-
 bool DatabaseConnection::setConfig(DatabaseConfiguration config) {
   m_config = config;
   m_db_name = config.credentials.name;
@@ -307,28 +305,19 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
     }
     case QueryType::SELECT: {
       pqxx::result pqxx_result = performSelect(query);
-      QueryResult result{};
-      result.table = query.table;
-      auto count = query.fields.size();
-
-      for (auto row : pqxx_result) {
+      QueryResult result{.table=query.table};
+      result.values.reserve(pqxx_result.size());
+      for (const auto& row : pqxx_result) {
         int index = 0;
-        for (const auto &field : row) {
-          std::string field_name = query.fields[index++];
-          auto row_chars = field.c_str();
-          if (row_chars != nullptr) {
-            std::string value{row_chars};
-            auto pair = std::make_pair(field_name, value);
-            result.values.push_back(pair);
-          }
+        for (const auto& value : row) {
+            result.values.push_back(std::make_pair(query.fields[index++], value.c_str()));
         }
       }
       return result;
     }
 
     case QueryType::DELETE: {
-      std::stringstream query_stream{};
-      query_stream << " " << query.table << " VALUES (\"test\")";
+      // TODO: implement DELETE!
       QueryResult result{};
       return result;
     }
@@ -336,89 +325,21 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
   return QueryResult{};
 }
 
-QueryResult DatabaseConnection::query(ComparisonSelectQuery query) {
+template <typename T>
+QueryResult DatabaseConnection::query(T query) {
   pqxx::result pqxx_result = performSelect(query);
-  QueryResult result{};
-  result.table = query.table;
-  auto count = query.fields.size();
-
-  for (auto row : pqxx_result) {
+  QueryResult result{.table=query.table};
+  result.values.reserve(pqxx_result.size());
+  for (const auto& row : pqxx_result) {
     int index = 0;
-    for (const auto &field : row) {
-      std::string field_name = query.fields[index++];
-      auto row_chars = field.c_str();
-      if (row_chars != nullptr) {
-        std::string value{row_chars};
-        auto pair = std::make_pair(field_name, value);
-        result.values.push_back(pair);
-      }
+    for (const auto& value : row) {
+        result.values.push_back(std::make_pair(query.fields[index++], value.c_str()));
     }
   }
   return result;
 }
 
-QueryResult DatabaseConnection::query(MultiFilterSelect query) {
-  pqxx::result pqxx_result = performSelect(query);
-  QueryResult result{};
-  result.table = query.table;
-  auto count = query.fields.size();
-
-  for (auto row : pqxx_result) {
-    int index = 0;
-    for (const auto &field : row) {
-      std::string field_name = query.fields[index++];
-      auto row_chars = field.c_str();
-      if (row_chars != nullptr) {
-        std::string value{row_chars};
-        auto pair = std::make_pair(field_name, value);
-        result.values.push_back(pair);
-      }
-    }
-  }
-  return result;
-}
-
-QueryResult DatabaseConnection::query(MultiVariantFilterSelect query) {
-  pqxx::result pqxx_result = performSelect(query);
-  QueryResult result{};
-  result.table = query.table;
-  auto count = query.fields.size();
-
-  for (auto row : pqxx_result) {
-    int index = 0;
-    for (const auto &field : row) {
-      std::string field_name = query.fields[index++];
-      auto row_chars = field.c_str();
-      if (row_chars != nullptr) {
-        std::string value{row_chars};
-        auto pair = std::make_pair(field_name, value);
-        result.values.push_back(pair);
-      }
-    }
-  }
-  return result;
-}
-
-QueryResult DatabaseConnection::query(ComparisonBetweenSelectQuery query) {
-  pqxx::result pqxx_result = performSelect(query);
-  QueryResult result{};
-  result.table = query.table;
-  auto count = query.fields.size();
-
-  for (auto row : pqxx_result) {
-    int index = 0;
-    for (const auto &field : row) {
-      std::string field_name = query.fields[index++];
-      auto row_chars = field.c_str();
-      if (row_chars != nullptr) {
-        std::string value{row_chars};
-        auto pair = std::make_pair(field_name, value);
-        result.values.push_back(pair);
-      }
-    }
-  }
-  return result;
-}
+template QueryResult DatabaseConnection::query(MultiVariantFilterSelect);
 
 std::string DatabaseConnection::query(InsertReturnQuery query) {
   std::string returning = query.returning;
@@ -455,4 +376,4 @@ pqxx::connection DatabaseConnection::getConnection() {
   return pqxx::connection(connectionString);
 }
 
-std::string DatabaseConnection::getDbName() { return m_db_name; }
+std::string DatabaseConnection::databaseName() { return m_db_name; }

@@ -127,16 +127,4 @@ struct QueryResult {
   std::vector<std::pair<std::string, std::string>> values;
 };
 
-struct KApplication {
-  std::string name;
-  std::string path;
-  std::string data;
-
-  friend std::ostream &operator<<(std::ostream &out, const KApplication &app) {
-    out << "Name: " << app.name << "\nPath: " << app.path
-        << "\nData: " << app.data << std::endl;
-    return out;
-  }
-};
-
 #endif  // __DB_STRUCTS_H__

@@ -53,7 +53,7 @@ class KDB {
     try {
       ComparisonSelectQuery select_query{
           .table = table, .fields = fields, .values={}, .filter = filter};
-      QueryResult result = m_connection.query(select_query);
+      QueryResult result = m_connection.query<ComparisonSelectQuery>(select_query);
       if (!result.values.empty()) {
         return result.values;
       }
@@ -70,7 +70,7 @@ class KDB {
     try {
       ComparisonBetweenSelectQuery select_query{
           .table = table, .fields = fields, .values = {}, .filter = filter};
-      QueryResult result = m_connection.query(select_query);
+      QueryResult result = m_connection.query<ComparisonBetweenSelectQuery>(select_query);
       if (!result.values.empty()) {
         return result.values;
       }
@@ -87,7 +87,7 @@ class KDB {
     try {
       MultiFilterSelect select_query{
           .table = table, .fields = fields, .filter = filters};
-      QueryResult result = m_connection.query(select_query);
+      QueryResult result = m_connection.query<MultiFilterSelect>(select_query);
       if (!result.values.empty()) {
         return result.values;
       }
@@ -105,7 +105,7 @@ class KDB {
     try {
       MultiVariantFilterSelect select_query{
           .table = table, .fields = fields, .filter = filters};
-      QueryResult result = m_connection.query(select_query);
+      QueryResult result = m_connection.query<MultiVariantFilterSelect>(select_query);
       for (const auto& value : result.values) {
         std::cout << "Query value: " << value.second << std::endl;
       }

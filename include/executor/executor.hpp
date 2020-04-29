@@ -1,22 +1,20 @@
+#include <log/logger.h>
+
+#include <database/kdb.hpp>
+#include <executor/execxx.hpp>
+#include <executor/kapplication.hpp>
+#include <executor/scheduler.hpp>
 #include <functional>
 #include <future>
 #include <iostream>
 #include <string>
 #include <string_view>
 
-#include <executor/execxx.hpp>
-#include <executor/scheduler.hpp>
-#include <log/logger.h>
-#include <database/kdb.hpp>
-
 namespace Executor {
 
 auto KLOG = KLogger::GetInstance() -> get_logger();
 
-enum ExecutionRequestType {
-  IMMEDIATE = 0,
-  SCHEDULED = 1
-};
+enum ExecutionRequestType { IMMEDIATE = 0, SCHEDULED = 1 };
 
 /** Function Types */
 typedef std::function<void(std::string, int, int, bool)> ProcessEventCallback;
@@ -28,17 +26,17 @@ class ProcessManager {
   virtual void request(std::string_view path, int mask, int client_id,
                        std::vector<std::string> argv) = 0;
   virtual void request(std::string_view path, int mask, int client_id,
-                       std::string id,
-                       std::vector<std::string> argv, ExecutionRequestType type) = 0;
+                       std::string id, std::vector<std::string> argv,
+                       ExecutionRequestType type) = 0;
 
   virtual void setEventCallback(ProcessEventCallback callback_function) = 0;
   virtual void setEventCallback(TrackedEventCallback callback_function) = 0;
 
-  virtual void notifyProcessEvent(std::string status, int mask,
-                                  int client_id, bool error) = 0;
+  virtual void notifyProcessEvent(std::string status, int mask, int client_id,
+                                  bool error) = 0;
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
-                                         std::string id,
-                                         int client_id, bool error) = 0;
+                                         std::string id, int client_id,
+                                         bool error) = 0;
 };
 
 const char *findWorkDir(std::string_view path) {
@@ -94,13 +92,15 @@ class ProcessExecutor : public ProcessManager {
               << std::endl; /* Kill processes? Log for processes? */
   }
   /** Disable copying */
-  ProcessExecutor(const ProcessExecutor & e) : m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback) {}
-  ProcessExecutor(ProcessExecutor && e) : m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback) {
+  ProcessExecutor(const ProcessExecutor &e)
+      : m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback) {}
+  ProcessExecutor(ProcessExecutor &&e)
+      : m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback) {
     e.m_callback = nullptr;
     e.m_tracked_callback = nullptr;
   }
 
-  ProcessExecutor &operator=(const ProcessExecutor& e) {
+  ProcessExecutor &operator=(const ProcessExecutor &e) {
     this->m_callback = nullptr;
     this->m_tracked_callback = nullptr;
     this->m_callback = e.m_callback;
@@ -108,7 +108,7 @@ class ProcessExecutor : public ProcessManager {
     return *this;
   };
 
-  ProcessExecutor &operator=(ProcessExecutor && e) {
+  ProcessExecutor &operator=(ProcessExecutor &&e) {
     if (&e != this) {
       m_callback = e.m_callback;
       m_tracked_callback = e.m_tracked_callback;
@@ -118,7 +118,9 @@ class ProcessExecutor : public ProcessManager {
     return *this;
   }
   /** Set the callback */
-  virtual void setEventCallback(ProcessEventCallback f) override { m_callback = f; }
+  virtual void setEventCallback(ProcessEventCallback f) override {
+    m_callback = f;
+  }
   virtual void setEventCallback(TrackedEventCallback f) override {
     m_tracked_callback = f;
   }
@@ -128,8 +130,8 @@ class ProcessExecutor : public ProcessManager {
     m_callback(status, mask, client_socket_fd, error);
   }
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
-                                         std::string id,
-                                         int client_socket_fd, bool error) override {
+                                         std::string id, int client_socket_fd,
+                                         bool error) override {
     m_tracked_callback(status, mask, id, client_socket_fd, error);
   }
 
@@ -147,23 +149,23 @@ class ProcessExecutor : public ProcessManager {
   }
   /** Request the running of a process being tracked with an ID */
   virtual void request(std::string_view path, int mask, int client_socket_fd,
-                       std::string id,
-                       std::vector<std::string> argv, ExecutionRequestType type) override {
+                       std::string id, std::vector<std::string> argv,
+                       ExecutionRequestType type) override {
     if (path[0] != '\0') {
       ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
       auto result = pd_ptr->run();
       if (!result.output.empty()) {
-        notifyTrackedProcessEvent(result.output, mask, id,
-                                  client_socket_fd, result.error);
+        notifyTrackedProcessEvent(result.output, mask, id, client_socket_fd,
+                                  result.error);
         if (!result.error && type == ExecutionRequestType::SCHEDULED) {
           Database::KDB kdb{};
-          auto SUCCESS = Scheduler::Completed::STRINGS[Scheduler::Completed::SUCCESS];
-          std::string result = kdb.update(
-            "schedule", // table
-            {"completed"}, // field
-            {SUCCESS}, // value
-            QueryFilter{{"id", id}}, // filter
-            "id" // field value to return
+          auto SUCCESS =
+              Scheduler::Completed::STRINGS[Scheduler::Completed::SUCCESS];
+          std::string result = kdb.update("schedule",               // table
+                                          {"completed"},            // field
+                                          {SUCCESS},                // value
+                                          QueryFilter{{"id", id}},  // filter
+                                          "id"  // field value to return
           );
           KLOG->info("Updated task {} to reflect its completion", result);
         }
@@ -183,7 +185,7 @@ class ProcessExecutor : public ProcessManager {
       std::string id{std::to_string(task.id)};
 
       request(ConfigParser::Process::executor(), task.execution_mask,
-                       client_socket_fd, id, {id}, ExecutionRequestType::SCHEDULED);
+              client_socket_fd, id, {id}, ExecutionRequestType::SCHEDULED);
     }
   }
 
@@ -209,4 +211,4 @@ class ProcessExecutor : public ProcessManager {
   ProcessEventCallback m_callback;
   TrackedEventCallback m_tracked_callback;
 };
-} //namespace
+}  // namespace Executor
