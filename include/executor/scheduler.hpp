@@ -5,7 +5,6 @@
 #include <log/logger.h>
 
 #include <codec/util.hpp>
-#include <config/config_parser.hpp>
 #include <database/kdb.hpp>
 #include <functional>
 #include <iostream>
@@ -50,9 +49,6 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     m_kdb = Database::KDB{};
   }
   Scheduler(ScheduleEventCallback fn) : m_event_callback(fn) {
-    if (!ConfigParser::initConfig()) {
-      KLOG->info("Unable to load config");
-    }
   }
 
   // TODO: Implement move / copy constructor
