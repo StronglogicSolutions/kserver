@@ -255,7 +255,7 @@ class RequestHandler {
             "the following cron jobs: \n {}",
             jobs);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(10));
+      std::this_thread::sleep_for(std::chrono::seconds(30));
     }
   }
 
@@ -548,14 +548,10 @@ class RequestHandler {
             // Send email to the administrator
             KLOG->info("Sending email to administrator about failed task");
             SystemUtils::sendMail(ConfigParser::Admin::email(), std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value});
-            if (task_it->completed == Scheduler::Completed::FAILED) {
-              // TODO: Have scheduler do this
-              Database::KDB kdb{};
-              QueryFilter filter{{"id", id}};
-              auto RETRY_FAIL = Scheduler::Completed::STRINGS[Scheduler::Completed::RETRY_FAIL];
-              std::string result = kdb.update("schedule", {"completed"}, {RETRY_FAIL}, filter, "id");
-              KLOG->info("Updated task {} to reflect its completion", result);
-            }
+            auto status = task_it->completed == Scheduler::Completed::FAILED ?
+            Scheduler::Completed::RETRY_FAIL : Scheduler::Completed::FAILED;
+            task_it->completed = status;
+            m_scheduler->updateStatus(&*task_it);
           }
           KLOG->info(
               "RequestHandler::onProcessComplete() - removing completed "

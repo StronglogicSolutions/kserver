@@ -31,12 +31,14 @@ class KDB {
   QueryValues select(std::string table, Fields fields,
                      QueryFilter filter = {}) {
     try {
-      DatabaseQuery select_query{.table = table,
-                                 .fields = fields,
-                                 .type = QueryType::SELECT,
-                                 .values = {},
-                                 .filter = filter};
-      QueryResult result = m_connection.query(select_query);
+      QueryResult result = m_connection.query(
+        DatabaseQuery{
+          .table = table,
+          .fields = fields,
+          .type = QueryType::SELECT,
+          .values = {},
+          .filter = filter
+        });
       if (!result.values.empty()) {
         return result.values;
       }
@@ -51,9 +53,13 @@ class KDB {
   QueryValues select(std::string table, Fields fields,
                      QueryComparisonFilter filter = {}) {
     try {
-      ComparisonSelectQuery select_query{
-          .table = table, .fields = fields, .values={}, .filter = filter};
-      QueryResult result = m_connection.query(select_query);
+      QueryResult result = m_connection.query(
+        ComparisonSelectQuery{
+          .table = table,
+          .fields = fields,
+          .values = {},
+          .filter = filter
+        });
       if (!result.values.empty()) {
         return result.values;
       }
