@@ -88,6 +88,7 @@ class Cron : public CronInterface<Job> {
                          std::to_string(job.month) + " * " + job.path +
                          "\") | sort - | uniq - | crontab -"};
     }
+    return "";
   }
 
   virtual void addJob(Job job) {

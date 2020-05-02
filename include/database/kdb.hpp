@@ -172,6 +172,7 @@ class KDB {
     } catch (const std::exception &e) {
       KLOG->error("Error", e.what());
     }
+    return "";
   }
 
  private:

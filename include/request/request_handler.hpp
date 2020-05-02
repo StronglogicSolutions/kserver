@@ -366,6 +366,7 @@ class RequestHandler {
       }
       return std::string{"Operation failed"};
     }
+    return "";
   }
 
   /**
@@ -546,12 +547,12 @@ class RequestHandler {
         if (task_it != it->second.end()) {
           if (error) {
             // Send email to the administrator
-            KLOG->info("Sending email to administrator about failed task");
             SystemUtils::sendMail(ConfigParser::Admin::email(), std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value});
             auto status = task_it->completed == Scheduler::Completed::FAILED ?
             Scheduler::Completed::RETRY_FAIL : Scheduler::Completed::FAILED;
             task_it->completed = status;
             m_scheduler->updateStatus(&*task_it);
+            KLOG->info("Sending email to administrator about failed task.\nNew Status: {}", Scheduler::Completed::STRINGS[status]);
           }
           KLOG->info(
               "RequestHandler::onProcessComplete() - removing completed "
