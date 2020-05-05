@@ -479,7 +479,7 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
     auto timestamp = file_info.substr(index, 10);
     pipe_pos = findIndexAfter(file_info, index, '|');
     auto file_name = file_info.substr(index + 10, (pipe_pos - index - 10));
-    delim_pos = findIndexAfter(file_info, index, '::');
+    delim_pos = findIndexAfter(file_info, index, ':');
     auto type =
         file_info.substr(index + 10 + file_name.size() + 1,
                          (delim_pos - index - 10 - file_name.size() - 1));
