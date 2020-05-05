@@ -198,8 +198,12 @@ Task parseTask(QueryValues&& result) {
   }
 
   bool updateStatus(Task* task) {
-    std::string id = m_kdb.update("schedule", {"completed"}, {std::to_string(task->completed)}, QueryFilter{{"id", std::to_string(task->id)}}, "id");
-    return !id.empty();
+    return !m_kdb.update(
+      "schedule", // table
+      {"completed"}, {std::to_string(task->completed)}, // completion status
+      QueryFilter{{"id", std::to_string(task->id)}},
+      "id") // return value
+      .empty(); // !empty = success
   }
 
   template <typename T>
