@@ -1,4 +1,4 @@
-#include "DatabaseConnection.h"
+#include <database/database_connection.hpp>
 
 #include <iostream>
 #include <pqxx/pqxx>
@@ -6,6 +6,7 @@
 #include <utility>
 #include <memory>
 #include <type_traits>
+#include <variant>
 
 std::string fieldsAsString(std::vector<std::string> fields) {
   std::string field_string{""};
@@ -79,16 +80,74 @@ std::string updateStatement(UpdateReturnQuery query, std::string returning, bool
   return "";
 }
 
-std::string getFilterStatement(GenericFilter filter) {
-  if (filter.type == FilterTypes::COMPARISON) {
-    return std::string{filter.a + " BETWEEN " +
-                       filter.b + " AND " +
-                       filter.comparison};
-  } else {
-    return std::string{filter.a + filter.comparison + filter.b};
+template <typename T>
+std::string filterStatement(T filter) {
+  std::string filter_string{};
+  if constexpr(std::is_same_v<T, MultiOptionFilter>) {
+    filter_string += filter.a + " " + filter.comparison + " (";
+    std::string delim = "";
+    for (const auto& option : filter.options) {
+      filter_string += delim + option;
+      delim = ",";
+    }
+    filter_string += ")";
+  } else if constexpr(std::is_same_v<T, CompBetweenFilter>) {
+    filter_string += filter.field + " BETWEEN " +
+                  filter.a + " AND " +
+                  filter.b;
+  } else if constexpr(std::is_same_v<T, CompFilter>) {
+    filter_string += filter.a + filter.sign + filter.b;
+  }
+  return std::move(filter_string);
+}
+
+template <typename FilterA, typename FilterB>
+std::string getVariantFilterStatement(std::vector<std::variant<FilterA, FilterB>> filters) {
+  std::string filter_string{};
+  auto idx = 0;
+  auto filter_count = filters.size();
+  for (const auto& filter : filters) {
+    if (filter.index() == 0) {
+      filter_string += filterStatement(std::get<0>(filter));
+    } else {
+      filter_string += filterStatement(std::get<1>(filter));
+    }
+    if (filter_count > idx + 1) {
+      idx++;
+      filter_string += " AND ";
+    }
+  }
+  return filter_string;
+}
+
+// TODO: Phase this out, and only use "filterStatement" above
+template <typename T>
+std::string getFilterStatement(T filter) { // TODO: fix template usage
+  if constexpr(std::is_same_v<T, MultiOptionFilter>) {
+    std::string filter_string{filter.a + " " + filter.comparison + " ("};
+    std::string delim = "";
+    for (const auto& option : filter.options) {
+      filter_string += delim + option;
+      delim = ",";
+    }
+    filter_string += ")";
+    return std::move(filter_string);
+  } else if constexpr(std::is_same_v<T, CompBetweenFilter>) {
+    return std::move(std::string{filter.field + " BETWEEN " +
+                       filter.a + " AND " +
+                       filter.b});
+  } else if constexpr(std::is_same_v<T, CompFilter>) {
+    return std::move(std::string{filter.a + filter.sign + filter.b});
+  } else if constexpr(std::is_same_v<T, GenericFilter>) {
+    return std::move(std::string{filter.a + filter.comparison + filter.b});
   }
 }
 
+/**
+ * \note Most of this can be removed and replaced with newer implementation as is demonstrated in
+ * handling of vector of "variant" filters
+ * TODO: Finish refactor and simplify this mess
+ */
 template <typename T>
 std::string selectStatement(T query) {
   std::string delim{""};
@@ -155,19 +214,20 @@ std::string selectStatement(T query) {
                         query.table + " " + filter_string};
     } else if constexpr (std::is_same_v<T, MultiFilterSelect>) {
       for (const auto &filter : query.filter) {
-        filter_string += delim + getFilterStatement(filter);
+        filter_string += delim + getFilterStatement(filter); // *** HERE for variant impl
         delim = " AND ";
       }
       return {"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table +
               " " + filter_string};
+    } else if constexpr(std::is_same_v<T, MultiVariantFilterSelect>) {
+      filter_string += getVariantFilterStatement<CompBetweenFilter, MultiOptionFilter>(query.filter);
+      return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + filter_string};
     }
   } else {
     return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
                     query.table};
   }
 }
-
-DatabaseConnection::DatabaseConnection() {}
 
 bool DatabaseConnection::setConfig(DatabaseConfiguration config) {
   m_config = config;
@@ -187,7 +247,6 @@ pqxx::result DatabaseConnection::performInsert(DatabaseQuery query) {
 pqxx::result DatabaseConnection::performInsert(InsertReturnQuery query,
                                                std::string returning) {
   std::string table = query.table;
-  std::cout << table << std::endl;
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
   pqxx::result pqxx_result = worker.exec(insertStatement(query, returning));
@@ -199,7 +258,6 @@ pqxx::result DatabaseConnection::performInsert(InsertReturnQuery query,
 pqxx::result DatabaseConnection::performUpdate(UpdateReturnQuery query,
                                                std::string returning) {
   std::string table = query.table;
-  std::cout << table << std::endl;
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
   pqxx::result pqxx_result = worker.exec(updateStatement(query, returning));
@@ -247,28 +305,19 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
     }
     case QueryType::SELECT: {
       pqxx::result pqxx_result = performSelect(query);
-      QueryResult result{};
-      result.table = query.table;
-      auto count = query.fields.size();
-
-      for (auto row : pqxx_result) {
+      QueryResult result{.table=query.table};
+      result.values.reserve(pqxx_result.size());
+      for (const auto& row : pqxx_result) {
         int index = 0;
-        for (const auto &field : row) {
-          std::string field_name = query.fields[index++];
-          auto row_chars = field.c_str();
-          if (row_chars != nullptr) {
-            std::string value{row_chars};
-            auto pair = std::make_pair(field_name, value);
-            result.values.push_back(pair);
-          }
+        for (const auto& value : row) {
+            result.values.push_back(std::make_pair(query.fields[index++], value.c_str()));
         }
       }
       return result;
     }
 
     case QueryType::DELETE: {
-      std::stringstream query_stream{};
-      query_stream << " " << query.table << " VALUES (\"test\")";
+      // TODO: implement DELETE!
       QueryResult result{};
       return result;
     }
@@ -276,68 +325,21 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
   return QueryResult{};
 }
 
-QueryResult DatabaseConnection::query(ComparisonSelectQuery query) {
+template <typename T>
+QueryResult DatabaseConnection::query(T query) {
   pqxx::result pqxx_result = performSelect(query);
-  QueryResult result{};
-  result.table = query.table;
-  auto count = query.fields.size();
-
-  for (auto row : pqxx_result) {
+  QueryResult result{.table=query.table};
+  result.values.reserve(pqxx_result.size());
+  for (const auto& row : pqxx_result) {
     int index = 0;
-    for (const auto &field : row) {
-      std::string field_name = query.fields[index++];
-      auto row_chars = field.c_str();
-      if (row_chars != nullptr) {
-        std::string value{row_chars};
-        auto pair = std::make_pair(field_name, value);
-        result.values.push_back(pair);
-      }
+    for (const auto& value : row) {
+        result.values.push_back(std::make_pair(query.fields[index++], value.c_str()));
     }
   }
   return result;
 }
 
-QueryResult DatabaseConnection::query(MultiFilterSelect query) {
-  pqxx::result pqxx_result = performSelect(query);
-  QueryResult result{};
-  result.table = query.table;
-  auto count = query.fields.size();
-
-  for (auto row : pqxx_result) {
-    int index = 0;
-    for (const auto &field : row) {
-      std::string field_name = query.fields[index++];
-      auto row_chars = field.c_str();
-      if (row_chars != nullptr) {
-        std::string value{row_chars};
-        auto pair = std::make_pair(field_name, value);
-        result.values.push_back(pair);
-      }
-    }
-  }
-  return result;
-}
-
-QueryResult DatabaseConnection::query(ComparisonBetweenSelectQuery query) {
-  pqxx::result pqxx_result = performSelect(query);
-  QueryResult result{};
-  result.table = query.table;
-  auto count = query.fields.size();
-
-  for (auto row : pqxx_result) {
-    int index = 0;
-    for (const auto &field : row) {
-      std::string field_name = query.fields[index++];
-      auto row_chars = field.c_str();
-      if (row_chars != nullptr) {
-        std::string value{row_chars};
-        auto pair = std::make_pair(field_name, value);
-        result.values.push_back(pair);
-      }
-    }
-  }
-  return result;
-}
+template QueryResult DatabaseConnection::query(MultiVariantFilterSelect);
 
 std::string DatabaseConnection::query(InsertReturnQuery query) {
   std::string returning = query.returning;
@@ -374,4 +376,4 @@ pqxx::connection DatabaseConnection::getConnection() {
   return pqxx::connection(connectionString);
 }
 
-std::string DatabaseConnection::getDbName() { return m_db_name; }
+std::string DatabaseConnection::databaseName() { return m_db_name; }

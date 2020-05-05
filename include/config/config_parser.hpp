@@ -31,11 +31,13 @@ bool init() {
 bool is_initialized() { return reader_ptr != nullptr; }
 
 namespace Logging {
-std::string level() { return reader.Get("logging", "level", "info"); }
-std::string path() {
-  return reader.Get("logging", "path", requiredConfig("[logging] path"));
-}
-}  // namespace Logging
+  std::string level() {
+    return reader.Get("logging", "level", "info");
+  }
+  std::string path() {
+    return reader.Get("logging", "path", requiredConfig("[logging] path"));
+  }
+} // namespace Logging
 
 namespace Database {
 std::string pass() {
@@ -50,13 +52,23 @@ std::string name() {
 std::string user() {
   return reader.Get("database", "user", requiredConfig("[database] user"));
 }
+} // namespace Database
+
+namespace Process {
+std::string executor() {
+  return reader.Get("process", "executor", requiredConfig("[process] executor"));
+}
+
+namespace Admin {
+  std::string email() {
+    return reader.Get("admin", "email", requiredConfig("[admin] email"));
+  }
+} // namespace Admin
+
+std::string user() {
+  return reader.Get("database", "user", requiredConfig("[database] user"));
+}
 }  // namespace Database
 
 namespace Process {
 std::string executor() {
-  return reader.Get("process", "executor",
-                    requiredConfig("[process] executor"));
-}
-}  // namespace Process
-}  // namespace ConfigParser
-#endif  // __CONFIG_PARSER_HPP__

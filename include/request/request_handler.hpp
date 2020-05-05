@@ -2,10 +2,8 @@
 #define __REQUEST_HANDLER_HPP__
 
 #include <codec/kmessage_generated.h>
-#include <database/DatabaseConnection.h>
 #include <log/logger.h>
 #include <stdlib.h>
-
 #include <atomic>
 #include <chrono>
 #include <codec/util.hpp>
@@ -202,12 +200,11 @@ class RequestHandler {
       std::unique_lock<std::mutex> lock(m_mutex);
       maintenance_loop_condition.wait(lock,
                                       [this]() { return !handling_data; });
-      KLOG->info("RequestHandler::maintenanceLoop() - condition met");
       int client_socket_fd = -1;
       std::vector<Scheduler::Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
         std::string scheduled_times{"Scheduled time(s): "};
-        KLOG->info("There are tasks to be reviewed");
+        KLOG->info("Scheduled tasks found: {}", tasks.size());
         for (const auto &task : tasks) {
           auto formatted_time = TimeUtils::format_timestamp(task.datetime);
           std::cout << formatted_time << std::endl;
@@ -234,14 +231,11 @@ class RequestHandler {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
         KLOG->info(
-            "RequestHandler::maintenanceLoop() - KServer has {} {} pending "
-            "execution",
+            "KServer has {} {} pending execution",
             m_tasks_map.at(client_socket_fd).size(),
             m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
       } else {
-        KLOG->info(
-            "RequestHandler::maintenanceLoop() - There are currently no tasks "
-            "ready for execution");
+        KLOG->info("No tasks ready for execution");
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
             {"There are currently no tasks ready for execution"});
@@ -255,11 +249,7 @@ class RequestHandler {
       }
       System::Cron<System::SingleJob> cron{};
       std::string jobs = cron.listJobs();
-      if (!jobs.empty()) {
-        KLOG->info(
-            "RequestHandler::maintenanceLoop() - Cron - There are currently no "
-            "jobs");
-      } else {
+      if (jobs.empty()) {
         KLOG->info(
             "RequestHandler::maintenanceLoop() - Cron - There are currently "
             "the following cron jobs: \n {}",
@@ -275,8 +265,6 @@ class RequestHandler {
    * Iterates pending tasks and requests their execution
    */
   bool handlePendingTasks() {
-    KLOG->info("RequestHandler::maintenanceLoop() - Running scheduled tasks");
-    Scheduler::Scheduler *scheduler = getScheduler();
     if (!m_tasks_map.empty()) {
       Executor::ProcessExecutor executor{};
       bool is_scheduled_task = true;
@@ -302,7 +290,6 @@ class RequestHandler {
         future.get();
       }
     }
-    delete scheduler;
     return true;
   }
 
@@ -542,6 +529,7 @@ class RequestHandler {
         client_socket_fd, id);
     m_event_callback_fn(value, mask, id, client_socket_fd, error);
     if (scheduled_task) {
+      std::vector<Scheduler::Task>::iterator task_it;
     // TODO: Check ERROR and inform administrator and client accordingly. Delay task? Change schedule time?
       KLOG->info(
           "RequestHandler::onProcessComplete() - Task complete "
@@ -552,10 +540,19 @@ class RequestHandler {
       std::map<int, std::vector<Scheduler::Task>>::iterator it =
           m_tasks_map.find(client_socket_fd);
       if (it != m_tasks_map.end()) {
-        auto task_it = std::find_if(
+        task_it = std::find_if(
             it->second.begin(), it->second.end(),
             [id](Scheduler::Task task) { return task.id == std::stoi(id); });
         if (task_it != it->second.end()) {
+          if (error) {
+            // Send email to the administrator
+            KLOG->info("Sending email to administrator about failed task");
+            SystemUtils::sendMail(ConfigParser::Admin::email(), std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value});
+            auto status = task_it->completed == Scheduler::Completed::FAILED ?
+            Scheduler::Completed::RETRY_FAIL : Scheduler::Completed::FAILED;
+            task_it->completed = status;
+            m_scheduler->updateStatus(&*task_it);
+          }
           KLOG->info(
               "RequestHandler::onProcessComplete() - removing completed "
               "task from memory");

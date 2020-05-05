@@ -1,7 +1,6 @@
 #ifndef __SCHEDULER_HPP__
 #define __SCHEDULER_HPP__
 
-#include <database/DatabaseConnection.h>
 #include <log/logger.h>
 
 #include <codec/util.hpp>
@@ -12,9 +11,32 @@
 #include <vector>
 #include <type_traits>
 
+#define NO_COMPLETED_VALUE 99
+
 namespace Scheduler {
 
 typedef std::function<void(std::string, int, int, std::vector<std::string>)> ScheduleEventCallback;
+
+/**
+ * \note Scheduled Task Completion States
+ *
+ * SCHEDULED  - Has not yet run
+ * COMPLETED  - Ran successfully
+ * FAILED     - Ran once and failed
+ * RETRY_FAIL - Failed on retry
+ */
+namespace Completed {
+  static constexpr int SCHEDULED = 0;
+  static constexpr int SUCCESS = 1;
+  static constexpr int FAILED = 2;
+  static constexpr int RETRY_FAIL = 3;
+
+  static constexpr const char* STRINGS[4] = {"0", "1", "2", "3"};
+}
+
+namespace Messages {
+  static constexpr const char* TASK_ERROR_EMAIL = "Scheduled task ran but returned an error:\n";
+}
 
 struct Task {
   int execution_mask;
@@ -24,6 +46,7 @@ struct Task {
   std::string envfile;
   std::string execution_flags;
   int id = 0;
+  int completed;
 
   bool validate() {
     return execution_mask > 0 && !datetime.empty() && !envfile.empty() && !execution_flags.empty();
@@ -76,7 +99,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
 
   std::vector<Task> parseTasks(QueryValues&& result) {
-    int id{};
+    int id{}, completed{NO_COMPLETED_VALUE};
     std::string mask, flags, envfile, time, filename;
     std::vector<Task> tasks;
     for (const auto &v : result) {
@@ -95,19 +118,22 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       if (v.first == "id") {
         id = std::stoi(v.second);
       }
+      if (v.first == "completed") {
+        completed = std::stoi(v.second);
+      }
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
-          !mask.empty() && id > 0) {
-        // TODO: Get files and add to task before pushing into vector
+          !mask.empty() && completed != NO_COMPLETED_VALUE && id > 0) {
         tasks.push_back(
             Task{.execution_mask = std::stoi(mask),
                  .datetime = time,
-                 .file = true,  // Change this default value later after we
-                                // implement booleans in the DB abstraction
+                 .file = true,
                  .files = {},
                  .envfile = envfile,
                  .execution_flags = flags,
-                 .id = id});
+                 .id = id,
+                 .completed = completed});
         id = 0;
+        completed = NO_COMPLETED_VALUE;
         filename.clear();
         envfile.clear();
         flags.clear();
@@ -136,19 +162,31 @@ Task parseTask(QueryValues&& result) {
       if (v.first == "id") {
         task.id = std::stoi(v.second);
       }
+      if (v.first == "completed") {
+        task.completed = std::stoi(v.second);
+      }
     }
     return task;
   }
 
   virtual std::vector<Task> fetchTasks() {
     std::string past_15_minute_timestamp = std::to_string(TimeUtils::unixtime() - 900);
-    std::string future_5_minute_timestamp =
-        std::to_string(TimeUtils::unixtime() + 300);
-    return parseTasks(m_kdb.selectMultiFilter(
+    std::string future_5_minute_timestamp = std::to_string(TimeUtils::unixtime() + 300);
+    return parseTasks(m_kdb.selectMultiFilter<CompBetweenFilter, MultiOptionFilter>(
         "schedule",                                  // table
-        {"id", "time", "mask", "flags", "envfile"},  // fields
-        {CompFilter{"time", std::move(past_15_minute_timestamp), std::move(future_5_minute_timestamp)},
-          GenericFilter{"completed", "=", "false"}}));
+        {"id", "time", "mask", "flags", "envfile", "completed"},  // fields
+        {CompBetweenFilter{
+          "time",
+          std::move(past_15_minute_timestamp),
+          std::move(future_5_minute_timestamp)
+        },
+        MultiOptionFilter{
+          "completed",
+          "IN",
+          {Completed::STRINGS[Completed::SCHEDULED], {Completed::STRINGS[Completed::FAILED]}}
+          }
+        }
+    ));
   }
 
   Task getTask(std::string id) {
@@ -157,6 +195,15 @@ Task parseTask(QueryValues&& result) {
 
   Task getTask(int id) {
     return parseTask(m_kdb.select("schedule", {"mask", "flags", "envfile", "time", "completed"}, {{"id", std::to_string(id)}}));
+  }
+
+  bool updateStatus(Task* task) {
+    return !m_kdb.update(
+      "schedule", // table
+      {"completed"}, {std::to_string(task->completed)}, // completion status
+      QueryFilter{{"id", std::to_string(task->id)}},
+      "id") // return value
+      .empty(); // !empty = success
   }
 
   template <typename T>
