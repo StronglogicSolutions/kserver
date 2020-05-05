@@ -26,6 +26,10 @@ typedef std::function<void(std::string, int, int, std::vector<std::string>)> Sch
  * RETRY_FAIL - Failed on retry
  */
 namespace Completed {
+  namespace SCHEDULED {
+    static constexpr uint8_t value = 0;
+    std::string str() { return "0" };
+  }
   static constexpr int SCHEDULED = 0;
   static constexpr int SUCCESS = 1;
   static constexpr int FAILED = 2;
