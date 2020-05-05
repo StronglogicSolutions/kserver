@@ -2,6 +2,7 @@
 #define __CONFIG_PARSER_HPP__
 
 #include <string>
+
 #include "INIReader.h"
 
 namespace ConfigParser {
@@ -27,9 +28,7 @@ bool init() {
   return reader.ParseError() == 0;
 }
 
-bool is_initialized() {
-  return reader_ptr != nullptr;
-}
+bool is_initialized() { return reader_ptr != nullptr; }
 
 namespace Logging {
   std::string level() {
@@ -42,24 +41,34 @@ namespace Logging {
 
 namespace Database {
 std::string pass() {
-  return reader.Get("database", "password", requiredConfig("[database] password"));;
+  return reader.Get("database", "password",
+                    requiredConfig("[database] password"));
 }
 
-std::string name() { return reader.Get("database", "name", requiredConfig("[database] name")); }
+std::string name() {
+  return reader.Get("database", "name", requiredConfig("[database] name"));
+}
 
-std::string user() { return reader.Get("database", "user", requiredConfig("[database] user")); }
+std::string user() {
+  return reader.Get("database", "user", requiredConfig("[database] user"));
+}
 } // namespace Database
 
 namespace Process {
 std::string executor() {
   return reader.Get("process", "executor", requiredConfig("[process] executor"));
 }
-} // namespace Process
 
 namespace Admin {
   std::string email() {
     return reader.Get("admin", "email", requiredConfig("[admin] email"));
   }
 } // namespace Admin
-}  // namespace ConfigParser
-#endif  // __CONFIG_PARSER_HPP__
+
+std::string user() {
+  return reader.Get("database", "user", requiredConfig("[database] user"));
+}
+}  // namespace Database
+
+namespace Process {
+std::string executor() {
