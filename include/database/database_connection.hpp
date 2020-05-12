@@ -5,8 +5,10 @@
 #include <database/db_structs.hpp>
 
 class DatabaseConnection {
+  #ifdef UNIT_TEST
+    friend class MockDBConnection;
+  #endif
  public:
-  // constructor
   bool setConfig(DatabaseConfiguration config);
   QueryResult query(DatabaseQuery query);
 
