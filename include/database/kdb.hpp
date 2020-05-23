@@ -22,7 +22,7 @@ class KDB {
                      .name = ConfigParser::Database::name()};
 
     DatabaseConfiguration configuration{
-        .credentials = m_credentials, .address = "127.0.0.1", .port = "5432"};
+        .credentials = m_credentials, .address = ConfigParser::Database::host(), .port = ConfigParser::Database::port()};
 
     m_connection = DatabaseConnection{};
     m_connection.setConfig(configuration);
