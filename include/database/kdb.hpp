@@ -24,6 +24,8 @@ class KDB {
     DatabaseConfiguration configuration{
         .credentials = m_credentials, .address = ConfigParser::Database::host(), .port = ConfigParser::Database::port()};
 
+    KLOG->info("Database configuration: Host {} Port {}", configuration.address, configuration.port);
+
     m_connection = DatabaseConnection{};
     m_connection.setConfig(configuration);
   }
