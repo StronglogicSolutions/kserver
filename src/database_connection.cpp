@@ -224,8 +224,10 @@ std::string selectStatement(T query) {
       return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + filter_string};
     }
   } else {
-    return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
+    std::string return_string = std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
                     query.table};
+    std::cout << "Returning DB query string:\n" << return_string << std::endl;
+    return return_string
   }
 }
 
