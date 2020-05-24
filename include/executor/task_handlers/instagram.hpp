@@ -14,7 +14,7 @@ namespace Task {
    * These indices describe the order of arguments expected for processing of an IGTask
    */
   namespace IGTaskIndex {
-    static constexpr uint8_t MASK = Task::TaskIndexes::MASK;
+    static constexpr uint8_t MASK = TaskIndexes::MASK;
     static constexpr uint8_t FILEINFO = 1;
     static constexpr uint8_t DATETIME = 2;
     static constexpr uint8_t DESCRIPTION = 3;
@@ -28,13 +28,15 @@ namespace Task {
     static constexpr uint8_t USER = 11;
   }
 
-class IGTaskHandler {
+  namespace Name {
+    static constexpr const char* INSTAGRAM = "Instagram";
+  }
+
+class IGTaskHandler : public TaskHandler {
  public:
-  static Scheduler::Task prepareTask(std::vector<std::string> argv,
-                                     std::string uuid) {
+  virtual Scheduler::Task prepareTask(std::vector<std::string> argv,
+                                     std::string uuid) override {
     if (!FileUtils::createTaskDirectory(uuid)) {
-      std::cout << "UNABLE TO CREATE TASK DIRECTORY! Returning empty task"
-                << std::endl;
       return Scheduler::Task{};
     }
 
@@ -51,11 +53,10 @@ class IGTaskHandler {
     auto header = argv.at(IGTaskIndex::HEADER);
     auto user = argv.at(IGTaskIndex::USER);
 
-    std::vector<FileInfo> task_files = FileUtils::parseFileInfo(file_info);
+    std::vector<FileInfo> task_files = parseFileInfo(file_info);
 
     std::string media_filename = get_executable_cwd();
     for (int i = 0; i < task_files.size(); i++) {
-      std::cout << "Filename returned: " << task_files.at(i).first << std::endl;
       task_files.at(i).first =
           media_filename + "/data/" + uuid + "/" + task_files.at(i).first;
     }
