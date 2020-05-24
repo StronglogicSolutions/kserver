@@ -17,6 +17,7 @@
 #include <mutex>
 #include <executor/task_handlers/task.hpp>
 #include <executor/task_handlers/instagram.hpp>
+#include <executor/task_handlers/generic.hpp>
 #include <server/types.hpp>
 #include <string>
 #include <system/cron.hpp>
@@ -335,13 +336,43 @@ class RequestHandler {
         }
       }
       if (!path.empty() && !name.empty()) {
-        if (name == "Instagram") {
+        if (name == Task::Name::INSTAGRAM) {
           KLOG->info("RequestHandler - New Instagram Task requested");
-          Scheduler::Task task = Task::IGTaskHandler::prepareTask(argv, uuid);
+          Task::IGTaskHandler ig_task_handler{};
+          Scheduler::Task task = ig_task_handler.prepareTask(argv, uuid);
           auto num = task.files.size();
           auto file_index = 0;
           for (const auto &file_info : task.files) {
-            std::cout << "task file: " << file_info.first << std::endl;
+            KLOG->info("task file: {}", file_info.first);
+            std::vector<std::string> callback_args{file_info.first,
+                                                   file_info.second, uuid};
+            if (file_index == task.files.size() - 1) {
+              callback_args.push_back("final file");
+            }
+            m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
+                                 callback_args);
+          }
+
+          if (task.validate()) {
+            KLOG->info("Sending task request to Scheduler");
+            auto id = m_scheduler->schedule(task);
+            if (!id.empty()) {
+              auto env_file_data = FileUtils::readEnvFile(task.envfile);
+              m_system_callback_fn(client_socket_fd,
+                                   SYSTEM_EVENTS__SCHEDULER_SUCCESS,
+                                   {uuid, id, std::to_string(num), env_file_data});
+              return "Operation succeeded";
+            }
+          }
+        } else { // assume Generic Task
+          KLOG->info("RequestHandler - New Generic Task requested");
+          Task::GenericTaskHandler generic_task_handler{};
+
+          Scheduler::Task task = generic_task_handler.prepareTask(argv, uuid);
+          auto num = task.files.size();
+          auto file_index = 0;
+          for (const auto &file_info : task.files) {
+            KLOG->info("task file: {}", file_info.first);
             std::vector<std::string> callback_args{file_info.first,
                                                    file_info.second, uuid};
             if (file_index == task.files.size() - 1) {
