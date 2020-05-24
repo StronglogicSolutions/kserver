@@ -1,0 +1,14 @@
+namespace GenericData;
+
+table GenericTask {
+  id: int;
+  file_info: string;
+  time: string;
+  description: string;
+  is_video: bool;
+  mask: int;
+  header: string;
+  user: string;
+}
+
+root_type GenericTask;
