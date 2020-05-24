@@ -186,7 +186,6 @@ class RequestHandler {
         KLOG->info("Scheduled tasks found: {}", tasks.size());
         for (const auto &task : tasks) {
           auto formatted_time = TimeUtils::format_timestamp(task.datetime);
-          std::cout << formatted_time << std::endl;
           scheduled_times.append(formatted_time);
           scheduled_times += " ";
           KLOG->info(
@@ -321,7 +320,6 @@ class RequestHandler {
           auto num = task.files.size();
           auto file_index = 0;
           for (const auto &file_info : task.files) {
-            std::cout << "task file: " << file_info.first << std::endl;
             std::vector<std::string> callback_args{file_info.first,
                                                    file_info.second, uuid};
             if (file_index == task.files.size() - 1) {
