@@ -415,7 +415,7 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
       } else {
         return left(std::string(""));
       }
-    } else if (msg_type_byte_code == 0xFD) {
+    } else if (msg_type_byte_code == 0xFC) {
       flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
 
       if (VerifyGenericTaskBuffer(verifier)) {
