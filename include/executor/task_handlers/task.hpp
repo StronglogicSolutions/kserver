@@ -6,6 +6,7 @@
 #include <codec/util.hpp>
 
 namespace Executor {
+  #define TIMESTAMP_LENGTH 10
   namespace TaskIndexes {
     static constexpr uint8_t MASK = 0;
   }
@@ -44,19 +45,19 @@ namespace Executor {
 std::vector<FileInfo> parseFileInfo(std::string file_info) {
   std::vector<FileInfo> info_v{};
   info_v.reserve(file_info.size() /
-                 25);  // Estimating number of files being represented
+                 32);
   size_t pipe_pos = 0;
   size_t index = 0;
   size_t delim_pos = 0;
   std::string parsing{file_info, file_info.size()};
   do {
-    auto timestamp = file_info.substr(index, 10);
+    auto timestamp = file_info.substr(index, TIMESTAMP_LENGTH);
     pipe_pos = findIndexAfter(file_info, index, '|');
-    auto file_name = file_info.substr(index + 10, (pipe_pos - index - 10));
+    auto file_name = file_info.substr(index + TIMESTAMP_LENGTH, (pipe_pos - index - TIMESTAMP_LENGTH));
     delim_pos = findIndexAfter(file_info, index, ':');
     auto type =
-        file_info.substr(index + 10 + file_name.size() + 1,
-                         (delim_pos - index - 10 - file_name.size() - 1));
+        file_info.substr(index + TIMESTAMP_LENGTH + file_name.size() + 1,
+                         (delim_pos - index - TIMESTAMP_LENGTH - file_name.size() - 1));
     info_v.push_back(FileInfo{file_name, timestamp});
     index += timestamp.size() + file_name.size() + type.size() +
              3;  // 3 strings + 3 delim chars
