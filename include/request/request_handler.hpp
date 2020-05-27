@@ -4,6 +4,7 @@
 #include <codec/kmessage_generated.h>
 #include <log/logger.h>
 #include <stdlib.h>
+
 #include <atomic>
 #include <chrono>
 #include <codec/util.hpp>
@@ -12,11 +13,11 @@
 #include <database/kdb.hpp>
 #include <executor/executor.hpp>
 #include <executor/scheduler.hpp>
+#include <executor/task_handlers/instagram.hpp>
+#include <executor/task_handlers/task.hpp>
 #include <iostream>
 #include <map>
 #include <mutex>
-#include <executor/task_handlers/task.hpp>
-#include <executor/task_handlers/instagram.hpp>
 #include <server/types.hpp>
 #include <string>
 #include <system/cron.hpp>
@@ -48,23 +49,7 @@ class RequestHandler {
    * Loads configuration and instantiates a DatabaseConfiguration object
    *
    */
-  RequestHandler() : m_executor(nullptr) {
-    if (!ConfigParser::init()) {
-      KLOG->info("RequestHandler::RequestHandler() - Unable to load config");
-      return;
-    }
-
-    m_credentials = {.user = ConfigParser::Database::user(),
-                     .password = ConfigParser::Database::pass(),
-                     .name = ConfigParser::Database::name()};
-
-    DatabaseConfiguration configuration{
-        .credentials = m_credentials, .address = "127.0.0.1", .port = "5432"};
-
-    m_connection = DatabaseConnection{};
-    m_connection.setConfig(configuration);
-    KLOG->info("RequestHandler::RequestHandler - set database credentials");
-  }
+  RequestHandler() : m_executor(nullptr) {}
 
   /**
    * @constructor
@@ -72,10 +57,7 @@ class RequestHandler {
    * The move constructor
    */
   RequestHandler(RequestHandler &&r)
-      : m_executor(r.m_executor),
-        m_scheduler(r.m_scheduler),
-        m_connection(r.m_connection),
-        m_credentials(r.m_credentials) {
+      : m_executor(r.m_executor), m_scheduler(r.m_scheduler) {
     r.m_executor = nullptr;
   }
 
@@ -86,9 +68,7 @@ class RequestHandler {
    */
   RequestHandler(const RequestHandler &r)
       : m_executor(nullptr),  // We do not copy the Executor
-        m_scheduler(nullptr),
-        m_connection(r.m_connection),
-        m_credentials(r.m_credentials) {}
+        m_scheduler(nullptr) {}
 
   /**
    * @operator
@@ -98,8 +78,6 @@ class RequestHandler {
   RequestHandler &operator=(const RequestHandler &handler) {
     this->m_executor = nullptr;
     this->m_scheduler = nullptr;
-    this->m_connection = handler.m_connection;
-    this->m_credentials = handler.m_credentials;
     return *this;
   }
 
@@ -149,7 +127,8 @@ class RequestHandler {
    *
    */
   void initialize(
-      std::function<void(std::string, int, std::string, int, bool)> event_callback_fn,
+      std::function<void(std::string, int, std::string, int, bool)>
+          event_callback_fn,
       std::function<void(int, int, std::vector<std::string>)>
           system_callback_fn,
       std::function<void(int, std::vector<Scheduler::Task>)> task_callback_fn) {
@@ -207,7 +186,6 @@ class RequestHandler {
         KLOG->info("Scheduled tasks found: {}", tasks.size());
         for (const auto &task : tasks) {
           auto formatted_time = TimeUtils::format_timestamp(task.datetime);
-          std::cout << formatted_time << std::endl;
           scheduled_times.append(formatted_time);
           scheduled_times += " ";
           KLOG->info(
@@ -270,9 +248,10 @@ class RequestHandler {
       bool is_scheduled_task = true;
       executor.setEventCallback(
           [this, is_scheduled_task](std::string result, int mask,
-                                    std::string id, int client_socket_fd, bool error) {
-            onProcessComplete(result, mask, id, client_socket_fd,
-                              error, is_scheduled_task);
+                                    std::string id, int client_socket_fd,
+                                    bool error) {
+            onProcessComplete(result, mask, id, client_socket_fd, error,
+                              is_scheduled_task);
           });
 
       std::vector<std::future<void>> futures{};
@@ -342,7 +321,6 @@ class RequestHandler {
           auto num = task.files.size();
           auto file_index = 0;
           for (const auto &file_info : task.files) {
-            std::cout << "task file: " << file_info.first << std::endl;
             std::vector<std::string> callback_args{file_info.first,
                                                    file_info.second, uuid};
             if (file_index == task.files.size() - 1) {
@@ -357,9 +335,9 @@ class RequestHandler {
             auto id = m_scheduler->schedule(task);
             if (!id.empty()) {
               auto env_file_data = FileUtils::readEnvFile(task.envfile);
-              m_system_callback_fn(client_socket_fd,
-                                   SYSTEM_EVENTS__SCHEDULER_SUCCESS,
-                                   {uuid, id, std::to_string(num), env_file_data});
+              m_system_callback_fn(
+                  client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS,
+                  {uuid, id, std::to_string(num), env_file_data});
               return "Operation succeeded";
             }
           }
@@ -445,17 +423,13 @@ class RequestHandler {
    *
    */
   std::map<int, std::string> operator()(KOperation op) {
-    // TODO: We need to fix the DB query so it is orderable and groupable
-    DatabaseQuery select_query{.table = "apps",
-                               .fields = {"name", "path", "data", "mask"},
-                               .type = QueryType::SELECT,
-                               .values = {}};
-    QueryResult result = m_connection.query(select_query);
+    auto kdb = Database::KDB{};
+    QueryValues result =
+        kdb.select("apps", {"name", "path", "data", "mask"}, QueryFilter{});
     std::map<int, std::string> command_map{};
     std::vector<std::string> names{};
     std::vector<int> masks{};
-    std::string name{""};
-    for (const auto &row : result.values) {
+    for (const auto &row : result) {
       if (row.first == "name") {
         names.push_back(row.second);
       } else if (row.first == "mask") {
@@ -469,7 +443,6 @@ class RequestHandler {
     }
     return command_map;
   }
-
   /**
    * \b EXECUTE \b PROCESS
    *
@@ -486,26 +459,23 @@ class RequestHandler {
    * making the request
    */
   void operator()(uint32_t mask, std::string request_id, int client_socket_fd) {
-    QueryResult result = m_connection.query(
-        DatabaseQuery{.table = "apps",
-                      .fields = {"path"},
-                      .type = QueryType::SELECT,
-                      .values = {},
-                      .filter = QueryFilter{std::make_pair(
-                          std::string("mask"), std::to_string(mask))}});
-
-    for (const auto &row : result.values) {
-      KLOG->info("Field: {}, Value: {}", row.first, row.second);
+    auto kdb = Database::KDB{};
+    QueryValues result = kdb.select(
+        "apps", {"path"}, QueryFilter{{"mask", std::to_string(mask)}});
+    std::map<int, std::string> command_map{};
+    std::vector<std::string> names{};
+    std::vector<int> masks{};
+    for (const auto &row : result) {
       m_executor->request(row.second, mask, client_socket_fd, request_id, {},
                           Executor::ExecutionRequestType::IMMEDIATE);
+      std::string info_string{
+          "RequestHandler:: PROCESS RUNNER - Process execution requested for "
+          "applications matching the mask "};
+      info_string += std::to_string(mask);
+      m_system_callback_fn(client_socket_fd,
+                           SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
+                           {info_string, request_id});
     }
-    std::string info_string{
-        "RequestHandler:: PROCESS RUNNER - Process execution requested for "
-        "applications matching the mask "};
-    info_string += std::to_string(mask);
-    m_system_callback_fn(client_socket_fd,
-                         SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
-                         {info_string, request_id});
   }
 
  private:
@@ -525,7 +495,8 @@ class RequestHandler {
    *
    */
   void onProcessComplete(std::string value, int mask, std::string id,
-                         int client_socket_fd, bool error, bool scheduled_task = false) {
+                         int client_socket_fd, bool error,
+                         bool scheduled_task = false) {
     KLOG->info(
         "RequestHandler::onProcessComplete() - Process complete notification "
         "for client {}'s request {}",
@@ -533,7 +504,8 @@ class RequestHandler {
     m_event_callback_fn(value, mask, id, client_socket_fd, error);
     if (scheduled_task) {
       std::vector<Scheduler::Task>::iterator task_it;
-    // TODO: Check ERROR and inform administrator and client accordingly. Delay task? Change schedule time?
+      // TODO: Check ERROR and inform administrator and client accordingly.
+      // Delay task? Change schedule time?
       KLOG->info(
           "RequestHandler::onProcessComplete() - Task complete "
           "notification "
@@ -549,12 +521,18 @@ class RequestHandler {
         if (task_it != it->second.end()) {
           if (error) {
             // Send email to the administrator
-            SystemUtils::sendMail(ConfigParser::Admin::email(), std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value});
-            auto status = task_it->completed == Scheduler::Completed::FAILED ?
-            Scheduler::Completed::RETRY_FAIL : Scheduler::Completed::FAILED;
+            SystemUtils::sendMail(
+                ConfigParser::Admin::email(),
+                std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value});
+            auto status = task_it->completed == Scheduler::Completed::FAILED
+                              ? Scheduler::Completed::RETRY_FAIL
+                              : Scheduler::Completed::FAILED;
             task_it->completed = status;
             m_scheduler->updateStatus(&*task_it);
-            KLOG->info("Sending email to administrator about failed task.\nNew Status: {}", Scheduler::Completed::STRINGS[status]);
+            KLOG->info(
+                "Sending email to administrator about failed task.\nNew "
+                "Status: {}",
+                Scheduler::Completed::STRINGS[status]);
           }
           KLOG->info(
               "RequestHandler::onProcessComplete() - removing completed "
@@ -597,7 +575,8 @@ class RequestHandler {
   /**
    * callback functions
    */
-  std::function<void(std::string, int, std::string, int, bool)> m_event_callback_fn;
+  std::function<void(std::string, int, std::string, int, bool)>
+      m_event_callback_fn;
   std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
   std::function<void(int, std::vector<Scheduler::Task>)> m_task_callback_fn;
 
@@ -608,8 +587,6 @@ class RequestHandler {
 
   Executor::ProcessExecutor *m_executor;
   Scheduler::Scheduler *m_scheduler;
-  DatabaseConnection m_connection;
-  DatabaseCredentials m_credentials;
   std::thread m_maintenance_worker;
 };
 }  // namespace Request
