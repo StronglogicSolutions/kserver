@@ -30,6 +30,7 @@ namespace Request {
 enum DevTest { Schedule = 1, ExecuteTask = 2 };
 
 using namespace KData;
+using namespace Executor;
 
 flatbuffers::FlatBufferBuilder builder(1024);
 
@@ -153,7 +154,7 @@ class RequestHandler {
       std::function<void(std::string, int, std::string, int, bool)> event_callback_fn,
       std::function<void(int, int, std::vector<std::string>)>
           system_callback_fn,
-      std::function<void(int, std::vector<Scheduler::Task>)> task_callback_fn) {
+      std::function<void(int, std::vector<Task>)> task_callback_fn) {
     m_executor = new Executor::ProcessExecutor();
     m_scheduler = getScheduler();
     m_executor->setEventCallback([this](std::string result, int mask,
@@ -202,7 +203,7 @@ class RequestHandler {
       maintenance_loop_condition.wait(lock,
                                       [this]() { return !handling_data; });
       int client_socket_fd = -1;
-      std::vector<Scheduler::Task> tasks = m_scheduler->fetchTasks();
+      std::vector<Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
         std::string scheduled_times{"Scheduled time(s): "};
         KLOG->info("Scheduled tasks found: {}", tasks.size());
@@ -226,7 +227,7 @@ class RequestHandler {
 
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end()) {
-          m_tasks_map.insert(std::pair<int, std::vector<Scheduler::Task>>(
+          m_tasks_map.insert(std::pair<int, std::vector<Task>>(
               client_socket_fd, tasks));
         } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
@@ -318,7 +319,7 @@ class RequestHandler {
             "arguments");
         return "";
       }
-      auto mask = argv.at(Task::TaskIndexes::MASK);
+      auto mask = argv.at(TaskIndexes::MASK);
       auto kdb = Database::KDB();
 
       QueryValues result =
@@ -336,10 +337,10 @@ class RequestHandler {
         }
       }
       if (!path.empty() && !name.empty()) {
-        if (name == Task::Name::INSTAGRAM) {
+        if (name == Name::INSTAGRAM) {
           KLOG->info("RequestHandler - New Instagram Task requested");
-          Task::IGTaskHandler ig_task_handler{};
-          Scheduler::Task task = ig_task_handler.prepareTask(argv, uuid);
+          IGTaskHandler ig_task_handler{};
+          Task task = ig_task_handler.prepareTask(argv, uuid);
           auto num = task.files.size();
           auto file_index = 0;
           for (const auto &file_info : task.files) {
@@ -366,9 +367,9 @@ class RequestHandler {
           }
         } else { // assume Generic Task
           KLOG->info("RequestHandler - New Generic Task requested");
-          Task::GenericTaskHandler generic_task_handler{};
+          GenericTaskHandler generic_task_handler{};
 
-          Scheduler::Task task = generic_task_handler.prepareTask(argv, uuid);
+          Task task = generic_task_handler.prepareTask(argv, uuid);
           auto num = task.files.size();
           auto file_index = 0;
           for (const auto &file_info : task.files) {
@@ -421,7 +422,7 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      std::vector<Scheduler::Task> tasks = m_scheduler->fetchTasks();
+      std::vector<Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
         KLOG->info("There are tasks to be reviewed");
         for (const auto &task : tasks) {
@@ -442,7 +443,7 @@ class RequestHandler {
         m_executor->executeTask(client_socket_fd, tasks.at(0));
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end()) {
-          m_tasks_map.insert(std::pair<int, std::vector<Scheduler::Task>>(
+          m_tasks_map.insert(std::pair<int, std::vector<Task>>(
               client_socket_fd, tasks));
         } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
@@ -561,7 +562,7 @@ class RequestHandler {
         client_socket_fd, id);
     m_event_callback_fn(value, mask, id, client_socket_fd, error);
     if (scheduled_task) {
-      std::vector<Scheduler::Task>::iterator task_it;
+      std::vector<Task>::iterator task_it;
     // TODO: Check ERROR and inform administrator and client accordingly. Delay task? Change schedule time?
       KLOG->info(
           "RequestHandler::onProcessComplete() - Task complete "
@@ -569,12 +570,12 @@ class RequestHandler {
           "for client {}'s task {}{}",
           client_socket_fd, id, error ? "\nERROR WAS RETURNED" : "");
 
-      std::map<int, std::vector<Scheduler::Task>>::iterator it =
+      std::map<int, std::vector<Task>>::iterator it =
           m_tasks_map.find(client_socket_fd);
       if (it != m_tasks_map.end()) {
         task_it = std::find_if(
             it->second.begin(), it->second.end(),
-            [id](Scheduler::Task task) { return task.id == std::stoi(id); });
+            [id](Task task) { return task.id == std::stoi(id); });
         if (task_it != it->second.end()) {
           if (error) {
             // Send email to the administrator
@@ -628,9 +629,9 @@ class RequestHandler {
    */
   std::function<void(std::string, int, std::string, int, bool)> m_event_callback_fn;
   std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
-  std::function<void(int, std::vector<Scheduler::Task>)> m_task_callback_fn;
+  std::function<void(int, std::vector<Task>)> m_task_callback_fn;
 
-  std::map<int, std::vector<Scheduler::Task>> m_tasks_map;
+  std::map<int, std::vector<Task>> m_tasks_map;
   std::mutex m_mutex;
   std::condition_variable maintenance_loop_condition;
   std::atomic<bool> handling_data;
