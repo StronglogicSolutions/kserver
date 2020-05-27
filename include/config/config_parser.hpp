@@ -48,6 +48,10 @@ std::string pass() {
 std::string name() { return reader.Get("database", "name", requiredConfig("[database] name")); }
 
 std::string user() { return reader.Get("database", "user", requiredConfig("[database] user")); }
+
+std::string port() { return reader.Get("database", "port", requiredConfig("[database] port")); }
+
+std::string host() { return reader.Get("database", "host", requiredConfig("[database] host")); }
 } // namespace Database
 
 namespace Process {
