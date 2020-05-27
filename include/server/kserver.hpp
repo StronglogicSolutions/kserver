@@ -182,12 +182,12 @@ class KServer : public SocketListener {
                std::vector<std::string> args) {
           systemEventNotify(client_socket_fd, system_event, args);
         },
-        [this](int client_socket_fd, std::vector<Scheduler::Task> tasks) {
+        [this](int client_socket_fd, std::vector<Task> tasks) {
           onTasksReady(client_socket_fd, tasks);
         });
   }
 
-  void onTasksReady(int client_socket_fd, std::vector<Scheduler::Task> tasks) {
+  void onTasksReady(int client_socket_fd, std::vector<Task> tasks) {
     KLOG->info("Scheduler has delivered {} tasks for processing", tasks.size());
   }
 
