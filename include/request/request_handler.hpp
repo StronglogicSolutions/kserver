@@ -310,7 +310,6 @@ class RequestHandler {
   std::string operator()(KOperation op, std::vector<std::string> argv,
                          int client_socket_fd, std::string uuid) {
     if (op == "Schedule") {
-      KLOG->info("RequestHandler:: Handling schedule request");
       if (argv.empty()) {
         KLOG->info(
             "RequestHandler::Scheduler - Can't handle a task with no "
@@ -319,6 +318,8 @@ class RequestHandler {
       }
       auto mask = argv.at(Task::TaskIndexes::MASK);
       auto kdb = Database::KDB();
+
+      KLOG->info("RequestHandler:: Handling schedule request for process matching mask {}", mask);
 
       QueryValues result =
           kdb.select("apps", {"name", "path"}, {{"mask", mask}});
@@ -364,6 +365,7 @@ class RequestHandler {
           }
         }
       }
+      KLOG->info("Task scheduling failed: Unable to find an application matching mask {}", mask);
       return std::string{"Operation failed"};
     }
     return "";
