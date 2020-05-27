@@ -385,7 +385,7 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
 
         /**
          * /note The specification for the order of these arguments can be found
-         * in namespace: Task::IGTaskIndex
+         * in namespace: Executor::IGTaskIndex
          */
         return right(std::move(
           std::vector<std::string>{
@@ -408,7 +408,6 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
         std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
         // Parse the bytes into an encoded message structure
         auto k_message = GetMessage(&decode_buffer);
-        auto id = k_message->id();  // message ID
         // Get the message bytes and create a string
         const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
         return left(std::string{message_bytes->begin(), message_bytes->end()});
@@ -424,7 +423,7 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
 
         /**
          * /note The specification for the order of these arguments can be found
-         * in namespace: Task::IGTaskIndex
+         * in namespace: Executor::GenericTaskIndex
          */
         return right(std::move(
           std::vector<std::string>{
@@ -440,25 +439,6 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
       return left(std::string(""));
     }
   }
-}
-
-std::string getDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
-  // Make sure not an empty buffer
-  // Obtain the raw buffer so we can read the header
-  uint8_t *raw_buffer = s_buffer_ptr.get();
-  uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
-                                *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
-  // TODO: Copying into a new buffer for readability - switch to using the
-  // original buffer
-  uint8_t decode_buffer[message_byte_size];
-  std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
-  // Parse the bytes into an encoded message structure
-  auto k_message = GetMessage(&decode_buffer);
-  auto id = k_message->id();  // message ID
-  // Get the message bytes and create a string
-  const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
-
-  return std::string{message_bytes->begin(), message_bytes->end()};
 }
 
 bool isNewSession(const char *data) {
