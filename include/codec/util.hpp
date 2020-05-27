@@ -3,6 +3,7 @@
 
 #define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
 #include <codec/instatask_generated.h>
+#include <codec/generictask_generated.h>
 #include <codec/kmessage_generated.h>
 #include <codec/uuid.h>
 
@@ -35,6 +36,7 @@ using namespace uuids;
 using namespace neither;
 using namespace KData;
 using namespace IGData;
+using namespace GenericData;
 
 static const int SESSION_ACTIVE = 1;
 static const int SESSION_INACTIVE = 2;
@@ -68,7 +70,7 @@ std::string get_executable_cwd() {
   return return_value;
 }
 
-int findIndexAfter(std::string s, int pos, char c) {
+inline int findIndexAfter(std::string s, int pos, char c) {
   for (int i = pos; i < s.size(); i++) {
     if (s.at(i) == c) {
       return i;
@@ -383,7 +385,7 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
 
         /**
          * /note The specification for the order of these arguments can be found
-         * in namespace: Task::IGTaskIndex
+         * in namespace: Executor::IGTaskIndex
          */
         return right(std::move(
           std::vector<std::string>{
@@ -406,36 +408,37 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
         std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
         // Parse the bytes into an encoded message structure
         auto k_message = GetMessage(&decode_buffer);
-        auto id = k_message->id();  // message ID
         // Get the message bytes and create a string
         const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
         return left(std::string{message_bytes->begin(), message_bytes->end()});
       } else {
         return left(std::string(""));
       }
+    } else if (msg_type_byte_code == 0xFC) {
+      flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
+
+      if (VerifyGenericTaskBuffer(verifier)) {
+        std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+        const GenericData::GenericTask *gen_task = GetGenericTask(&decode_buffer);
+
+        /**
+         * /note The specification for the order of these arguments can be found
+         * in namespace: Executor::GenericTaskIndex
+         */
+        return right(std::move(
+          std::vector<std::string>{
+            std::to_string(gen_task->mask()), // Mask always comes first
+            gen_task->file_info()->str(), gen_task->time()->str(),
+            gen_task->description()->str(), std::to_string(gen_task->is_video()),
+            gen_task->header()->str(), gen_task->user()->str()
+          }
+        ));
+      }
+      return right(std::vector<std::string>{});
     } else {
       return left(std::string(""));
     }
   }
-}
-
-std::string getDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr) {
-  // Make sure not an empty buffer
-  // Obtain the raw buffer so we can read the header
-  uint8_t *raw_buffer = s_buffer_ptr.get();
-  uint32_t message_byte_size = (*raw_buffer << 24 | *(raw_buffer + 1) << 16,
-                                *(raw_buffer + 2) << 8, +(*(raw_buffer + 3)));
-  // TODO: Copying into a new buffer for readability - switch to using the
-  // original buffer
-  uint8_t decode_buffer[message_byte_size];
-  std::memcpy(decode_buffer, raw_buffer + 4, message_byte_size);
-  // Parse the bytes into an encoded message structure
-  auto k_message = GetMessage(&decode_buffer);
-  auto id = k_message->id();  // message ID
-  // Get the message bytes and create a string
-  const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
-
-  return std::string{message_bytes->begin(), message_bytes->end()};
 }
 
 bool isNewSession(const char *data) {
@@ -456,39 +459,6 @@ namespace SystemUtils {
 }
 
 namespace FileUtils {
-
-/**
- * parseFileInfo
- *
- * Deduces information about a files sent by a client using KY_GUI
- *
- * @param[in] {std::string} `file_info` The information string
- * @returns {std::vector<FileInfo>} A vector of FileInfo objects
- *
- */
-std::vector<FileInfo> parseFileInfo(std::string file_info) {
-  std::cout << file_info << std::endl;
-  std::vector<FileInfo> info_v{};
-  info_v.reserve(file_info.size() /
-                 25);  // Estimating number of files being represented
-  size_t pipe_pos = 0;
-  size_t index = 0;
-  size_t delim_pos = 0;
-  std::string parsing{file_info, file_info.size()};
-  do {
-    auto timestamp = file_info.substr(index, 10);
-    pipe_pos = findIndexAfter(file_info, index, '|');
-    auto file_name = file_info.substr(index + 10, (pipe_pos - index - 10));
-    delim_pos = findIndexAfter(file_info, index, ':');
-    auto type =
-        file_info.substr(index + 10 + file_name.size() + 1,
-                         (delim_pos - index - 10 - file_name.size() - 1));
-    info_v.push_back(FileInfo{file_name, timestamp});
-    index += timestamp.size() + file_name.size() + type.size() +
-             3;  // 3 strings + 3 delim chars
-  } while (index < file_info.size());
-  return info_v;
-}
 
 bool createDirectory(const char *dir_name) {
   return std::filesystem::create_directory(dir_name);
