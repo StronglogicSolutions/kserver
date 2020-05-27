@@ -2,7 +2,7 @@
 #define __SCHEDULER_HPP__
 
 #include <log/logger.h>
-
+#include <executor/task_handlers/task.hpp>
 #include <codec/util.hpp>
 #include <database/kdb.hpp>
 #include <functional>
@@ -12,6 +12,7 @@
 #include <vector>
 
 #define NO_COMPLETED_VALUE 99
+using namespace Executor;
 
 namespace Scheduler {
 
@@ -39,22 +40,6 @@ namespace Messages {
 static constexpr const char* TASK_ERROR_EMAIL =
     "Scheduled task ran but returned an error:\n";
 }
-
-struct Task {
-  int execution_mask;
-  std::string datetime;
-  bool file;
-  std::vector<FileInfo> files;
-  std::string envfile;
-  std::string execution_flags;
-  int id = 0;
-  int completed;
-
-  bool validate() {
-    return execution_mask > 0 && !datetime.empty() && !envfile.empty() &&
-           !execution_flags.empty();
-  }
-};
 
 class DeferInterface {
  public:
