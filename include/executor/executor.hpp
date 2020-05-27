@@ -174,7 +174,7 @@ class ProcessExecutor : public ProcessManager {
     }
   }
 
-  void executeTask(int client_socket_fd, Scheduler::Task task) {
+  void executeTask(int client_socket_fd, Task task) {
     KLOG->info("Executing task");
     KApplication app_info = getAppInfo(task.execution_mask);
     auto is_ready_to_execute = std::stoi(task.datetime) > 0;  // if close to now
