@@ -7,7 +7,7 @@
 #include <iostream>
 #include <vector>
 
-namespace Task {
+namespace Executor {
   /**
    * GenericTaskIndex
    *
@@ -18,19 +18,19 @@ namespace Task {
     static constexpr uint8_t FILEINFO = 1;
     static constexpr uint8_t DATETIME = 2;
     static constexpr uint8_t DESCRIPTION = 3;
-    static constexpr uint8_t HEADER = 4;
-    static constexpr uint8_t USER = 5;
-    static constexpr uint8_t IS_VIDEO = 6;
+    static constexpr uint8_t IS_VIDEO = 4;
+    static constexpr uint8_t HEADER = 5;
+    static constexpr uint8_t USER = 6;
   }
 
 class GenericTaskHandler : public TaskHandler {
  public:
-  virtual Scheduler::Task prepareTask(std::vector<std::string> argv,
+  virtual Executor::Task prepareTask(std::vector<std::string> argv,
                                      std::string uuid) override {
     if (!FileUtils::createTaskDirectory(uuid)) {
       std::cout << "UNABLE TO CREATE TASK DIRECTORY! Returning empty task"
                 << std::endl;
-      return Scheduler::Task{};
+      return Executor::Task{};
     }
 
     auto mask = argv.at(GenericTaskIndex::MASK);
@@ -58,7 +58,7 @@ class GenericTaskHandler : public TaskHandler {
 
     std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);
 
-    return Scheduler::Task{
+    return Executor::Task{
         .execution_mask = std::stoi(mask),
         .datetime = datetime,
         .file = (!task_files.empty()),

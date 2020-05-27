@@ -7,7 +7,7 @@
 #include <iostream>
 #include <vector>
 
-namespace Task {
+namespace Executor {
   /**
    * IGTaskIndex
    *
@@ -34,10 +34,10 @@ namespace Task {
 
 class IGTaskHandler : public TaskHandler {
  public:
-  virtual Scheduler::Task prepareTask(std::vector<std::string> argv,
+  virtual Executor::Task prepareTask(std::vector<std::string> argv,
                                      std::string uuid) override {
     if (!FileUtils::createTaskDirectory(uuid)) {
-      return Scheduler::Task{};
+      return Executor::Task{};
     }
 
     auto mask = argv.at(IGTaskIndex::MASK);
@@ -75,7 +75,7 @@ class IGTaskHandler : public TaskHandler {
 
     std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);
 
-    return Scheduler::Task{
+    return Executor::Task{
         .execution_mask = std::stoi(mask),
         .datetime = datetime,
         .file = (!task_files.empty()),

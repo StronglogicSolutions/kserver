@@ -5,7 +5,7 @@
 #include <string>
 #include <codec/util.hpp>
 
-namespace Task {
+namespace Executor {
   namespace TaskIndexes {
     static constexpr uint8_t MASK = 0;
   }
@@ -66,7 +66,7 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
 
   class TaskHandler {
     public:
-      virtual Scheduler::Task prepareTask(TaskArguments argv, std::string uuid) = 0;
+      virtual Executor::Task prepareTask(TaskArguments argv, std::string uuid) = 0;
   };
 }
 
