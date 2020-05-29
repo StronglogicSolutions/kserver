@@ -31,6 +31,13 @@ namespace Executor {
       return execution_mask > 0 && !datetime.empty() && !envfile.empty() &&
             !execution_flags.empty();
     }
+
+    friend std::ostream &operator<<(std::ostream &out, const Task &task) {
+      auto file_string = task.file ? std::string{"Yes - " + task.files.size()} : "No";
+      out << "ID" << task.id << "\nMask: " << task.execution_mask << "\nTime: " << task.datetime
+          << "\nFiles: " << file_string << "\nCompleted: " << task.completed << std::endl;
+      return out;
+    }
   };
 
   /**
@@ -67,7 +74,8 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
 
   class TaskHandler {
     public:
-      virtual Executor::Task prepareTask(TaskArguments argv, std::string uuid) = 0;
+      virtual Executor::Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
+
   };
 }
 
