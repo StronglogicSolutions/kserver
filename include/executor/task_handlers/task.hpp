@@ -38,6 +38,24 @@ namespace Executor {
           << "\nFiles: " << file_string << "\nCompleted: " << task.completed << std::endl;
       return out;
     }
+
+    friend bool operator==(const Task& t1, const Task& t2);
+    friend bool operator!=(const Task& t1, const Task& t2);
+
+    friend bool operator==(const Task& t1, const Task& t2) {
+      return (t1.completed == t2.completed &&
+      t1.datetime == t2.datetime &&
+      t1.envfile == t2.envfile &&
+      t1.execution_flags == t2.execution_flags &&
+      t1.execution_mask == t2.execution_mask &&
+      t1.file == t2.file &&
+      t1.files.size() == t2.files.size() && // TODO: implement comparison for FileInfo
+      t1.id == t2.id);
+    }
+
+    friend bool operator!=(const Task& t1,const Task& t2) {
+      return !(t1 == t2);
+    }
   };
 
   /**
