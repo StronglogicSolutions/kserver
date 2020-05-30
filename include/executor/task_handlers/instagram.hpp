@@ -35,7 +35,7 @@ namespace Executor {
 class IGTaskHandler : public TaskHandler {
  public:
   virtual Executor::Task prepareTask(std::vector<std::string> argv,
-                                     std::string uuid) override {
+                                     std::string uuid, Task* task_ptr = nullptr) override {
     if (!FileUtils::createTaskDirectory(uuid)) {
       return Executor::Task{};
     }
@@ -74,8 +74,8 @@ class IGTaskHandler : public TaskHandler {
     env_file_string += "USER='" + user + "'\n";
 
     std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);
-
-    return Executor::Task{
+    if (task_ptr == nullptr) {
+      return Executor::Task{
         .execution_mask = std::stoi(mask),
         .datetime = datetime,
         .file = (!task_files.empty()),
@@ -87,6 +87,20 @@ class IGTaskHandler : public TaskHandler {
             "--requested_by_phrase=$REQUESTED_BY_PHRASE "
             "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
             "--header=$HEADER --user=$USER"};
+    } else {
+      task_ptr->execution_mask = std::stoi(mask);
+      task_ptr->datetime = datetime;
+      task_ptr->file = (!task_files.empty());
+      task_ptr->files = task_files;
+      task_ptr->envfile = env_filename;
+      task_ptr->execution_flags =
+            "--description=$DESCRIPTION --hashtags=$HASHTAGS "
+            "--requested_by=$REQUESTED_BY --media=$FILE_TYPE "
+            "--requested_by_phrase=$REQUESTED_BY_PHRASE "
+            "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
+            "--header=$HEADER --user=$USER";
+      return *task_ptr;
+    }
   }
 };
 }  // namespace Task

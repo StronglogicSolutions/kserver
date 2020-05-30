@@ -28,6 +28,9 @@
 #include <utility>
 #include <vector>
 
+#define OPERATION_SUCCESS "Operation succeeded"
+#define OPERATION_FAIL "Operation failed"
+
 namespace Request {
 
 enum DevTest { Schedule = 1, ExecuteTask = 2 };
@@ -319,40 +322,17 @@ class RequestHandler {
         }
       }
       if (!path.empty() && !name.empty()) {
+        Task task{};
         if (name == Name::INSTAGRAM) {
           KLOG->info("RequestHandler - New Instagram Task requested");
           IGTaskHandler ig_task_handler{};
-          Task task = ig_task_handler.prepareTask(argv, uuid);
-          auto num = task.files.size();
-          auto file_index = 0;
-          for (const auto &file_info : task.files) {
-            KLOG->info("task file: {}", file_info.first);
-            std::vector<std::string> callback_args{file_info.first,
-                                                   file_info.second, uuid};
-            if (file_index == task.files.size() - 1) {
-              callback_args.push_back("final file");
-            }
-            m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
-                                 callback_args);
-          }
-
-          if (task.validate()) {
-            KLOG->info("Sending task request to Scheduler");
-            auto id = m_scheduler->schedule(task);
-            if (!id.empty()) {
-              auto env_file_data = FileUtils::readEnvFile(task.envfile);
-              m_system_callback_fn(client_socket_fd,
-                                   SYSTEM_EVENTS__SCHEDULER_SUCCESS,
-                                   {uuid, id, std::to_string(num), env_file_data});
-              return "Operation succeeded";
-            }
-          }
+          ig_task_handler.prepareTask(argv, uuid, &task);
         } else { // assume Generic Task
           KLOG->info("RequestHandler - New Generic Task requested");
           GenericTaskHandler generic_task_handler{};
-
-          Task task = generic_task_handler.prepareTask(argv, uuid);
-          auto num = task.files.size();
+          generic_task_handler.prepareTask(argv, uuid, &task);
+        }
+        if (&task != nullptr) {
           auto file_index = 0;
           for (const auto &file_info : task.files) {
             KLOG->info("task file: {}", file_info.first);
@@ -364,24 +344,33 @@ class RequestHandler {
             m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
                                  callback_args);
           }
-
           if (task.validate()) {
             KLOG->info("Sending task request to Scheduler");
             auto id = m_scheduler->schedule(task);
             if (!id.empty()) {
               auto env_file_data = FileUtils::readEnvFile(task.envfile);
               m_system_callback_fn(
-                  client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS,
-                  {uuid, id, std::to_string(num), env_file_data});
-              return "Operation succeeded";
+                  client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, {
+                    uuid, id,
+                    std::to_string(task.execution_mask),
+                    env_file_data,
+                    std::to_string(task.files.size())
+                  }
+                );
+              return OPERATION_SUCCESS;
+            } else {
+              KLOG->info("Task with UUID {} was validated, but scheduling failed", uuid);
+              return OPERATION_FAIL;
             }
+          } else {
+            KLOG->info("Task with UUID {} was processed, but did not pass validation", uuid);
+            return OPERATION_FAIL;
           }
         }
       }
       KLOG->info("Task scheduling failed: Unable to find an application matching mask {}", mask);
-      return std::string{"Operation failed"};
     }
-    return "";
+    return OPERATION_FAIL;
   }
 
   /**
