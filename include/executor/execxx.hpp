@@ -17,8 +17,6 @@ struct ProcessResult {
   bool error = false;
 };
 
-auto KLOG = KLogger::GetInstance() -> get_logger();
-
 constexpr int buf_size = 32768;
 
 std::string readFd(int fd) {

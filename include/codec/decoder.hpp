@@ -6,11 +6,6 @@
 #include <codec/util.hpp>
 
 namespace Decoder {
-
-KLogger *k_logger_ptr = KLogger::GetInstance();
-
-auto KLOG = k_logger_ptr->get_logger();
-
 /**
  * FileHandler
  *
@@ -53,15 +48,15 @@ class FileHandler {
           filename(name),
           m_fd(fd),
           m_file_cb(file_callback) {
-            KLOG->info("FileHandler::Decoder::Decoder() - instantiated");
+            KLOG("FileHandler::Decoder::Decoder() - instantiated");
           }
   /**
    * @destructor
    */
     ~Decoder() {
-      KLOG->info("FileHandler::Decoder::~Decoder() - destructor called");
+      KLOG("FileHandler::Decoder::~Decoder() - destructor called");
       if (file_buffer != nullptr) {
-        KLOG->info("FileHandler::Decoder::~Decoder() - Deleting file buffer and packet buffer");
+        KLOG("FileHandler::Decoder::~Decoder() - Deleting file buffer and packet buffer");
         delete[] file_buffer;
         delete[] packet_buffer;
         file_buffer = nullptr;
@@ -140,10 +135,10 @@ class FileHandler {
         if (is_last_packet) { // If last packet is complete
           m_file_cb(std::move(file_buffer), file_size, filename); // Invoke callback to notify client
           reset(); // Reset the decoder so it's ready to decode a new file
-          KLOG->info("Cleaning up");
+          KLOG("Cleaning up");
         }
       } else {
-        KLOG->info("Still awaiting more data for packet {} of {} with packet_offset {}", index, total_packets, packet_buffer_offset);
+        KLOG("Still awaiting more data for packet {} of {} with packet_offset {}", index, total_packets, packet_buffer_offset);
       }
     }
     /**
@@ -155,7 +150,7 @@ class FileHandler {
     void processPacket(uint8_t* data, uint32_t size) {
       bool is_first_packet = (index == 0);
       if (is_first_packet && packet_buffer_offset == 0 && file_buffer_offset == 0) {
-        KLOG->info("Decoder::processPacket() - processing first packet");
+        KLOG("Decoder::processPacket() - processing first packet");
         // Compute file size from the first packet's 4 byte header
         file_size =
             int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
@@ -196,7 +191,7 @@ class FileHandler {
   FileHandler(int client_fd, std::string name, uint8_t *first_packet, uint32_t size,
               std::function<void(int, int, uint8_t *, size_t)> callback)
       : socket_fd(client_fd) {
-        KLOG->info("FileHandler() - Instantiated. Creating new Decoder");
+        KLOG("FileHandler() - Instantiated. Creating new Decoder");
     m_decoder =
         new Decoder(client_fd, name,
                     [this, client_fd, callback](uint8_t*&& data, int size,

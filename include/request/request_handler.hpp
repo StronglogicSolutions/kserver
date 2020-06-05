@@ -40,8 +40,6 @@ using namespace Executor;
 
 flatbuffers::FlatBufferBuilder builder(1024);
 
-auto KLOG = KLogger::GetInstance() -> get_logger();
-
 /**
  * RequestHandler
  *
@@ -118,9 +116,7 @@ class RequestHandler {
     }
     //    if (m_maintenance_worker.valid()) {
     if (m_maintenance_worker.joinable()) {
-      KLOG->info(
-          "RequestHandler::~RequestHandler() - Waiting for maintenance worker "
-          "to complete");
+      KLOG("Waiting for maintenance worker to complete");
       m_maintenance_worker.join();
     }
   }
@@ -154,7 +150,7 @@ class RequestHandler {
     m_maintenance_worker =
         std::thread(std::bind(&RequestHandler::maintenanceLoop, this));
     maintenance_loop_condition.notify_one();
-    KLOG->info("RequestHandler::initialize() - Initialization complete");
+    KLOG("Initialization complete");
   }
 
   void setHandlingData(bool is_handling) {
@@ -180,8 +176,7 @@ class RequestHandler {
    * system cron.
    */
   void maintenanceLoop() {
-    KLOG->info(
-        "RequestHandler::maintenanceLoop() - Beginning maintenance loop");
+    KLOG("Beginning maintenance loop");
     for (;;) {
       std::unique_lock<std::mutex> lock(m_mutex);
       maintenance_loop_condition.wait(lock,
@@ -190,15 +185,13 @@ class RequestHandler {
       std::vector<Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
         std::string scheduled_times{"Scheduled time(s): "};
-        KLOG->info("Scheduled tasks found: {}", tasks.size());
+        KLOG("Scheduled tasks found: {}", tasks.size());
         for (const auto &task : tasks) {
           auto formatted_time = TimeUtils::format_timestamp(task.datetime);
           scheduled_times.append(formatted_time);
           scheduled_times += " ";
-          KLOG->info(
-              "Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: "
-              "Execution "
-              "Flags",
+          KLOG("Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: "
+              "Execution Flags",
               formatted_time, std::to_string(task.execution_mask),
               task.file ? "hasFile(s)" : "", task.envfile);
         }
@@ -215,30 +208,25 @@ class RequestHandler {
         } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
-        KLOG->info(
+        KLOG(
             "KServer has {} {} pending execution",
             m_tasks_map.at(client_socket_fd).size(),
             m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
       } else {
-        KLOG->info("No tasks ready for execution");
+        KLOG("No tasks ready for execution");
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
             {"There are currently no tasks ready for execution"});
       }
       if (!m_tasks_map.empty()) {
         if (!handlePendingTasks()) {
-          KLOG->error(
-              "RequestHandler::maintenanceLoop() - ERROR handling pending "
-              "tasks");
+          ELOG("ERROR handling pending tasks");
         }
       }
       System::Cron<System::SingleJob> cron{};
       std::string jobs = cron.listJobs();
       if (jobs.empty()) {
-        KLOG->info(
-            "RequestHandler::maintenanceLoop() - Cron - There are currently "
-            "the following cron jobs: \n {}",
-            jobs);
+        KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
       }
       std::this_thread::sleep_for(std::chrono::seconds(30));
     }
@@ -297,15 +285,13 @@ class RequestHandler {
                          int client_socket_fd, std::string uuid) {
     if (op == "Schedule") {
       if (argv.empty()) {
-        KLOG->info(
-            "RequestHandler::Scheduler - Can't handle a task with no "
-            "arguments");
+        KLOG("Can't handle a task with no arguments");
         return "";
       }
       auto mask = argv.at(TaskIndexes::MASK);
       auto kdb = Database::KDB();
 
-      KLOG->info("RequestHandler:: Handling schedule request for process matching mask {}", mask);
+      KLOG("Handling schedule request for process matching mask {}", mask);
 
       QueryValues result =
           kdb.select("apps", {"name", "path"}, {{"mask", mask}});
@@ -324,18 +310,18 @@ class RequestHandler {
       if (!path.empty() && !name.empty()) {
         Task task{};
         if (name == Name::INSTAGRAM) {
-          KLOG->info("RequestHandler - New Instagram Task requested");
+          KLOG("New Instagram Task requested");
           IGTaskHandler ig_task_handler{};
           ig_task_handler.prepareTask(argv, uuid, &task);
         } else { // assume Generic Task
-          KLOG->info("RequestHandler - New Generic Task requested");
+          KLOG("New Generic Task requested");
           GenericTaskHandler generic_task_handler{};
           generic_task_handler.prepareTask(argv, uuid, &task);
         }
         if (&task != nullptr) {
           auto file_index = 0;
           for (const auto &file_info : task.files) {
-            KLOG->info("task file: {}", file_info.first);
+            KLOG("task file: {}", file_info.first);
             std::vector<std::string> callback_args{file_info.first,
                                                    file_info.second, uuid};
             if (file_index == task.files.size() - 1) {
@@ -345,7 +331,7 @@ class RequestHandler {
                                  callback_args);
           }
           if (task.validate()) {
-            KLOG->info("Sending task request to Scheduler");
+            KLOG("Sending task request to Scheduler");
             auto id = m_scheduler->schedule(task);
             if (!id.empty()) {
               auto env_file_data = FileUtils::readEnvFile(task.envfile);
@@ -359,16 +345,16 @@ class RequestHandler {
                 );
               return OPERATION_SUCCESS;
             } else {
-              KLOG->info("Task with UUID {} was validated, but scheduling failed", uuid);
+              KLOG("Task with UUID {} was validated, but scheduling failed", uuid);
               return OPERATION_FAIL;
             }
           } else {
-            KLOG->info("Task with UUID {} was processed, but did not pass validation", uuid);
+            KLOG("Task with UUID {} was processed, but did not pass validation", uuid);
             return OPERATION_FAIL;
           }
         }
       }
-      KLOG->info("Task scheduling failed: Unable to find an application matching mask {}", mask);
+      KLOG("Task scheduling failed: Unable to find an application matching mask {}", mask);
     }
     return OPERATION_FAIL;
   }
@@ -396,10 +382,9 @@ class RequestHandler {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
       std::vector<Task> tasks = m_scheduler->fetchTasks();
       if (!tasks.empty()) {
-        KLOG->info("There are tasks to be reviewed");
+        KLOG("There are tasks to be reviewed");
         for (const auto &task : tasks) {
-          KLOG->info(
-              "RequestHandler:: OPERATION HANDLER - Task info: {} - Mask: {}\n "
+          KLOG("Task info: {} - Mask: {}\n "
               "Args: {}\n {}\n. Excluded: Execution "
               "Flags",
               task.datetime, std::to_string(task.execution_mask),
@@ -420,12 +405,12 @@ class RequestHandler {
         } else {
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
         }
-        KLOG->info(
-            "RequestHandler:: OPERATION HANDLER - {} currently has {} tasks "
-            "pending execution",
+        KLOG("{} currently has {} tasks pending execution",
             client_socket_fd, m_tasks_map.at(client_socket_fd).size());
       } else {
-        KLOG->info("There are currently no tasks ready for execution");
+        // KLOG("There are currently no tasks ready for execution");
+        SPDLOG_INFO("There are currently no tasks ready for execution"); // Use spdlog::default_logger()
+
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
             {"There are currently no tasks ready for execution"});
@@ -493,7 +478,7 @@ class RequestHandler {
       m_executor->request(row.second, mask, client_socket_fd, request_id, {},
                           Executor::ExecutionRequestType::IMMEDIATE);
       std::string info_string{
-          "RequestHandler:: PROCESS RUNNER - Process execution requested for "
+          "PROCESS RUNNER - Process execution requested for "
           "applications matching the mask "};
       info_string += std::to_string(mask);
       m_system_callback_fn(client_socket_fd,
@@ -521,18 +506,13 @@ class RequestHandler {
   void onProcessComplete(std::string value, int mask, std::string id,
                          int client_socket_fd, bool error,
                          bool scheduled_task = false) {
-    KLOG->info(
-        "RequestHandler::onProcessComplete() - Process complete notification "
-        "for client {}'s request {}",
+    KLOG("Process complete notification for client {}'s request {}",
         client_socket_fd, id);
     m_event_callback_fn(value, mask, id, client_socket_fd, error);
     if (scheduled_task) {
       std::vector<Task>::iterator task_it;
     // TODO: Check ERROR and inform administrator and client accordingly. Delay task? Change schedule time?
-      KLOG->info(
-          "RequestHandler::onProcessComplete() - Task complete "
-          "notification "
-          "for client {}'s task {}{}",
+      KLOG("Task complete notification for client {}'s task {}{}",
           client_socket_fd, id, error ? "\nERROR WAS RETURNED" : "");
 
       std::map<int, std::vector<Task>>::iterator it =
@@ -552,14 +532,11 @@ class RequestHandler {
                               : Scheduler::Completed::FAILED;
             task_it->completed = status;
             m_scheduler->updateStatus(&*task_it);
-            KLOG->info(
-                "Sending email to administrator about failed task.\nNew "
+            KLOG("Sending email to administrator about failed task.\nNew "
                 "Status: {}",
                 Scheduler::Completed::STRINGS[status]);
           }
-          KLOG->info(
-              "RequestHandler::onProcessComplete() - removing completed "
-              "task from memory");
+          KLOG("removing completed task from memory");
           it->second.erase(task_it);
         }
       }

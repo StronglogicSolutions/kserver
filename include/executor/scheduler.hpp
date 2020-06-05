@@ -51,8 +51,6 @@ class CalendarManagerInterface {
   virtual std::vector<Task> fetchTasks() = 0;
 };
 
-auto KLOG = KLogger::GetInstance() -> get_logger();
-
 class Scheduler : public DeferInterface, CalendarManagerInterface {
  public:
   Scheduler() { m_kdb = Database::KDB{}; }
@@ -60,7 +58,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
   // TODO: Implement move / copy constructor
 
-  ~Scheduler() { KLOG->info("Scheduler destroyed"); }
+  ~Scheduler() { KLOG("Scheduler destroyed"); }
 
   virtual std::string schedule(Task task) override {
     // verify and put in database
@@ -72,9 +70,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     auto result = !id.empty();
 
     if (!id.empty()) {
-      KLOG->info("Request to schedule task was accepted\nID {}", id);
+      KLOG("Request to schedule task was accepted\nID {}", id);
       for (const auto& file : task.files) {
-        KLOG->info("Recording file in DB: {}", file.first);
+        KLOG("Recording file in DB: {}", file.first);
         m_kdb.insert("file", {"name", "sid"}, {file.first, id});
       }
     }

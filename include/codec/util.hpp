@@ -503,6 +503,13 @@ bool createTaskDirectory(std::string uuid) {
   std::cout << directory_name << std::endl;
   return createDirectory(directory_name.c_str());
 }
+
+
+bool createTestTaskDirectory(std::string uuid) {
+  std::string directory_name{"./mock_data/" + uuid};
+  std::cout << directory_name << std::endl;
+  return createDirectory(directory_name.c_str());
+}
 }  // namespace FileUtils
 
 // Bit helpers

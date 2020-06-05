@@ -12,8 +12,6 @@
 
 namespace Executor {
 
-auto KLOG = KLogger::GetInstance() -> get_logger();
-
 enum ExecutionRequestType { IMMEDIATE = 0, SCHEDULED = 1 };
 
 /** Function Types */
@@ -167,7 +165,7 @@ class ProcessExecutor : public ProcessManager {
                                           QueryFilter{{"id", id}},  // filter
                                           "id"  // field value to return
           );
-          KLOG->info("Updated task {} to reflect its completion", result);
+          KLOG("Updated task {} to reflect its completion", result);
         }
       }
       delete pd_ptr;
@@ -175,7 +173,7 @@ class ProcessExecutor : public ProcessManager {
   }
 
   void executeTask(int client_socket_fd, Task task) {
-    KLOG->info("Executing task");
+    KLOG("Executing task");
     KApplication app_info = getAppInfo(task.execution_mask);
     auto is_ready_to_execute = std::stoi(task.datetime) > 0;  // if close to now
     auto flags = task.execution_flags;

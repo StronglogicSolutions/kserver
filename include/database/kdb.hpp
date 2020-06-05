@@ -6,14 +6,11 @@
 #include <log/logger.h>
 
 namespace Database {
-
-auto KLOG = KLogger::GetInstance() -> get_logger();
-
 class KDB {
  public:
   KDB() {
     if (!ConfigParser::init()) {
-      KLOG->info("Unable to load config");
+      KLOG("Unable to load config");
       return;
     }
 
@@ -24,7 +21,7 @@ class KDB {
     DatabaseConfiguration configuration{
         .credentials = m_credentials, .address = ConfigParser::Database::host(), .port = ConfigParser::Database::port()};
 
-    KLOG->info("Database configuration: Host {} Port {}", configuration.address, configuration.port);
+    KLOG("Database configuration: Host {} Port {}", configuration.address, configuration.port);
 
     m_connection = DatabaseConnection{};
     m_connection.setConfig(configuration);
@@ -45,9 +42,9 @@ class KDB {
         return result.values;
       }
     } catch (const pqxx::sql_error &e) {
-      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+      KLOG("Database error: {}. Query was {}.", e.what(), e.query());
     } catch (const std::exception &e) {
-      KLOG->error("Error", e.what());
+      ELOG("Error", e.what());
     }
     return {{}};
   }
@@ -66,9 +63,9 @@ class KDB {
         return result.values;
       }
     } catch (const pqxx::sql_error &e) {
-      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+      KLOG("Database error: {}. Query was {}.", e.what(), e.query());
     } catch (const std::exception &e) {
-      KLOG->error("Error", e.what());
+      ELOG("Error", e.what());
     }
     return {{}};
   }
@@ -83,9 +80,9 @@ class KDB {
         return result.values;
       }
     } catch (const pqxx::sql_error &e) {
-      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+      KLOG("Database error: {}. Query was {}.", e.what(), e.query());
     } catch (const std::exception &e) {
-      KLOG->error("Error", e.what());
+      ELOG("Error", e.what());
     }
     return {{}};
   }
@@ -100,9 +97,9 @@ class KDB {
         return result.values;
       }
     } catch (const pqxx::sql_error &e) {
-      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+      KLOG("Database error: {}. Query was {}.", e.what(), e.query());
     } catch (const std::exception &e) {
-      KLOG->error("Error", e.what());
+      ELOG("Error", e.what());
     }
     return {{}};
   }
@@ -121,9 +118,9 @@ class KDB {
         return result.values;
       }
     } catch (const pqxx::sql_error &e) {
-      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+      KLOG("Database error: {}. Query was {}.", e.what(), e.query());
     } catch (const std::exception &e) {
-      KLOG->error("Error", e.what());
+      ELOG("Error", e.what());
     }
     return {{}};
   }
@@ -135,12 +132,12 @@ class KDB {
       UpdateReturnQuery update_query{
           .table = table, .fields = fields, .type = QueryType::UPDATE, .values = values, .filter = filter, .returning = returning};
       std::string result = m_connection.query(update_query);
-      KLOG->info("Returned result from DB layer: {}", result);
+      KLOG("Returned result from DB layer: {}", result);
       return result;
     } catch (const pqxx::sql_error &e) {
-      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+      KLOG("Database error: {}. Query was {}.", e.what(), e.query());
     } catch (const std::exception &e) {
-      KLOG->error("Error", e.what());
+      ELOG("Error", e.what());
     }
     return "";
   }
@@ -153,9 +150,9 @@ class KDB {
     try {
       QueryResult result = m_connection.query(insert_query);
     } catch (const pqxx::sql_error &e) {
-      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+      KLOG("Database error: {}. Query was {}.", e.what(), e.query());
     } catch (const std::exception &e) {
-      KLOG->error("Error", e.what());
+      ELOG("Error", e.what());
     }
     return true;
   }
@@ -170,9 +167,9 @@ class KDB {
     try {
       return m_connection.query(insert_query);
     } catch (const pqxx::sql_error &e) {
-      KLOG->info("Database error: {}. Query was {}.", e.what(), e.query());
+      KLOG("Database error: {}. Query was {}.", e.what(), e.query());
     } catch (const std::exception &e) {
-      KLOG->error("Error", e.what());
+      ELOG("Error", e.what());
     }
     return "";
   }

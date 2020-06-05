@@ -10,7 +10,11 @@
 #include <map>
 #include <memory>
 
-namespace {
+#define KLOG SPDLOG_INFO
+#define ELOG SPDLOG_ERROR
+#define VLOG SPDLOG_TRACE
+
+namespace LOG {
 using LogPtr = std::shared_ptr<spdlog::logger>;
 using LogLevelMap = std::map<std::string, spdlog::level::level_enum>;
 
@@ -55,7 +59,9 @@ class KLogger {
       }
       auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
       console_sink->set_level(log_level);
-      console_sink->set_pattern("KLOG [%^%l%$] %v");
+      console_sink->set_pattern("KLOG [%^%l%$] %-20!s%3!#::%-20!! - %v");
+      spdlog::set_pattern("[source %s] [function %!] [line %#] %v");
+
       auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path);
       file_sink->set_level(log_level);
       spdlog::sinks_init_list sink_list = { file_sink, console_sink };
@@ -63,7 +69,7 @@ class KLogger {
       spdlog::set_default_logger(g_logger);
       spdlog::set_level(log_level);
       spdlog::flush_on(spdlog::level::info);
-      g_logger->info("Initializing logger");
+      KLOG("Initializing logger");
     } catch (const spdlog::spdlog_ex& ex) {
       std::cout << "Error: " << ex.what() << std::endl;
     }
@@ -71,18 +77,15 @@ class KLogger {
   }
   ~KLogger() { g_instance = NULL; }
 
-  static KLogger* GetInstance() {
+  static void init() {
     if (g_instance == nullptr) {
       g_instance = new KLogger();
-
     }
-    return g_instance;
   }
 
   static LogPtr get_logger() {
-
     return g_logger;
-    }
+  }
 };
 }  // namespace
 #endif  // __LOGGER_H__
