@@ -14,14 +14,27 @@ using namespace Executor;
 TEST(SchedulerTest, ScheduleInvalidTaskReturnsEmptyString) {
   GenericTaskHandler generic_task_hander{};
   auto uuid = "38920jd93274098327489d033";
-  std::vector<std::string> argv{"-2", "1590776872testfile.jpg|image:", "1590776872", "Test description", "1", "Test header", "test_user"};
+  std::vector<std::string> argv{"0", "1590776872testfile.jpg|image:", "1590776872", "Test description", "1", "Test header", "test_user"};
+  Database::KDB kdb{
+    DatabaseConfiguration{
+      DatabaseCredentials{
+        .user="ktestadmin", .password="ktestadmin", .name="ktesting"
+      },
+      "127.0.0.1",
+      "5432"
+    }
+  };
+  Scheduler::Scheduler scheduler{std::move(kdb)};
 
   Task generic_task = generic_task_hander.prepareTask(argv, uuid);
-  Scheduler::Scheduler scheduler{};
-  auto id = scheduler.schedule(generic_task);
-
-  EXPECT_EQ(id, "");
-
+  generic_task.execution_mask = 0; // invalidate task
+  generic_task.execution_flags.clear(); // invalidate task
+  try {
+    auto id = scheduler.schedule(generic_task);
+    EXPECT_EQ(id, "");
+  } catch (const std::exception& e) {
+    std::cout << e.what() << std::endl;
+  }
 }
 
 #endif // __SCHEDULER_TEST_HPP__

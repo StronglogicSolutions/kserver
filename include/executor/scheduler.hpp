@@ -53,30 +53,37 @@ class CalendarManagerInterface {
 
 class Scheduler : public DeferInterface, CalendarManagerInterface {
  public:
-  Scheduler() { m_kdb = Database::KDB{}; }
-  Scheduler(ScheduleEventCallback fn) : m_event_callback(fn) {}
+  Scheduler() : m_kdb(Database::KDB{}) {}
+  Scheduler(Database::KDB&& kdb) : m_kdb(std::move(kdb)) {}
+  Scheduler(ScheduleEventCallback fn) : m_kdb(Database::KDB{}), m_event_callback(fn) {}
 
   // TODO: Implement move / copy constructor
 
   ~Scheduler() { KLOG("Scheduler destroyed"); }
 
   virtual std::string schedule(Task task) override {
-    // verify and put in database
-    std::string id =
-        m_kdb.insert("schedule", {"time", "mask", "flags", "envfile"},
-                     {task.datetime, std::to_string(task.execution_mask),
-                      task.execution_flags, task.envfile},
-                     "id");
-    auto result = !id.empty();
+    try {
+      std::string id =
+          m_kdb.insert("schedule", {"time", "mask", "flags", "envfile"},
+                      {task.datetime, std::to_string(task.execution_mask),
+                        task.execution_flags, task.envfile},
+                      "id");
+      auto result = !id.empty();
 
-    if (!id.empty()) {
-      KLOG("Request to schedule task was accepted\nID {}", id);
-      for (const auto& file : task.files) {
-        KLOG("Recording file in DB: {}", file.first);
-        m_kdb.insert("file", {"name", "sid"}, {file.first, id});
+      if (!id.empty()) {
+        KLOG("Request to schedule task was accepted\nID {}", id);
+        for (const auto& file : task.files) {
+          KLOG("Recording file in DB: {}", file.first);
+          m_kdb.insert("file", {"name", "sid"}, {file.first, id});
+        }
       }
+      return id;
+    } catch (const pqxx::sql_error &e) {
+      ELOG("Insert query failed: {}", e.what());
+    } catch (const std::exception &e) {
+      ELOG("Insert query failed: {}", e.what());
     }
-    return id;
+    return "";
   }
 
   std::vector<Task> parseTasks(QueryValues&& result) {

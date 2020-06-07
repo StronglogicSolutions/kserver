@@ -8,8 +8,13 @@
 class DatabaseConnection : public DatabaseInterface {
  public:
   // constructor
+  DatabaseConnection() {}
   virtual bool setConfig(DatabaseConfiguration config) override;
   virtual QueryResult query(DatabaseQuery query) override;
+  DatabaseConnection(const DatabaseConnection& d) = delete;
+  DatabaseConnection(DatabaseConnection&& d) : m_config(std::move(d.m_config)) {
+    std::cout << "MOVING DB" << std::endl;
+  }
 
   template <typename T>
   QueryResult query(T query);

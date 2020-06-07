@@ -4,23 +4,38 @@
 #include <variant>
 #include <database/database_connection.hpp>
 #include <log/logger.h>
+#include <memory>
 
 namespace Database {
 class KDB {
  public:
-  KDB() {
-    m_connection->setConfig(DatabaseConfiguration{DatabaseCredentials{.user = ConfigParser::Database::user(),
-                     .password = ConfigParser::Database::pass(),
-                     .name = ConfigParser::Database::name()}});
+  KDB() : m_connection(std::move(std::unique_ptr<DatabaseConnection>{new DatabaseConnection})) {
+    m_connection->setConfig(
+      DatabaseConfiguration{
+        DatabaseCredentials{
+          .user = ConfigParser::Database::user(),
+          .password = ConfigParser::Database::pass(),
+          .name = ConfigParser::Database::name()
+        },
+        ConfigParser::Database::host(),
+        ConfigParser::Database::port()
+      }
+    );
   }
 
-  KDB(DatabaseConfiguration config) {
-    m_connection = new DatabaseConnection{};
+  KDB(KDB&& k) :
+    m_connection(std::move(k.m_connection)),
+    m_credentials(std::move(k.m_credentials)) {}
+
+  KDB(DatabaseConfiguration config) : m_connection(std::move(std::unique_ptr<DatabaseConnection>{new DatabaseConnection})) {
     m_connection->setConfig(config);
   }
 
-  KDB(DatabaseInterface* db_interface, DatabaseConfiguration config) : m_connection(db_interface) {
+  KDB(std::unique_ptr<DatabaseConnection> db_connection, DatabaseConfiguration config) : m_connection(std::move(db_connection)) {
     m_connection->setConfig(config);
+  }
+  ~KDB() {
+    // delete m_connection;
   }
 
 QueryValues select(std::string table, Fields fields,
@@ -38,8 +53,10 @@ QueryValues select(std::string table, Fields fields,
         return result.values;
       }
     } catch (const pqxx::sql_error &e) {
+      KLOG("Select error: {}", e.what());
       throw e;
     } catch (const std::exception &e) {
+      KLOG("Select error: {}", e.what());
       throw e;
     }
     return {{}};
@@ -166,6 +183,9 @@ QueryValues select(std::string table, Fields fields,
                                    .values = values,
                                    .returning = returning};
     try {
+      if (!m_connection) {
+        ELOG("No connection");
+      }
       return m_connection->query(insert_query);
     } catch (const pqxx::sql_error &e) {
       throw e;
@@ -175,7 +195,7 @@ QueryValues select(std::string table, Fields fields,
   }
 
  private:
-  DatabaseInterface* m_connection;
+  std::unique_ptr<DatabaseConnection> m_connection;
   DatabaseCredentials m_credentials;
 };
 
