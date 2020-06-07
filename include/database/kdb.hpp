@@ -9,7 +9,7 @@
 namespace Database {
 class KDB {
  public:
-  KDB() : m_connection(std::move(std::unique_ptr<DatabaseConnection>{new DatabaseConnection})) {
+  KDB() : m_connection(std::move(std::unique_ptr<DatabaseInterface>{new DatabaseConnection})) {
     m_connection->setConfig(
       DatabaseConfiguration{
         DatabaseCredentials{
@@ -27,11 +27,11 @@ class KDB {
     m_connection(std::move(k.m_connection)),
     m_credentials(std::move(k.m_credentials)) {}
 
-  KDB(DatabaseConfiguration config) : m_connection(std::move(std::unique_ptr<DatabaseConnection>{new DatabaseConnection})) {
+  KDB(DatabaseConfiguration config) : m_connection(std::move(std::unique_ptr<DatabaseInterface>{new DatabaseConnection})) {
     m_connection->setConfig(config);
   }
 
-  KDB(std::unique_ptr<DatabaseConnection> db_connection, DatabaseConfiguration config) : m_connection(std::move(db_connection)) {
+  KDB(std::unique_ptr<DatabaseInterface> db_connection, DatabaseConfiguration config) : m_connection(std::move(db_connection)) {
     m_connection->setConfig(config);
   }
   ~KDB() {
@@ -195,7 +195,7 @@ QueryValues select(std::string table, Fields fields,
   }
 
  private:
-  std::unique_ptr<DatabaseConnection> m_connection;
+  std::unique_ptr<DatabaseInterface> m_connection;
   DatabaseCredentials m_credentials;
 };
 
