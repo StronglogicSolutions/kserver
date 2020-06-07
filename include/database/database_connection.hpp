@@ -1,16 +1,15 @@
 #ifndef __DATABASECONNECTION_HPP__
 #define __DATABASECONNECTION_HPP__
 
-#include <pqxx/pqxx>
 #include <database/db_structs.hpp>
+#include <database/database_interface.hpp>
+#include <pqxx/pqxx>
 
-class DatabaseConnection {
-  #ifdef UNIT_TEST
-    friend class MockDBConnection;
-  #endif
+class DatabaseConnection : public DatabaseInterface {
  public:
-  bool setConfig(DatabaseConfiguration config);
-  QueryResult query(DatabaseQuery query);
+  // constructor
+  virtual bool setConfig(DatabaseConfiguration config) override;
+  virtual QueryResult query(DatabaseQuery query) override;
 
   template <typename T>
   QueryResult query(T query);
