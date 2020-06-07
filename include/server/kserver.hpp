@@ -409,7 +409,7 @@ class KServer : public SocketListener {
       }
       // For other cases, handle operations or read messages
       neither::Either<std::string, std::vector<std::string>> decoded =
-          getSafeDecodedMessage(s_buffer_ptr);  //
+          getDecodedMessage(s_buffer_ptr);  //
       decoded
           .leftMap([this, client_socket_fd](auto decoded_message) {
             if (isPing(decoded_message)) {
@@ -418,8 +418,7 @@ class KServer : public SocketListener {
               return decoded_message;
             }
             std::string json_message = getJsonString(decoded_message);
-            KLOG("Decoded: {}", decoded_message);
-            KLOG("Pretty: {}", json_message);
+            KLOG("Received message: {}", json_message);
             // Handle operations
             if (isOperation(decoded_message.c_str())) {
               KLOG("Received operation");

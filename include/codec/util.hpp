@@ -356,7 +356,7 @@ bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
  * General
  */
 
-Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
+Either<std::string, std::vector<std::string>> getDecodedMessage(
     std::shared_ptr<uint8_t[]> s_buffer_ptr) {
   // Obtain the raw buffer so we can read the header
   uint8_t *raw_buffer = s_buffer_ptr.get();
