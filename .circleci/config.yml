@@ -17,7 +17,7 @@ jobs:
       - run:
           name: test
           command: |
-            test/./kserver_test
+            mkdir test/data && test/./kserver_test
       - run:
           name: notify_production
           command: |
