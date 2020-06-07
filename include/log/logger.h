@@ -3,12 +3,14 @@
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
-#include "spdlog/sinks/stdout_color_sinks.h"
-#include <config/config_parser.hpp>
+
 #include <chrono>
+#include <config/config_parser.hpp>
 #include <iostream>
 #include <map>
 #include <memory>
+
+#include "spdlog/sinks/stdout_color_sinks.h"
 
 #define KLOG SPDLOG_INFO
 #define ELOG SPDLOG_ERROR
@@ -25,14 +27,10 @@ LogPtr g_logger;
 KLogger* g_instance;
 
 LogLevelMap LogLevel{
-  {"trace", spdlog::level::trace},
-  {"debug", spdlog::level::debug},
-  {"info", spdlog::level::info},
-  {"warn", spdlog::level::warn},
-  {"error", spdlog::level::err},
-  {"critical", spdlog::level::critical},
-  {"off", spdlog::level::off}
-};
+    {"trace", spdlog::level::trace}, {"debug", spdlog::level::debug},
+    {"info", spdlog::level::info},   {"warn", spdlog::level::warn},
+    {"error", spdlog::level::err},   {"critical", spdlog::level::critical},
+    {"off", spdlog::level::off}};
 
 class KLogger {
  public:
@@ -57,15 +55,16 @@ class KLogger {
       } else {
         log_path = logging_path;
       }
-      auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+      auto console_sink =
+          std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
       console_sink->set_level(log_level);
-      console_sink->set_pattern("KLOG [%^%l%$] %-20!s%3!#::%-20!! - %v");
-      spdlog::set_pattern("[source %s] [function %!] [line %#] %v");
-
-      auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path);
-      file_sink->set_level(log_level);
-      spdlog::sinks_init_list sink_list = { file_sink, console_sink };
-      g_logger =  std::make_shared<spdlog::logger>(spdlog::logger("KLOG", sink_list.begin(), sink_list.end()));
+      /* std::string log_format_pattern{ */
+      /*     "KLOG [%^%l%$] - %a %b %d %H:%M:%S - %-20!s%3!#::%-20!! - %v"}; */
+      std::string log_format_pattern{"KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v"};
+      console_sink->set_pattern(log_format_pattern);
+      spdlog::set_pattern(log_format_pattern);
+      g_logger = std::make_shared<spdlog::logger>(
+          spdlog::logger("KLOG", console_sink));
       spdlog::set_default_logger(g_logger);
       spdlog::set_level(log_level);
       spdlog::flush_on(spdlog::level::info);
@@ -83,10 +82,8 @@ class KLogger {
     }
   }
 
-  static LogPtr get_logger() {
-    return g_logger;
-  }
+  static LogPtr get_logger() { return g_logger; }
 };
-}  // namespace
+}  // namespace LOG
 #endif  // __LOGGER_H__
 
