@@ -28,7 +28,7 @@ namespace Executor {
     int completed;
 
     bool validate() {
-      return execution_mask > 0 && !datetime.empty() && !envfile.empty() &&
+      return !datetime.empty() && !envfile.empty() &&
             !execution_flags.empty();
     }
 
