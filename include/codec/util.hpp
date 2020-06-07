@@ -65,9 +65,7 @@ std::string get_cwd() {
 
 std::string get_executable_cwd() {
   std::string full_path{realpath("/proc/self/exe", NULL)};
-  auto return_value = full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
-  std::cout << return_value << std::endl;
-  return return_value;
+  return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
 }
 
 inline int findIndexAfter(std::string s, int pos, char c) {
@@ -453,7 +451,6 @@ bool isNewSession(const char *data) {
 namespace SystemUtils {
   void sendMail(std::string recipient, std::string message) {
     std::string command{"echo " + message + " | mail -s 'KServer notification' " + recipient};
-    std::cout << command << std::endl;
     std::system(std::string{"echo '" + message + "' | mail -s 'KServer notification' " + recipient}.c_str());
   }
 }
@@ -461,7 +458,14 @@ namespace SystemUtils {
 namespace FileUtils {
 
 bool createDirectory(const char *dir_name) {
-  return std::filesystem::create_directory(dir_name);
+  std::error_code err{};
+  std::filesystem::create_directory(dir_name, err);
+  auto code = err.value();
+  if (code == 0) {
+    return true;
+  }
+  std::cout << err.message() << "\n" << err.value() << std::endl;
+  return false;
 }
 
 void saveFile(std::vector<char> bytes, const char *filename) {
@@ -499,15 +503,7 @@ std::string readEnvFile(std::string env_file_path) {
 }
 
 bool createTaskDirectory(std::string uuid) {
-  std::string directory_name{get_executable_cwd() + "/data/" + uuid};
-  std::cout << directory_name << std::endl;
-  return createDirectory(directory_name.c_str());
-}
-
-
-bool createTestTaskDirectory(std::string uuid) {
-  std::string directory_name{"./mock_data/" + uuid};
-  std::cout << directory_name << std::endl;
+  std::string directory_name{"data/" + uuid};
   return createDirectory(directory_name.c_str());
 }
 }  // namespace FileUtils
