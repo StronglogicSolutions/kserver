@@ -1,18 +1,13 @@
 #ifndef __UTIL_HPP__
 #define __UTIL_HPP__
-
-#if defined(__GNUC__) && (__GNUC___ > 8 || (__GNUC__ == 8 && __GNUC_MINOR__ >= 1))
-#include <filesystem>
-#else
-#include <experimental/filesystem>
-#endif
-
 #define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
+
 #include <codec/instatask_generated.h>
 #include <codec/generictask_generated.h>
 #include <codec/kmessage_generated.h>
 #include <codec/uuid.h>
 
+#include <filesystem>
 #include <bitset>
 #include <chrono>
 #include <fstream>
