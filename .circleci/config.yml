@@ -17,7 +17,7 @@ jobs:
       - run:
           name: test
           command: |
-            test/./kserver_test
+            cd test && ./kserver_test
       - run:
           name: notify_production
           command: |
