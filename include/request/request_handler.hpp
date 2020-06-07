@@ -146,6 +146,7 @@ class RequestHandler {
     m_event_callback_fn = event_callback_fn;
     m_task_callback_fn = task_callback_fn;
 
+    setHandlingData(false);
     // Begin maintenance loop to process scheduled tasks as they become ready
     m_maintenance_worker =
         std::thread(std::bind(&RequestHandler::maintenanceLoop, this));
