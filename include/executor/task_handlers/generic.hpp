@@ -27,7 +27,7 @@ class GenericTaskHandler : public TaskHandler {
  public:
   virtual Executor::Task prepareTask(std::vector<std::string> argv,
                                      std::string uuid, Task* task_ptr = nullptr) override {
-    if (!FileUtils::createTestTaskDirectory(uuid)) {
+    if (!FileUtils::createTaskDirectory(uuid)) {
       std::cout << "UNABLE TO CREATE TASK DIRECTORY! Returning empty task"
                 << std::endl;
       return Executor::Task{};

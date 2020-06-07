@@ -34,7 +34,7 @@ namespace Executor {
 
     friend std::ostream &operator<<(std::ostream &out, const Task &task) {
       auto file_string = task.file ? std::string{"Yes - " + task.files.size()} : "No";
-      out << "ID" << task.id << "\nMask: " << task.execution_mask << "\nTime: " << task.datetime
+      out << "ID: " << task.id << "\nMask: " << task.execution_mask << "\nTime: " << task.datetime
           << "\nFiles: " << file_string << "\nCompleted: " << task.completed << std::endl;
       return out;
     }
