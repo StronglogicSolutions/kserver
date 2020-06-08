@@ -100,6 +100,7 @@ class FileHandler {
       uint32_t remaining_bytes{}; // bytes left remaining after using passed data to complete current packet
       uint32_t bytes_to_copy{}; // number of bytes that will be copied into the packet buffer
       uint32_t current_packet_size{}; // size of packet currently being completed
+
       bool current_packet_received{}; // indicates if the current packet has been completely received
       bool is_last_packet = index == (total_packets); // if the current packet is the last packet of the file
       if (index == 0 && packet_buffer_offset == 0 && file_size > (MAX_PACKET_SIZE - HEADER_SIZE)) {
@@ -115,7 +116,6 @@ class FileHandler {
         current_packet_size = MAX_PACKET_SIZE;
         bytes_to_complete = MAX_PACKET_SIZE - packet_buffer_offset;
       }
-
       remaining_bytes = size - bytes_to_complete; // The size passed minus the bytes to complete current packet
       current_packet_received = (size >= bytes_to_complete); // Whether all data has been received to complete current packet
 
@@ -135,10 +135,8 @@ class FileHandler {
         if (is_last_packet) { // If last packet is complete
           m_file_cb(std::move(file_buffer), file_size, filename); // Invoke callback to notify client
           reset(); // Reset the decoder so it's ready to decode a new file
-          KLOG("Cleaning up");
+          KLOG("Cleaning up packet buffer");
         }
-      } else {
-        KLOG("Still awaiting more data for packet {} of {} with packet_offset {}", index, total_packets, packet_buffer_offset);
       }
     }
     /**
@@ -191,7 +189,7 @@ class FileHandler {
   FileHandler(int client_fd, std::string name, uint8_t *first_packet, uint32_t size,
               std::function<void(int, int, uint8_t *, size_t)> callback)
       : socket_fd(client_fd) {
-        KLOG("FileHandler() - Instantiated. Creating new Decoder");
+        KLOG("Creating new Decoder");
     m_decoder =
         new Decoder(client_fd, name,
                     [this, client_fd, callback](uint8_t*&& data, int size,
