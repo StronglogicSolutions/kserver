@@ -13,7 +13,6 @@
 #include <interface/socket_listener.hpp>
 #include <iomanip>
 #include <request/request_handler.hpp>
-// #include <server/types.hpp>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -33,10 +32,10 @@ class KServer : public SocketListener {
    */
   KServer(int argc, char **argv)
       : SocketListener(argc, argv), file_pending(false), file_pending_fd(-1) {
-    KLOG("KServer() - initialized");
+    KLOG("Initialized");
   }
   ~KServer() {
-    KLOG("~KServer() - Server shutting down");
+    KLOG("Server shutting down");
     m_file_handlers.clear();
   }
 

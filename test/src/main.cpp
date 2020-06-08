@@ -1,10 +1,11 @@
 #include <gtest/gtest.h>
+#include <log/logger.h>
 
 #include "codec/util_test.hpp"
 #include "database/database_connection_test.hpp"
-#include "server/kserver_test.hpp"
-#include "executor/task/task_test.hpp"
 #include "executor/scheduler.hpp"
+#include "executor/task/task_test.hpp"
+#include "server/kserver_test.hpp"
 /**
  * KServerTestEnvironment
  *
@@ -34,6 +35,7 @@ class KServerTestEnvironment {
  */
 
 int main(int argc, char** argv) {
+  LOG::KLogger::init("error");
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

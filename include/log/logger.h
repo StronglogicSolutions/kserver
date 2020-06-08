@@ -34,7 +34,7 @@ LogLevelMap LogLevel{
 
 class KLogger {
  public:
-  KLogger(std::string logging_level = "", std::string logging_path = "") {
+  KLogger(std::string logging_level) {
     try {
       // TODO: Not an appropriate responsibility
       if (!ConfigParser::is_initialized()) {
@@ -48,18 +48,9 @@ class KLogger {
       } else {
         log_level = LogLevel.at(logging_level);
       }
-
-      std::string log_path{};
-      if (logging_path.empty()) {
-        log_path = ConfigParser::Logging::path();
-      } else {
-        log_path = logging_path;
-      }
       auto console_sink =
           std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
       console_sink->set_level(log_level);
-      /* std::string log_format_pattern{ */
-      /*     "KLOG [%^%l%$] - %a %b %d %H:%M:%S - %-20!s%3!#::%-20!! - %v"}; */
       std::string log_format_pattern{"KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v"};
       console_sink->set_pattern(log_format_pattern);
       spdlog::set_pattern(log_format_pattern);
@@ -76,9 +67,9 @@ class KLogger {
   }
   ~KLogger() { g_instance = NULL; }
 
-  static void init() {
+  static void init(std::string logging_level = "") {
     if (g_instance == nullptr) {
-      g_instance = new KLogger();
+      g_instance = new KLogger(logging_level);
     }
   }
 
