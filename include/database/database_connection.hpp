@@ -9,12 +9,12 @@ class DatabaseConnection : public DatabaseInterface {
  public:
   // constructor
   DatabaseConnection() {}
+  DatabaseConnection(DatabaseConnection&& d)
+  : m_config(std::move(d.m_config)) {}
+  DatabaseConnection(const DatabaseConnection& d) = delete;
+  virtual ~DatabaseConnection() {}
   virtual bool setConfig(DatabaseConfiguration config) override;
   virtual QueryResult query(DatabaseQuery query) override;
-  DatabaseConnection(const DatabaseConnection& d) = delete;
-  DatabaseConnection(DatabaseConnection&& d) : m_config(std::move(d.m_config)) {
-    std::cout << "MOVING DB" << std::endl;
-  }
 
   template <typename T>
   QueryResult query(T query);
@@ -23,12 +23,13 @@ class DatabaseConnection : public DatabaseInterface {
   std::string databaseName();
 
  private:
-  DatabaseConfiguration m_config;
-  std::string m_db_name;
   pqxx::connection getConnection();
   std::string getConnectionString();
   pqxx::result performInsert(DatabaseQuery query);
   pqxx::result performInsert(InsertReturnQuery query, std::string returning);
+
+  DatabaseConfiguration   m_config;
+  std::string             m_db_name;
 
   template <typename T>
   pqxx::result performSelect(T query);

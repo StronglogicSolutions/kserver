@@ -6,6 +6,7 @@
 class DatabaseInterface {
  public:
   virtual QueryResult query(DatabaseQuery query) = 0;
+  virtual ~DatabaseInterface() {}
   template <typename T>
   QueryResult query(T query) {
     return QueryResult{};

@@ -492,13 +492,13 @@ class KServer : public SocketListener {
     return false;
   }
 
-  Request::RequestHandler m_request_handler;
-  bool file_pending;
-  int file_pending_fd;
-  std::vector<int> m_client_connections;
-  std::vector<FileHandler> m_file_handlers;
-  std::vector<KSession> m_sessions;
-  std::vector<ReceivedFile> m_received_files;
+  Request::RequestHandler     m_request_handler;
+  std::vector<int>            m_client_connections;
+  std::vector<FileHandler>    m_file_handlers;
+  std::vector<KSession>       m_sessions;
+  std::vector<ReceivedFile>   m_received_files;
+  bool                        file_pending;
+  int                         file_pending_fd;
 };
 };      // namespace KYO
 #endif  // __KSERVER_HPP__
