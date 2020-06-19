@@ -19,11 +19,10 @@ class FileHandler {
   *
   * What we make here
   */
-  class File {
-   public:
-    uint8_t *b_ptr;
-    uint32_t size;
-    bool complete;
+  struct File {
+    uint8_t*  b_ptr;
+    uint32_t  size;
+    bool      complete;
   };
 
 /**
@@ -48,13 +47,12 @@ class FileHandler {
           filename(name),
           m_fd(fd),
           m_file_cb(file_callback) {
-            KLOG("FileHandler::Decoder::Decoder() - instantiated");
+            KLOG("Decoder instantiated");
           }
   /**
    * @destructor
    */
     ~Decoder() {
-      KLOG("FileHandler::Decoder::~Decoder() - destructor called");
       if (file_buffer != nullptr) {
         KLOG("FileHandler::Decoder::~Decoder() - Deleting file buffer and packet buffer");
         delete[] file_buffer;
@@ -170,40 +168,46 @@ class FileHandler {
     }
 
    private:
-    uint8_t *file_buffer;
-    uint8_t *packet_buffer;
-    uint32_t index;
-    uint32_t packet_buffer_offset;
-    uint32_t total_packets;
-    uint32_t file_buffer_offset;
-    uint32_t file_size;
-    std::string filename;
-    int m_fd;
-    std::function<void(int)> m_cb;
-    std::function<void(uint8_t *data, int size, std::string)> m_file_cb;
+    uint8_t*                                                    file_buffer;
+    uint8_t*                                                    packet_buffer;
+    uint32_t                                                    index;
+    uint32_t                                                    packet_buffer_offset;
+    uint32_t                                                    total_packets;
+    uint32_t                                                    file_buffer_offset;
+    uint32_t                                                    file_size;
+    std::string                                                 filename;
+    int                                                         m_fd;
+    std::function<void(int)>                                    m_cb;
+    std::function<void(uint8_t *data, int size, std::string)>   m_file_cb;
   };
 
   /**
    * @constructor
    */
-  FileHandler(int client_fd, std::string name, uint8_t *first_packet, uint32_t size,
-              std::function<void(int, int, uint8_t *, size_t)> callback)
-      : socket_fd(client_fd) {
-        KLOG("Creating new Decoder");
-    m_decoder =
-        new Decoder(client_fd, name,
-                    [this, client_fd, callback](uint8_t*&& data, int size,
-                                                std::string filename) {
-                      if (size > 0) {
-                        if (!filename.empty()) {
-                          // Read to save TODO: Check to see if pointer is not
-                          // null and size > 0?
-                          FileUtils::saveFile(data, size, filename);
-                        } else {
-                          callback(client_fd, FILE_HANDLE__SUCCESS, std::move(data), size);
-                        }
-                      }
-                    });
+  FileHandler(int client_fd,
+              std::string name,
+              uint8_t *first_packet,
+              uint32_t size,
+              std::function<void(int, int, uint8_t *, size_t)> callback_fn
+              )
+    : socket_fd(client_fd) {
+      KLOG("Creating new Decoder");
+      m_decoder = new Decoder(
+        client_fd, name,
+        [this, client_fd, &callback_fn](uint8_t*&& data, int size, std::string filename) {
+          if (size > 0) {
+            if (!filename.empty()) {
+              FileUtils::saveFile(data, size, filename);
+            } else {
+              callback_fn(
+                client_fd,
+                FILE_HANDLE__SUCCESS,
+                std::move(data), size
+              );
+            }
+          }
+        }
+      );
     m_decoder->processPacket(first_packet, size);
   }
 
@@ -261,8 +265,8 @@ class FileHandler {
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
 
  private:
-  Decoder *m_decoder;
-  int socket_fd;
+  Decoder   *m_decoder;
+  int       socket_fd;
 };
 } // namespace
 #endif // __DECODER_HPP__

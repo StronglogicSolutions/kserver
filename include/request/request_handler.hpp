@@ -33,7 +33,10 @@
 
 namespace Request {
 
-enum DevTest { Schedule = 1, ExecuteTask = 2 };
+enum DevTest {
+  Schedule = 1,
+  ExecuteTask = 2
+};
 
 using namespace KData;
 using namespace Executor;
@@ -154,6 +157,13 @@ class RequestHandler {
     KLOG("Initialization complete");
   }
 
+  /**
+   * setHandlingData
+   *
+   * Sets the `is_handling` class member
+   *
+   * @param[in] {bool} is_handling    Whether the system is currently receiving packets of data
+   */
   void setHandlingData(bool is_handling) {
     handling_data = is_handling;
     if (!is_handling) {
@@ -161,7 +171,12 @@ class RequestHandler {
     }
   }
 
-  Scheduler::Scheduler *getScheduler() {
+  /**
+   * getScheduler
+   *
+   * @returns [out] {Scheduler*}  A pointer to a new instance of Scheduler
+   */
+  Scheduler::Scheduler* getScheduler() {
     return new Scheduler::Scheduler{[this](std::string id, int client_socket_fd,
                                            int event,
                                            std::vector<std::string> args) {
@@ -577,18 +592,18 @@ class RequestHandler {
    * callback functions
    */
   std::function<void(std::string, int, std::string, int, bool)>
-      m_event_callback_fn;
-  std::function<void(int, int, std::vector<std::string>)> m_system_callback_fn;
-  std::function<void(int, std::vector<Task>)> m_task_callback_fn;
+                                                              m_event_callback_fn;
+  std::function<void(int, int, std::vector<std::string>)>     m_system_callback_fn;
+  std::function<void(int, std::vector<Task>)>                 m_task_callback_fn;
 
-  std::map<int, std::vector<Task>> m_tasks_map;
-  std::mutex m_mutex;
-  std::condition_variable maintenance_loop_condition;
-  std::atomic<bool> handling_data;
+  std::map<int, std::vector<Task>>                            m_tasks_map;
+  std::mutex                                                  m_mutex;
+  std::condition_variable                                     maintenance_loop_condition;
+  std::atomic<bool>                                           handling_data;
 
-  Executor::ProcessExecutor *m_executor;
-  Scheduler::Scheduler *m_scheduler;
-  std::thread m_maintenance_worker;
+  Executor::ProcessExecutor                                   *m_executor;
+  Scheduler::Scheduler                                        *m_scheduler;
+  std::thread                                                 m_maintenance_worker;
 };
 }  // namespace Request
 #endif  // __REQUEST_HANDLER_HPP__
