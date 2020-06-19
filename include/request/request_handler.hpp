@@ -454,7 +454,7 @@ class RequestHandler {
     std::map<int, std::string> command_map{};
     std::vector<std::string> names{};
     std::vector<int> masks{};
-    for (const auto &row : result) {
+    for (const auto& row : result) {
       if (row.first == "name") {
         names.push_back(row.second);
       } else if (row.first == "mask") {
