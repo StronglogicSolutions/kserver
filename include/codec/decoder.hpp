@@ -54,7 +54,7 @@ class FileHandler {
    */
     ~Decoder() {
       if (file_buffer != nullptr) {
-        KLOG("FileHandler::Decoder::~Decoder() - Deleting file buffer and packet buffer");
+        KLOG("Deleting file buffer and packet buffer");
         delete[] file_buffer;
         delete[] packet_buffer;
         file_buffer = nullptr;
@@ -146,7 +146,7 @@ class FileHandler {
     void processPacket(uint8_t* data, uint32_t size) {
       bool is_first_packet = (index == 0);
       if (is_first_packet && packet_buffer_offset == 0 && file_buffer_offset == 0) {
-        KLOG("Decoder::processPacket() - processing first packet");
+        KLOG("processing first packet");
         // Compute file size from the first packet's 4 byte header
         file_size =
             int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
