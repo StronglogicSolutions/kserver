@@ -164,15 +164,28 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     std::string future_5_minute_timestamp =
         std::to_string(TimeUtils::unixtime() + 300);
     return parseTasks(
-        m_kdb.selectMultiFilter<CompBetweenFilter, MultiOptionFilter>(
-            "schedule",                                               // table
-            {"id", "time", "mask", "flags", "envfile", "completed"},  // fields
-            {CompBetweenFilter{"time", std::move(past_15_minute_timestamp),
-                               std::move(future_5_minute_timestamp)},
-             MultiOptionFilter{"completed",
-                               "IN",
-                               {Completed::STRINGS[Completed::SCHEDULED],
-                                {Completed::STRINGS[Completed::FAILED]}}}}));
+      m_kdb.selectMultiFilter<CompBetweenFilter, MultiOptionFilter>(
+        "schedule",                                               // table
+        {
+          "id", "time", "mask", "flags", "envfile", "completed" // fields
+        },
+        {
+          CompBetweenFilter{ // Range comparison
+          "time", // field of comparison
+          past_15_minute_timestamp, // min
+          future_5_minute_timestamp // max
+        },
+          MultiOptionFilter{ // Set comparison
+            "completed", // field of comparison
+            "IN", // comparison type
+            { // Set of possible matches
+              Completed::STRINGS[Completed::SCHEDULED],
+              Completed::STRINGS[Completed::FAILED]
+            }
+          }
+        }
+      )
+    );
   }
 
   Task getTask(std::string id) {
