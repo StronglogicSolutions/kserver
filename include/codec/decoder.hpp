@@ -194,7 +194,7 @@ class FileHandler {
       KLOG("Creating new Decoder");
       m_decoder = new Decoder(
         client_fd, name,
-        [this, client_fd, &callback_fn](uint8_t*&& data, int size, std::string filename) {
+        [this, client_fd, callback_fn](uint8_t*&& data, int size, std::string filename) {
           if (size > 0) {
             if (!filename.empty()) {
               FileUtils::saveFile(data, size, filename);
