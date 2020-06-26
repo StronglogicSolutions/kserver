@@ -17,6 +17,7 @@ set(FULL_SOURCES ${TEST_SOURCES})
 add_executable(${PROJECT_NAME} ${FULL_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
    "../include"
+   "../third_party"
    "."
 )
 add_subdirectory(googletest)
