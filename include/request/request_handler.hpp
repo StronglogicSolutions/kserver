@@ -350,14 +350,21 @@ class RequestHandler {
             KLOG("Sending task request to Scheduler");
             auto id = m_scheduler->schedule(task);
             if (!id.empty()) {
-              auto env_file_data = FileUtils::readEnvFile(task.envfile);
+              // Task was scheduled. Prepare a vector with info about the task.
+              std::vector<std::string> callback_args{};
+              callback_args.reserve((5 + task.files.size()));
+              callback_args.insert(callback_args.end(), {
+                uuid, id,                            // UUID and database ID
+                std::to_string(task.execution_mask), // Application mask
+                FileUtils::readEnvFile(task.envfile),// Environment file
+                std::to_string(task.files.size())    // File number
+              });
+              for (auto&& file : task.files) {
+                callback_args.emplace_back(file.first); // Add the filenames
+              }
               m_system_callback_fn(
-                  client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, {
-                    uuid, id,
-                    std::to_string(task.execution_mask),
-                    env_file_data,
-                    std::to_string(task.files.size())
-                  }
+                  client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS,
+                  callback_args
                 );
               return OPERATION_SUCCESS;
             } else {
