@@ -21,7 +21,9 @@ struct GenericTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_IS_VIDEO = 12,
     VT_MASK = 14,
     VT_HEADER = 16,
-    VT_USER = 18
+    VT_USER = 18,
+    VT_RECURRING = 20,
+    VT_FREQUENCY = 22
   };
   int32_t id() const {
     return GetField<int32_t>(VT_ID, 0);
@@ -47,6 +49,12 @@ struct GenericTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::String *user() const {
     return GetPointer<const flatbuffers::String *>(VT_USER);
   }
+  bool recurring() const {
+    return GetField<uint8_t>(VT_RECURRING, 0) != 0;
+  }
+  int32_t frequency() const {
+    return GetField<int32_t>(VT_FREQUENCY, 0);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int32_t>(verifier, VT_ID) &&
@@ -62,6 +70,8 @@ struct GenericTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyString(header()) &&
            VerifyOffset(verifier, VT_USER) &&
            verifier.VerifyString(user()) &&
+           VerifyField<uint8_t>(verifier, VT_RECURRING) &&
+           VerifyField<int32_t>(verifier, VT_FREQUENCY) &&
            verifier.EndTable();
   }
 };
@@ -94,6 +104,12 @@ struct GenericTaskBuilder {
   void add_user(flatbuffers::Offset<flatbuffers::String> user) {
     fbb_.AddOffset(GenericTask::VT_USER, user);
   }
+  void add_recurring(bool recurring) {
+    fbb_.AddElement<uint8_t>(GenericTask::VT_RECURRING, static_cast<uint8_t>(recurring), 0);
+  }
+  void add_frequency(int32_t frequency) {
+    fbb_.AddElement<int32_t>(GenericTask::VT_FREQUENCY, frequency, 0);
+  }
   explicit GenericTaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -115,8 +131,11 @@ inline flatbuffers::Offset<GenericTask> CreateGenericTask(
     bool is_video = false,
     int32_t mask = 0,
     flatbuffers::Offset<flatbuffers::String> header = 0,
-    flatbuffers::Offset<flatbuffers::String> user = 0) {
+    flatbuffers::Offset<flatbuffers::String> user = 0,
+    bool recurring = false,
+    int32_t frequency = 0) {
   GenericTaskBuilder builder_(_fbb);
+  builder_.add_frequency(frequency);
   builder_.add_user(user);
   builder_.add_header(header);
   builder_.add_mask(mask);
@@ -124,6 +143,7 @@ inline flatbuffers::Offset<GenericTask> CreateGenericTask(
   builder_.add_time(time);
   builder_.add_file_info(file_info);
   builder_.add_id(id);
+  builder_.add_recurring(recurring);
   builder_.add_is_video(is_video);
   return builder_.Finish();
 }
@@ -137,7 +157,9 @@ inline flatbuffers::Offset<GenericTask> CreateGenericTaskDirect(
     bool is_video = false,
     int32_t mask = 0,
     const char *header = nullptr,
-    const char *user = nullptr) {
+    const char *user = nullptr,
+    bool recurring = false,
+    int32_t frequency = 0) {
   auto file_info__ = file_info ? _fbb.CreateString(file_info) : 0;
   auto time__ = time ? _fbb.CreateString(time) : 0;
   auto description__ = description ? _fbb.CreateString(description) : 0;
@@ -152,7 +174,9 @@ inline flatbuffers::Offset<GenericTask> CreateGenericTaskDirect(
       is_video,
       mask,
       header__,
-      user__);
+      user__,
+      recurring,
+      frequency);
 }
 
 inline const GenericData::GenericTask *GetGenericTask(const void *buf) {
