@@ -60,7 +60,7 @@ class KServer : public SocketListener {
               "to all clients.");
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
-            sendEvent(session.fd, "Scheduled Tasks Ready", args);
+              sendEvent(session.fd, "Scheduled Tasks Ready", args);
           }
           break;
         } else {
@@ -69,7 +69,7 @@ class KServer : public SocketListener {
               "scheduled tasks",
               client_socket_fd);
           IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-          sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
+            sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
           break;
         }
       }
@@ -80,13 +80,13 @@ class KServer : public SocketListener {
               "tasks ready for execution.");
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
-            sendEvent(session.fd, "No tasks ready", args);
+              sendEvent(session.fd, "No tasks ready", args);
           }
           break;
         } else {
           KLOG("Informing client {} about scheduled tasks", client_socket_fd);
           IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-          sendEvent(client_socket_fd, "No tasks ready to run", args);
+            sendEvent(client_socket_fd, "No tasks ready to run", args);
           break;
         }
         break;
@@ -96,17 +96,16 @@ class KServer : public SocketListener {
         if (client_socket_fd == -1) {
           for (const auto &session : m_sessions) {
             IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
-            sendEvent(session.fd, "Task Scheduled", args);
+              sendEvent(session.fd, "Task Scheduled", args);
           }
         } else {
           IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-          sendEvent(client_socket_fd, "Task Scheduled", args);
+            sendEvent(client_socket_fd, "Task Scheduled", args);
         }
         break;
       }
       case SYSTEM_EVENTS__FILE_UPDATE: {
-        // incoming file has new information, such as a filename to be
-        // assigned to it
+        // metadata for a received file
         auto timestamp = args.at(1);
         KLOG(
             "Updating information file information for client "
@@ -125,7 +124,6 @@ class KServer : public SocketListener {
         if (received_file != m_received_files.end()) {
           // We must assume that these files match, just by virtue of the
           // client file descriptor ID. Again, we should be matching by UUID.
-          // // TODO: We must do this
           KLOG("Data buffer found. Creating directory and saving file");
           std::string filename = args.at(0);
           FileUtils::saveFile(received_file->f_ptr, received_file->size,
@@ -145,7 +143,7 @@ class KServer : public SocketListener {
       }
       case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED: {
         IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-        sendEvent(client_socket_fd, "Process Execution Requested", args);
+          sendEvent(client_socket_fd, "Process Execution Requested", args);
         break;
       }
     }
