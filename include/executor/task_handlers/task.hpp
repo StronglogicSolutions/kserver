@@ -17,7 +17,21 @@ namespace Executor {
 
   namespace Constants {
     static constexpr uint8_t FILE_DELIMITER_CHARACTER_COUNT = 2;
-  }
+
+    namespace Frequency {
+      static constexpr uint8_t HOURLY   = 0;
+      static constexpr uint8_t DAILY    = 1;
+      static constexpr uint8_t WEEKLY   = 2;
+      static constexpr uint8_t MONTHLY  = 3;
+      static constexpr uint8_t YEARLY   = 4;
+      static const char* const names[5] = {
+        "Hourly",
+        "Daily",
+        "Weekly",
+        "Monthly",
+        "Yearly"};
+    } // namespace Frequency
+  } // namespace Constants
 
   using TaskArguments = std::vector<std::string>;
 
@@ -30,6 +44,8 @@ namespace Executor {
     std::string execution_flags;
     int id = 0;
     int completed;
+    bool recurring;
+    int frequency;
 
     bool validate() {
       return !datetime.empty() && !envfile.empty() &&
@@ -43,6 +59,12 @@ namespace Executor {
           << "\nTime: " << task.datetime
           << "\nFiles: " << file_string
           << "\nCompleted: " << task.completed << std::endl;
+          if (task.recurring) {
+            out << "\nRecurring: " << task.recurring
+                << "\nFrequency: " << Constants::Frequency::names[task.frequency]
+                << std::endl;
+          }
+
       return out;
     }
 
@@ -57,7 +79,9 @@ namespace Executor {
       t1.execution_mask == t2.execution_mask &&
       t1.file == t2.file &&
       t1.files.size() == t2.files.size() && // TODO: implement comparison for FileInfo
-      t1.id == t2.id);
+      t1.id == t2.id &&
+      t1.recurring == t2.recurring &&
+      t1.frequency == t2.frequency);
     }
 
     friend bool operator!=(const Task& t1,const Task& t2) {
