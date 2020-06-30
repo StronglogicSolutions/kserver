@@ -65,9 +65,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     if (task.validate()) {
       try {
         std::string id =
-            m_kdb.insert("schedule", {"time", "mask", "flags", "envfile"},
+            m_kdb.insert("schedule", {"time", "mask", "flags", "envfile", "recurring"},
                         {task.datetime, std::to_string(task.execution_mask),
-                          task.execution_flags, task.envfile},
+                          task.execution_flags, task.envfile, std::to_string(task.recurring)},
                         "id");
         auto result = !id.empty();
 

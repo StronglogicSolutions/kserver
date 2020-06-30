@@ -9,8 +9,7 @@ table GenericTask {
   mask: int;
   header: string;
   user: string;
-  recurring: bool;
-  frequency: int;
+  recurring: int;
 }
 
 root_type GenericTask;

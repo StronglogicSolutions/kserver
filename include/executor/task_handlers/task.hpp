@@ -44,8 +44,7 @@ namespace Executor {
     std::string execution_flags;
     int id = 0;
     int completed;
-    bool recurring;
-    int frequency;
+    int recurring;
 
     bool validate() {
       return !datetime.empty() && !envfile.empty() &&
@@ -60,8 +59,7 @@ namespace Executor {
           << "\nFiles: " << file_string
           << "\nCompleted: " << task.completed << std::endl;
           if (task.recurring) {
-            out << "\nRecurring: " << task.recurring
-                << "\nFrequency: " << Constants::Frequency::names[task.frequency]
+            out << "\nFrequency: " << Constants::Frequency::names[task.recurring]
                 << std::endl;
           }
 
@@ -72,16 +70,17 @@ namespace Executor {
     friend bool operator!=(const Task& t1, const Task& t2);
 
     friend bool operator==(const Task& t1, const Task& t2) {
-      return (t1.completed == t2.completed &&
-      t1.datetime == t2.datetime &&
-      t1.envfile == t2.envfile &&
-      t1.execution_flags == t2.execution_flags &&
-      t1.execution_mask == t2.execution_mask &&
-      t1.file == t2.file &&
-      t1.files.size() == t2.files.size() && // TODO: implement comparison for FileInfo
-      t1.id == t2.id &&
-      t1.recurring == t2.recurring &&
-      t1.frequency == t2.frequency);
+      return (
+        t1.completed == t2.completed &&
+        t1.datetime == t2.datetime &&
+        t1.envfile == t2.envfile &&
+        t1.execution_flags == t2.execution_flags &&
+        t1.execution_mask == t2.execution_mask &&
+        t1.file == t2.file &&
+        t1.files.size() == t2.files.size() && // TODO: implement comparison for FileInfo
+        t1.id == t2.id &&
+        t1.recurring == t2.recurring
+      );
     }
 
     friend bool operator!=(const Task& t1,const Task& t2) {
@@ -102,9 +101,9 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
   std::vector<FileInfo> info_v{};
   info_v.reserve(file_info.size() / 32); // estimate ~ 32 characters for each file's metadata
 
-  uint32_t index = 0; // index points to beginning of each file's metadata
-  uint32_t pipe_pos = 0; // file name delimiter
-  uint32_t delim_pos = 0; // file metadata delimiter
+  uint32_t index      = 0; // index points to beginning of each file's metadata
+  uint32_t pipe_pos   = 0; // file name delimiter
+  uint32_t delim_pos  = 0; // file metadata delimiter
   do {
     auto timestamp = file_info.substr(index, TIMESTAMP_LENGTH);
     pipe_pos = findIndexAfter(file_info, index, '|');

@@ -21,6 +21,7 @@ namespace Executor {
     static constexpr uint8_t IS_VIDEO = 4;
     static constexpr uint8_t HEADER = 5;
     static constexpr uint8_t USER = 6;
+    static constexpr uint8_t RECURRING = 7;
   }
 
 class GenericTaskHandler : public TaskHandler {
@@ -33,13 +34,14 @@ class GenericTaskHandler : public TaskHandler {
       return Executor::Task{};
     }
 
-    auto mask = argv.at(GenericTaskIndex::MASK);
-    auto file_info = argv.at(GenericTaskIndex::FILEINFO);
-    auto is_video = argv.at(GenericTaskIndex::IS_VIDEO) == "1";
-    auto datetime = argv.at(GenericTaskIndex::DATETIME);
-    auto description = argv.at(GenericTaskIndex::DESCRIPTION);
-    auto header = argv.at(GenericTaskIndex::HEADER);
-    auto user = argv.at(GenericTaskIndex::USER);
+    auto mask         = argv.at(GenericTaskIndex::MASK);
+    auto file_info    = argv.at(GenericTaskIndex::FILEINFO);
+    auto is_video     = argv.at(GenericTaskIndex::IS_VIDEO) == "1";
+    auto datetime     = argv.at(GenericTaskIndex::DATETIME);
+    auto description  = argv.at(GenericTaskIndex::DESCRIPTION);
+    auto header       = argv.at(GenericTaskIndex::HEADER);
+    auto user         = argv.at(GenericTaskIndex::USER);
+    auto recurring    = argv.at(GenericTaskIndex::RECURRING);
 
     std::vector<FileInfo> task_files = parseFileInfo(file_info);
 
@@ -67,7 +69,9 @@ class GenericTaskHandler : public TaskHandler {
         .execution_flags =
             "--description=$DESCRIPTION "
             "--media=$FILE_TYPE "
-            "--header=$HEADER --user=$USER"};
+            "--header=$HEADER --user=$USER",
+        .recurring = std::stoi(recurring)
+      };
     } else {
       task_ptr->execution_mask = std::stoi(mask);
       task_ptr->datetime = datetime;
@@ -80,6 +84,7 @@ class GenericTaskHandler : public TaskHandler {
             "--requested_by_phrase=$REQUESTED_BY_PHRASE "
             "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
             "--header=$HEADER --user=$USER";
+      task_ptr->recurring = std::stoi(recurring);
       return *task_ptr;
     }
   }
