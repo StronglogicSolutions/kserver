@@ -18,12 +18,13 @@ namespace Executor {
   namespace Constants {
     static constexpr uint8_t FILE_DELIMITER_CHARACTER_COUNT = 2;
 
-    namespace Frequency {
-      static constexpr uint8_t HOURLY   = 0;
-      static constexpr uint8_t DAILY    = 1;
-      static constexpr uint8_t WEEKLY   = 2;
-      static constexpr uint8_t MONTHLY  = 3;
-      static constexpr uint8_t YEARLY   = 4;
+    namespace Recurring {
+      static constexpr uint8_t NO       = 0x00;
+      static constexpr uint8_t HOURLY   = 0x01;
+      static constexpr uint8_t DAILY    = 0x02;
+      static constexpr uint8_t WEEKLY   = 0x03;
+      static constexpr uint8_t MONTHLY  = 0x04;
+      static constexpr uint8_t YEARLY   = 0x05;
       static const char* const names[5] = {
         "Hourly",
         "Daily",
@@ -59,7 +60,7 @@ namespace Executor {
           << "\nFiles: " << file_string
           << "\nCompleted: " << task.completed << std::endl;
           if (task.recurring) {
-            out << "\nFrequency: " << Constants::Frequency::names[task.recurring]
+            out << "\nFrequency: " << Constants::Recurring::names[task.recurring]
                 << std::endl;
           }
 
