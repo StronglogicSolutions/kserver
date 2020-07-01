@@ -133,7 +133,6 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
   class TaskHandler {
     public:
       virtual Executor::Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
-
   };
 }
 

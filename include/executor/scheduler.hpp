@@ -65,20 +65,33 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     if (task.validate()) {
       try {
         std::string id =
-            m_kdb.insert("schedule", {"time", "mask", "flags", "envfile", "recurring"},
-                        {task.datetime, std::to_string(task.execution_mask),
-                          task.execution_flags, task.envfile, std::to_string(task.recurring)},
-                        "id");
+            m_kdb.insert("schedule", {              // table
+              "time",                               // fields
+              "mask",
+              "flags",
+              "envfile",
+              "recurring"}, {
+              task.datetime,                        // values
+              std::to_string(task.execution_mask),
+              task.execution_flags,
+              task.envfile,
+              std::to_string(task.recurring)},
+                        "id");                      // return
         auto result = !id.empty();
 
         if (!id.empty()) {
           KLOG("Request to schedule task was accepted\nID {}", id);
           for (const auto& file : task.files) {
             KLOG("Recording file in DB: {}", file.first);
-            m_kdb.insert("file", {"name", "sid"}, {file.first, id});
+            m_kdb.insert("file", {                  // table
+            "name",                                 // fields
+              "sid"}, {
+              file.first,                           // values
+              id}
+            );
           }
         }
-        return id;
+        return id;                                  // schedule id
       } catch (const pqxx::sql_error &e) {
         ELOG("Insert query failed: {}", e.what());
       } catch (const std::exception &e) {
@@ -167,7 +180,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       m_kdb.selectMultiFilter<CompBetweenFilter, MultiOptionFilter>(
         "schedule",                                               // table
         {
-          "id", "time", "mask", "flags", "envfile", "completed" // fields
+          "id", "time", "mask", "flags", "envfile", "completed"   // fields
         },
         {
           CompBetweenFilter{ // Range comparison
