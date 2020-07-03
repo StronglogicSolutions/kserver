@@ -70,6 +70,8 @@ class GenericTaskHandler : public TaskHandler {
             "--description=$DESCRIPTION "
             "--media=$FILE_TYPE "
             "--header=$HEADER --user=$USER",
+        .id = 0,
+        .completed = 0,
         .recurring = std::stoi(recurring)
       };
     } else {
