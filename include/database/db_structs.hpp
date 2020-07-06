@@ -85,10 +85,11 @@ struct MultiFilterSelect {
   std::vector<GenericFilter> filter;
 };
 
+template <typename T>
 struct MultiVariantFilterSelect {
   std::string table;
   std::vector<std::string> fields;
-  std::vector<std::variant<CompBetweenFilter, MultiOptionFilter>> filter;
+  T filter;
 };
 
 struct InsertReturnQuery : Query {
@@ -125,6 +126,21 @@ struct ComparisonBetweenSelectQuery : Query {
 struct QueryResult {
   std::string table;
   std::vector<std::pair<std::string, std::string>> values;
+};
+
+struct Join {
+  std::string table;
+  std::string field;
+  std::string join_table;
+  std::string join_field;
+};
+
+template <typename T>
+struct JoinQuery : MultiVariantFilterSelect<T> {
+  std::string table;
+  std::vector<std::string> fields;
+  T filter;
+  Join join;
 };
 
 #endif  // __DB_STRUCTS_H__

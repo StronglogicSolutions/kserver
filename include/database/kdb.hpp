@@ -120,14 +120,57 @@ QueryValues select(std::string table, Fields fields,
   template <typename FilterA, typename FilterB>
   QueryValues selectMultiFilter(
       std::string table, Fields fields,
-      std::vector<std::variant<FilterA, FilterB> > filters) {
+      std::vector<std::variant<FilterA, FilterB>> filters) {
     try {
-      MultiVariantFilterSelect select_query{
+      MultiVariantFilterSelect<std::vector<std::variant<FilterA, FilterB>>> select_query{
           .table = table, .fields = fields, .filter = filters};
       QueryResult result = m_connection->query(select_query);
       for (const auto &value : result.values) {
         std::cout << "Query value: " << value.second << std::endl;
       }
+      if (!result.values.empty()) {
+        return result.values;
+      }
+    } catch (const pqxx::sql_error &e) {
+      throw e;
+    } catch (const std::exception &e) {
+      throw e;
+    }
+    return {{}};
+  }
+
+  template <typename FilterA, typename FilterB, typename FilterC>
+  QueryValues selectMultiFilter(
+      std::string table, Fields fields,
+      std::vector<std::variant<FilterA, FilterB, FilterC>> filters) {
+    try {
+      MultiVariantFilterSelect<std::vector<std::variant<FilterA, FilterB, FilterC>>> select_query{
+          .table = table, .fields = fields, .filter = filters};
+      QueryResult result = m_connection->query(select_query);
+      for (const auto &value : result.values) {
+        std::cout << "Query value: " << value.second << std::endl;
+      }
+      if (!result.values.empty()) {
+        return result.values;
+      }
+    } catch (const pqxx::sql_error &e) {
+      throw e;
+    } catch (const std::exception &e) {
+      throw e;
+    }
+    return {{}};
+  }
+
+  template <typename T>
+  QueryValues selectJoin(std::string table, Fields fields, T filters, Join join) {
+    try {
+      JoinQuery<T> select_query{
+        .table = table,
+        .fields = fields,
+        .filter = filters,
+        .join=join
+      };
+      QueryResult result = m_connection->query(select_query);
       if (!result.values.empty()) {
         return result.values;
       }
