@@ -429,7 +429,7 @@ Either<std::string, std::vector<std::string>> getDecodedMessage(
             gen_task->file_info()->str(), gen_task->time()->str(),
             gen_task->description()->str(), std::to_string(gen_task->is_video()),
             gen_task->header()->str(), gen_task->user()->str(),
-            std::to_string(gen_task->recurring())
+            std::to_string(gen_task->recurring()), std::to_string(gen_task->notify())
           }
         ));
       }

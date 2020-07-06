@@ -25,13 +25,15 @@ namespace Executor {
       static constexpr uint8_t WEEKLY   = 0x03;
       static constexpr uint8_t MONTHLY  = 0x04;
       static constexpr uint8_t YEARLY   = 0x05;
-      static const char* const names[5] = {
+      static const char* const names[6] = {
+        "No",
         "Hourly",
         "Daily",
         "Weekly",
         "Monthly",
-        "Yearly"};
-    } // namespace Frequency
+        "Yearly"
+      };
+    } // namespace Recurring
   } // namespace Constants
 
   using TaskArguments = std::vector<std::string>;
@@ -46,25 +48,31 @@ namespace Executor {
     int id = 0;
     int completed;
     int recurring;
+    bool notify;
 
     bool validate() {
       return !datetime.empty() && !envfile.empty() &&
             !execution_flags.empty();
     }
 
-    friend std::ostream &operator<<(std::ostream &out, const Task &task) {
-      auto file_string = task.file ? std::string{"Yes - " + task.files.size()} : "No";
-      out << "ID: " << task.id
-          << "\nMask: " << task.execution_mask
-          << "\nTime: " << task.datetime
-          << "\nFiles: " << file_string
-          << "\nCompleted: " << task.completed << std::endl;
-          if (task.recurring) {
-            out << "\nFrequency: " << Constants::Recurring::names[task.recurring]
-                << std::endl;
-          }
+    std::string toString() const {
+      auto recurring_string = Constants::Recurring::names[recurring];
+      std::string return_string{};
+      return_string.reserve(75);
+      return_string += "ID: " + id;
+      return_string += "\nMask: " + std::to_string(execution_mask);
+      return_string += "\nTime: " + datetime;
+      return_string += "\nFiles: " + std::to_string(files.size());
+      return_string += "\nCompleted: " + completed;
+      return_string += "\nRecurring: ";
+      return_string += "\nEmail notification: " + notify ? "Yes" : "No";
+      return_string += recurring_string;
+      std::cout << "task string size: " << return_string.size() << std::endl;
+      return return_string;
+    }
 
-      return out;
+    friend std::ostream &operator<<(std::ostream &out, const Task &task) {
+      return out << task.toString();
     }
 
     friend bool operator==(const Task& t1, const Task& t2);
@@ -80,7 +88,8 @@ namespace Executor {
         t1.file == t2.file &&
         t1.files.size() == t2.files.size() && // TODO: implement comparison for FileInfo
         t1.id == t2.id &&
-        t1.recurring == t2.recurring
+        t1.recurring == t2.recurring &&
+        t1.notify == t2.notify
       );
     }
 

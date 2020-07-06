@@ -22,6 +22,7 @@ namespace Executor {
     static constexpr uint8_t HEADER = 5;
     static constexpr uint8_t USER = 6;
     static constexpr uint8_t RECURRING = 7;
+    static constexpr uint8_t NOTIFY = 8;
   }
 
 class GenericTaskHandler : public TaskHandler {
@@ -42,6 +43,7 @@ class GenericTaskHandler : public TaskHandler {
     auto header       = argv.at(GenericTaskIndex::HEADER);
     auto user         = argv.at(GenericTaskIndex::USER);
     auto recurring    = argv.at(GenericTaskIndex::RECURRING);
+    auto notify       = argv.at(GenericTaskIndex::NOTIFY);
 
     std::vector<FileInfo> task_files = parseFileInfo(file_info);
 
@@ -72,7 +74,8 @@ class GenericTaskHandler : public TaskHandler {
             "--header=$HEADER --user=$USER",
         .id = 0,
         .completed = 0,
-        .recurring = std::stoi(recurring)
+        .recurring = std::stoi(recurring),
+        .notify = notify.compare("1") == 0
       };
     } else {
       task_ptr->execution_mask = std::stoi(mask);
@@ -87,6 +90,7 @@ class GenericTaskHandler : public TaskHandler {
             "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
             "--header=$HEADER --user=$USER";
       task_ptr->recurring = std::stoi(recurring);
+      task_ptr->notify = notify.compare("1") == 0;
       return *task_ptr;
     }
   }
