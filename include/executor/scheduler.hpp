@@ -12,6 +12,13 @@
 #include <vector>
 
 #define NO_COMPLETED_VALUE 99
+
+#define TIMESTAMP_TIME_AS_TODAY \
+            "(extract(epoch from (TIMESTAMPTZ 'today')) + "\
+            "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
+            "60 * extract(minute from(to_timestamp(schedule.time))) + "\
+            "extract(second from (to_timestamp(schedule.time))))"
+
 using namespace Executor;
 
 namespace Scheduler {
@@ -77,8 +84,6 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
               task.envfile,
               std::to_string(task.recurring)},
                         "id");                      // return
-        auto result = !id.empty();
-
         if (!id.empty()) {
           KLOG("Request to schedule task was accepted\nID {}", id);
           for (const auto& file : task.files) {
@@ -126,14 +131,16 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       }
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
           !mask.empty() && completed != NO_COMPLETED_VALUE && id > 0) {
-        tasks.push_back(Task{.execution_mask = std::stoi(mask),
-                             .datetime = time,
-                             .file = true,
-                             .files = {},
-                             .envfile = envfile,
-                             .execution_flags = flags,
-                             .id = id,
-                             .completed = completed});
+        tasks.push_back(Task{
+          .execution_mask = std::stoi(mask),
+          .datetime = time,
+          .file = true,
+          .files = {},
+          .envfile = envfile,
+          .execution_flags = flags,
+          .id = id,
+          .completed = completed
+        });
         id = 0;
         completed = NO_COMPLETED_VALUE;
         filename.clear();
@@ -177,22 +184,26 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     std::string future_5_minute_timestamp =
         std::to_string(TimeUtils::unixtime() + 300);
     return parseTasks(
-      m_kdb.selectMultiFilter<CompBetweenFilter, MultiOptionFilter>(
-        "schedule",                                               // table
-        {
-          "id", "time", "mask", "flags", "envfile", "completed"   // fields
-        },
-        {
-          CompBetweenFilter{ // Range comparison
-          "time", // field of comparison
-          past_15_minute_timestamp, // min
-          future_5_minute_timestamp // max
-        },
-          MultiOptionFilter{ // Set comparison
-            "completed", // field of comparison
-            "IN", // comparison type
-            { // Set of possible matches
-              Completed::STRINGS[Completed::SCHEDULED],
+      m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
+        "schedule", {                                   // table
+          "id", "time",                                 // fields
+          "mask", "flags",
+          "envfile", "completed"
+        }, std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>{
+          CompFilter{                                   // filter
+            "recurring",                                // field of comparison
+            "0",                                        // value for comparison
+            "="                                         // comparator
+          },
+          CompBetweenFilter{                            // filter
+            "time",                                     // field of comparison
+            past_15_minute_timestamp,                   // min range
+            future_5_minute_timestamp                   // max range
+          },
+          MultiOptionFilter{                            // filter
+            "completed",                                // field of comparison
+            "IN", {                                     // comparison type
+              Completed::STRINGS[Completed::SCHEDULED], // set of values for comparison
               Completed::STRINGS[Completed::FAILED]
             }
           }
@@ -201,26 +212,89 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     );
   }
 
+  std::vector<Task> fetchRecurringTasks() {
+    std::string start_time{TIMESTAMP_TIME_AS_TODAY}; // macro for SQL statement converts unixtime
+    start_time += " - 900";                          // from any date to unixtime of the same time
+    std::string end_time{TIMESTAMP_TIME_AS_TODAY};   // today
+    end_time += " + 300";
+
+    using SelectJoinFilters = std::vector<std::variant<CompFilter, CompBetweenFilter>>;
+
+    auto tasks =  parseTasks(
+      m_kdb.selectJoin<SelectJoinFilters>(
+        "schedule", {                           // table
+          "schedule.id", "schedule.time",                           // fields
+          "schedule.mask", "schedule.flags",
+          "schedule.envfile", "schedule.completed",
+          "schedule.recurring", "recurring.time"
+        }, SelectJoinFilters{
+          CompFilter{                             // filter
+            "schedule.recurring",                          // field of comparison
+            "0",                                  // value of comparison
+            "<>"                                  // comparator
+          },
+          CompBetweenFilter{                      // filter
+            "recurring.time",                               // field of comparison
+            start_time,                           // min range
+            end_time                              // max range
+          }
+        },
+        Join{
+          .table="recurring",                     // table to join
+          .field="sid",                           // field to join on
+          .join_table="schedule",                 // table to join to
+          .join_field="id"                        // field to join to
+        }
+      )
+    );
+    return tasks;
+  }
+
   Task getTask(std::string id) {
     return parseTask(m_kdb.select(
-        "schedule", {"mask", "flags", "envfile", "time", "completed"},
-        {{"id", id}}));
+      "schedule", {       // table
+        "mask", "flags",  // fields
+        "envfile", "time",
+        "completed"
+        }, {
+          {"id", id}      // filter
+        }
+    ));
   }
 
   Task getTask(int id) {
-    return parseTask(m_kdb.select(
-        "schedule", {"mask", "flags", "envfile", "time", "completed"},
-        {{"id", std::to_string(id)}}));
+    return parseTask(m_kdb.select( // SELECT
+      "schedule", {                // table
+        "mask", "flags",           // fields
+        "envfile", "time",
+        "completed"
+      }, QueryFilter{
+        {"id", std::to_string(id)} // filter
+      }
+    ));
   }
 
   bool updateStatus(Task* task) {
-    return !m_kdb
-                .update("schedule",  // table
-                        {"completed"},
-                        {std::to_string(task->completed)},  // completion status
-                        QueryFilter{{"id", std::to_string(task->id)}},
-                        "id")  // return value
-                .empty();      // !empty = success
+    return !m_kdb.update(                // UPDATE
+      "schedule", {                      // table
+        "completed"                      // field
+      }, {
+        std::to_string(task->completed)  // value
+      }, QueryFilter{
+        {"id", std::to_string(task->id)} // filter
+      },
+      "id"                               // returning value
+    )
+    .empty();                            // not empty = success
+  }
+
+  bool updateRecurring(Task* task) {
+    auto id = m_kdb.insert("recurring", {
+      "sid", "time"
+    }, {
+      std::to_string(task->id), task->datetime
+    }, "id");
+    return !id.empty();
   }
 
   template <typename T>
