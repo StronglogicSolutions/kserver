@@ -14,7 +14,7 @@ using namespace Executor;
 TEST(SchedulerTest, ScheduleInvalidTaskReturnsEmptyString) {
   GenericTaskHandler generic_task_hander{};
   auto uuid = "38920jd93274098327489d033";
-  std::vector<std::string> argv{"0", "1590776872testfile.jpg|image:", "1590776872", "Test description", "1", "Test header", "test_user"};
+  std::vector<std::string> argv{"0", "1590776872testfile.txt|image:", "1590776872", "Test description", "1", "Test header", "test_user", "5", "1"};
   Database::KDB kdb{
     DatabaseConfiguration{
       DatabaseCredentials{
