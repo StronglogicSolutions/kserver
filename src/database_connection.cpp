@@ -312,8 +312,6 @@ template <typename T>
 pqxx::result DatabaseConnection::performSelect(T query) {
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
-  std::string statement = selectStatement(query);
-  std::cout << "DatabaseConnection - Select Query\n" << statement << std::endl;
   pqxx::result pqxx_result = worker.exec(selectStatement(query));
   worker.commit();
 
@@ -343,8 +341,10 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
         return QueryResult{};
       } catch (const pqxx::sql_error &e) {
         std::cout << e.what() << "\n" << e.query() << std::endl;
+        throw e;
       } catch (const std::exception &e) {
         std::cout << e.what() << std::endl;
+        throw e;
       }
     }
     case QueryType::SELECT: {
