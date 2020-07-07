@@ -550,8 +550,8 @@ bool isdigits(const std::string &s) {
 namespace TimeUtils {
 int unixtime() {
   return std::chrono::duration_cast<std::chrono::seconds>(
-             std::chrono::system_clock::now().time_since_epoch())
-      .count();
+    std::chrono::system_clock::now().time_since_epoch()
+  ).count();
 }
 
 std::string_view format_timestamp(int unixtime) {
