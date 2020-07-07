@@ -35,10 +35,10 @@ using ScheduleEventCallback =
  * RETRY_FAIL - Failed on retry
  */
 namespace Completed {
-static constexpr int SCHEDULED = 0;
-static constexpr int SUCCESS = 1;
-static constexpr int FAILED = 2;
-static constexpr int RETRY_FAIL = 3;
+static constexpr uint8_t SCHEDULED  = 0;
+static constexpr uint8_t SUCCESS    = 1;
+static constexpr uint8_t FAILED     = 2;
+static constexpr uint8_t RETRY_FAIL = 3;
 
 static constexpr const char* STRINGS[4] = {"0", "1", "2", "3"};
 }  // namespace Completed
@@ -94,6 +94,17 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
               file.first,                           // values
               id}
             );
+          }
+          if (task.recurring &&
+            !m_kdb.insert("recurring", {
+            "sid",
+            "time"}, {
+            id,
+            task.datetime + " - " + std::to_string(getIntervalSeconds(task.recurring))
+            })) {
+            ELOG(
+              "Recurring task was scheduled, but there was an error adding"\
+              "its entry to the recurring table");
           }
         }
         return id;                                  // schedule id
@@ -212,42 +223,50 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     );
   }
 
+  uint32_t getIntervalSeconds(uint32_t interval) {
+    switch(interval) {
+      case Executor::Constants::Recurring::HOURLY:
+        return 3600;
+      case Executor::Constants::Recurring::DAILY:
+        return 86400;
+      case Executor::Constants::Recurring::MONTHLY:
+        return 86400 * 30;
+      case Executor::Constants::Recurring::YEARLY:
+        return 86400 * 365;
+      default:
+        return 0;
+    }
+  }
+
   std::vector<Task> fetchRecurringTasks() {
-    std::string start_time{TIMESTAMP_TIME_AS_TODAY}; // macro for SQL statement converts unixtime
-    start_time += " - 900";                          // from any date to unixtime of the same time
-    std::string end_time{TIMESTAMP_TIME_AS_TODAY};   // today
-    end_time += " + 300";
-
     using SelectJoinFilters = std::vector<std::variant<CompFilter, CompBetweenFilter>>;
-
-    auto tasks =  parseTasks(
+    return parseTasks(
       m_kdb.selectJoin<SelectJoinFilters>(
-        "schedule", {                           // table
-          "schedule.id", "schedule.time",                           // fields
+        "schedule", {                                                     // table
+          "schedule.id", "schedule.time",                                 // fields
           "schedule.mask", "schedule.flags",
           "schedule.envfile", "schedule.completed",
           "schedule.recurring", "recurring.time"
         }, SelectJoinFilters{
-          CompFilter{                             // filter
-            "schedule.recurring",                          // field of comparison
-            "0",                                  // value of comparison
-            "<>"                                  // comparator
+          CompFilter{                                                     // filter
+            "schedule.recurring",                                         // field
+            "0",                                                          // value
+            "<>"                                                          // comparator
           },
-          CompBetweenFilter{                      // filter
-            "recurring.time",                               // field of comparison
-            start_time,                           // min range
-            end_time                              // max range
+          CompFilter{                                                     // filter
+            "recurring.time",                                             // field
+            "((SELECT get_recurring_seconds(schedule.recurring)) - 900)", // value (from function)
+            "<"                                                           // comparator
           }
         },
         Join{
-          .table="recurring",                     // table to join
-          .field="sid",                           // field to join on
-          .join_table="schedule",                 // table to join to
-          .join_field="id"                        // field to join to
+          .table="recurring",                                              // table to join
+          .field="sid",                                                    // field to join on
+          .join_table="schedule",                                          // table to join to
+          .join_field="id"                                                 // field to join to
         }
       )
     );
-    return tasks;
   }
 
   Task getTask(std::string id) {
