@@ -27,11 +27,17 @@ class KDB {
     m_connection(std::move(k.m_connection)),
     m_credentials(std::move(k.m_credentials)) {}
 
-  KDB(DatabaseConfiguration config) : m_connection(std::move(std::unique_ptr<DatabaseConnection>{new DatabaseConnection})) {
+  KDB(DatabaseConfiguration config)
+    : m_connection(std::move(
+        std::unique_ptr<DatabaseConnection>{
+          new DatabaseConnection
+        }
+      )) {
     m_connection->setConfig(config);
   }
 
-  KDB(std::unique_ptr<DatabaseConnection> db_connection, DatabaseConfiguration config) : m_connection(std::move(db_connection)) {
+  KDB(std::unique_ptr<DatabaseConnection> db_connection, DatabaseConfiguration config)
+    : m_connection(std::move(db_connection)) {
     m_connection->setConfig(config);
   }
   ~KDB() {
@@ -87,7 +93,11 @@ QueryValues select(std::string table, Fields fields,
                             std::vector<CompFilter> filter = {}) {
     try {
       ComparisonBetweenSelectQuery select_query{
-          .table = table, .fields = fields, .values = {}, .filter = filter};
+        .table  = table,
+        .fields = fields,
+        .values = {},
+        .filter = filter
+      };
       QueryResult result = m_connection->query(select_query);
       if (!result.values.empty()) {
         return result.values;
@@ -104,7 +114,10 @@ QueryValues select(std::string table, Fields fields,
                                 std::vector<GenericFilter> filters) {
     try {
       MultiFilterSelect select_query{
-          .table = table, .fields = fields, .filter = filters};
+        .table  = table,
+        .fields = fields,
+        .filter = filters
+      };
       QueryResult result = m_connection->query(select_query);
       if (!result.values.empty()) {
         return result.values;
@@ -123,7 +136,10 @@ QueryValues select(std::string table, Fields fields,
       std::vector<std::variant<FilterA, FilterB>> filters) {
     try {
       MultiVariantFilterSelect<std::vector<std::variant<FilterA, FilterB>>> select_query{
-          .table = table, .fields = fields, .filter = filters};
+        .table  = table,
+        .fields = fields,
+        .filter = filters
+      };
       QueryResult result = m_connection->query(select_query);
       for (const auto &value : result.values) {
         std::cout << "Query value: " << value.second << std::endl;
@@ -145,11 +161,11 @@ QueryValues select(std::string table, Fields fields,
       std::vector<std::variant<FilterA, FilterB, FilterC>> filters) {
     try {
       MultiVariantFilterSelect<std::vector<std::variant<FilterA, FilterB, FilterC>>> select_query{
-          .table = table, .fields = fields, .filter = filters};
+        .table  = table,
+        .fields = fields,
+        .filter = filters
+      };
       QueryResult result = m_connection->query(select_query);
-      for (const auto &value : result.values) {
-        std::cout << "Query value: " << value.second << std::endl;
-      }
       if (!result.values.empty()) {
         return result.values;
       }
@@ -165,10 +181,10 @@ QueryValues select(std::string table, Fields fields,
   QueryValues selectJoin(std::string table, Fields fields, T filters, Join join) {
     try {
       JoinQuery<T> select_query{
-        .table = table,
+        .table  = table,
         .fields = fields,
         .filter = filters,
-        .join=join
+        .join   = join
       };
       QueryResult result = m_connection->query(select_query);
       if (!result.values.empty()) {
@@ -185,16 +201,15 @@ QueryValues select(std::string table, Fields fields,
   std::string update(std::string table, Fields fields, Values values,
                      QueryFilter filter, std::string returning) {
     try {
-      // TODO: At the moment, we are married to passing the "id" field name as
-      // the "returning" argument
-      UpdateReturnQuery update_query{.table = table,
-                                     .fields = fields,
-                                     .type = QueryType::UPDATE,
-                                     .values = values,
-                                     .filter = filter,
-                                     .returning = returning};
-      std::string result = m_connection->query(update_query);
-      return result;
+      UpdateReturnQuery update_query{
+        .table     = table,
+        .fields    = fields,
+        .type      = QueryType::UPDATE,
+        .values    = values,
+        .filter    = filter,
+        .returning = returning
+      };
+      return m_connection->query(update_query);
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
@@ -204,12 +219,15 @@ QueryValues select(std::string table, Fields fields,
   }
 
   bool insert(std::string table, Fields fields, Values values) {
-    DatabaseQuery insert_query{.table = table,
-                               .fields = fields,
-                               .type = QueryType::INSERT,
-                               .values = values};
     try {
-      QueryResult result = m_connection->query(insert_query);
+      QueryResult result = m_connection->query(
+        DatabaseQuery{
+          .table  = table,
+          .fields = fields,
+          .type   = QueryType::INSERT,
+          .values = values
+        }
+      );
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
@@ -220,16 +238,19 @@ QueryValues select(std::string table, Fields fields,
 
   std::string insert(std::string table, Fields fields, Values values,
                      std::string returning) {
-    InsertReturnQuery insert_query{.table = table,
-                                   .fields = fields,
-                                   .type = QueryType::INSERT,
-                                   .values = values,
-                                   .returning = returning};
     try {
       if (!m_connection) {
         ELOG("No connection");
       }
-      return m_connection->query(insert_query);
+      return m_connection->query(
+        InsertReturnQuery{
+          .table     = table,
+          .fields    = fields,
+          .type      = QueryType::INSERT,
+          .values    = values,
+          .returning = returning
+        }
+      );
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
