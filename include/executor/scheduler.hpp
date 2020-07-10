@@ -58,6 +58,29 @@ class CalendarManagerInterface {
   virtual std::vector<Task> fetchTasks() = 0;
 };
 
+/**
+ * getIntervalSeconds
+ *
+ * Helper function returns the number of seconds equivalent to a recurring interval
+ *
+ * @param  [in]  {uint32_t}  The integer value representing a recurring interval
+ * @return [out] {uint32_t}  The number of seconds equivalent to that interval
+ */
+inline uint32_t getIntervalSeconds(uint32_t interval) {
+  switch(interval) {
+    case Executor::Constants::Recurring::HOURLY:
+      return 3600;
+    case Executor::Constants::Recurring::DAILY:
+      return 86400;
+    case Executor::Constants::Recurring::MONTHLY:
+      return 86400 * 30;
+    case Executor::Constants::Recurring::YEARLY:
+      return 86400 * 365;
+    default:
+      return 0;
+  }
+}
+
 class Scheduler : public DeferInterface, CalendarManagerInterface {
  public:
   Scheduler() : m_kdb(Database::KDB{}) {}
@@ -68,6 +91,15 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
   ~Scheduler() { KLOG("Scheduler destroyed"); }
 
+  /**
+   * schedule
+   *
+   * Schedule a task
+   *
+   * @param  [in]  {Task}        task  The task to schedule
+   * @return [out] {std::string}       The string value ID representing the Task in the database
+   *                                   or an empty string if the insert failed
+   */
   virtual std::string schedule(Task task) override {
     if (task.validate()) {
       try {
@@ -120,6 +152,53 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return "";
   }
 
+  /**
+   * parseTask
+   *
+   * Parses a QueryValues data structure (vector of string tuples) and returns a Task object
+   *
+   * @param  [in]  {QueryValues}  result  The DB query result consisting of string tuples
+   * @return [out] {Task}                 The task
+   */
+  Task parseTask(QueryValues&& result) {
+    Task task{};
+    for (const auto& v : result) {
+      if (v.first == Executor::Field::MASK) {
+        task.execution_mask = std::stoi(v.second);
+      }
+      if (v.first == Executor::Field::FLAGS) {
+        task.execution_flags = v.second;
+      }
+      if (v.first == Executor::Field::ENVFILE) {
+        task.envfile = v.second;
+      }
+      if (v.first == Executor::Field::TIME) {
+        task.datetime = v.second;
+      }
+      if (v.first == Executor::Field::ID) {
+        task.id = std::stoi(v.second);
+      }
+      if (v.first == Executor::Field::COMPLETED) {
+        task.completed = std::stoi(v.second);
+      }
+      if (v.first == Executor::Field::RECURRING) {
+        task.recurring = std::stoi(v.second);
+      }
+      if (v.first == Executor::Field::NOTIFY) {
+        task.notify = v.second.compare("1") == 0;
+      }
+    }
+    return task;
+  }
+
+  /**
+   * parseTasks
+   *
+   * Parses a QueryValues data structure (vector of string tuples) and returns a vector of Task objects
+   *
+   * @param  [in]  {QueryValues}        result  The DB query result consisting of string tuples
+   * @return [out] {std::vector<Task>}          A vector of Task objects
+   */
   std::vector<Task> parseTasks(QueryValues&& result) {
     int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
     std::string mask, flags, envfile, time, filename;
@@ -179,37 +258,13 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return tasks;
   }
 
-  Task parseTask(QueryValues&& result) {
-    Task task{};
-    for (const auto& v : result) {
-      if (v.first == Executor::Field::MASK) {
-        task.execution_mask = std::stoi(v.second);
-      }
-      if (v.first == Executor::Field::FLAGS) {
-        task.execution_flags = v.second;
-      }
-      if (v.first == Executor::Field::ENVFILE) {
-        task.envfile = v.second;
-      }
-      if (v.first == Executor::Field::TIME) {
-        task.datetime = v.second;
-      }
-      if (v.first == Executor::Field::ID) {
-        task.id = std::stoi(v.second);
-      }
-      if (v.first == Executor::Field::COMPLETED) {
-        task.completed = std::stoi(v.second);
-      }
-      if (v.first == Executor::Field::RECURRING) {
-        task.recurring = std::stoi(v.second);
-      }
-      if (v.first == Executor::Field::NOTIFY) {
-        task.notify = v.second.compare("1") == 0;
-      }
-    }
-    return task;
-  }
-
+  /**
+   * fetchTasks
+   *
+   * Fetch scheduled tasks which are intended to only be run once
+   *
+   * @return [out] {std::vector<Task>} A vector of Task objects
+   */
   virtual std::vector<Task> fetchTasks() override {
     std::string past_15_minute_timestamp =
         std::to_string(TimeUtils::unixtime() - 900);
@@ -248,21 +303,13 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     );
   }
 
-  uint32_t getIntervalSeconds(uint32_t interval) {
-    switch(interval) {
-      case Executor::Constants::Recurring::HOURLY:
-        return 3600;
-      case Executor::Constants::Recurring::DAILY:
-        return 86400;
-      case Executor::Constants::Recurring::MONTHLY:
-        return 86400 * 30;
-      case Executor::Constants::Recurring::YEARLY:
-        return 86400 * 365;
-      default:
-        return 0;
-    }
-  }
-
+  /**
+   * fetchRecurringTasks
+   *
+   * Fetch scheduled tasks that are set to be performed on a recurring basis
+   *
+   * @return [out] {std::vector<Task>} A vector of Task objects
+   */
   std::vector<Task> fetchRecurringTasks() {
     using SelectJoinFilters = std::vector<std::variant<CompFilter, CompBetweenFilter>>;
     return parseTasks(
@@ -299,6 +346,14 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     );
   }
 
+  /**
+   * getTask
+   *
+   * get one task by ID
+   *
+   * @param  [in]  {std::string}  id  The task ID
+   * @return [out] {Task}             A task
+   */
   Task getTask(std::string id) {
     return parseTask(m_kdb.select(
       "schedule", {       // table
@@ -311,6 +366,14 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     ));
   }
 
+  /**
+   * getTask
+   *
+   * get one task by ID
+   *
+   * @param  [in]  {int}  id  The task ID
+   * @return [out] {Task}     A task
+   */
   Task getTask(int id) {
     return parseTask(m_kdb.select( // SELECT
       "schedule", {                // table
@@ -322,7 +385,14 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       }
     ));
   }
-
+  /**
+   * updateTask
+   *
+   * update the completion status of a task
+   *
+   * @param   [in] {Task}   task  The task to update
+   * @return [out] {bool}         Whether the UPDATE query was successful
+   */
   bool updateStatus(Task* task) {
     return !m_kdb.update(                // UPDATE
       "schedule", {                      // table
@@ -337,6 +407,14 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     .empty();                            // not empty = success
   }
 
+  /**
+   * updateRecurring
+   *
+   * update the last time a recurring task was run
+   *
+   * @param   [in] {Task}   task  The task to update
+   * @return [out] {bool}         Whether the UPDATE query was successful
+   */
   bool updateRecurring(Task* task) {
     return !m_kdb.update(                // UPDATE
       "recurring", {                      // table
@@ -361,8 +439,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   }
 
  private:
-  ScheduleEventCallback m_event_callback;
-  Database::KDB m_kdb;
+  ScheduleEventCallback   m_event_callback;
+  Database::KDB           m_kdb;
 };
 }  // namespace Scheduler
 
