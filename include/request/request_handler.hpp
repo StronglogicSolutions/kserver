@@ -263,12 +263,12 @@ class RequestHandler {
       Executor::ProcessExecutor executor{};
       bool is_scheduled_task = true;
       executor.setEventCallback(
-          [this, is_scheduled_task](std::string result, int mask,
-                                    std::string id, int client_socket_fd,
-                                    bool error) {
-            onProcessComplete(result, mask, id, client_socket_fd, error,
-                              is_scheduled_task);
-          });
+        [this, is_scheduled_task](std::string result, int mask,
+                                  std::string id, int client_socket_fd,
+                                  bool error) {
+          onProcessComplete(result, mask, id, client_socket_fd, error,
+                            is_scheduled_task);
+        });
 
       std::vector<std::future<void>> futures{};
       futures.reserve(m_tasks_map.size() * m_tasks_map.begin()->second.size());
@@ -276,8 +276,8 @@ class RequestHandler {
         if (!client_tasks.second.empty()) {
           for (const auto &task : client_tasks.second) {
             futures.push_back(std::async(
-                std::launch::deferred, &Executor::ProcessExecutor::executeTask,
-                std::ref(executor), client_tasks.first, task));
+              std::launch::deferred, &Executor::ProcessExecutor::executeTask,
+              std::ref(executor), client_tasks.first, task));
           }
         }
       }
@@ -556,9 +556,10 @@ class RequestHandler {
             SystemUtils::sendMail(
                 ConfigParser::Admin::email(),
                 std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value});
-            auto status = task_it->completed == Scheduler::Completed::FAILED
-                              ? Scheduler::Completed::RETRY_FAIL
-                              : Scheduler::Completed::FAILED;
+            auto status =
+              task_it->completed == Scheduler::Completed::FAILED ?
+                Scheduler::Completed::RETRY_FAIL : // Retry failed
+                Scheduler::Completed::FAILED;      // Allow retry
             task_it->completed = status;
             m_scheduler->updateStatus(&*task_it);
             KLOG("Sending email to administrator about failed task.\nNew "
