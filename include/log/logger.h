@@ -27,10 +27,14 @@ LogPtr g_logger;
 KLogger* g_instance;
 
 LogLevelMap LogLevel{
-    {"trace", spdlog::level::trace}, {"debug", spdlog::level::debug},
-    {"info", spdlog::level::info},   {"warn", spdlog::level::warn},
-    {"error", spdlog::level::err},   {"critical", spdlog::level::critical},
-    {"off", spdlog::level::off}};
+  {"trace",    spdlog::level::trace},
+  {"debug",    spdlog::level::debug},
+  {"info",     spdlog::level::info},
+  {"warn",     spdlog::level::warn},
+  {"error",    spdlog::level::err},
+  {"critical", spdlog::level::critical},
+  {"off",      spdlog::level::off}
+};
 
 class KLogger {
  public:
