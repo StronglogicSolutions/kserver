@@ -182,7 +182,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
  else if (v.first == Executor::Field::RECURRING)
         { task.recurring           = std::stoi(v.second);       }
  else if (v.first == Executor::Field::NOTIFY)
-        { task.notify              = v.second.compare("y") == 0;}
+        { task.notify              = v.second.compare("t") == 0;}
     }
     return task;
   }
@@ -208,7 +208,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
  else if (v.first == Executor::Field::ID)        { id        = std::stoi(v.second); }
  else if (v.first == Executor::Field::COMPLETED) { completed = std::stoi(v.second); }
  else if (v.first == Executor::Field::RECURRING) { recurring = std::stoi(v.second); }
- else if (v.first == Executor::Field::NOTIFY)    { notify    = v.second.compare("y") == 0; }
+ else if (v.first == Executor::Field::NOTIFY)    { notify    = v.second.compare("t") == 0; }
 
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
           !mask.empty()    && completed != NO_COMPLETED_VALUE &&
