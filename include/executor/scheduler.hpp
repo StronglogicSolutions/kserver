@@ -104,20 +104,20 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     if (task.validate()) {
       try {
         std::string id =
-            m_kdb.insert("schedule", {              // table
-              Executor::Field::TIME,                // fields
-              Executor::Field::MASK,
-              Executor::Field::FLAGS,
-              Executor::Field::ENVFILE,
-              Executor::Field::RECURRING,
-              Executor::Field::NOTIFY}, {
-              task.datetime,                        // values
-              std::to_string(task.execution_mask),
-              task.execution_flags,
-              task.envfile,
-              std::to_string(task.recurring),
-              std::to_string(task.notify)},
-              "id");                      // return
+          m_kdb.insert("schedule", {              // table
+            "time",                               // fields
+            "mask",
+            "flags",
+            "envfile",
+            "recurring",
+            "notify"}, {
+            task.datetime,                        // values
+            std::to_string(task.execution_mask),
+            task.execution_flags,
+            task.envfile,
+            std::to_string(task.recurring),
+            std::to_string(task.notify)},
+            "id");                      // return
         if (!id.empty()) {
           KLOG("Request to schedule task was accepted\nID {}", id);
           for (const auto& file : task.files) {
@@ -132,11 +132,15 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           }
           if (task.recurring &&
             !m_kdb.insert("recurring", {
-            "sid",
-            "time"}, {
-            id,
-            task.datetime + " - " + std::to_string(getIntervalSeconds(task.recurring))
-            })) {
+              "sid",
+              "time"}, {
+              id,
+              std::string{
+                "(" + task.datetime + " - " +
+                std::to_string(getIntervalSeconds(task.recurring)) + ")"
+              }
+              }
+            )) {
             ELOG(
               "Recurring task was scheduled, but there was an error adding"\
               "its entry to the recurring table");
@@ -163,30 +167,22 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   Task parseTask(QueryValues&& result) {
     Task task{};
     for (const auto& v : result) {
-      if (v.first == Executor::Field::MASK) {
-        task.execution_mask = std::stoi(v.second);
-      }
-      if (v.first == Executor::Field::FLAGS) {
-        task.execution_flags = v.second;
-      }
-      if (v.first == Executor::Field::ENVFILE) {
-        task.envfile = v.second;
-      }
-      if (v.first == Executor::Field::TIME) {
-        task.datetime = v.second;
-      }
-      if (v.first == Executor::Field::ID) {
-        task.id = std::stoi(v.second);
-      }
-      if (v.first == Executor::Field::COMPLETED) {
-        task.completed = std::stoi(v.second);
-      }
-      if (v.first == Executor::Field::RECURRING) {
-        task.recurring = std::stoi(v.second);
-      }
-      if (v.first == Executor::Field::NOTIFY) {
-        task.notify = v.second.compare("1") == 0;
-      }
+      if (v.first == Executor::Field::MASK)
+        { task.execution_mask      = std::stoi(v.second);       }
+ else if (v.first == Executor::Field::FLAGS)
+        { task.execution_flags     = v.second;                  }
+ else if (v.first == Executor::Field::ENVFILE)
+        { task.envfile             = v.second;                  }
+ else if (v.first == Executor::Field::TIME)
+        { task.datetime            = v.second;                  }
+ else if (v.first == Executor::Field::ID)
+        { task.id                  = std::stoi(v.second);       }
+ else if (v.first == Executor::Field::COMPLETED)
+        { task.completed           = std::stoi(v.second);       }
+ else if (v.first == Executor::Field::RECURRING)
+        { task.recurring           = std::stoi(v.second);       }
+ else if (v.first == Executor::Field::NOTIFY)
+        { task.notify              = v.second.compare("y") == 0;}
     }
     return task;
   }
@@ -205,33 +201,18 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     std::vector<Task> tasks;
 
     for (const auto& v : result) {
-      if (v.first == Executor::Field::MASK) {
-        mask = v.second; continue;
-      }
-      if (v.first == Executor::Field::FLAGS) {
-        flags = v.second; continue;
-      }
-      if (v.first == Executor::Field::ENVFILE) {
-        envfile = v.second; continue;
-      }
-      if (v.first == Executor::Field::TIME) {
-        time = v.second; continue;
-      }
-      if (v.first == Executor::Field::ID) {
-        id = std::stoi(v.second); continue;
-      }
-      if (v.first == Executor::Field::COMPLETED) {
-        completed = std::stoi(v.second); continue;
-      }
-      if (v.first == Executor::Field::RECURRING) {
-        recurring = std::stoi(v.second); continue;
-      }
-      if (v.first == Executor::Field::NOTIFY) {
-        notify = v.second.compare("y") == 0; continue;
-      }
+      if (v.first == Executor::Field::MASK)      { mask      = v.second; }
+ else if (v.first == Executor::Field::FLAGS)     { flags     = v.second; }
+ else if (v.first == Executor::Field::ENVFILE)   { envfile   = v.second; }
+ else if (v.first == Executor::Field::TIME)      { time      = v.second; }
+ else if (v.first == Executor::Field::ID)        { id        = std::stoi(v.second); }
+ else if (v.first == Executor::Field::COMPLETED) { completed = std::stoi(v.second); }
+ else if (v.first == Executor::Field::RECURRING) { recurring = std::stoi(v.second); }
+ else if (v.first == Executor::Field::NOTIFY)    { notify    = v.second.compare("y") == 0; }
+
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
-          !mask.empty() && completed != NO_COMPLETED_VALUE &&
-          id > 0 && recurring > -1 && notify > -1) {
+          !mask.empty()    && completed != NO_COMPLETED_VALUE &&
+          id > 0           && recurring > -1 && notify > -1) {
         tasks.push_back(Task{
           .execution_mask   = std::stoi(mask),
           .datetime         = time,
@@ -279,7 +260,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           Executor::Field::FLAGS,
           Executor::Field::ENVFILE,
           Executor::Field::COMPLETED,
-          Executor::Field::NOTIFY
+          Executor::Field::NOTIFY,
+          Executor::Field::RECURRING
         }, std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>{
           CompFilter{                                   // filter
             "recurring",                                // field of comparison
