@@ -554,8 +554,10 @@ class RequestHandler {
         if (task_it != it->second.end()) {
           if (error) { // Email if it failed
             SystemUtils::sendMail(
-                ConfigParser::Admin::email(),
-                std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value});
+              ConfigParser::Email::notification(),
+              std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value},
+              ConfigParser::Email::admin()
+            );
             auto status =
               task_it->completed == Scheduler::Completed::FAILED ?
                 Scheduler::Completed::RETRY_FAIL : // Retry failed
@@ -583,8 +585,9 @@ class RequestHandler {
               email_string += value;
 
               SystemUtils::sendMail(
-                ConfigParser::Admin::email(),
-                email_string
+                ConfigParser::Email::notification(),
+                email_string,
+                ConfigParser::Email::admin()
               );
             }
           }
