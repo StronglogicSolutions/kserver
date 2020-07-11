@@ -67,18 +67,18 @@ namespace Executor {
     }
 
     std::string toString() const {
-      auto recurring_string = Constants::Recurring::names[recurring];
       std::string return_string{};
-      return_string.reserve(75);
-      return_string += "ID: " + id;
+      return_string.reserve(100);
+      return_string += "ID: " + std::to_string(id);
       return_string += "\nMask: " + std::to_string(execution_mask);
       return_string += "\nTime: " + datetime;
       return_string += "\nFiles: " + std::to_string(files.size());
-      return_string += "\nCompleted: " + completed;
+      return_string += "\nCompleted: " + std::to_string(completed);
       return_string += "\nRecurring: ";
-      return_string += "\nEmail notification: " + notify ? "Yes" : "No";
-      return_string += recurring_string;
-      std::cout << "task string size: " << return_string.size() << std::endl;
+      return_string += Constants::Recurring::names[recurring];
+      return_string += "\nEmail notification: ";
+      if (notify)   return_string += "Yes";
+      else          return_string += "No";
       return return_string;
     }
 
