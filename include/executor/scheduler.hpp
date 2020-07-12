@@ -133,17 +133,14 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           if (task.recurring &&
             !m_kdb.insert("recurring", {
               "sid",
-              "time"}, {
+              "time"
+            }, {
               id,
-              std::string{
-                "(" + task.datetime + " - " +
-                std::to_string(getIntervalSeconds(task.recurring)) + ")"
-              }
-              }
-            )) {
-            ELOG(
-              "Recurring task was scheduled, but there was an error adding"\
-              "its entry to the recurring table");
+              std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))
+            })) {
+              ELOG(
+                "Recurring task was scheduled, but there was an error adding"\
+                "its entry to the recurring table");
           }
         }
         return id;                                  // schedule id
