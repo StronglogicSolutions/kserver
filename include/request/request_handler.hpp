@@ -49,6 +49,11 @@ flatbuffers::FlatBufferBuilder builder(1024);
  * Handles incoming requests coming from the KY_GUI Application
  */
 class RequestHandler {
+
+ using EventCallbackFn = std::function<void(std::string, int, std::string, int, bool)>;
+ using SystemCallbackFn = std::function<void(int, int, std::vector<std::string>)>;
+ using TaskCallbackFn = std::function<void(int, std::vector<Task>)>;
+
  public:
   /**
    * RequestHandler()
@@ -132,17 +137,16 @@ class RequestHandler {
    * callback. Starts a thread to perform work on the maintenance loop
    *
    */
-  void initialize(
-      std::function<void(std::string, int, std::string, int, bool)>
-          event_callback_fn,
-      std::function<void(int, int, std::vector<std::string>)>
-          system_callback_fn,
-      std::function<void(int, std::vector<Task>)> task_callback_fn) {
+  void initialize(EventCallbackFn event_callback_fn,
+                  SystemCallbackFn system_callback_fn,
+                  TaskCallbackFn task_callback_fn) {
     m_executor = new Executor::ProcessExecutor();
     m_scheduler = getScheduler();
-    m_executor->setEventCallback([this](std::string result, int mask,
+    m_executor->setEventCallback([this](std::string result,
+                                        int mask,
                                         std::string request_id,
-                                        int client_socket_fd, bool error) {
+                                        int client_socket_fd,
+                                        bool error) {
       onProcessComplete(result, mask, request_id, client_socket_fd, error);
     });
     m_system_callback_fn = system_callback_fn;
@@ -211,16 +215,18 @@ class RequestHandler {
           auto formatted_time = TimeUtils::format_timestamp(task.datetime);
           scheduled_times.append(formatted_time);
           scheduled_times += " ";
-          KLOG("Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: "
-              "Execution Flags",
-              formatted_time, std::to_string(task.execution_mask),
-              task.file ? "hasFile(s)" : "", task.envfile);
+          KLOG(
+            "Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: "
+            "Execution Flags",
+            formatted_time, std::to_string(task.execution_mask),
+            task.file ? "hasFile(s)" : "", task.envfile
+          );
         }
         std::string tasks_message = std::to_string(tasks.size());
         tasks_message += " tasks need to be executed";
-        m_system_callback_fn(client_socket_fd,
-                             SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
-                             {tasks_message, scheduled_times});
+        m_system_callback_fn(client_socket_fd,                      // Client
+                             SYSTEM_EVENTS__SCHEDULED_TASKS_READY,  // Event
+                             {tasks_message, scheduled_times});     // Args
 
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end()) {
@@ -235,9 +241,9 @@ class RequestHandler {
             m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
       } else {
         KLOG("No tasks ready for execution");
-        m_system_callback_fn(
-            client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
-            {"There are currently no tasks ready for execution"});
+        m_system_callback_fn(client_socket_fd,                      // Client
+          SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,                      // Events
+          {"There are currently no tasks ready for execution"});    // Args
       }
       if (!m_tasks_map.empty()) {
         if (!handlePendingTasks()) {
@@ -622,27 +628,26 @@ class RequestHandler {
    * respective callback.
    */
 
-  void onSchedulerEvent(std::string id, int client_socket_fd, int event,
+  void onSchedulerEvent(std::string id,
+                        int client_socket_fd,
+                        int event,
                         std::vector<std::string> args = {}) {
     m_system_callback_fn(client_socket_fd, event, args);
   }
 
-  /**
-   * callback functions
-   */
-  std::function<void(std::string, int, std::string, int, bool)>
-                                                              m_event_callback_fn;
-  std::function<void(int, int, std::vector<std::string>)>     m_system_callback_fn;
-  std::function<void(int, std::vector<Task>)>                 m_task_callback_fn;
-
-  std::map<int, std::vector<Task>>                            m_tasks_map;
-  std::mutex                                                  m_mutex;
-  std::condition_variable                                     maintenance_loop_condition;
-  std::atomic<bool>                                           handling_data;
-
-  Executor::ProcessExecutor                                   *m_executor;
-  Scheduler::Scheduler                                        *m_scheduler;
-  std::thread                                                 m_maintenance_worker;
+  // Callbacks
+  EventCallbackFn                   m_event_callback_fn;
+  SystemCallbackFn                  m_system_callback_fn;
+  TaskCallbackFn                    m_task_callback_fn;
+  // Data
+  std::map<int, std::vector<Task>>  m_tasks_map;
+  std::mutex                        m_mutex;
+  std::condition_variable           maintenance_loop_condition;
+  std::atomic<bool>                 handling_data;
+  // Workers
+  Executor::ProcessExecutor*        m_executor;
+  Scheduler::Scheduler*             m_scheduler;
+  std::thread                       m_maintenance_worker;
 };
 }  // namespace Request
 #endif  // __REQUEST_HANDLER_HPP__
