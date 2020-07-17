@@ -110,6 +110,7 @@ ProcessResult qx(std::vector<std::string> args,
       printf("ProcessExecutor's forked process timed out");
       result.output = "Timeout";
       result.error = true;
+      break;
     }
   }
 
