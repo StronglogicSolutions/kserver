@@ -290,7 +290,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * @return [out] {std::vector<Task>} A vector of Task objects
    */
   std::vector<Task> fetchRecurringTasks() {
-    using SelectJoinFilters = std::vector<std::variant<CompFilter, CompBetweenFilter>>;
+    using SelectJoinFilters = std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>;
     return parseTasks(
       m_kdb.selectJoin<SelectJoinFilters>(
         "schedule", {                                                     // table
@@ -313,6 +313,13 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
             std::to_string(TimeUtils::unixtime()),                        // field
             "(recurring.time + (SELECT get_recurring_seconds(schedule.recurring) - 900))",  // value (from function)
             ">"                                                           // comparator
+          },
+          MultiOptionFilter{                            // filter
+            "completed",                                // field of comparison
+            "IN", {                                     // comparison type
+              Completed::STRINGS[Completed::SCHEDULED], // set of values for comparison
+              Completed::STRINGS[Completed::FAILED]
+            }
           }
         },
         Join{
