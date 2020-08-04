@@ -44,8 +44,9 @@ const char *findWorkDir(std::string_view path) {
 /** Impl */
 ProcessResult run_(std::string_view path, std::vector<std::string> argv) {
   std::vector<std::string> v_args{};
+  v_args.reserve(argv.size() + 1);
   v_args.push_back(std::string(path));
-  for (const auto &arg : argv) {
+  for (auto&& arg : argv) {
     v_args.push_back(arg);
   }
 
@@ -156,6 +157,7 @@ class ProcessExecutor : public ProcessManager {
         notifyTrackedProcessEvent(result.output, mask, id, client_socket_fd,
                                   result.error);
         if (!result.error && type == ExecutionRequestType::SCHEDULED) {
+          // TODO: Get rid of this? Handle in request_handler
           Database::KDB kdb{};
           auto SUCCESS =
               Scheduler::Completed::STRINGS[Scheduler::Completed::SUCCESS];
