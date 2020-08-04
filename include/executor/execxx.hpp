@@ -33,54 +33,90 @@ std::string readFd(int fd) {
 
 ProcessResult qx(std::vector<std::string> args,
                const std::string& working_directory = "") {
-  int stdout_fds[2];
+  int stdout_fds[2], stderr_fds[2];
   pipe(stdout_fds);
-
-  int stderr_fds[2];
   pipe(stderr_fds);
 
   const pid_t pid = fork();
-  if (!pid) {
+
+  if (!pid) { // Child process
+
     if (!working_directory.empty()) {
       chdir(working_directory.c_str());
     }
+
     close(stdout_fds[0]);
-    dup2(stdout_fds[1], 1);
+    dup2 (stdout_fds[1], 1);
     close(stdout_fds[1]);
     close(stderr_fds[0]);
-    dup2(stderr_fds[1], 2);
+    dup2 (stderr_fds[1], 2);
     close(stderr_fds[1]);
 
-    std::vector<char*> vc(args.size() + 1, 0);
-    for (size_t i = 0; i < args.size(); ++i) {
-      vc[i] = const_cast<char*>(args[i].c_str());
-    }
+    std::vector<char*> process_arguments{};
+    process_arguments.reserve(args.size() + 1);
 
-    execvp(vc[0], &vc[0]);
-    exit(0);
+    for (size_t i = 0; i < args.size(); ++i) {
+      process_arguments[i] = const_cast<char*>(args[i].c_str());
+    }
+    // Execute
+    execvp(process_arguments[0], &process_arguments[0]);
+    exit(0); // Exit with no error
   }
   close(stdout_fds[1]);
 
-  ProcessResult result{};
+  ProcessResult result{};                         // To gather result
 
-  std::string stdout_string = readFd(stdout_fds[0]);
-  if (stdout_string.size() <= 1) { // an empty stdout might be a single whitespace
-    // TODO: Find out what's missing from the output (thrown exception messages aren't included)
-    std::string stderr_string = readFd(stderr_fds[0]);
-    result.output = stderr_string;
-    result.error = true;
-  } else {
-    result.output = stdout_string;
+  fd_set read_file_descriptors{};                 // Mask for file descriptors
+
+  timeval time_value{                             // 30 second timeout
+    .tv_sec = 30,
+    .tv_usec = 0
+  };
+
+  int retval;
+  int max_fd_range = stdout_fds[0] > stderr_fds[0] ?
+    (stdout_fds[0]) + 1 :
+    (stderr_fds[0]) + 1;
+
+  FD_ZERO(&read_file_descriptors);                 // clear
+  FD_SET(stdout_fds[0], &read_file_descriptors);   // add stdout to mask
+  FD_SET(stderr_fds[0], &read_file_descriptors);   // add stderr to mask
+
+  for (;;) {
+    // select() call determines if there are file descriptors to read from
+    int num_of_fd_outputs = select(
+      max_fd_range,                                // max range of file descriptor to listen for
+      &read_file_descriptors,                      // read fd mask
+      NULL,                                        // write fd mask
+      NULL,                                        // error fd mask
+      &time_value
+    );
+
+    if (num_of_fd_outputs > 0) {                   // output can be read
+      if (FD_ISSET(stdout_fds[0], &read_file_descriptors)) {
+        result.output = readFd(stdout_fds[0]);
+        if (result.output.empty()) {               // stdout had empty output
+          result.output = "Unknown error. Nothing returned from process.";
+          result.error = true;
+        }
+      }
+      if (FD_ISSET(stderr_fds[0], &read_file_descriptors)) { // stderr has output
+        printf("ProcessExecutor's forked process returned an error");
+        result.output = readFd(stderr_fds[0]);
+        result.error = true;
+      }
+      break;
+    } else {
+      printf("ProcessExecutor's forked process timed out");
+      result.output = "Timeout";
+      result.error = true;
+      break;
+    }
   }
 
   close(stdout_fds[0]);
   close(stderr_fds[0]);
   close(stderr_fds[1]);
-
-  int r, status;
-  do {
-    r = waitpid(pid, &status, 0);
-  } while (r == -1 && errno == EINTR);
 
   return result;
 }

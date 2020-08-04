@@ -261,7 +261,7 @@ std::string selectStatement(T query) {
           query.filter);
       return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " +
                          query.table + " " + filter_string};
-    } else if constexpr (std::is_same_v<T, JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter>>>>) {
+    } else if constexpr (std::is_same_v<T, JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>>) {
       filter_string += getVariantFilterStatement(query.filter);
       std::string join_string = getJoinStatement(query.join);
       return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + " " + filter_string};
@@ -395,6 +395,10 @@ template QueryResult DatabaseConnection::query(
 
 template QueryResult DatabaseConnection::query(
   JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter>>>
+);
+
+template QueryResult DatabaseConnection::query(
+  JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>
 );
 
 std::string DatabaseConnection::query(InsertReturnQuery query) {

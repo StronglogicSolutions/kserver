@@ -50,9 +50,9 @@ flatbuffers::FlatBufferBuilder builder(1024);
  */
 class RequestHandler {
 
- using EventCallbackFn = std::function<void(std::string, int, std::string, int, bool)>;
+ using EventCallbackFn  = std::function<void(std::string, int, std::string, int, bool)>;
  using SystemCallbackFn = std::function<void(int, int, std::vector<std::string>)>;
- using TaskCallbackFn = std::function<void(int, std::vector<Task>)>;
+ using TaskCallbackFn   = std::function<void(int, std::vector<Task>)>;
 
  public:
   /**
@@ -89,7 +89,7 @@ class RequestHandler {
    * The copy assignment operator
    */
   RequestHandler &operator=(const RequestHandler &handler) {
-    this->m_executor = nullptr;
+    this->m_executor  = nullptr;
     this->m_scheduler = nullptr;
     return *this;
   }
@@ -103,9 +103,9 @@ class RequestHandler {
     if (&handler != this) {
       delete m_executor;
       delete m_scheduler;
-      m_executor = handler.m_executor;
-      m_scheduler = handler.m_scheduler;
-      handler.m_executor = nullptr;
+      m_executor          = handler.m_executor;
+      m_scheduler         = handler.m_scheduler;
+      handler.m_executor  = nullptr;
       handler.m_scheduler = nullptr;
     }
     return *this;
@@ -149,9 +149,9 @@ class RequestHandler {
                                         bool error) {
       onProcessComplete(result, mask, request_id, client_socket_fd, error);
     });
-    m_system_callback_fn = system_callback_fn;
-    m_event_callback_fn = event_callback_fn;
-    m_task_callback_fn = task_callback_fn;
+    m_system_callback_fn  = system_callback_fn;
+    m_event_callback_fn   = event_callback_fn;
+    m_task_callback_fn    = task_callback_fn;
 
     setHandlingData(false);
     // Begin maintenance loop to process scheduled tasks as they become ready
@@ -255,7 +255,7 @@ class RequestHandler {
       if (jobs.empty()) {
         KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(30));
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
   }
 
@@ -442,8 +442,7 @@ class RequestHandler {
         KLOG("{} currently has {} tasks pending execution",
             client_socket_fd, m_tasks_map.at(client_socket_fd).size());
       } else {
-        // KLOG("There are currently no tasks ready for execution");
-        SPDLOG_INFO("There are currently no tasks ready for execution"); // Use spdlog::default_logger()
+        KLOG("There are currently no tasks ready for execution");
 
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
@@ -468,7 +467,11 @@ class RequestHandler {
   std::map<int, std::string> operator()(KOperation op) {
     auto kdb = Database::KDB{};
     QueryValues result =
-        kdb.select("apps", {"name", "path", "data", "mask"}, QueryFilter{});
+      kdb.select(
+        "apps",                             // Table
+        {"name", "path", "data", "mask"},   // Fields
+        QueryFilter{}
+      );
     std::map<int, std::string> command_map{};
     std::vector<std::string> names{};
     std::vector<int> masks{};
@@ -503,11 +506,12 @@ class RequestHandler {
    */
   void operator()(uint32_t mask, std::string request_id, int client_socket_fd) {
     auto kdb = Database::KDB{};
-    QueryValues result = kdb.select(
-        "apps", {"path"}, QueryFilter{{"mask", std::to_string(mask)}});
-    std::map<int, std::string> command_map{};
-    std::vector<std::string> names{};
-    std::vector<int> masks{};
+    QueryValues result = kdb.select(    // Select
+      "apps", {"path"}, QueryFilter{    // Path from apps
+        {"mask", std::to_string(mask)}  // Filter by mask
+      }
+    );
+
     for (const auto &row : result) {
       m_executor->request(row.second, mask, client_socket_fd, request_id, {},
                           Executor::ExecutionRequestType::IMMEDIATE);
@@ -542,11 +546,18 @@ class RequestHandler {
                          bool scheduled_task = false) {
     KLOG("Process complete notification for client {}'s request {}",
         client_socket_fd, id);
-    m_event_callback_fn(value, mask, id, client_socket_fd, error);  // Inform system of result
+    m_event_callback_fn( // Inform system of process result
+      value,
+      mask,
+      id,
+      client_socket_fd,
+      error
+    );
     if (scheduled_task) { // If it was a scheduled task, we need to update task map held in memory
       std::vector<Task>::iterator task_it; // Declare task iterator
       KLOG("Task complete notification for client {}'s task {}{}",
-          client_socket_fd, id, error ? "\nERROR WAS RETURNED" : "");
+        client_socket_fd, id, error ? "\nERROR WAS RETURNED" : ""
+      );
 
       std::map<int, std::vector<Task>>::iterator it = // Find map iterator for client ID
         m_tasks_map.find(client_socket_fd);
@@ -558,45 +569,50 @@ class RequestHandler {
           }
         );
         if (task_it != it->second.end()) {
+          uint8_t status{Scheduler::Completed::SUCCESS};
+
+          // Error handling
           if (error) { // Email if it failed
             SystemUtils::sendMail(
               ConfigParser::Email::notification(),
               std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value},
               ConfigParser::Email::admin()
             );
-            auto status =
-              task_it->completed == Scheduler::Completed::FAILED ?
-                Scheduler::Completed::RETRY_FAIL : // Retry failed
-                Scheduler::Completed::FAILED;      // Allow retry
-            task_it->completed = status;
-            m_scheduler->updateStatus(&*task_it);
+            status = task_it->completed == Scheduler::Completed::FAILED ? // If failed previously
+              Scheduler::Completed::RETRY_FAIL : // Retry failed
+              Scheduler::Completed::FAILED;      // Allow retry
             KLOG("Sending email to administrator about failed task.\nNew "
                 "Status: {}",
                 Scheduler::Completed::STRINGS[status]);
-          } else {
-            if (task_it->recurring) {
-              task_it->datetime = std::to_string(TimeUtils::unixtime());
-              m_scheduler->updateRecurring(&*task_it); // Update database with latest time
-              KLOG("Task {} was a recurring task scheduled to run {}",
-                task_it->id,
-                Executor::Constants::Recurring::names[task_it->recurring]
-              );
-            }
-            if (task_it->notify) { // Email if it succeeded AND notify is true
-              KLOG("Task notification enabled - emailing result to administrator");
-              std::string email_string{};
-              email_string.reserve(value.size() + 84);
-              email_string += task_it->toString();
-              email_string += error ? "\nError" : "\n";
-              email_string += value;
-
-              SystemUtils::sendMail(
-                ConfigParser::Email::notification(),
-                email_string,
-                ConfigParser::Email::admin()
-              );
-            }
           }
+          // Update status
+          task_it->completed = status;
+          m_scheduler->updateStatus(&*task_it); // Failed tasks will re-run once more
+
+          if (!error && task_it->recurring) { // Only update if no error occurred
+            task_it->datetime = std::to_string(TimeUtils::unixtime());
+            m_scheduler->updateRecurring(&*task_it); // Latest time
+            KLOG("Task {} was a recurring task scheduled to run {}",
+              task_it->id,
+              Executor::Constants::Recurring::names[task_it->recurring]
+            );
+          }
+
+          if (task_it->notify) { // Task notification enabled - send result by email
+            KLOG("Task notification enabled - emailing result to administrator");
+            std::string email_string{};
+            email_string.reserve(value.size() + 84);
+            email_string += task_it->toString();
+            email_string += error ? "\nError" : "\n";
+            email_string += value;
+
+            SystemUtils::sendMail(
+              ConfigParser::Email::notification(),
+              email_string,
+              ConfigParser::Email::admin()
+            );
+          }
+          // Remove task - failed tasks will be fetched once more by the maintenance worker
           KLOG("removing completed task from memory");
           it->second.erase(task_it);
         }
