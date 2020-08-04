@@ -50,9 +50,9 @@ flatbuffers::FlatBufferBuilder builder(1024);
  */
 class RequestHandler {
 
- using EventCallbackFn = std::function<void(std::string, int, std::string, int, bool)>;
+ using EventCallbackFn  = std::function<void(std::string, int, std::string, int, bool)>;
  using SystemCallbackFn = std::function<void(int, int, std::vector<std::string>)>;
- using TaskCallbackFn = std::function<void(int, std::vector<Task>)>;
+ using TaskCallbackFn   = std::function<void(int, std::vector<Task>)>;
 
  public:
   /**
@@ -89,7 +89,7 @@ class RequestHandler {
    * The copy assignment operator
    */
   RequestHandler &operator=(const RequestHandler &handler) {
-    this->m_executor = nullptr;
+    this->m_executor  = nullptr;
     this->m_scheduler = nullptr;
     return *this;
   }
@@ -103,9 +103,9 @@ class RequestHandler {
     if (&handler != this) {
       delete m_executor;
       delete m_scheduler;
-      m_executor = handler.m_executor;
-      m_scheduler = handler.m_scheduler;
-      handler.m_executor = nullptr;
+      m_executor          = handler.m_executor;
+      m_scheduler         = handler.m_scheduler;
+      handler.m_executor  = nullptr;
       handler.m_scheduler = nullptr;
     }
     return *this;
@@ -149,9 +149,9 @@ class RequestHandler {
                                         bool error) {
       onProcessComplete(result, mask, request_id, client_socket_fd, error);
     });
-    m_system_callback_fn = system_callback_fn;
-    m_event_callback_fn = event_callback_fn;
-    m_task_callback_fn = task_callback_fn;
+    m_system_callback_fn  = system_callback_fn;
+    m_event_callback_fn   = event_callback_fn;
+    m_task_callback_fn    = task_callback_fn;
 
     setHandlingData(false);
     // Begin maintenance loop to process scheduled tasks as they become ready
@@ -442,8 +442,7 @@ class RequestHandler {
         KLOG("{} currently has {} tasks pending execution",
             client_socket_fd, m_tasks_map.at(client_socket_fd).size());
       } else {
-        // KLOG("There are currently no tasks ready for execution");
-        SPDLOG_INFO("There are currently no tasks ready for execution"); // Use spdlog::default_logger()
+        KLOG("There are currently no tasks ready for execution");
 
         m_system_callback_fn(
             client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
@@ -468,7 +467,11 @@ class RequestHandler {
   std::map<int, std::string> operator()(KOperation op) {
     auto kdb = Database::KDB{};
     QueryValues result =
-        kdb.select("apps", {"name", "path", "data", "mask"}, QueryFilter{});
+      kdb.select(
+        "apps",                             // Table
+        {"name", "path", "data", "mask"},   // Fields
+        QueryFilter{}
+      );
     std::map<int, std::string> command_map{};
     std::vector<std::string> names{};
     std::vector<int> masks{};
@@ -503,11 +506,12 @@ class RequestHandler {
    */
   void operator()(uint32_t mask, std::string request_id, int client_socket_fd) {
     auto kdb = Database::KDB{};
-    QueryValues result = kdb.select(
-        "apps", {"path"}, QueryFilter{{"mask", std::to_string(mask)}});
-    std::map<int, std::string> command_map{};
-    std::vector<std::string> names{};
-    std::vector<int> masks{};
+    QueryValues result = kdb.select(    // Select
+      "apps", {"path"}, QueryFilter{    // Path from apps
+        {"mask", std::to_string(mask)}  // Filter by mask
+      }
+    );
+
     for (const auto &row : result) {
       m_executor->request(row.second, mask, client_socket_fd, request_id, {},
                           Executor::ExecutionRequestType::IMMEDIATE);
@@ -542,7 +546,13 @@ class RequestHandler {
                          bool scheduled_task = false) {
     KLOG("Process complete notification for client {}'s request {}",
         client_socket_fd, id);
-    m_event_callback_fn(value, mask, id, client_socket_fd, error);  // Inform system of result
+    m_event_callback_fn( // Inform system of process result
+      value,
+      mask,
+      id,
+      client_socket_fd,
+      error
+    );
     if (scheduled_task) { // If it was a scheduled task, we need to update task map held in memory
       std::vector<Task>::iterator task_it; // Declare task iterator
       KLOG("Task complete notification for client {}'s task {}{}",
