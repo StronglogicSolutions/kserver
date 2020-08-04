@@ -21,6 +21,8 @@ namespace Executor {
     static constexpr uint8_t IS_VIDEO = 4;
     static constexpr uint8_t HEADER = 5;
     static constexpr uint8_t USER = 6;
+    static constexpr uint8_t RECURRING = 7;
+    static constexpr uint8_t NOTIFY = 8;
   }
 
 class GenericTaskHandler : public TaskHandler {
@@ -33,20 +35,26 @@ class GenericTaskHandler : public TaskHandler {
       return Executor::Task{};
     }
 
-    auto mask = argv.at(GenericTaskIndex::MASK);
-    auto file_info = argv.at(GenericTaskIndex::FILEINFO);
-    auto is_video = argv.at(GenericTaskIndex::IS_VIDEO) == "1";
-    auto datetime = argv.at(GenericTaskIndex::DATETIME);
-    auto description = argv.at(GenericTaskIndex::DESCRIPTION);
-    auto header = argv.at(GenericTaskIndex::HEADER);
-    auto user = argv.at(GenericTaskIndex::USER);
+    auto mask         = argv.at(GenericTaskIndex::MASK);
+    auto file_info    = argv.at(GenericTaskIndex::FILEINFO);
+    auto is_video     = argv.at(GenericTaskIndex::IS_VIDEO) == "1";
+    auto datetime     = argv.at(GenericTaskIndex::DATETIME);
+    auto description  = argv.at(GenericTaskIndex::DESCRIPTION);
+    auto header       = argv.at(GenericTaskIndex::HEADER);
+    auto user         = argv.at(GenericTaskIndex::USER);
+    auto recurring    = argv.at(GenericTaskIndex::RECURRING);
+    auto notify       = argv.at(GenericTaskIndex::NOTIFY);
+    auto has_files    = !file_info.empty();
 
-    std::vector<FileInfo> task_files = parseFileInfo(file_info);
+    std::vector<FileInfo> task_files;
 
-    std::string media_filename = get_executable_cwd();
-    for (int i = 0; i < task_files.size(); i++) {
-      task_files.at(i).first =
+    if (has_files) {
+      task_files = parseFileInfo(file_info);
+      std::string media_filename = get_executable_cwd();
+      for (int i = 0; i < task_files.size(); i++) {
+        task_files.at(i).first =
           media_filename + "/data/" + uuid + "/" + task_files.at(i).first;
+      }
     }
 
     std::string env_file_string{"#!/usr/bin/env bash\n"};
@@ -57,6 +65,7 @@ class GenericTaskHandler : public TaskHandler {
     env_file_string += "USER='" + user + "'\n";
 
     std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);
+
     if (task_ptr == nullptr) {
       return Executor::Task{
         .execution_mask = std::stoi(mask),
@@ -65,9 +74,14 @@ class GenericTaskHandler : public TaskHandler {
         .files = task_files,
         .envfile = env_filename,
         .execution_flags =
-            "--description=$DESCRIPTION "
-            "--media=$FILE_TYPE "
-            "--header=$HEADER --user=$USER"};
+          "--description=$DESCRIPTION "
+          "--media=$FILE_TYPE "
+          "--header=$HEADER --user=$USER",
+        .id = 0,
+        .completed = 0,
+        .recurring = std::stoi(recurring),
+        .notify = notify.compare("1") == 0
+      };
     } else {
       task_ptr->execution_mask = std::stoi(mask);
       task_ptr->datetime = datetime;
@@ -75,11 +89,11 @@ class GenericTaskHandler : public TaskHandler {
       task_ptr->files = task_files;
       task_ptr->envfile = env_filename;
       task_ptr->execution_flags =
-            "--description=$DESCRIPTION --hashtags=$HASHTAGS "
-            "--requested_by=$REQUESTED_BY --media=$FILE_TYPE "
-            "--requested_by_phrase=$REQUESTED_BY_PHRASE "
-            "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
-            "--header=$HEADER --user=$USER";
+        "--description=$DESCRIPTION "
+          "--media=$FILE_TYPE "
+          "--header=$HEADER --user=$USER",
+      task_ptr->recurring = std::stoi(recurring);
+      task_ptr->notify = notify.compare("1") == 0;
       return *task_ptr;
     }
   }

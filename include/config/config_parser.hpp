@@ -60,9 +60,12 @@ std::string executor() {
 }
 } // namespace Process
 
-namespace Admin {
-std::string email() {
-  return reader.Get("admin", "email", requiredConfig("[admin] email"));
+namespace Email {
+std::string notification() {
+  return reader.Get("email", "notification", requiredConfig("[email] notification"));
+}
+std::string admin() {
+  return reader.Get("email", "admin", requiredConfig("[email] admin"));
 }
 } // namespace Admin
 }  // namespace ConfigParser

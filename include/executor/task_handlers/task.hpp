@@ -15,6 +15,38 @@ namespace Executor {
     static constexpr const char* GENERIC = "Generic";
   }
 
+  namespace Constants {
+    static constexpr uint8_t FILE_DELIMITER_CHARACTER_COUNT = 2;
+
+    namespace Recurring {
+      static constexpr uint8_t NO       = 0x00;
+      static constexpr uint8_t HOURLY   = 0x01;
+      static constexpr uint8_t DAILY    = 0x02;
+      static constexpr uint8_t WEEKLY   = 0x03;
+      static constexpr uint8_t MONTHLY  = 0x04;
+      static constexpr uint8_t YEARLY   = 0x05;
+      static const char* const names[6] = {
+        "No",
+        "Hourly",
+        "Daily",
+        "Weekly",
+        "Monthly",
+        "Yearly"
+      };
+    } // namespace Recurring
+  } // namespace Constants
+
+  namespace Field {
+    static const char* const MASK      = "schedule.mask";
+    static const char* const FLAGS     = "schedule.flags";
+    static const char* const ENVFILE   = "schedule.envfile";
+    static const char* const TIME      = "schedule.time";
+    static const char* const ID        = "schedule.id";
+    static const char* const COMPLETED = "schedule.completed";
+    static const char* const RECURRING = "schedule.recurring";
+    static const char* const NOTIFY    = "schedule.notify";
+  } // namespace Field
+
   using TaskArguments = std::vector<std::string>;
 
   struct Task {
@@ -26,17 +58,54 @@ namespace Executor {
     std::string execution_flags;
     int id = 0;
     int completed;
+    int recurring;
+    bool notify;
 
     bool validate() {
-      return execution_mask > 0 && !datetime.empty() && !envfile.empty() &&
+      return !datetime.empty() && !envfile.empty() &&
             !execution_flags.empty();
     }
 
+    std::string toString() const {
+      std::string return_string{};
+      return_string.reserve(100);
+      return_string += "ID: " + std::to_string(id);
+      return_string += "\nMask: " + std::to_string(execution_mask);
+      return_string += "\nTime: " + datetime;
+      return_string += "\nFiles: " + std::to_string(files.size());
+      return_string += "\nCompleted: " + std::to_string(completed);
+      return_string += "\nRecurring: ";
+      return_string += Constants::Recurring::names[recurring];
+      return_string += "\nEmail notification: ";
+      if (notify)   return_string += "Yes";
+      else          return_string += "No";
+      return return_string;
+    }
+
     friend std::ostream &operator<<(std::ostream &out, const Task &task) {
-      auto file_string = task.file ? std::string{"Yes - " + task.files.size()} : "No";
-      out << "ID" << task.id << "\nMask: " << task.execution_mask << "\nTime: " << task.datetime
-          << "\nFiles: " << file_string << "\nCompleted: " << task.completed << std::endl;
-      return out;
+      return out << task.toString();
+    }
+
+    friend bool operator==(const Task& t1, const Task& t2);
+    friend bool operator!=(const Task& t1, const Task& t2);
+
+    friend bool operator==(const Task& t1, const Task& t2) {
+      return (
+        t1.completed == t2.completed &&
+        t1.datetime == t2.datetime &&
+        t1.envfile == t2.envfile &&
+        t1.execution_flags == t2.execution_flags &&
+        t1.execution_mask == t2.execution_mask &&
+        t1.file == t2.file &&
+        t1.files.size() == t2.files.size() && // TODO: implement comparison for FileInfo
+        t1.id == t2.id &&
+        t1.recurring == t2.recurring &&
+        t1.notify == t2.notify
+      );
+    }
+
+    friend bool operator!=(const Task& t1,const Task& t2) {
+      return !(t1 == t2);
     }
   };
 
@@ -51,23 +120,32 @@ namespace Executor {
  */
 std::vector<FileInfo> parseFileInfo(std::string file_info) {
   std::vector<FileInfo> info_v{};
-  info_v.reserve(file_info.size() /
-                 32);
-  size_t pipe_pos = 0;
-  size_t index = 0;
-  size_t delim_pos = 0;
-  std::string parsing{file_info, file_info.size()};
+  info_v.reserve(file_info.size() / 32); // estimate ~ 32 characters for each file's metadata
+
+  uint32_t index      = 0; // index points to beginning of each file's metadata
+  uint32_t pipe_pos   = 0; // file name delimiter
+  uint32_t delim_pos  = 0; // file metadata delimiter
   do {
     auto timestamp = file_info.substr(index, TIMESTAMP_LENGTH);
     pipe_pos = findIndexAfter(file_info, index, '|');
-    auto file_name = file_info.substr(index + TIMESTAMP_LENGTH, (pipe_pos - index - TIMESTAMP_LENGTH));
+
+    auto file_name = file_info.substr(
+      index + TIMESTAMP_LENGTH,
+      (pipe_pos - index - TIMESTAMP_LENGTH)
+    );
+
     delim_pos = findIndexAfter(file_info, index, ':');
-    auto type =
-        file_info.substr(index + TIMESTAMP_LENGTH + file_name.size() + 1,
-                         (delim_pos - index - TIMESTAMP_LENGTH - file_name.size() - 1));
-    info_v.push_back(FileInfo{file_name, timestamp});
-    index += timestamp.size() + file_name.size() + type.size() +
-             3;  // 3 strings + 3 delim chars
+
+    auto type = file_info.substr(
+      index + TIMESTAMP_LENGTH + file_name.size() + 1,
+      (delim_pos - index - TIMESTAMP_LENGTH - file_name.size() - 1)
+    );
+
+    info_v.push_back(FileInfo{file_name, timestamp}); // add metadata to vector
+    index += timestamp.size() + // move index
+             file_name.size() +
+             type.size() +
+             Constants::FILE_DELIMITER_CHARACTER_COUNT;
   } while (index < file_info.size());
   return info_v;
 }
@@ -75,7 +153,6 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
   class TaskHandler {
     public:
       virtual Executor::Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
-
   };
 }
 

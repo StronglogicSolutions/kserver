@@ -26,7 +26,7 @@ TEST(KUtilities, createMessageTest) {
  * FileUtils::readEnvFile
  */
 TEST(KUtilities, readEnvFileTest) {
-  auto env_file_path = cwd + "/mock_data/mock_v.env";
+  auto env_file_path = cwd + "/data/mock_v.env";
   EXPECT_EQ("#!/usr/bin/env bash\nKEY='value'", FileUtils::readEnvFile(env_file_path));
 }
 

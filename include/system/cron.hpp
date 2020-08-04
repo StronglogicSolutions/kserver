@@ -59,8 +59,6 @@ struct DailyJob {
   JobType type = JobType::Daily;
 };
 
-auto KLOG = KLogger::GetInstance() -> get_logger();
-
 template <typename Job>
 class CronInterface {
  public:
@@ -94,18 +92,18 @@ class Cron : public CronInterface<Job> {
   virtual void addJob(Job job) {
     std::system(createJobCommand(job).c_str());
     if (findJob(job.path)) {
-      KLOG->info("Successfully added job to cron: {}", job.path);
+      KLOG("Successfully added job to cron: {}", job.path);
     } else {
-      KLOG->info("Failed to add job to cron: {}", job.path);
+      KLOG("Failed to add job to cron: {}", job.path);
     }
   }
 
   virtual void deleteJob(Job job) {
     std::system(std::string{"crontab -l | grep -v \"" + job.path + "\" |crontab -"}.c_str());
      if (findJob(job.path)) { // This match only works if the execution string is identical
-       KLOG->info("Failed to remove job from cron: {}", job.path);
+       KLOG("Failed to remove job from cron: {}", job.path);
      } else {
-       KLOG->info("Successfully removed job from cron: {}", job.path);
+       KLOG("Successfully removed job from cron: {}", job.path);
      }
   }
 

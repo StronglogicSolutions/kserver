@@ -1,15 +1,15 @@
 #ifndef __UTIL_HPP__
 #define __UTIL_HPP__
-
 #define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
+
 #include <codec/instatask_generated.h>
 #include <codec/generictask_generated.h>
 #include <codec/kmessage_generated.h>
 #include <codec/uuid.h>
 
+#include <filesystem>
 #include <bitset>
 #include <chrono>
-#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <iterator>
@@ -65,9 +65,7 @@ std::string get_cwd() {
 
 std::string get_executable_cwd() {
   std::string full_path{realpath("/proc/self/exe", NULL)};
-  auto return_value = full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
-  std::cout << return_value << std::endl;
-  return return_value;
+  return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
 }
 
 inline int findIndexAfter(std::string s, int pos, char c) {
@@ -358,7 +356,7 @@ bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
  * General
  */
 
-Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
+Either<std::string, std::vector<std::string>> getDecodedMessage(
     std::shared_ptr<uint8_t[]> s_buffer_ptr) {
   // Obtain the raw buffer so we can read the header
   uint8_t *raw_buffer = s_buffer_ptr.get();
@@ -430,7 +428,8 @@ Either<std::string, std::vector<std::string>> getSafeDecodedMessage(
             std::to_string(gen_task->mask()), // Mask always comes first
             gen_task->file_info()->str(), gen_task->time()->str(),
             gen_task->description()->str(), std::to_string(gen_task->is_video()),
-            gen_task->header()->str(), gen_task->user()->str()
+            gen_task->header()->str(), gen_task->user()->str(),
+            std::to_string(gen_task->recurring()), std::to_string(gen_task->notify())
           }
         ));
       }
@@ -451,17 +450,25 @@ bool isNewSession(const char *data) {
 }
 
 namespace SystemUtils {
-  void sendMail(std::string recipient, std::string message) {
-    std::string command{"echo " + message + " | mail -s 'KServer notification' " + recipient};
-    std::cout << command << std::endl;
-    std::system(std::string{"echo '" + message + "' | mail -s 'KServer notification' " + recipient}.c_str());
+  void sendMail(std::string recipient, std::string message, std::string from) {
+    std::system(std::string{
+      "echo '" + message + "' | mail -s 'KServer notification' -a FROM:" + from + " " + recipient
+      }.c_str()
+    );
   }
 }
 
 namespace FileUtils {
 
 bool createDirectory(const char *dir_name) {
-  return std::filesystem::create_directory(dir_name);
+  std::error_code err{};
+  std::filesystem::create_directory(dir_name, err);
+  auto code = err.value();
+  if (code == 0) {
+    return true;
+  }
+  std::cout << err.message() << "\n" << err.value() << std::endl;
+  return false;
 }
 
 void saveFile(std::vector<char> bytes, const char *filename) {
@@ -499,8 +506,7 @@ std::string readEnvFile(std::string env_file_path) {
 }
 
 bool createTaskDirectory(std::string uuid) {
-  std::string directory_name{get_executable_cwd() + "/data/" + uuid};
-  std::cout << directory_name << std::endl;
+  std::string directory_name{"data/" + uuid};
   return createDirectory(directory_name.c_str());
 }
 }  // namespace FileUtils
@@ -546,8 +552,8 @@ bool isdigits(const std::string &s) {
 namespace TimeUtils {
 int unixtime() {
   return std::chrono::duration_cast<std::chrono::seconds>(
-             std::chrono::system_clock::now().time_since_epoch())
-      .count();
+    std::chrono::system_clock::now().time_since_epoch()
+  ).count();
 }
 
 std::string_view format_timestamp(int unixtime) {

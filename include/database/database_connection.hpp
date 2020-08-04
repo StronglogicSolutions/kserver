@@ -1,16 +1,20 @@
 #ifndef __DATABASECONNECTION_HPP__
 #define __DATABASECONNECTION_HPP__
 
-#include <pqxx/pqxx>
 #include <database/db_structs.hpp>
+#include <database/database_interface.hpp>
+#include <pqxx/pqxx>
 
-class DatabaseConnection {
-  #ifdef UNIT_TEST
-    friend class MockDBConnection;
-  #endif
+class DatabaseConnection : public DatabaseInterface {
  public:
-  bool setConfig(DatabaseConfiguration config);
-  QueryResult query(DatabaseQuery query);
+  // constructor
+  DatabaseConnection() {}
+  DatabaseConnection(DatabaseConnection&& d)
+  : m_config(std::move(d.m_config)) {}
+  DatabaseConnection(const DatabaseConnection& d) = delete;
+  virtual ~DatabaseConnection() {}
+  virtual bool setConfig(DatabaseConfiguration config) override;
+  virtual QueryResult query(DatabaseQuery query) override;
 
   template <typename T>
   QueryResult query(T query);
@@ -19,12 +23,13 @@ class DatabaseConnection {
   std::string databaseName();
 
  private:
-  DatabaseConfiguration m_config;
-  std::string m_db_name;
   pqxx::connection getConnection();
   std::string getConnectionString();
   pqxx::result performInsert(DatabaseQuery query);
   pqxx::result performInsert(InsertReturnQuery query, std::string returning);
+
+  DatabaseConfiguration   m_config;
+  std::string             m_db_name;
 
   template <typename T>
   pqxx::result performSelect(T query);

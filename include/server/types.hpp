@@ -39,12 +39,18 @@ static constexpr size_t PONG_SIZE = 4;
 bool isPing(std::string s) {
   return s.size() == 3 && strcmp(s.c_str(), PING) == 0;
 }
-typedef struct {
+struct ReceivedFile {
   int timestamp;
   int client_fd;
   uint8_t *f_ptr;
   size_t size;
 
-} ReceivedFile;
+  friend std::ostream &operator<<(std::ostream &out, const ReceivedFile& file) {
+      out << "Timestamp: " << file.timestamp
+          << "\nClient: " << file.client_fd
+          << "\nSize: " << file.size << std::endl;
+      return out;
+    }
+};
 
 #endif  // __TYPES_HPP__

@@ -6,11 +6,6 @@
 #include <codec/util.hpp>
 
 namespace Decoder {
-
-KLogger *k_logger_ptr = KLogger::GetInstance();
-
-auto KLOG = k_logger_ptr->get_logger();
-
 /**
  * FileHandler
  *
@@ -24,11 +19,10 @@ class FileHandler {
   *
   * What we make here
   */
-  class File {
-   public:
-    uint8_t *b_ptr;
-    uint32_t size;
-    bool complete;
+  struct File {
+    uint8_t*  b_ptr;
+    uint32_t  size;
+    bool      complete;
   };
 
 /**
@@ -53,15 +47,14 @@ class FileHandler {
           filename(name),
           m_fd(fd),
           m_file_cb(file_callback) {
-            KLOG->info("FileHandler::Decoder::Decoder() - instantiated");
+            KLOG("Decoder instantiated");
           }
   /**
    * @destructor
    */
     ~Decoder() {
-      KLOG->info("FileHandler::Decoder::~Decoder() - destructor called");
       if (file_buffer != nullptr) {
-        KLOG->info("FileHandler::Decoder::~Decoder() - Deleting file buffer and packet buffer");
+        KLOG("Deleting file buffer and packet buffer");
         delete[] file_buffer;
         delete[] packet_buffer;
         file_buffer = nullptr;
@@ -105,6 +98,7 @@ class FileHandler {
       uint32_t remaining_bytes{}; // bytes left remaining after using passed data to complete current packet
       uint32_t bytes_to_copy{}; // number of bytes that will be copied into the packet buffer
       uint32_t current_packet_size{}; // size of packet currently being completed
+
       bool current_packet_received{}; // indicates if the current packet has been completely received
       bool is_last_packet = index == (total_packets); // if the current packet is the last packet of the file
       if (index == 0 && packet_buffer_offset == 0 && file_size > (MAX_PACKET_SIZE - HEADER_SIZE)) {
@@ -120,7 +114,6 @@ class FileHandler {
         current_packet_size = MAX_PACKET_SIZE;
         bytes_to_complete = MAX_PACKET_SIZE - packet_buffer_offset;
       }
-
       remaining_bytes = size - bytes_to_complete; // The size passed minus the bytes to complete current packet
       current_packet_received = (size >= bytes_to_complete); // Whether all data has been received to complete current packet
 
@@ -140,10 +133,8 @@ class FileHandler {
         if (is_last_packet) { // If last packet is complete
           m_file_cb(std::move(file_buffer), file_size, filename); // Invoke callback to notify client
           reset(); // Reset the decoder so it's ready to decode a new file
-          KLOG->info("Cleaning up");
+          KLOG("Cleaning up packet buffer");
         }
-      } else {
-        KLOG->info("Still awaiting more data for packet {} of {} with packet_offset {}", index, total_packets, packet_buffer_offset);
       }
     }
     /**
@@ -155,7 +146,7 @@ class FileHandler {
     void processPacket(uint8_t* data, uint32_t size) {
       bool is_first_packet = (index == 0);
       if (is_first_packet && packet_buffer_offset == 0 && file_buffer_offset == 0) {
-        KLOG->info("Decoder::processPacket() - processing first packet");
+        KLOG("processing first packet");
         // Compute file size from the first packet's 4 byte header
         file_size =
             int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
@@ -177,40 +168,46 @@ class FileHandler {
     }
 
    private:
-    uint8_t *file_buffer;
-    uint8_t *packet_buffer;
-    uint32_t index;
-    uint32_t packet_buffer_offset;
-    uint32_t total_packets;
-    uint32_t file_buffer_offset;
-    uint32_t file_size;
-    std::string filename;
-    int m_fd;
-    std::function<void(int)> m_cb;
-    std::function<void(uint8_t *data, int size, std::string)> m_file_cb;
+    uint8_t*                                                    file_buffer;
+    uint8_t*                                                    packet_buffer;
+    uint32_t                                                    index;
+    uint32_t                                                    packet_buffer_offset;
+    uint32_t                                                    total_packets;
+    uint32_t                                                    file_buffer_offset;
+    uint32_t                                                    file_size;
+    std::string                                                 filename;
+    int                                                         m_fd;
+    std::function<void(int)>                                    m_cb;
+    std::function<void(uint8_t *data, int size, std::string)>   m_file_cb;
   };
 
   /**
    * @constructor
    */
-  FileHandler(int client_fd, std::string name, uint8_t *first_packet, uint32_t size,
-              std::function<void(int, int, uint8_t *, size_t)> callback)
-      : socket_fd(client_fd) {
-        KLOG->info("FileHandler() - Instantiated. Creating new Decoder");
-    m_decoder =
-        new Decoder(client_fd, name,
-                    [this, client_fd, callback](uint8_t*&& data, int size,
-                                                std::string filename) {
-                      if (size > 0) {
-                        if (!filename.empty()) {
-                          // Read to save TODO: Check to see if pointer is not
-                          // null and size > 0?
-                          FileUtils::saveFile(data, size, filename);
-                        } else {
-                          callback(client_fd, FILE_HANDLE__SUCCESS, std::move(data), size);
-                        }
-                      }
-                    });
+  FileHandler(int client_fd,
+              std::string name,
+              uint8_t *first_packet,
+              uint32_t size,
+              std::function<void(int, int, uint8_t *, size_t)> callback_fn
+              )
+    : socket_fd(client_fd) {
+      KLOG("Creating new Decoder");
+      m_decoder = new Decoder(
+        client_fd, name,
+        [this, client_fd, callback_fn](uint8_t*&& data, int size, std::string filename) {
+          if (size > 0) {
+            if (!filename.empty()) {
+              FileUtils::saveFile(data, size, filename);
+            } else {
+              callback_fn(
+                client_fd,
+                FILE_HANDLE__SUCCESS,
+                std::move(data), size
+              );
+            }
+          }
+        }
+      );
     m_decoder->processPacket(first_packet, size);
   }
 
@@ -268,8 +265,8 @@ class FileHandler {
   bool isHandlingSocket(int fd) { return fd == socket_fd; }
 
  private:
-  Decoder *m_decoder;
-  int socket_fd;
+  Decoder   *m_decoder;
+  int       socket_fd;
 };
 } // namespace
 #endif // __DECODER_HPP__

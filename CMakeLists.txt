@@ -24,11 +24,13 @@ find_library(PQXX_LIB pqxx)
 find_library(PQ_LIB pq)
 find_package(Threads REQUIRED)
 
+set(KSERVER_HEADERS -I include -I third_party)
+
 # Flags
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -I ./include -L /usr/include/pqxx")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -lstdc++fs ${KSERVER_HEADERS} -L /usr/include/pqxx")
 else ()
-   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid -I ./include -L /usr/local/include/pqxx")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lpqxx -lpq -lpthread -pthread -luuid ${KSERVER_HEADERS} -L /usr/local/include/pqxx")
 endif()
 
 # Sources
@@ -48,8 +50,11 @@ target_link_libraries(${PROJECT_NAME}_lib ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${P
 # Includes
 target_include_directories(${PROJECT_NAME} PRIVATE
     "include"
+    "third_party"
  )
 target_include_directories(${PROJECT_NAME}_lib PRIVATE
     "include"
+    "third_party"
  )
  add_subdirectory(test)
+
