@@ -24,7 +24,7 @@ find_library(PQXX_LIB pqxx)
 find_library(PQ_LIB pq)
 find_package(Threads REQUIRED)
 
-set(KSERVER_HEADERS -I include -I third_party)
+set(KSERVER_HEADERS "-I include -I third_party")
 
 # Flags
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
