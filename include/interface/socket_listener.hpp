@@ -61,10 +61,11 @@ class SocketListener : public SendInterface, public ListenInterface {
   void sendMessage(int client_socket_fd, const char* message, size_t size);
 
   MessageHandler createMessageHandler(std::function<void(ssize_t)> cb);
+
   /**
    * Perform intialization work
    */
-  bool init();
+  void init(bool test_mode = false);
 
   /**
    * Main message loop
@@ -94,9 +95,11 @@ class SocketListener : public SendInterface, public ListenInterface {
 
   /* private members */
   // Server arguments
-  std::string m_ip_address;
-  int m_port;
-  std::unique_ptr<TaskQueue> u_task_queue_ptr;
+  std::string                 m_ip_address;
+  int                         m_port;
+  std::unique_ptr<TaskQueue>  u_task_queue_ptr;
+  bool                        m_service_enabled;
+  bool                        m_test_mode;
 };
 
 #endif  // __SOCKET_LISTENER_HPP__

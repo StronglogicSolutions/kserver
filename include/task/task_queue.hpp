@@ -96,4 +96,6 @@ class TaskQueue {
    * atomic boolean to ensure queue is handled in a thread-safe manner
    */
   std::atomic<bool> accepting_tasks;
+
+  bool m_active;
 };

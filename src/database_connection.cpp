@@ -15,7 +15,7 @@ std::string fieldsAsString(std::vector<std::string> fields) {
     field_string += delim + field;
     delim = ",";
   }
-  return std::move(field_string);
+  return field_string;
 }
 
 std::string valuesAsString(StringVec values, size_t number_of_fields) {

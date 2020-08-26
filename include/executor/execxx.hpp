@@ -3,6 +3,7 @@
 
 #include <log/logger.h>
 #include <sys/wait.h>
+#include <sys/poll.h>
 #include <unistd.h>
 
 #include <codec/util.hpp>
@@ -32,10 +33,12 @@ std::string readFd(int fd) {
 }
 
 ProcessResult qx(std::vector<std::string> args,
-               const std::string& working_directory = "") {
+                 const std::string&       working_directory = "") {
   int stdout_fds[2], stderr_fds[2];
   pipe(stdout_fds);
   pipe(stderr_fds);
+
+  sigset_t sig_set{};
 
   const pid_t pid = fork();
 
@@ -59,56 +62,52 @@ ProcessResult qx(std::vector<std::string> args,
       process_arguments[i] = const_cast<char*>(args[i].c_str());
     }
     // Execute
-    execvp(process_arguments[0], &process_arguments[0]);
+    execvp(*process_arguments.data(), process_arguments.data());
     exit(0); // Exit with no error
   }
   close(stdout_fds[1]);
+  close(stderr_fds[1]);
 
   ProcessResult result{};                         // To gather result
 
-  fd_set read_file_descriptors{};                 // Mask for file descriptors
-
-  timeval time_value{                             // 30 second timeout
-    .tv_sec = 30,
-    .tv_usec = 0
+  pollfd poll_fds[2]{
+    pollfd{
+      .fd       =   stdout_fds[0] & 0xFF,
+      .events   =   POLL_OUT | POLL_ERR | POLL_IN,
+      .revents  =   short{0}
+    },
+    pollfd{
+      .fd       =   stderr_fds[0] & 0xFF,
+      .events   =   POLLHUP | POLLERR | POLLIN,
+      .revents  =   short{0}
+    }
   };
 
-  int retval;
-  int max_fd_range = stdout_fds[0] > stderr_fds[0] ?
-    (stdout_fds[0]) + 1 :
-    (stderr_fds[0]) + 1;
-
-  FD_ZERO(&read_file_descriptors);                 // clear
-  FD_SET(stdout_fds[0], &read_file_descriptors);   // add stdout to mask
-  FD_SET(stderr_fds[0], &read_file_descriptors);   // add stderr to mask
-
   for (;;) {
-    // select() call determines if there are file descriptors to read from
-    int num_of_fd_outputs = select(
-      max_fd_range,                                // max range of file descriptor to listen for
-      &read_file_descriptors,                      // read fd mask
-      NULL,                                        // write fd mask
-      NULL,                                        // error fd mask
-      &time_value
-    );
 
-    if (num_of_fd_outputs > 0) {                   // output can be read
-      if (FD_ISSET(stdout_fds[0], &read_file_descriptors)) {
-        result.output = readFd(stdout_fds[0]);
-        if (result.output.empty()) {               // stdout had empty output
-          result.output = "Unknown error. Nothing returned from process.";
-          result.error = true;
-        }
+    int poll_result = poll(poll_fds, 2, 30000);
+    // stdout
+    if (poll_fds[0].revents & POLLIN) {
+      result.output = readFd(poll_fds[0].fd);
+      if (!result.output.empty()) {
+        break;
       }
-      if (FD_ISSET(stderr_fds[0], &read_file_descriptors)) { // stderr has output
-        printf("ProcessExecutor's forked process returned an error");
-        result.output = readFd(stderr_fds[0]);
-        result.error = true;
-      }
+      result.error = true;
+      poll_fds[0].revents = 0;
+    }
+
+    if (poll_fds[0].revents & POLLHUP) {
+      close(stdout_fds[0]);
+      close(stderr_fds[0]);
+      printf("POLLHUP\n");
+      result.output = "Lost connection to forked process";
+      result.error = true;
       break;
-    } else {
-      printf("ProcessExecutor's forked process timed out");
-      result.output = "Timeout";
+    }
+    // stderr
+    if (poll_fds[1].revents & POLL_IN) {
+      std::string stderr_output = readFd(poll_fds[0].fd);
+      result.output = stderr_output;
       result.error = true;
       break;
     }
@@ -116,7 +115,8 @@ ProcessResult qx(std::vector<std::string> args,
 
   close(stdout_fds[0]);
   close(stderr_fds[0]);
-  close(stderr_fds[1]);
+
+  std::cout << "Result output: " << result.output << std::endl;
 
   return result;
 }

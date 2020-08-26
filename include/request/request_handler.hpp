@@ -62,7 +62,7 @@ class RequestHandler {
    * Loads configuration and instantiates a DatabaseConfiguration object
    *
    */
-  RequestHandler() : m_executor(nullptr) {}
+  RequestHandler() : m_executor(nullptr), m_active(true) {}
 
   /**
    * @constructor
@@ -70,7 +70,9 @@ class RequestHandler {
    * The move constructor
    */
   RequestHandler(RequestHandler &&r)
-      : m_executor(r.m_executor), m_scheduler(r.m_scheduler) {
+      : m_executor(r.m_executor),
+        m_scheduler(r.m_scheduler),
+        m_active(r.m_active) {
     r.m_executor = nullptr;
   }
 
@@ -81,7 +83,8 @@ class RequestHandler {
    */
   RequestHandler(const RequestHandler &r)
       : m_executor(nullptr),  // We do not copy the Executor
-        m_scheduler(nullptr) {}
+        m_scheduler(nullptr),
+        m_active(r.m_active) {}
 
   /**
    * @operator
@@ -105,6 +108,7 @@ class RequestHandler {
       delete m_scheduler;
       m_executor          = handler.m_executor;
       m_scheduler         = handler.m_scheduler;
+      m_active            = handler.m_active;
       handler.m_executor  = nullptr;
       handler.m_scheduler = nullptr;
     }
@@ -161,6 +165,10 @@ class RequestHandler {
     KLOG("Initialization complete");
   }
 
+  void shutdown() {
+    m_active = false;
+  }
+
   /**
    * setHandlingData
    *
@@ -197,7 +205,7 @@ class RequestHandler {
    */
   void maintenanceLoop() {
     KLOG("Beginning maintenance loop");
-    for (;;) {
+    while (m_active) {
       std::unique_lock<std::mutex> lock(m_mutex);
       maintenance_loop_condition.wait(lock,
                                       [this]() { return !handling_data; });
@@ -660,6 +668,7 @@ class RequestHandler {
   std::mutex                        m_mutex;
   std::condition_variable           maintenance_loop_condition;
   std::atomic<bool>                 handling_data;
+  bool                              m_active;
   // Workers
   Executor::ProcessExecutor*        m_executor;
   Scheduler::Scheduler*             m_scheduler;

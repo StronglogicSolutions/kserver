@@ -197,6 +197,25 @@ std::string getMessage(const char *data) {
   return "";
 }
 
+std::string getEvent(std::string data) {
+  if (!data.empty()) {
+    Document d;
+    d.Parse(data.c_str());
+    if (d.HasMember("event")) {
+      return d["event"].GetString();
+    }
+  }
+  return "";
+}
+
+bool isSessionMessageEvent(std::string event) {
+  return event.compare("Session Message") == 0;
+}
+
+bool isCloseEvent(std::string event) {
+  return event.compare("Close Session") == 0;
+}
+
 std::vector<std::string> getArgs(const char *data) {
   Document d;
   d.Parse(data);
@@ -331,9 +350,12 @@ bool isMessage(const char *data) {
 }
 
 bool isOperation(const char *data) {
-  Document d;
-  d.Parse(data);
-  return strcmp(d["type"].GetString(), "operation") == 0;
+  if (*data != '\0') {
+    Document d;
+    d.Parse(data);
+    return strcmp(d["type"].GetString(), "operation") == 0;
+  }
+  return false;
 }
 
 bool isExecuteOperation(const char *data) {
@@ -441,10 +463,12 @@ Either<std::string, std::vector<std::string>> getDecodedMessage(
 }
 
 bool isNewSession(const char *data) {
-  Document d;
-  d.Parse(data);
-  if (d.HasMember("message")) {
-    return strcmp(d["message"].GetString(), "New Session") == 0;
+  if (*data != '\0') {
+    Document d;
+    d.Parse(data);
+    if (d.HasMember("message")) {
+      return strcmp(d["message"].GetString(), "New Session") == 0;
+    }
   }
   return false;
 }

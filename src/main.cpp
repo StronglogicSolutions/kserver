@@ -6,12 +6,16 @@
 using namespace KYO;
 
 int main(int argc, char** argv) {
+  // Initialize logger
   LOG::KLogger::init();
+  // Instantiate server
   KServer server(argc, argv);
+  // Set request handler
   server.set_handler(std::move(Request::RequestHandler{}));
-  if (server.init()) {
-    server.run();
-  }
+  // Initialize task queue
+  server.init();
+  // Run service loop
+  server.run();
 
   return 0;
 }
