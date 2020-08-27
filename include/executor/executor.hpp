@@ -67,7 +67,7 @@ class ProcessExecutor : public ProcessManager {
     /** Constructor/Destructor */
     ProcessDaemon(std::string_view path, std::vector<std::string> argv)
         : m_path(std::move(path)), m_argv(std::move(argv)) {}
-    virtual ~ProcessDaemon() override {/* Clean up */};
+    ~ProcessDaemon() {/* Clean up */};
     /** Disable copying */
     ProcessDaemon(const ProcessDaemon &) = delete;
     ProcessDaemon(ProcessDaemon &&) = delete;
@@ -87,7 +87,7 @@ class ProcessExecutor : public ProcessManager {
   };
   /** Constructor / Destructor */
   ProcessExecutor() {}
-  ~ProcessExecutor() {
+  virtual ~ProcessExecutor() override {
     std::cout << "Executor destroyed"
               << std::endl; /* Kill processes? Log for processes? */
   }
