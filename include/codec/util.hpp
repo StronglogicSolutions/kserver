@@ -69,7 +69,7 @@ std::string get_executable_cwd() {
 }
 
 inline int findIndexAfter(std::string s, int pos, char c) {
-  for (int i = pos; i < s.size(); i++) {
+  for (uint8_t i = pos; i < s.size(); i++) {
     if (s.at(i) == c) {
       return i;
     }

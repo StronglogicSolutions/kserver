@@ -72,16 +72,13 @@ TEST(KServerTest, StartAndStopSession) {
   while (g_client == nullptr || g_kserver == nullptr)
     ;
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
   while (!started_session) {
+    g_client->startSession();
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
     received_bytes = g_client->getReceivedMessage();
     started_session = isNewSession(received_bytes.c_str());
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    g_client->startSession();
-  }
-
-  while (!got_session_message) {
-    got_session_message = isSessionMessageEvent(getEvent(g_client->getReceivedMessage()));
   }
 
   g_client->stopSession();
@@ -101,7 +98,6 @@ TEST(KServerTest, StartAndStopSession) {
   }
 
   EXPECT_EQ(started_session, true);
-  EXPECT_EQ(got_session_message, true);
 }
 
 

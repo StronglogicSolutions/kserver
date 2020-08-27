@@ -35,6 +35,7 @@ class ProcessManager {
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
                                          std::string id, int client_id,
                                          bool error) = 0;
+  virtual ~ProcessManager() {}
 };
 
 const char *findWorkDir(std::string_view path) {
@@ -66,7 +67,7 @@ class ProcessExecutor : public ProcessManager {
     /** Constructor/Destructor */
     ProcessDaemon(std::string_view path, std::vector<std::string> argv)
         : m_path(std::move(path)), m_argv(std::move(argv)) {}
-    ~ProcessDaemon(){/* Clean up */};
+    virtual ~ProcessDaemon() override {/* Clean up */};
     /** Disable copying */
     ProcessDaemon(const ProcessDaemon &) = delete;
     ProcessDaemon(ProcessDaemon &&) = delete;

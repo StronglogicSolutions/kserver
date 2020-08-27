@@ -85,7 +85,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
  public:
   Scheduler() : m_kdb(Database::KDB{}) {}
   Scheduler(Database::KDB&& kdb) : m_kdb(std::move(kdb)) {}
-  Scheduler(ScheduleEventCallback fn) : m_kdb(Database::KDB{}), m_event_callback(fn) {}
+  Scheduler(ScheduleEventCallback fn) : m_event_callback(fn), m_kdb(Database::KDB{}) {}
 
   // TODO: Implement move / copy constructor
 
@@ -198,14 +198,14 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     std::vector<Task> tasks;
 
     for (const auto& v : result) {
-      if (v.first == Executor::Field::MASK)      { mask      = v.second; }
- else if (v.first == Executor::Field::FLAGS)     { flags     = v.second; }
- else if (v.first == Executor::Field::ENVFILE)   { envfile   = v.second; }
- else if (v.first == Executor::Field::TIME)      { time      = v.second; }
- else if (v.first == Executor::Field::ID)        { id        = std::stoi(v.second); }
- else if (v.first == Executor::Field::COMPLETED) { completed = std::stoi(v.second); }
- else if (v.first == Executor::Field::RECURRING) { recurring = std::stoi(v.second); }
- else if (v.first == Executor::Field::NOTIFY)    { notify    = v.second.compare("t") == 0; }
+      if      (v.first == Executor::Field::MASK     ) { mask      = v.second; }
+      else if (v.first == Executor::Field::FLAGS    ) { flags     = v.second; }
+      else if (v.first == Executor::Field::ENVFILE  ) { envfile   = v.second; }
+      else if (v.first == Executor::Field::TIME     ) { time      = v.second; }
+      else if (v.first == Executor::Field::ID       ) { id        = std::stoi(v.second); }
+      else if (v.first == Executor::Field::COMPLETED) { completed = std::stoi(v.second); }
+      else if (v.first == Executor::Field::RECURRING) { recurring = std::stoi(v.second); }
+      else if (v.first == Executor::Field::NOTIFY   ) { notify    = v.second.compare("t") == 0; }
 
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
           !mask.empty()    && completed != NO_COMPLETED_VALUE &&
