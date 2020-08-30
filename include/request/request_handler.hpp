@@ -491,7 +491,7 @@ class RequestHandler {
       }
     }
     if (masks.size() == names.size()) {
-      for (int i = 0; i < masks.size(); i++) {
+      for (uint8_t i = 0; i < masks.size(); i++) {
         command_map.emplace(masks.at(i), names.at(i));
       }
     }
