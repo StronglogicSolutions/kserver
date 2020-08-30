@@ -60,41 +60,44 @@ TEST(KServerTest, InstantiateKServerTest) {
 }
 
 TEST(KServerTest, StartAndStopSession) {
-
-  std::thread server_thread{runServer};
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
-  std::thread client_thread{runClient};
-  std::string received_bytes{};
-  std::string op{};
-  bool started_session     = false;
-  bool got_session_message = false;
-
-  while (g_client == nullptr || g_kserver == nullptr)
-    ;
-
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
-
-  while (!started_session) {
-    g_client->startSession();
+  try {
+    std::thread server_thread{runServer};
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    received_bytes = g_client->getReceivedMessage();
-    started_session = isNewSession(received_bytes.c_str());
-  }
+    std::thread client_thread{runClient};
+    std::string received_bytes{};
+    std::string op{};
+    bool started_session     = false;
+    bool got_session_message = false;
 
-  g_client->stopSession();
+    while (g_client == nullptr || g_kserver == nullptr)
+      ;
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
-  g_client->close();
+    while (!started_session) {
+      g_client->startSession();
+      std::this_thread::sleep_for(std::chrono::milliseconds(300));
+      received_bytes = g_client->getReceivedMessage();
+      started_session = isNewSession(received_bytes.c_str());
+    }
 
-  if (client_thread.joinable()) {
-    client_thread.join();
-  }
+    g_client->stopSession();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+    g_client->close();
+
+    if (client_thread.joinable()) {
+      client_thread.join();
+    }
 
 
 
-  if (server_thread.joinable()) {
-    server_thread.join();
+    if (server_thread.joinable()) {
+      server_thread.join();
+    }
+  } catch (const std::exception& e) {
+    std::cout << "Exception was caught: " << e.what() << std::endl;
   }
 
   EXPECT_EQ(started_session, true);
