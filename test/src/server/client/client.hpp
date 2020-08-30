@@ -35,7 +35,6 @@ inline std::vector<size_t> findNullIndexes(uint8_t* data) {
   return indexes;
 }
 
-// typedef std::unordered_map<int, std::string> CommandMap;
 typedef std::map<int, std::vector<std::string>> CommandArgMap;
 
 flatbuffers::FlatBufferBuilder builder(1024);
@@ -97,10 +96,13 @@ void handleMessages() {
     if (m_raw_mode) {
       std::vector<size_t> null_indexes = findNullIndexes(receive_buffer);
       std::cout << "Buffer had " << null_indexes.size() << " indexes" << std::endl;
+
       for (const auto& i : null_indexes) {
         std::cout << i;
       }
+
       null_index = null_indexes[0];
+
     } else {
       null_index = findNullIndex(receive_buffer);
     }
@@ -109,11 +111,6 @@ void handleMessages() {
 
     m_received_message = data_string;
 
-    std::cout << "Received data: \n" << m_received_message << std::endl;
-    // if (isPong(data_string.c_str())) {
-    //   std::cout << "Server returned pong" << std::endl;
-    //   continue;
-    // }
     if (!m_raw_mode) {
       std::vector<std::string> s_v{};
       if (isNewSession(data_string.c_str())) { // Session Start

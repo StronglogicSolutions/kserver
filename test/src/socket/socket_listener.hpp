@@ -1,11 +1,9 @@
-#ifndef __KSERVER_TEST_HPP__
-#define __KSERVER_TEST_HPP__
+#ifndef __SOCKET_LISTENER_TEST_HPP__
+#define __SOCKET_LISTENER_TEST_HPP__
 
 #include <gtest/gtest.h>
 
 #include <interface/socket_listener.hpp>
-// #include <task/task_queue.hpp>
-
 #include "../server/client/client.hpp"
 
 #include <thread>
@@ -38,18 +36,6 @@ void runClient() {
   std::cout << "runClient will exit" << std::endl;
 }
 
-// void runServer() {
-//   int argc = 3;
-//   bool test_mode_enabled = true;
-//   KServer kserver{argc, std::move(const_cast<char**>(SERVER_TEST_ARGS))};
-//   g_kserver = &kserver;
-//   kserver.set_handler(std::move(Request::RequestHandler{}));
-//   std::cout << "KServer set handler" << std::endl;
-//   kserver.init(test_mode_enabled);
-//   std::cout << "KServer initialized" << std::endl;
-//   kserver.run();
-// }
-
 void runServer() {
   auto test_mode = true;
   SocketListener socket_listener{SERVER_TEST_ARGC, const_cast<char**>(SERVER_TEST_ARGS)};
@@ -58,25 +44,19 @@ void runServer() {
   socket_listener.run();
 }
 
-
 TEST(KServerTest, StartAndStopSession) {
 
   std::thread server_thread{runServer};
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
   std::thread client_thread{runClient};
-  // std::string received_bytes{};
-  // std::string op{};
 
   while (g_client == nullptr || g_listener == nullptr)
     ;
 
   for (uint8_t i = 0; i < 100; i++) { // Stress test
     g_client->sendMessage();
-    std::cout << "Client sent message" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-
-  // g_client->sendMessage();
 
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
@@ -94,4 +74,4 @@ TEST(KServerTest, StartAndStopSession) {
 }
 
 
-#endif  // __KSERVER_TEST_HPP__
+#endif  // __SOCKET_LISTENER_TEST_HPP__
