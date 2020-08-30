@@ -100,5 +100,47 @@ TEST(KServerTest, StartAndStopSession) {
   EXPECT_EQ(started_session, true);
 }
 
+TEST(KServerTest, MessageStressTest)
+{
+  std::thread server_thread{runServer};
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  std::thread client_thread{runClient};
+
+  bool started_session     = false;
+  bool got_session_message = false;
+
+  while (g_client == nullptr || g_kserver == nullptr)
+    ;
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+  while (!started_session) {
+    g_client->startSession();
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    started_session = isNewSession(g_client->getReceivedMessage().c_str());
+  }
+
+  for (uint8_t i = 0; i < 100; i++) {
+    g_client->sendCustomMessage("Ehyo!");
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  g_client->stopSession();
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+  g_client->close();
+
+  if (client_thread.joinable()) {
+    client_thread.join();
+  }
+
+  if (server_thread.joinable()) {
+    server_thread.join();
+  }
+
+  EXPECT_EQ(started_session, true);
+}
+
 
 #endif  // __KSERVER_TEST_HPP__
