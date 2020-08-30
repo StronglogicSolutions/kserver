@@ -12,8 +12,28 @@
 #include <codec/generictask_generated.h>
 #include <codec/instatask_generated.h>
 #include <codec/kmessage_generated.h>
+#include "mock_data.hpp"
 
 #define MAX_PACKET_SIZE 8192
+
+inline std::vector<size_t> findNullIndexes(uint8_t* data) {
+  size_t index = 0;
+  std::vector<size_t> indexes{};
+  if (data != nullptr) {
+    while (data) {
+      try {
+        if (strcmp(reinterpret_cast<char*>(data), "\0") == 0) {
+          indexes.push_back(index);
+        }
+        index++;
+        data++;
+      } catch (const std::exception& e) {
+        std::cout << e.what() << std::endl;
+      }
+    }
+  }
+  return indexes;
+}
 
 // typedef std::unordered_map<int, std::string> CommandMap;
 typedef std::map<int, std::vector<std::string>> CommandArgMap;
@@ -38,10 +58,12 @@ bool serverWaitingForFile(const char* data) {
 }
 
 bool isEvent(const char* data) {
-    Document d;
-    d.Parse(data);
-    if (d.HasMember("type")); {
-      return strcmp(d["type"].GetString(), "event") == 0;
+    if (*data != '\0') {
+      Document d;
+      d.Parse(data);
+      if (d.HasMember("type")); {
+        return strcmp(d["type"].GetString(), "event") == 0;
+      }
     }
     return false;
 }
@@ -70,25 +92,41 @@ void handleMessages() {
     if (bytes_received < 1) { // Finish message loop
         break;
     }
-    size_t end_idx = findNullIndex(receive_buffer);
-    std::string data_string{receive_buffer, receive_buffer + end_idx};
+    size_t null_index{};
+
+    if (m_raw_mode) {
+      std::vector<size_t> null_indexes = findNullIndexes(receive_buffer);
+      std::cout << "Buffer had " << null_indexes.size() << " indexes" << std::endl;
+      for (const auto& i : null_indexes) {
+        std::cout << i;
+      }
+      null_index = null_indexes[0];
+    } else {
+      null_index = findNullIndex(receive_buffer);
+    }
+
+    std::string data_string{receive_buffer, receive_buffer + null_index};
 
     m_received_message = data_string;
+
+    std::cout << "Received data: \n" << m_received_message << std::endl;
     // if (isPong(data_string.c_str())) {
     //   std::cout << "Server returned pong" << std::endl;
     //   continue;
     // }
-    std::vector<std::string> s_v{};
-    if (isNewSession(data_string.c_str())) { // Session Start
-      m_commands = getArgMap(data_string.c_str());
-      for (const auto& [k, v] : m_commands) { // Receive available commands
-        s_v.push_back(v.data());
+    if (!m_raw_mode) {
+      std::vector<std::string> s_v{};
+      if (isNewSession(data_string.c_str())) { // Session Start
+        m_commands = getArgMap(data_string.c_str());
+        for (const auto& [k, v] : m_commands) { // Receive available commands
+          s_v.push_back(v.data());
+        }
+        std::cout << "set new session message" << std::endl;
+      } else if (serverWaitingForFile(data_string.c_str())) { // Server expects a file
+        processFileQueue();
+      } else if (isEvent(data_string.c_str())) { // Receiving event
+        handleEvent(data_string);
       }
-      std::cout << "set new session message" << std::endl;
-    } else if (serverWaitingForFile(data_string.c_str())) { // Server expects a file
-      processFileQueue();
-    } else if (isEvent(data_string.c_str())) { // Receiving event
-      handleEvent(data_string);
     }
   }
 
@@ -106,8 +144,8 @@ void close() {
   m_client_socket_fd = -1;
 }
 
-MockClient()
-  : m_client_socket_fd{-1} {
+MockClient(bool raw_mode = false)
+  : m_client_socket_fd{-1}, m_raw_mode(raw_mode) {
 }
 
 ~MockClient() {
@@ -161,6 +199,29 @@ void stopSession() {
   sendEncoded(createOperation("stop", {}));
 }
 
+uint8_t* createTestBuffer() {
+  uint8_t* buffer = new uint8_t[1024]{};
+  const char* lorem_c_string = loremIpsum.c_str();
+
+  for (uint i = 0; i < 1023; i++) {
+    buffer[i] = lorem_c_string[i];
+  }
+
+  buffer[1024] = '\0';
+
+  return buffer;
+}
+
+void sendMessage() {
+  uint8_t* send_buffer = createTestBuffer();
+
+  ::send(m_client_socket_fd, send_buffer, 1024, 0);
+}
+
+void sendCustomMessage(std::string message) {
+  sendEncoded(createMessage(message.c_str(), ""));
+}
+
 private:
 
 void processFileQueue() {
@@ -197,6 +258,7 @@ void sendEncoded(std::string message) {
 }
 
 int  m_client_socket_fd;
+bool m_raw_mode;
 std::string m_received_message;
 CommandMap                    m_commands;
 CommandArgMap                 m_command_arg_map;
