@@ -51,11 +51,13 @@ static constexpr const char* TASK_ERROR_EMAIL =
 class DeferInterface {
  public:
   virtual std::string schedule(Task task) = 0;
+  virtual ~DeferInterface() {}
 };
 
 class CalendarManagerInterface {
  public:
   virtual std::vector<Task> fetchTasks() = 0;
+  virtual ~CalendarManagerInterface() {}
 };
 
 /**
@@ -89,7 +91,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
   // TODO: Implement move / copy constructor
 
-  ~Scheduler() { KLOG("Scheduler destroyed"); }
+  virtual ~Scheduler() override {
+    KLOG("Scheduler destroyed");
+  }
 
   /**
    * schedule
