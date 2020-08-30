@@ -44,7 +44,7 @@ void runListener() {
   socket_listener.run();
 }
 
-TEST(KServerTest, StartAndStopSession) {
+TEST(SocketListenerTest, StartAndStopSession) {
 
   std::thread server_thread{runListener};
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
