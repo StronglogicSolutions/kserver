@@ -9,18 +9,18 @@
 #include <thread>
 #include <chrono>
 
-const constexpr char* SERVER_TEST_PORT_ARG  = "--port=9876";
-const constexpr char* SERVER_TEST_IP_ARG    = "--ip=127.0.0.1";
-const constexpr char* SERVER_TEST_ARG       = "argument_string";
-const constexpr char* SERVER_TEST_ARGS[]    = {
-      SERVER_TEST_IP_ARG,
-      SERVER_TEST_PORT_ARG,
-      SERVER_TEST_ARG
-};
+// const constexpr char* SERVER_TEST_PORT_ARG  = "--port=9876";
+// const constexpr char* SERVER_TEST_IP_ARG    = "--ip=127.0.0.1";
+// const constexpr char* SERVER_TEST_ARG       = "argument_string";
+// const constexpr char* SERVER_TEST_ARGS[]    = {
+//       SERVER_TEST_IP_ARG,
+//       SERVER_TEST_PORT_ARG,
+//       SERVER_TEST_ARG
+// };
 const           int   SERVER_TEST_ARGC      = 3;
 
 SocketListener*    g_listener;
-MockClient*        g_client;
+// MockClient*        g_client;
 
 void runClientLoop() {
   try {
