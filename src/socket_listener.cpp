@@ -1,6 +1,5 @@
 // Project headers
 #include <interface/socket_listener.hpp>
-#include <types/constants.hpp>
 // System libraries
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -9,19 +8,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 // C++ Libraries
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <functional>
 #include <iostream>
 #include <memory>
-#include <queue>
 #include <string>
-#include <thread>
-#include <vector>
-
-#define MAX_BUFFER_SIZE (4096)
-#define SMALL_BUFFER_SIZE (8192)
 
 /**
  * Constructor
@@ -32,7 +21,6 @@ SocketListener::SocketListener(int arg_num, char** args)
   m_service_enabled(true) {
   for (int i = 0; i < arg_num; i++) {
     std::string argument = std::string(args[i]);
-    std::cout << args[i] << std::endl;
     if (argument.find("--ip") != -1) {
       m_ip_address = argument.substr(5);
       continue;
@@ -64,7 +52,6 @@ SocketListener::MessageHandler SocketListener::createMessageHandler(
 void SocketListener::onMessageReceived(int client_socket_fd,
                                        std::weak_ptr<uint8_t[]> w_buffer_ptr,
                                        ssize_t& size) {
-  std::cout << "This should be overridden" << std::endl;
   sendMessage(client_socket_fd, w_buffer_ptr);
 }
 
@@ -113,7 +100,6 @@ void SocketListener::sendMessage(int client_socket_fd, const char* buffer,
 
 /**
  * init
- * TODO: Initialize buffer memory, if buffer is to be a class member
  */
 void SocketListener::init(bool test_mode) {
   m_test_mode = test_mode;

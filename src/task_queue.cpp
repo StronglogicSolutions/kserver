@@ -7,7 +7,7 @@
  * {int} num_threads A rough estimate as to the number of threads we can run
  * concurrently
  */
-int num_threads = std::thread::hardware_concurrency();
+uint8_t num_threads = (std::thread::hardware_concurrency() / 2);
 
 /**
  * @constructor
@@ -83,17 +83,15 @@ void TaskQueue::workerLoop() {
  * @method
  */
 void TaskQueue::deployWorkers() {
-  for (int i = 0; i < (num_threads - 1); i++) {
+  for (uint8_t i = 0; i < (num_threads - 1); i++) {
     m_thread_pool.push_back(std::thread([this]() { workerLoop(); }));
   }
-  // TODO: mutex may not be necessary, as accepting_tasks is atomic
-  std::unique_lock<std::mutex> lock(m_mutex_lock);  // obtain mutex
-  accepting_tasks = false;  // allow pool wait condition to be met
+
+  std::unique_lock<std::mutex> lock{m_mutex_lock};  // obtain mutex
+  accepting_tasks = false;
   lock.unlock();
-  // when we send the notification immediately, the consumer will try to get the
-  // lock , so unlock asap
   pool_condition.notify_all();
-}  // lock expires
+}
 
 /**
  * initialize
