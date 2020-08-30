@@ -51,8 +51,6 @@ ProcessResult run_(std::string_view path, std::vector<std::string> argv) {
     v_args.push_back(arg);
   }
 
-  const char *executable_path = path.data();
-
   std::string work_dir{findWorkDir(path)};
 
   /* qx wraps calls to fork() and exec() */
