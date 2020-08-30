@@ -22,7 +22,7 @@ const           int   SERVER_TEST_ARGC      = 3;
 SocketListener*    g_listener;
 MockClient*        g_client;
 
-void runClient() {
+void runClientLoop() {
   try {
     auto raw_mode = true;
     std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -36,7 +36,7 @@ void runClient() {
   std::cout << "runClient will exit" << std::endl;
 }
 
-void runServer() {
+void runListener() {
   auto test_mode = true;
   SocketListener socket_listener{SERVER_TEST_ARGC, const_cast<char**>(SERVER_TEST_ARGS)};
   g_listener = &socket_listener;
@@ -46,9 +46,9 @@ void runServer() {
 
 TEST(KServerTest, StartAndStopSession) {
 
-  std::thread server_thread{runServer};
+  std::thread server_thread{runListener};
   std::this_thread::sleep_for(std::chrono::milliseconds(300));
-  std::thread client_thread{runClient};
+  std::thread client_thread{runClientLoop};
 
   while (g_client == nullptr || g_listener == nullptr)
     ;
