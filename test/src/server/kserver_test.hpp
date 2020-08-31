@@ -60,6 +60,7 @@ TEST(KServerTest, InstantiateKServerTest) {
 }
 
 TEST(KServerTest, StartAndStopSession) {
+  bool started_session     = false;
   try {
     std::thread server_thread{runServer};
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
