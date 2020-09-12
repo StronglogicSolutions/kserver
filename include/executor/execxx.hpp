@@ -13,8 +13,8 @@
 #include <vector>
 #include <future>
 
-const char* CHILD_STDOUT{"data/c/kserver/posix_spawn.log"};
-const char* CHILD_STDERR{"data/c/kserver/posix_spawn_err.log"};
+const char* CHILD_STDOUT{"/data/c/kserver/posix_spawn.log"};
+const char* CHILD_STDERR{"/data/c/kserver/posix_spawn_err.log"};
 
 namespace {
 extern "C" char ** environ;
