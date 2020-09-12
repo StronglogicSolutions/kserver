@@ -71,7 +71,7 @@ std::string get_executable_cwd() {
 }
 
 inline int findIndexAfter(std::string s, int pos, char c) {
-  for (int i = pos; i < s.size(); i++) {
+  for (uint8_t i = pos; i < s.size(); i++) {
     if (s.at(i) == c) {
       return i;
     }
@@ -197,6 +197,25 @@ std::string getMessage(const char *data) {
     return d["message"].GetString();
   }
   return "";
+}
+
+std::string getEvent(std::string data) {
+  if (!data.empty()) {
+    Document d;
+    d.Parse(data.c_str());
+    if (d.HasMember("event")) {
+      return d["event"].GetString();
+    }
+  }
+  return "";
+}
+
+bool isSessionMessageEvent(std::string event) {
+  return event.compare("Session Message") == 0;
+}
+
+bool isCloseEvent(std::string event) {
+  return event.compare("Close Session") == 0;
 }
 
 std::vector<std::string> getArgs(const char *data) {
@@ -327,15 +346,21 @@ std::string createMessage(const char *data,
  */
 
 bool isMessage(const char *data) {
-  Document d;
-  d.Parse(data);
-  return d.HasMember("message");
+  if (*data != '\0') {
+    Document d;
+    d.Parse(data);
+    return d.HasMember("message");
+  }
+  return false;
 }
 
 bool isOperation(const char *data) {
-  Document d;
-  d.Parse(data);
-  return strcmp(d["type"].GetString(), "operation") == 0;
+  if (*data != '\0') {
+    Document d;
+    d.Parse(data);
+    return strcmp(d["type"].GetString(), "operation") == 0;
+  }
+  return false;
 }
 
 bool isExecuteOperation(const char *data) {
@@ -443,10 +468,12 @@ Either<std::string, std::vector<std::string>> getDecodedMessage(
 }
 
 bool isNewSession(const char *data) {
-  Document d;
-  d.Parse(data);
-  if (d.HasMember("message")) {
-    return strcmp(d["message"].GetString(), "New Session") == 0;
+  if (*data != '\0') {
+    Document d;
+    d.Parse(data);
+    if (d.HasMember("message")) {
+      return strcmp(d["message"].GetString(), "New Session") == 0;
+    }
   }
   return false;
 }

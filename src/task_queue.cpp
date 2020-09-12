@@ -7,19 +7,23 @@
  * {int} num_threads A rough estimate as to the number of threads we can run
  * concurrently
  */
-int num_threads = std::thread::hardware_concurrency();
+uint8_t num_threads = (std::thread::hardware_concurrency() / 2);
 
 /**
  * @constructor
  * Nothing fancy
  */
-TaskQueue::TaskQueue() {}
+TaskQueue::TaskQueue()
+  : m_active(true) {}
 /**
  * @destructor
  * Make sure all worker threads detach or join before destroying TaskQueue
  * instance
  */
-TaskQueue::~TaskQueue() { detachThreads(); }
+TaskQueue::~TaskQueue() {
+  m_active = false;
+  detachThreads();
+}
 
 /**
  * pushToQueue
@@ -45,14 +49,18 @@ void TaskQueue::pushToQueue(std::function<void()> fn) {
  */
 void TaskQueue::workerLoop() {
   std::function<void()> fn;
-  for (;;) {
+  while (m_active) {
     {  // encapsulate atomic management of queue
       std::unique_lock<std::mutex> lock(m_mutex_lock);  // obtain mutex
       pool_condition
           .wait(  // condition: not accepting tasks or queue is not empty
               lock,
-              [this]() { return !accepting_tasks || !m_task_queue.empty(); });
+              [this]() { return !accepting_tasks || !m_task_queue.empty() || !m_active; });
       std::cout << "Wait condition met" << std::endl;
+      if (!m_active) {
+        // Destructor was called - exit
+        break;
+      }
       if (!accepting_tasks && m_task_queue.empty()) {
         // If the queue is empty, it's safe to begin accepting tasks
         accepting_tasks = true;
@@ -75,17 +83,15 @@ void TaskQueue::workerLoop() {
  * @method
  */
 void TaskQueue::deployWorkers() {
-  for (int i = 0; i < (num_threads - 1); i++) {
+  for (uint8_t i = 0; i < (num_threads - 1); i++) {
     m_thread_pool.push_back(std::thread([this]() { workerLoop(); }));
   }
-  // TODO: mutex may not be necessary, as accepting_tasks is atomic
-  std::unique_lock<std::mutex> lock(m_mutex_lock);  // obtain mutex
-  accepting_tasks = false;  // allow pool wait condition to be met
+
+  std::unique_lock<std::mutex> lock{m_mutex_lock};  // obtain mutex
+  accepting_tasks = false;
   lock.unlock();
-  // when we send the notification immediately, the consumer will try to get the
-  // lock , so unlock asap
   pool_condition.notify_all();
-}  // lock expires
+}
 
 /**
  * initialize
@@ -97,15 +103,16 @@ void TaskQueue::initialize() { deployWorkers(); }
 
 /**
  * detachThreads
- *
+ * TODO: change to "joinThreads" or "finishThreads"
  * Allows threads to terminate.
  * @method
  * @cleanup
  */
 void TaskQueue::detachThreads() {
+  pool_condition.notify_all();
   for (std::thread& t : m_thread_pool) {
     if (t.joinable()) {
-      t.detach();
+      t.join();
     }
   }
 }

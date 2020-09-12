@@ -3,6 +3,7 @@
 
 #include <string>
 #include "INIReader.h"
+#include <iostream>
 
 namespace ConfigParser {
 
@@ -20,10 +21,12 @@ bool init() {
   if (reader_ptr == nullptr) {
     reader = INIReader{"config/config.ini"};
     if (reader.ParseError() != 0) {
+      std::cout << "no config" << std::endl;
       reader = INIReader{"config/default.config.ini"};
     }
     reader_ptr = &reader;
   }
+  std::cout << "config loading" << std::endl;
   return reader.ParseError() == 0;
 }
 

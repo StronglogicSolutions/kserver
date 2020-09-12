@@ -3,6 +3,7 @@
 
 #include <variant>
 #include <database/database_connection.hpp>
+#include <iostream>
 #include <log/logger.h>
 #include <memory>
 
@@ -20,6 +21,13 @@ class KDB {
         ConfigParser::Database::host(),
         ConfigParser::Database::port()
       }
+    );
+    std::cout << "KDB constructor" << std::endl;
+    KLOG(
+      "This constructor is called with {} {} {}",
+      ConfigParser::Database::user(),
+      ConfigParser::Database::pass(),
+      ConfigParser::Database::name()
     );
   }
 

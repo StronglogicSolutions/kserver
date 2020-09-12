@@ -37,6 +37,7 @@ class KServer : public SocketListener {
   ~KServer() {
     KLOG("Server shutting down");
     m_file_handlers.clear();
+    m_request_handler.shutdown();
   }
 
   /**
@@ -376,14 +377,7 @@ class KServer : public SocketListener {
       return;
     } else if (isStopOperation(op.c_str())) {  // Stop
       KLOG("Stop operation. Shutting down client and closing connection");
-      sendEvent(client_socket_fd, "Close Session",
-                {"KServer is shutting down the socket connection"});
-      shutdown(client_socket_fd, SHUT_RDWR);
-      close(client_socket_fd);
-      if (file_pending && file_pending_fd == client_socket_fd) {
-        file_pending = false;
-        file_pending_fd = -1;
-      }
+      handleStop(client_socket_fd);
       return;
     } else if (isExecuteOperation(op.c_str())) {  // Process execution request
       KLOG("Execute operation");
@@ -402,8 +396,7 @@ class KServer : public SocketListener {
   virtual void onMessageReceived(int client_socket_fd,
                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
                                  ssize_t &size) override {
-    if (size > 0 && size != 4294967295) {  // TODO: Find out why SocketListener
-                                           // returns max int32
+    if (size > 0 && size != 4294967295) {
       // Get ptr to data
       std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
       if (file_pending) {  // Handle packets for incoming file
@@ -463,6 +456,39 @@ class KServer : public SocketListener {
     }
   }
 
+  void handleStop(int client_socket_fd) {
+    sendEvent(
+      client_socket_fd,
+      "Close Session",
+      {"KServer is shutting down the socket connection"}
+    );
+
+    shutdown(client_socket_fd, SHUT_RD);
+
+    if (file_pending && file_pending_fd == client_socket_fd) {
+      file_pending = false;
+      file_pending_fd = -1;
+    }
+
+    auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
+                                   [client_socket_fd](KSession session) {
+                                     return session.fd == client_socket_fd;
+                                   });
+    if (it_session != m_sessions.end()) {
+      m_sessions.erase(it_session);
+    }
+  }
+
+  void closeConnections() {
+    for (const int& fd : m_client_connections) {
+      handleStop(fd);
+    }
+  }
+
+  uint8_t getNumConnections() {
+    return m_sessions.size();
+  }
+
  private:
   virtual void onConnectionClose(int client_socket_fd) {
     auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
@@ -498,5 +524,5 @@ class KServer : public SocketListener {
   bool                        file_pending;
   int                         file_pending_fd;
 };
-};      // namespace KYO
-#endif  // __KSERVER_HPP__
+};     // namespace KYO
+#endif // __KSERVER_HPP__

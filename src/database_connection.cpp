@@ -15,7 +15,7 @@ std::string fieldsAsString(std::vector<std::string> fields) {
     field_string += delim + field;
     delim = ",";
   }
-  return std::move(field_string);
+  return field_string;
 }
 
 std::string valuesAsString(StringVec values, size_t number_of_fields) {
@@ -32,7 +32,7 @@ std::string valuesAsString(StringVec values, size_t number_of_fields) {
   }
   value_string.erase(value_string.end() - 2, value_string.end());
 
-  return std::move(value_string);
+  return value_string;
 }
 
 std::string insertStatement(DatabaseQuery query) {
@@ -66,7 +66,7 @@ std::string updateStatement(UpdateReturnQuery query, std::string returning,
       if (query.values.size() ==
           query.fields.size()) {  // can only update if the `fields` and
                                   // `values` arguments are matching
-        for (int i = 0; i < query.values.size(); i++) {
+        for (uint8_t i = 0; i < query.values.size(); i++) {
           auto field = query.fields.at(i);
           auto value = query.values.at(i);
           update_string += field + "=" + value;
@@ -103,15 +103,15 @@ template <typename FilterA, typename FilterB>
 std::string getVariantFilterStatement(
     std::vector<std::variant<FilterA, FilterB>> filters) {
   std::string filter_string{};
-  auto idx = 0;
-  auto filter_count = filters.size();
+  uint8_t idx = 0;
+  uint8_t filter_count = filters.size();
   for (const auto &filter : filters) {
     if (filter.index() == 0) {
       filter_string += filterStatement(std::get<0>(filter));
     } else {
       filter_string += filterStatement(std::get<1>(filter));
     }
-    if (filter_count > idx + 1) {
+    if (filter_count > (idx + 1)) {
       idx++;
       filter_string += " AND ";
     }
@@ -123,8 +123,8 @@ template <typename FilterA, typename FilterB, typename FilterC>
 std::string getVariantFilterStatement(
     std::vector<std::variant<FilterA, FilterB, FilterC>> filters) {
   std::string filter_string{};
-  auto idx = 0;
-  auto filter_count = filters.size();
+  uint8_t idx = 0;
+  uint8_t filter_count = filters.size();
   for (const auto &filter : filters) {
     if (filter.index() == 0) {
       filter_string += filterStatement(std::get<0>(filter));
@@ -133,7 +133,7 @@ std::string getVariantFilterStatement(
     } else {
       filter_string += filterStatement(std::get<2>(filter));
     }
-    if (filter_count > idx + 1) {
+    if (filter_count > (idx + 1)) {
       idx++;
       filter_string += " AND ";
     }
@@ -181,7 +181,6 @@ template <typename T>
 std::string selectStatement(T query) {
   std::string delim{""};
   std::string filter_string{"WHERE "};
-  size_t index = 0;
   if (!query.filter.empty()) {
     if constexpr (std::is_same_v<T, Query>) {
       if (query.filter.size() > 1 &&
@@ -362,9 +361,11 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
     }
 
     case QueryType::DELETE: {
-      // TODO: implement DELETE!
-      QueryResult result{};
-      return result;
+      return QueryResult{};
+    }
+
+    case QueryType::UPDATE: {
+      return QueryResult{};
     }
   }
   return QueryResult{};

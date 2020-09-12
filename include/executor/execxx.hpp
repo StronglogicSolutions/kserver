@@ -3,7 +3,6 @@
 
 #include <log/logger.h>
 #include <sys/wait.h>
-#include <sys/mman.h>
 #include <unistd.h>
 #include <spawn.h>
 
@@ -46,8 +45,8 @@ ProcessResult qx(std::vector<std::string> args,
   std::vector<char*> process_arguments{};
   process_arguments.reserve(args.size());
 
+
   for (size_t i = 0; i < args.size(); ++i) {
-    std::cout << "Process arg: " << args[i];
     process_arguments[i] = const_cast<char*>(args[i].c_str());
   }
 
@@ -58,7 +57,13 @@ ProcessResult qx(std::vector<std::string> args,
 
   ProcessResult result{};                         // To gather result
 
-  int spawn_result = posix_spawn(&pid, process_arguments[0], &action, nullptr, process_arguments.data(), getEnvironment());
+  int spawn_result = posix_spawn(&pid,
+                                  process_arguments[0],
+                                 &action,
+                                  nullptr,
+                                  process_arguments.data(),
+                                  getEnvironment()
+  );
 
   if (spawn_result != 0) {
     result.error = true;
