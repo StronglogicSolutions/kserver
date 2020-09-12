@@ -469,12 +469,24 @@ class KServer : public SocketListener {
       file_pending = false;
       file_pending_fd = -1;
     }
+
+    auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
+                                   [client_socket_fd](KSession session) {
+                                     return session.fd == client_socket_fd;
+                                   });
+    if (it_session != m_sessions.end()) {
+      m_sessions.erase(it_session);
+    }
   }
 
   void closeConnections() {
     for (const int& fd : m_client_connections) {
       handleStop(fd);
     }
+  }
+
+  uint8_t getNumConnections() {
+    return m_sessions.size();
   }
 
  private:

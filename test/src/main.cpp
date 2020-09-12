@@ -6,7 +6,7 @@
 #include "executor/scheduler.hpp"
 #include "executor/task/task_test.hpp"
 #include "server/kserver_test.hpp"
-#include "socket/socket_listener.hpp"
+// #include "socket/socket_listener.hpp"
 
 /**
  * KServerTestEnvironment

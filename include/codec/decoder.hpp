@@ -37,11 +37,11 @@ class FileHandler {
     */
     Decoder(int fd, std::string name,
             std::function<void(uint8_t *, int, std::string)> file_callback)
-        : index(0),
-          file_buffer(nullptr),
+        : file_buffer(nullptr),
           packet_buffer(nullptr),
-          total_packets(0),
+          index(0),
           packet_buffer_offset(0),
+          total_packets(0),
           file_buffer_offset(0),
           file_size(0),
           filename(name),

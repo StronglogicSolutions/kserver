@@ -60,7 +60,7 @@ bool isEvent(const char* data) {
     if (*data != '\0') {
       Document d;
       d.Parse(data);
-      if (d.HasMember("type")); {
+      if (d.HasMember("type")) {
         return strcmp(d["type"].GetString(), "event") == 0;
       }
     }
@@ -107,22 +107,24 @@ void handleMessages() {
       null_index = findNullIndex(receive_buffer);
     }
 
-    std::string data_string{receive_buffer, receive_buffer + null_index};
+    if (null_index > 1) {
+      std::string data_string{receive_buffer, receive_buffer + null_index};
 
-    m_received_message = data_string;
+      m_received_message = data_string;
 
-    if (!m_raw_mode) {
-      std::vector<std::string> s_v{};
-      if (isNewSession(data_string.c_str())) { // Session Start
-        m_commands = getArgMap(data_string.c_str());
-        for (const auto& [k, v] : m_commands) { // Receive available commands
-          s_v.push_back(v.data());
+      if (!m_raw_mode) {
+        std::vector<std::string> s_v{};
+        if (isNewSession(data_string.c_str())) { // Session Start
+          m_commands = getArgMap(data_string.c_str());
+          for (const auto& [k, v] : m_commands) { // Receive available commands
+            s_v.push_back(v.data());
+          }
+          std::cout << "set new session message" << std::endl;
+        } else if (serverWaitingForFile(data_string.c_str())) { // Server expects a file
+          processFileQueue();
+        } else if (isEvent(data_string.c_str())) { // Receiving event
+          handleEvent(data_string);
         }
-        std::cout << "set new session message" << std::endl;
-      } else if (serverWaitingForFile(data_string.c_str())) { // Server expects a file
-        processFileQueue();
-      } else if (isEvent(data_string.c_str())) { // Receiving event
-        handleEvent(data_string);
       }
     }
   }
@@ -154,7 +156,6 @@ void start() {
       m_client_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_client_socket_fd != -1) {
       sockaddr_in server_socket;
-      char* end;
       server_socket.sin_family = AF_INET;
       auto port_value = CLIENT_TEST_PORT;
 
@@ -226,14 +227,14 @@ void processFileQueue() {
 }
 
 void sendEncoded(std::string message) {
-  std::vector<uint8_t> fb_byte_vector{message.begin(), message.end()};
-  auto byte_vector = builder.CreateVector(fb_byte_vector);
+  auto builder = flatbuffers::FlatBufferBuilder{};
+  std::vector<uint8_t>                              fb_byte_vector{message.begin(), message.end()};
+  flatbuffers::Offset<flatbuffers::Vector<uint8_t>> byte_vector = builder.CreateVector(fb_byte_vector);
   auto k_message = CreateMessage(builder, 69, byte_vector);
-
   builder.Finish(k_message);
 
-  uint8_t* encoded_message_buffer = builder.GetBufferPointer();
   uint32_t size = builder.GetSize();
+  // uint32_t size = message.size();
 
   uint8_t send_buffer[MAX_PACKET_SIZE];
   memset(send_buffer, 0, MAX_PACKET_SIZE);
@@ -242,13 +243,12 @@ void sendEncoded(std::string message) {
   send_buffer[2] = (size & 0xFF) >> 8;
   send_buffer[3] = (size & 0xFF);
   send_buffer[4] = (TaskCode::GENMSGBYTE & 0xFF);
+
+  uint8_t* encoded_message_buffer = builder.GetBufferPointer();
+
   std::memcpy(send_buffer + 5, encoded_message_buffer, size);
-  // std::cout << "Sending encoded message" << std::end;
-  std::string message_to_send{};
-  for (unsigned int i = 0; i < (size + 5); i++) {
-      message_to_send += (char)*(send_buffer + i);
-  }
-  std::cout << "Encoded message size: " << (size + 5) << std::endl;
+
+
   // Send start operation
   ::send(m_client_socket_fd, send_buffer, size + 5, 0);
   builder.Clear();

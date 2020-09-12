@@ -344,9 +344,12 @@ std::string createMessage(const char *data,
  */
 
 bool isMessage(const char *data) {
-  Document d;
-  d.Parse(data);
-  return d.HasMember("message");
+  if (*data != '\0') {
+    Document d;
+    d.Parse(data);
+    return d.HasMember("message");
+  }
+  return false;
 }
 
 bool isOperation(const char *data) {

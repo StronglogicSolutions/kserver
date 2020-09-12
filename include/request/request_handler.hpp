@@ -62,7 +62,7 @@ class RequestHandler {
    * Loads configuration and instantiates a DatabaseConfiguration object
    *
    */
-  RequestHandler() : m_executor(nullptr), m_active(true) {}
+  RequestHandler() : m_active(true), m_executor(nullptr) {}
 
   /**
    * @constructor
@@ -70,9 +70,9 @@ class RequestHandler {
    * The move constructor
    */
   RequestHandler(RequestHandler &&r)
-      : m_executor(r.m_executor),
-        m_scheduler(r.m_scheduler),
-        m_active(r.m_active) {
+      : m_active(r.m_active),
+        m_executor(r.m_executor),
+        m_scheduler(r.m_scheduler) {
     r.m_executor = nullptr;
   }
 
@@ -82,9 +82,9 @@ class RequestHandler {
    * The copy constructor
    */
   RequestHandler(const RequestHandler &r)
-      : m_executor(nullptr),  // We do not copy the Executor
-        m_scheduler(nullptr),
-        m_active(r.m_active) {}
+      : m_active(r.m_active),
+        m_executor(nullptr),  // We do not copy the Executor
+        m_scheduler(nullptr) {}
 
   /**
    * @operator
@@ -353,47 +353,45 @@ class RequestHandler {
           GenericTaskHandler generic_task_handler{};
           generic_task_handler.prepareTask(argv, uuid, &task);
         }
-        if (&task != nullptr) {
-          auto file_index = 0;
-          for (const auto &file_info : task.files) {
-            KLOG("task file: {}", file_info.first);
-            std::vector<std::string> callback_args{file_info.first,
-                                                   file_info.second, uuid};
-            if (file_index == task.files.size() - 1) {
-              callback_args.push_back("final file");
-            }
-            m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
-                                 callback_args);
+        uint8_t file_index = 0;
+        for (const auto &file_info : task.files) {
+          KLOG("task file: {}", file_info.first);
+          std::vector<std::string> callback_args{file_info.first,
+                                                  file_info.second, uuid};
+          if (file_index == task.files.size() - 1) {
+            callback_args.push_back("final file");
           }
-          if (task.validate()) {
-            KLOG("Sending task request to Scheduler");
-            auto id = m_scheduler->schedule(task);
-            if (!id.empty()) {
-              // Task was scheduled. Prepare a vector with info about the task.
-              std::vector<std::string> callback_args{};
-              callback_args.reserve((5 + task.files.size()));
-              callback_args.insert(callback_args.end(), {
-                uuid, id,                            // UUID and database ID
-                std::to_string(task.execution_mask), // Application mask
-                FileUtils::readEnvFile(task.envfile),// Environment file
-                std::to_string(task.files.size())    // File number
-              });
-              for (auto&& file : task.files) {
-                callback_args.emplace_back(file.first); // Add the filenames
-              }
-              m_system_callback_fn(
-                  client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS,
-                  callback_args
-                );
-              return OPERATION_SUCCESS;
-            } else {
-              KLOG("Task with UUID {} was validated, but scheduling failed", uuid);
-              return OPERATION_FAIL;
+          m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
+                                callback_args);
+        }
+        if (task.validate()) {
+          KLOG("Sending task request to Scheduler");
+          auto id = m_scheduler->schedule(task);
+          if (!id.empty()) {
+            // Task was scheduled. Prepare a vector with info about the task.
+            std::vector<std::string> callback_args{};
+            callback_args.reserve((5 + task.files.size()));
+            callback_args.insert(callback_args.end(), {
+              uuid, id,                            // UUID and database ID
+              std::to_string(task.execution_mask), // Application mask
+              FileUtils::readEnvFile(task.envfile),// Environment file
+              std::to_string(task.files.size())    // File number
+            });
+            for (auto&& file : task.files) {
+              callback_args.emplace_back(file.first); // Add the filenames
             }
+            m_system_callback_fn(
+                client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS,
+                callback_args
+              );
+            return OPERATION_SUCCESS;
           } else {
-            KLOG("Task with UUID {} was processed, but did not pass validation", uuid);
+            KLOG("Task with UUID {} was validated, but scheduling failed", uuid);
             return OPERATION_FAIL;
           }
+        } else {
+          KLOG("Task with UUID {} was processed, but did not pass validation", uuid);
+          return OPERATION_FAIL;
         }
       }
       KLOG("Task scheduling failed: Unable to find an application matching mask {}", mask);
