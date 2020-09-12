@@ -3,6 +3,7 @@
 
 #include <log/logger.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <spawn.h>
 
@@ -49,29 +50,53 @@ ProcessResult qx(std::vector<std::string> args,
 
   posix_spawn_file_actions_t action;
   posix_spawn_file_actions_init(&action);
-  posix_spawn_file_actions_addopen(&action, STDOUT_FILENO, "/data/c/kserver/posix_spawn.log", O_RDONLY, 0);
-  posix_spawn_file_actions_addopen(&action, STDERR_FILENO, "/data/c/kserver/posix_spawn_err.log", O_RDONLY, 0);
+  posix_spawn_file_actions_addopen(&action, STDOUT_FILENO, "/data/c/kserver/posix_spawn.log", O_RDWR, 0);
+  posix_spawn_file_actions_addopen(&action, STDERR_FILENO, "/data/c/kserver/posix_spawn_err.log", O_RDWR, 0);
 
-  int ret = posix_spawn(&pid, process_arguments[0], &action, nullptr, process_arguments.data(), getenviron());
+  // posix_spawn_file_actions_addclose(&action, stdout_fd[0]);
+  // posix_spawn_file_actions_addclose(&action, stderr_fd[0]);
+  // posix_spawn_file_actions_adddup2(&action, stdout_fd[1], STDOUT_FILENO);
+  // posix_spawn_file_actions_adddup2(&action, stderr_fd[1], STDERR_FILENO);
+  // posix_spawn_file_actions_addclose(&action, stdout_fd[1]);
+  // posix_spawn_file_actions_addclose(&action, stdout_fd[1]);
 
   ProcessResult result{};                         // To gather result
 
+  int spawn_result = posix_spawn(&pid, process_arguments[0], &action, nullptr, &process_arguments[0], getenviron());
+
+  if (spawn_result != 0) {
+    result.error = true;
+    result.output = "Failed to spawn child process";
+    return result;
+  }
+
   pid_t ret;
   int status;
-  while (true) {
+
+  for(;;) {
     ret = waitpid(pid, &status, (WNOHANG | WUNTRACED | WCONTINUED));
 
     if (ret != -1)
     {
         if (WIFEXITED(status) || WIFSIGNALED(status) || WIFSTOPPED(status))
         {
-          result.output = "Process no longer running";
           break;
         }
     } else {
       std::cout << "waitpid failed" << std::endl;
-      result.output = "Could not wait for process result";
     }
+  }
+
+  KLOG("Child process exited with code: {}", status);
+
+  if (status != 0) {
+    result.output = FileUtils::readFile("/data/c/kserver/posix_spawn_err.log");
+    result.error = true;
+  } else {
+    result.output = FileUtils::readFile("/data/c/kserver/posix_spawn.log");
+  }
+  if (result.output.empty()) {
+    result.output = "Child process did not return output";
   }
 
   return result;
