@@ -13,11 +13,13 @@
 #include <vector>
 #include <future>
 
+const char* CHILD_STDOUT{"data/c/kserver/posix_spawn.log"};
+const char* CHILD_STDERR{"data/c/kserver/posix_spawn_err.log"};
+
 namespace {
 extern "C" char ** environ;
-char ** getenviron(void)
-{
-    return environ;
+char ** getEnvironment() {
+  return environ;
 }
 struct ProcessResult {
   std::string output;
@@ -45,24 +47,18 @@ ProcessResult qx(std::vector<std::string> args,
   process_arguments.reserve(args.size());
 
   for (size_t i = 0; i < args.size(); ++i) {
+    std::cout << "Process arg: " << args[i];
     process_arguments[i] = const_cast<char*>(args[i].c_str());
   }
 
-  posix_spawn_file_actions_t action;
+  posix_spawn_file_actions_t action{};
   posix_spawn_file_actions_init(&action);
-  posix_spawn_file_actions_addopen(&action, STDOUT_FILENO, "/data/c/kserver/posix_spawn.log", O_RDWR, 0);
-  posix_spawn_file_actions_addopen(&action, STDERR_FILENO, "/data/c/kserver/posix_spawn_err.log", O_RDWR, 0);
-
-  // posix_spawn_file_actions_addclose(&action, stdout_fd[0]);
-  // posix_spawn_file_actions_addclose(&action, stderr_fd[0]);
-  // posix_spawn_file_actions_adddup2(&action, stdout_fd[1], STDOUT_FILENO);
-  // posix_spawn_file_actions_adddup2(&action, stderr_fd[1], STDERR_FILENO);
-  // posix_spawn_file_actions_addclose(&action, stdout_fd[1]);
-  // posix_spawn_file_actions_addclose(&action, stdout_fd[1]);
+  posix_spawn_file_actions_addopen(&action, STDOUT_FILENO, CHILD_STDOUT, O_RDWR, 0);
+  posix_spawn_file_actions_addopen(&action, STDERR_FILENO, CHILD_STDERR, O_RDWR, 0);
 
   ProcessResult result{};                         // To gather result
 
-  int spawn_result = posix_spawn(&pid, process_arguments[0], &action, nullptr, &process_arguments[0], getenviron());
+  int spawn_result = posix_spawn(&pid, process_arguments[0], &action, nullptr, process_arguments.data(), getEnvironment());
 
   if (spawn_result != 0) {
     result.error = true;
@@ -89,15 +85,20 @@ ProcessResult qx(std::vector<std::string> args,
 
   KLOG("Child process exited with code: {}", status);
 
-  if (status != 0) {
-    result.output = FileUtils::readFile("/data/c/kserver/posix_spawn_err.log");
-    result.error = true;
+
+  result.output = FileUtils::readFile(CHILD_STDERR);
+  if (result.output.empty()) {
+    result.output = FileUtils::readFile(CHILD_STDOUT);
   } else {
-    result.output = FileUtils::readFile("/data/c/kserver/posix_spawn.log");
+    result.error = true;
   }
+
   if (result.output.empty()) {
     result.output = "Child process did not return output";
   }
+
+  FileUtils::clearFile(CHILD_STDOUT);
+  FileUtils::clearFile(CHILD_STDERR);
 
   return result;
 }

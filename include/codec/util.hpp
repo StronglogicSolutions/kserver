@@ -31,6 +31,8 @@
 
 #include <iostream>
 
+#define readFile readEnvFile
+
 using namespace rapidjson;
 using namespace uuids;
 using namespace neither;
@@ -503,6 +505,10 @@ std::string readEnvFile(std::string env_file_path) {
     std::stringstream env_file_stream{};
     env_file_stream << file_stream.rdbuf();
     return env_file_stream.str();
+}
+
+void clearFile(std::string file_path) {
+  std::ofstream file(file_path);
 }
 
 bool createTaskDirectory(std::string uuid) {
