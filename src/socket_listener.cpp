@@ -1,6 +1,5 @@
 // Project headers
 #include <interface/socket_listener.hpp>
-#include <types/constants.hpp>
 // System libraries
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -9,28 +8,19 @@
 #include <sys/types.h>
 #include <unistd.h>
 // C++ Libraries
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <functional>
 #include <iostream>
 #include <memory>
-#include <queue>
 #include <string>
-#include <thread>
-#include <vector>
-
-#define MAX_BUFFER_SIZE (4096)
-#define SMALL_BUFFER_SIZE (8192)
 
 /**
  * Constructor
  * Initialize with ip_address, port and message_handler
  */
-SocketListener::SocketListener(int arg_num, char** args) : m_port(-1) {
+SocketListener::SocketListener(int arg_num, char** args)
+: m_port(-1),
+  m_service_enabled(true) {
   for (int i = 0; i < arg_num; i++) {
     std::string argument = std::string(args[i]);
-    std::cout << args[i] << std::endl;
     if (argument.find("--ip") != -1) {
       m_ip_address = argument.substr(5);
       continue;
@@ -62,7 +52,6 @@ SocketListener::MessageHandler SocketListener::createMessageHandler(
 void SocketListener::onMessageReceived(int client_socket_fd,
                                        std::weak_ptr<uint8_t[]> w_buffer_ptr,
                                        ssize_t& size) {
-  std::cout << "This should be overridden" << std::endl;
   sendMessage(client_socket_fd, w_buffer_ptr);
 }
 
@@ -111,13 +100,12 @@ void SocketListener::sendMessage(int client_socket_fd, const char* buffer,
 
 /**
  * init
- * TODO: Initialize buffer memory, if buffer is to be a class member
  */
-bool SocketListener::init() {
+void SocketListener::init(bool test_mode) {
+  m_test_mode = test_mode;
   std::cout << "Initializing socket listener" << std::endl;
   u_task_queue_ptr = std::make_unique<TaskQueue>();
   u_task_queue_ptr->initialize();
-  return true;
 }
 
 void SocketListener::handleClientSocket(
@@ -134,8 +122,6 @@ void SocketListener::handleClientSocket(
     //    s_buffer_ptr.get()[MAX_BUFFER_SIZE - 1] =
     //        0;  // Null-terminate the character buffer
     if (size > 0) {
-      std::cout << "Client " << client_socket_fd << "\nBytes received: " << size
-                << "\nData: " << std::hex << s_buffer_ptr.get() << std::endl;
       // Handle incoming message
       message_handler(size);
     } else {
@@ -159,7 +145,7 @@ void SocketListener::handleClientSocket(
  */
 void SocketListener::run() {
   // Begin listening loop
-  while (true) {
+  while (m_service_enabled) {
     std::cout << "Begin" << std::endl;
     // Call system to open a listening socket, and return its file descriptor
     int listening_socket_fd = createSocket();
@@ -191,6 +177,9 @@ void SocketListener::run() {
             std::bind(&SocketListener::handleClientSocket, this,
                       client_socket_fd, message_handler,
                       std::forward<std::shared_ptr<uint8_t[]>>(s_buffer_ptr)));
+        if (m_test_mode) {
+          m_service_enabled = false;
+        }
       }
     }
   }
@@ -251,6 +240,5 @@ int SocketListener::createSocket() {
  * socket and returns its file descriptor
  */
 int SocketListener::waitForConnection(int listening_socket) {
-  int client_socket_fd = accept(listening_socket, NULL, NULL);
-  return client_socket_fd;
+  return accept(listening_socket, NULL, NULL);
 }

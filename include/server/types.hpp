@@ -4,8 +4,8 @@
 #include <string>
 #include <cstring>
 
-#define MAX_BUFFER_SIZE (49152)
-#define SMALL_BUFFER_SIZE (8192)
+// #define MAX_BUFFER_SIZE (49152)
+// #define SMALL_BUFFER_SIZE (8192)
 
 static constexpr int MAX_PACKET_SIZE = 4096;
 static constexpr int HEADER_SIZE = 4;

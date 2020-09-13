@@ -35,6 +35,7 @@ class ProcessManager {
   virtual void notifyTrackedProcessEvent(std::string status, int mask,
                                          std::string id, int client_id,
                                          bool error) = 0;
+  virtual ~ProcessManager() {}
 };
 
 const char *findWorkDir(std::string_view path) {
@@ -50,8 +51,6 @@ ProcessResult run_(std::string_view path, std::vector<std::string> argv) {
     v_args.push_back(arg);
   }
 
-  const char *executable_path = path.data();
-
   std::string work_dir{findWorkDir(path)};
 
   /* qx wraps calls to fork() and exec() */
@@ -66,7 +65,7 @@ class ProcessExecutor : public ProcessManager {
     /** Constructor/Destructor */
     ProcessDaemon(std::string_view path, std::vector<std::string> argv)
         : m_path(std::move(path)), m_argv(std::move(argv)) {}
-    ~ProcessDaemon(){/* Clean up */};
+    ~ProcessDaemon() {/* Clean up */};
     /** Disable copying */
     ProcessDaemon(const ProcessDaemon &) = delete;
     ProcessDaemon(ProcessDaemon &&) = delete;
@@ -86,7 +85,7 @@ class ProcessExecutor : public ProcessManager {
   };
   /** Constructor / Destructor */
   ProcessExecutor() {}
-  ~ProcessExecutor() {
+  virtual ~ProcessExecutor() override {
     std::cout << "Executor destroyed"
               << std::endl; /* Kill processes? Log for processes? */
   }

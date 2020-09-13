@@ -15,7 +15,6 @@ using namespace Executor;
 TEST(Task, PrepareTaskTest) {
   GenericTaskHandler generic_task_hander{};
   auto uuid = "38920jd93274098327489d032";
-  auto id = 5;
   auto mask = 64;
   auto expected_task = Task{
     .execution_mask = mask,

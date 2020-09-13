@@ -51,7 +51,7 @@ class GenericTaskHandler : public TaskHandler {
     if (has_files) {
       task_files = parseFileInfo(file_info);
       std::string media_filename = get_executable_cwd();
-      for (int i = 0; i < task_files.size(); i++) {
+      for (uint8_t i = 0; i < task_files.size(); i++) {
         task_files.at(i).first =
           media_filename + "/data/" + uuid + "/" + task_files.at(i).first;
       }

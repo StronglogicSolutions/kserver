@@ -3,6 +3,7 @@
 
 #include <string>
 #include "INIReader.h"
+#include <iostream>
 
 namespace ConfigParser {
 

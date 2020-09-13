@@ -3,6 +3,7 @@
 
 #include <variant>
 #include <database/database_connection.hpp>
+#include <iostream>
 #include <log/logger.h>
 #include <memory>
 
