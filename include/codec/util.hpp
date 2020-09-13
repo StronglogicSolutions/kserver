@@ -31,8 +31,6 @@
 
 #include <iostream>
 
-#define readFile readEnvFile
-
 using namespace rapidjson;
 using namespace uuids;
 using namespace neither;
@@ -528,6 +526,13 @@ std::string saveEnvFile(std::string env_file_string, std::string uuid) {
 }
 
 std::string readEnvFile(std::string env_file_path) {
+    std::ifstream file_stream{env_file_path};
+    std::stringstream env_file_stream{};
+    env_file_stream << file_stream.rdbuf();
+    return env_file_stream.str();
+}
+
+std::string readFile(std::string env_file_path) {
     std::ifstream file_stream{env_file_path};
     std::stringstream env_file_stream{};
     env_file_stream << file_stream.rdbuf();

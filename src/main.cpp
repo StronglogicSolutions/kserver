@@ -6,16 +6,20 @@
 using namespace KYO;
 
 int main(int argc, char** argv) {
-  // Initialize logger
-  LOG::KLogger::init();
-  // Instantiate server
-  KServer server(argc, argv);
-  // Set request handler
-  server.set_handler(std::move(Request::RequestHandler{}));
-  // Initialize task queue
-  server.init();
-  // Run service loop
-  server.run();
+  try {
+    // Initialize logger
+    LOG::KLogger::init();
+    // Instantiate server
+    KServer server(argc, argv);
+    // Set request handler
+    server.set_handler(std::move(Request::RequestHandler{}));
+    // Initialize task queue
+    server.init();
+    // Run service loop
+    server.run();
+  } catch (const std::exception& e) {
+    std::cout << "Exception was caught: " << e.what() << std::endl;
+  }
 
   return 0;
 }

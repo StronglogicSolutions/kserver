@@ -42,12 +42,17 @@ std::string readFd(int fd) {
 ProcessResult qx(std::vector<std::string> args,
                const std::string& working_directory = "") {
   std::vector<char*> process_arguments{};
+  KLOG("Process Executor called with {} arguments", args.size());
   process_arguments.reserve(args.size());
 
 
-  for (size_t i = 0; i < args.size(); ++i) {
-    process_arguments[i] = const_cast<char*>(args[i].c_str());
+  for (size_t i = 0; i < args.size(); i++) {
+    process_arguments.push_back(const_cast<char*>(args[i].c_str()));
   }
+
+  auto process_args_size = process_arguments.size();
+
+  KLOG("{} process args added", process_args_size);
 
   posix_spawn_file_actions_t action{};
   posix_spawn_file_actions_init   (&action);
@@ -59,13 +64,18 @@ ProcessResult qx(std::vector<std::string> args,
   uint8_t       retries{5};
   int           spawn_result{};
 
+  if (process_arguments.size() == 0) {
+    return result;
+  }
+
   while ((retries--) > 0) {
+    KLOG("Executing a child process: {}", process_arguments.at(0));
     spawn_result = posix_spawn(&pid,
-                                    process_arguments[0],
-                                   &action,
-                                    nullptr,
-                                    process_arguments.data(),
-                                    getEnvironment()
+                                process_arguments[0],
+                                &action,
+                                nullptr,
+                                process_arguments.data(),
+                                getEnvironment()
     );
     if (spawn_result == 0) {
       break;
