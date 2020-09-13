@@ -41,7 +41,6 @@ std::string readFd(int fd) {
 
 ProcessResult qx(std::vector<std::string> args,
                const std::string& working_directory = "") {
-  pid_t pid = 0;
   std::vector<char*> process_arguments{};
   process_arguments.reserve(args.size());
 
@@ -51,19 +50,28 @@ ProcessResult qx(std::vector<std::string> args,
   }
 
   posix_spawn_file_actions_t action{};
-  posix_spawn_file_actions_init(&action);
+  posix_spawn_file_actions_init   (&action);
   posix_spawn_file_actions_addopen(&action, STDOUT_FILENO, CHILD_STDOUT, O_RDWR, 0);
   posix_spawn_file_actions_addopen(&action, STDERR_FILENO, CHILD_STDERR, O_RDWR, 0);
 
   ProcessResult result{};                         // To gather result
+  pid_t         pid{};
+  uint8_t       retries{5};
+  int           spawn_result{};
 
-  int spawn_result = posix_spawn(&pid,
-                                  process_arguments[0],
-                                 &action,
-                                  nullptr,
-                                  process_arguments.data(),
-                                  getEnvironment()
-  );
+  while ((retries--) > 0) {
+    spawn_result = posix_spawn(&pid,
+                                    process_arguments[0],
+                                   &action,
+                                    nullptr,
+                                    process_arguments.data(),
+                                    getEnvironment()
+    );
+    if (spawn_result == 0) {
+      break;
+    }
+    usleep(3000000);
+  }
 
   if (spawn_result != 0) {
     result.error = true;
@@ -72,7 +80,7 @@ ProcessResult qx(std::vector<std::string> args,
   }
 
   pid_t ret;
-  int status;
+  int   status;
 
   for(;;) {
     ret = waitpid(pid, &status, (WNOHANG | WUNTRACED | WCONTINUED));
