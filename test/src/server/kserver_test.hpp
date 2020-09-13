@@ -59,7 +59,7 @@ TEST(KServerTest, InstantiateKServerTest) {
   EXPECT_NE(nullptr, &kserver);
 }
 
-TEST(KServerTest, StartAndStopSession) {
+TEST(KServerTest, DISABLED_StartAndStopSession) {
   bool started_session     = false;
   try {
     std::thread server_thread{runServer};

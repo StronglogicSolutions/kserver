@@ -84,7 +84,6 @@ ProcessResult qx(std::vector<std::string> args,
   for (;;) {
 
     int poll_result = poll(poll_fds, 2, 30000);
-    std::cout << "result was " << poll_result << std::endl;
     // stdout
     if (poll_fds[0].revents & POLLIN) {
       result.output = readFd(poll_fds[0].fd);
@@ -114,8 +113,6 @@ ProcessResult qx(std::vector<std::string> args,
 
   close(stdout_fds[0]);
   close(stderr_fds[0]);
-
-  std::cout << "Result output: " << result.output << std::endl;
 
   return result;
 }
