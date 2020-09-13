@@ -83,7 +83,7 @@ void TaskQueue::workerLoop() {
  * @method
  */
 void TaskQueue::deployWorkers() {
-  for (uint8_t i = 0; i < (num_threads - 1); i++) {
+  for (uint8_t i = 0; i < num_threads; i++) {
     m_thread_pool.push_back(std::thread([this]() { workerLoop(); }));
   }
 
