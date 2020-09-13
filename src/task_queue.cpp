@@ -99,7 +99,12 @@ void TaskQueue::deployWorkers() {
  * To be called after an instance of TaskQueue is created.
  * @method
  */
-void TaskQueue::initialize() { deployWorkers(); }
+void TaskQueue::initialize() {
+  if (num_threads < 2) {
+    num_threads = 2;
+  }
+  deployWorkers();
+}
 
 /**
  * detachThreads
