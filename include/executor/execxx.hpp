@@ -3,8 +3,8 @@
 
 #include <log/logger.h>
 #include <sys/wait.h>
+#include <sys/poll.h>
 #include <unistd.h>
-#include <spawn.h>
 
 #include <codec/util.hpp>
 #include <iostream>
@@ -41,87 +41,103 @@ std::string readFd(int fd) {
 
 ProcessResult qx(std::vector<std::string> args,
                const std::string& working_directory = "") {
-  std::vector<char*> process_arguments{};
-  KLOG("Process Executor called with {} arguments", args.size());
-  process_arguments.reserve(args.size());
+  int stdout_fds[2];
+  pipe(stdout_fds);
 
+  int stderr_fds[2];
+  pipe(stderr_fds);
 
-  for (size_t i = 0; i < args.size(); i++) {
-    process_arguments.push_back(const_cast<char*>(args[i].c_str()));
+  const pid_t pid = fork();
+  if (!pid) {
+    if (!working_directory.empty()) {
+      chdir(working_directory.c_str());
+    }
+    close(stdout_fds[0]);
+    dup2(stdout_fds[1], 1);
+    close(stdout_fds[1]);
+    close(stderr_fds[0]);
+    dup2(stderr_fds[1], 2);
+    close(stderr_fds[1]);
+
+    std::vector<char*> vc(args.size() + 1, 0);
+    for (size_t i = 0; i < args.size(); ++i) {
+      vc[i] = const_cast<char*>(args[i].c_str());
+    }
+
+    execvp(vc[0], &vc[0]);
+    exit(0);
   }
 
-  auto process_args_size = process_arguments.size();
+  close(stdout_fds[1]);
+  close(stderr_fds[1]);
 
-  KLOG("{} process args added", process_args_size);
+  ProcessResult result{};
 
-  posix_spawn_file_actions_t action{};
-  posix_spawn_file_actions_init   (&action);
-  posix_spawn_file_actions_addopen(&action, STDOUT_FILENO, CHILD_STDOUT, O_RDWR, 0);
-  posix_spawn_file_actions_addopen(&action, STDERR_FILENO, CHILD_STDERR, O_RDWR, 0);
+  std::clock_t start_time = std::clock();
+  int ret, status;
 
-  ProcessResult result{};                         // To gather result
-  pid_t         pid{};
-  uint8_t       retries{5};
-  int           spawn_result{};
-
-  if (process_arguments.size() == 0) {
-    return result;
-  }
-
-  while ((retries--) > 0) {
-    KLOG("Executing a child process: {}", process_arguments.at(0));
-    spawn_result = posix_spawn(&pid,
-                                process_arguments[0],
-                                &action,
-                                nullptr,
-                                process_arguments.data(),
-                                getEnvironment()
-    );
-    if (spawn_result == 0) {
+  for (;;) {
+    ret = waitpid(pid, &status, (WNOHANG | WUNTRACED | WCONTINUED));
+    KLOG("waitpid returned {}", ret);
+    if (ret == 0) {
       break;
     }
-    usleep(3000000);
-  }
+    if ((std::clock() - start_time) > 30) {
+      kill(pid, SIGKILL);
+      result.error = true;
+      result.output = "Child process timed out";
 
-  if (spawn_result != 0) {
-    result.error = true;
-    result.output = "Failed to spawn child process";
-    return result;
-  }
-
-  pid_t ret;
-  int   status;
-
-  for(;;) {
-    ret = waitpid(pid, &status, (WNOHANG | WUNTRACED | WCONTINUED));
-
-    if (ret != -1)
-    {
-        if (WIFEXITED(status) || WIFSIGNALED(status) || WIFSTOPPED(status))
-        {
-          break;
-        }
-    } else {
-      std::cout << "waitpid failed" << std::endl;
+      return result;
     }
   }
 
-  KLOG("Child process exited with code: {}", status);
+  pollfd poll_fds[2]{
+    pollfd{
+      .fd       =   stdout_fds[0] & 0xFF,
+      .events   =   POLL_OUT | POLL_ERR | POLL_IN,
+      .revents  =   short{0}
+    },
+    pollfd{
+      .fd       =   stderr_fds[0] & 0xFF,
+      .events   =   POLLHUP | POLLERR | POLLIN,
+      .revents  =   short{0}
+    }
+  };
 
+  for (;;) {
 
-  result.output = FileUtils::readFile(CHILD_STDERR);
-  if (result.output.empty()) {
-    result.output = FileUtils::readFile(CHILD_STDOUT);
-  } else {
-    result.error = true;
+    int poll_result = poll(poll_fds, 2, 30000);
+    std::cout << "result was " << poll_result << std::endl;
+    // stdout
+    if        (poll_fds[0].revents & POLLIN) {
+      result.output = readFd(poll_fds[0].fd);
+      if (!result.output.empty()) {
+        break;
+      }
+      result.error = true;
+      poll_fds[0].revents = 0;
+    } else if (poll_fds[0].revents & POLLHUP) {
+      close(stdout_fds[0]);
+      close(stderr_fds[0]);
+      printf("POLLHUP\n");
+      result.output = "Lost connection to forked process";
+      result.error = true;
+      break;
+    } else if (poll_fds[1].revents & POLL_IN) {
+      std::string stderr_output = readFd(poll_fds[0].fd);
+      result.output = stderr_output;
+      result.error = true;
+      break;
+    } else {
+      kill(pid, SIGKILL);
+      result.error = true;
+      result.output = "Child process timed out";
+    }
   }
 
-  if (result.output.empty()) {
-    result.output = "Child process did not return output";
-  }
-
-  FileUtils::clearFile(CHILD_STDOUT);
-  FileUtils::clearFile(CHILD_STDERR);
+  close(stdout_fds[0]);
+  close(stderr_fds[0]);
+  close(stderr_fds[1]);
 
   return result;
 }
