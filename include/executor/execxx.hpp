@@ -105,33 +105,37 @@ ProcessResult qx(std::vector<std::string> args,
   };
 
   for (;;) {
-
     int poll_result = poll(poll_fds, 2, 30000);
-    std::cout << "result was " << poll_result << std::endl;
-    // stdout
-    if        (poll_fds[0].revents & POLLIN) {
+
+    if        (poll_fds[1].revents & POLLIN) {
+
+      result.output = readFd(poll_fds[1].fd);;
+      result.error  = true;
+      break;
+
+    } else if (poll_fds[0].revents & POLLIN) {
+
       result.output = readFd(poll_fds[0].fd);
       if (!result.output.empty()) {
         break;
       }
       result.error = true;
-      poll_fds[0].revents = 0;
+
+
     } else if (poll_fds[0].revents & POLLHUP) {
+
       close(stdout_fds[0]);
       close(stderr_fds[0]);
-      printf("POLLHUP\n");
       result.output = "Lost connection to forked process";
       result.error = true;
       break;
-    } else if (poll_fds[1].revents & POLL_IN) {
-      std::string stderr_output = readFd(poll_fds[0].fd);
-      result.output = stderr_output;
-      result.error = true;
-      break;
+
     } else {
+
       kill(pid, SIGKILL);
       result.error = true;
       result.output = "Child process timed out";
+
     }
   }
 
