@@ -25,7 +25,7 @@ struct ProcessResult {
  * Child process output buffer
  * 32k
  */
-constexpr int buf_size = 32768;
+const uint32_t buf_size{32768};
 
 /**
  * readFd
@@ -37,7 +37,7 @@ constexpr int buf_size = 32768;
  *
  */
 std::string readFd(int fd) {
-  char buffer[32768];
+  char buffer[buf_size];
   std::string s{};
   do {
     const ssize_t r = read(fd, buffer, buf_size);
@@ -57,8 +57,8 @@ std::string readFd(int fd) {
  * @param   [in]
  * @returns [out]
  */
-ProcessResult qx(std::vector<std::string> args,
-               const std::string& working_directory = "") {
+ProcessResult qx(    std::vector<std::string> args,
+               const std::string&             working_directory = "") {
   int stdout_fds[2];
   int stderr_fds[2];
 
@@ -131,9 +131,9 @@ ProcessResult qx(std::vector<std::string> args,
     }
   };
 
-  uint8_t poll_retries = 5;
+  uint8_t poll_retries{0};
 
-  while (poll_retries--) {
+  while (++poll_retries) {
 
     int poll_result = poll(poll_fds, 2, 30000);
 
@@ -159,13 +159,14 @@ ProcessResult qx(std::vector<std::string> args,
       result.error  = true;
       result.output = "Lost connection to forked process";
 
-    } else {
+    } else if (poll_retries == 5) {
 
-      kill(pid, SIGKILL);
+      kill(pid, SIGKILL);  // Make sure the process is dead
       result.error  = true;
       result.output = "Child process timed out";
 
     }
+
     if (result.error) {
       break;
     }
