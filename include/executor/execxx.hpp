@@ -134,7 +134,7 @@ ProcessResult qx(    std::vector<std::string> args,
   uint8_t poll_retries{0};
 
   while (++poll_retries) {
-
+    // TODO: Do something with result or remove
     int poll_result = poll(poll_fds, 2, 30000);
 
     if        (poll_fds[1].revents & POLLIN) {
