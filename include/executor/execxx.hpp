@@ -131,9 +131,7 @@ ProcessResult qx(    std::vector<std::string> args,
     }
   };
 
-  uint8_t poll_retries{0};
-
-  while (++poll_retries) {
+  for (;;) {
     // TODO: Do something with result or remove
     int poll_result = poll(poll_fds, 2, 30000);
 
@@ -159,7 +157,7 @@ ProcessResult qx(    std::vector<std::string> args,
       result.error  = true;
       result.output = "Lost connection to forked process";
 
-    } else if (poll_retries == 5) {
+    } else {
 
       kill(pid, SIGKILL);  // Make sure the process is dead
       result.error  = true;
