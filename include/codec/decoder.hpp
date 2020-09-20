@@ -57,7 +57,7 @@ class FileHandler {
         KLOG("Deleting file buffer and packet buffer");
         delete[] file_buffer;
         delete[] packet_buffer;
-        file_buffer = nullptr;
+        file_buffer   = nullptr;
         packet_buffer = nullptr;
       }
     }
@@ -94,41 +94,44 @@ class FileHandler {
      */
 
     void processPacketBuffer(uint8_t* data, uint32_t size) {
-      uint32_t bytes_to_complete{}; // bytes to complete the current packet
-      uint32_t remaining_bytes{}; // bytes left remaining after using passed data to complete current packet
+      uint32_t bytes_to_finish{}; // bytes to complete the current packet
+      uint32_t remaining{}; // bytes left remaining after using passed data to complete current packet
       uint32_t bytes_to_copy{}; // number of bytes that will be copied into the packet buffer
-      uint32_t current_packet_size{}; // size of packet currently being completed
+      uint32_t packet_size{}; // size of packet currently being completed
 
       bool current_packet_received{}; // indicates if the current packet has been completely received
       bool is_last_packet = index == (total_packets); // if the current packet is the last packet of the file
       if (index == 0 && packet_buffer_offset == 0 && file_size > (MAX_PACKET_SIZE - HEADER_SIZE)) {
         // This is the first chunk of data for the first packet
-        bytes_to_complete = MAX_PACKET_SIZE - HEADER_SIZE;
-        current_packet_size = 4092;
+        bytes_to_finish = MAX_PACKET_SIZE - HEADER_SIZE;
+        packet_size = 4092;
       } else if (is_last_packet) {
         // We are currently iterating to complete the last packet
-        current_packet_size = file_size - file_buffer_offset;
-        bytes_to_complete = current_packet_size - packet_buffer_offset;
+        packet_size = file_size - file_buffer_offset;
+        bytes_to_finish = packet_size - packet_buffer_offset;
       } else {
         // All other chunks for all other packets
-        current_packet_size = MAX_PACKET_SIZE;
-        bytes_to_complete = MAX_PACKET_SIZE - packet_buffer_offset;
+        packet_size = MAX_PACKET_SIZE;
+        bytes_to_finish = MAX_PACKET_SIZE - packet_buffer_offset;
       }
-      remaining_bytes = size - bytes_to_complete; // The size passed minus the bytes to complete current packet
-      current_packet_received = (size >= bytes_to_complete); // Whether all data has been received to complete current packet
+      remaining = size - bytes_to_finish; // The size passed minus the bytes to complete current packet
+      current_packet_received = (size >= bytes_to_finish); // Whether all data has been received to complete current packet
 
-      bytes_to_copy = current_packet_received ? bytes_to_complete : size; // Number of bytes being copied into the packet buffer
+      bytes_to_copy = current_packet_received ? bytes_to_finish : size; // Number of bytes being copied into the packet buffer
       std::memcpy(packet_buffer + packet_buffer_offset, data, bytes_to_copy); // Copy into packet buffer
       packet_buffer_offset = packet_buffer_offset + bytes_to_copy; // Adjust the packet buffer offset, important if packet is incomplete
+      if (packet_buffer_offset > MAX_PACKET_SIZE) {
+        KLOG("Packet buffer overflow imminent");
+      }
 
       if (current_packet_received) { // All data was received for this packet
-        std::memcpy(file_buffer + file_buffer_offset, packet_buffer, current_packet_size); // Copy into file buffer
+        std::memcpy(file_buffer + file_buffer_offset, packet_buffer, packet_size); // Copy into file buffer
         clearPacketBuffer(); // clear packet buffer
         index++; // increment file buffer index
-        file_buffer_offset = file_buffer_offset + current_packet_size; // Adjust the file buffer offset for new index
-        if (remaining_bytes > 0) { // If there are still more bytes to copy, start new packet buffer for next packet
-          std::memcpy(packet_buffer, data + bytes_to_copy, remaining_bytes);
-          packet_buffer_offset = packet_buffer_offset + remaining_bytes; // Adjust packet buffer for the new index
+        file_buffer_offset = file_buffer_offset + packet_size; // Adjust the file buffer offset for new index
+        if (remaining > 0) { // If there are still more bytes to copy, start new packet buffer for next packet
+          std::memcpy(packet_buffer, data + bytes_to_copy, remaining);
+          packet_buffer_offset = packet_buffer_offset + remaining; // Adjust packet buffer for the new index
         }
         if (is_last_packet) { // If last packet is complete
           m_file_cb(std::move(file_buffer), file_size, filename); // Invoke callback to notify client
@@ -145,25 +148,33 @@ class FileHandler {
      */
     void processPacket(uint8_t* data, uint32_t size) {
       bool is_first_packet = (index == 0);
-      if (is_first_packet && packet_buffer_offset == 0 && file_buffer_offset == 0) {
-        KLOG("processing first packet");
-        // Compute file size from the first packet's 4 byte header
-        file_size =
-            int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
-            HEADER_SIZE;
-        // Compute total number of packets expected to decode this file
-        total_packets = static_cast<uint32_t>(ceil(
-            static_cast<double>(file_size / MAX_PACKET_SIZE)));
-        // Reserve memory for file buffer
-        file_buffer = new uint8_t[file_size];
-        // Reserve memory for packet buffer
-        if (packet_buffer == nullptr) {
-          packet_buffer = new uint8_t[MAX_PACKET_SIZE];
+      uint32_t process_index{0};
+      while (size > 0) {
+
+        uint32_t size_to_read = size <= MAX_PACKET_SIZE ? size : MAX_PACKET_SIZE;
+
+        if (is_first_packet && packet_buffer_offset == 0 && file_buffer_offset == 0) {
+          KLOG("processing first packet");
+          // Compute file size from the first packet's 4 byte header
+          file_size =
+              int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
+              HEADER_SIZE;
+          // Compute total number of packets expected to decode this file
+          total_packets = static_cast<uint32_t>(ceil(
+              static_cast<double>(file_size / MAX_PACKET_SIZE)));
+          // Reserve memory for file buffer
+          file_buffer = new uint8_t[file_size];
+          // Reserve memory for packet buffer
+          if (packet_buffer == nullptr) {
+            packet_buffer = new uint8_t[MAX_PACKET_SIZE];
+          }
+          file_buffer_offset = 0; // begin file buffer offset at 0
+          processPacketBuffer(data + HEADER_SIZE, size_to_read - HEADER_SIZE); // process
+        } else {
+          processPacketBuffer((data + process_index), size_to_read); // process other chunks
         }
-        file_buffer_offset = 0; // begin file buffer offset at 0
-        processPacketBuffer(data + HEADER_SIZE, size - HEADER_SIZE); // process
-      } else {
-        processPacketBuffer(data, size); // process other chunks
+        size          -= size_to_read;
+        process_index += size_to_read;
       }
     }
 
