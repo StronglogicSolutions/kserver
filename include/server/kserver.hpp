@@ -13,6 +13,7 @@
 #include <interface/socket_listener.hpp>
 #include <iomanip>
 #include <request/request_handler.hpp>
+#include <process/manager/manager.hpp>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -31,8 +32,12 @@ class KServer : public SocketListener {
    * Constructor
    */
   KServer(int argc, char **argv)
-      : SocketListener(argc, argv), file_pending(false), file_pending_fd(-1) {
-    KLOG("Initialized");
+  : SocketListener(argc, argv),
+    file_pending(false),
+    file_pending_fd(-1),
+    m_ipc_manager(IPCManager{}) {
+    KLOG("Starting IPC manager");
+    m_ipc_manager.start();
   }
   ~KServer() {
     KLOG("Server shutting down");
@@ -387,7 +392,14 @@ class KServer : public SocketListener {
       KLOG("File upload operation");
       handleFileUploadRequest(client_socket_fd);
       return;
+    } else if (isIPCOperation(op.c_str())) { // IPC request
+      KLOG("Testing IPC");
+      handleIPC(decoded_message);
     }
+  }
+
+  void handleIPC(std::string message) {
+    m_ipc_manager.process(message);
   }
 
   /**
@@ -399,7 +411,7 @@ class KServer : public SocketListener {
     if (size > 0 && size != 4294967295) {
       // Get ptr to data
       std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
-      if (file_pending) {  // Handle packets for incoming file
+      if (file_pending && size != 5) {  // Handle packets for incoming file
         handlePendingFile(s_buffer_ptr, client_socket_fd, size);
         return;
       }
@@ -431,6 +443,8 @@ class KServer : public SocketListener {
                 KLOG("Testing task execution");
                 m_request_handler(client_socket_fd, "Test",
                                   Request::DevTest::ExecuteTask);
+              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "ipc") == 0) {
+
               }
               sendEvent(client_socket_fd, "Message Received",
                         {"Message received by KServer",
@@ -517,6 +531,7 @@ class KServer : public SocketListener {
   }
 
   Request::RequestHandler     m_request_handler;
+  IPCManager                  m_ipc_manager;
   std::vector<int>            m_client_connections;
   std::vector<FileHandler>    m_file_handlers;
   std::vector<KSession>       m_sessions;
