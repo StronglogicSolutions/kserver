@@ -41,8 +41,9 @@ bool SendIPCMessage(uint8_t* data, uint32_t size) {
 
 void ProcessMessage() {
   if (!m_rx_msg.empty()) {
-    SendMessage("Get Results");
+    KLOG("Processing {}", m_rx_msg);
   }
+  SendMessage("Get Results");
 }
 
 bool ReceiveMessage() {
@@ -55,8 +56,11 @@ bool ReceiveMessage() {
       static_cast<char*>(message.data()),
       static_cast<char*>(message.data()) + message.size()
     };
+    KLOG("Received IPC message: {}", m_rx_msg);
     return true;
   }
+
+  ELOG("Failed to receive IPC message");
   return false;
 }
 
