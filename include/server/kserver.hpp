@@ -432,7 +432,6 @@ class KServer : public SocketListener {
               KLOG("Received operation");
               handleOperation(decoded_message, client_socket_fd);
             } else if (isMessage(decoded_message.c_str())) {
-              // isOperation
               if (strcmp(getMessage(decoded_message.c_str()).c_str(),
                          "scheduler") == 0) {
                 KLOG("Testing scheduler");

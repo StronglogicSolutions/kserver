@@ -20,6 +20,8 @@
 #include <vector>
 #include <ctime>
 
+#include <executor/kapplication.hpp>
+
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
 #include "rapidjson/filereadstream.h"
@@ -44,13 +46,13 @@ static const int SESSION_INACTIVE = 2;
 static const std::string_view APP_NAME = "kserver";
 static constexpr int APP_NAME_LENGTH = 7;
 
-typedef std::string KOperation;
-typedef std::map<int, std::string> CommandMap;
+typedef std::string                                      KOperation;
+typedef std::map<int, std::string>                       CommandMap;
 typedef std::vector<std::pair<std::string, std::string>> TupVec;
-typedef std::vector<std::map<int, std::string>> MapVec;
+typedef std::vector<std::map<int, std::string>>          MapVec;
 typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
-typedef std::map<int, std::string> ServerData;
-typedef std::pair<std::string, std::string> FileInfo;
+typedef std::vector<KApplication>                        ServerData;
+typedef std::pair<std::string, std::string>              FileInfo;
 
 struct KSession {
   int fd;
@@ -311,6 +313,29 @@ std::string createMessage(const char *data,
   return s.GetString();
 }
 
+std::string createMessage(const char *data, std::vector<KApplication> commands) {
+  StringBuffer s;
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("custom");
+  w.Key("message");
+  w.String(data);
+  w.Key("args");
+  w.StartArray();
+  if (!commands.empty()) {
+    for (const auto& command : commands) {
+      w.String(command.mask.c_str());
+      w.String(command.name.c_str());
+      w.String(command.path.c_str());
+      w.String(command.data.c_str());
+    }
+  }
+  w.EndArray();
+  w.EndObject();
+  return s.GetString();
+}
+
 std::string createMessage(const char *data,
                           std::map<int, std::vector<std::string>> map = {}) {
   StringBuffer s;
@@ -342,7 +367,6 @@ std::string createMessage(const char *data,
 /**
  * Operations
  */
-
 bool isMessage(const char *data) {
   if (*data != '\0') {
     Document d;

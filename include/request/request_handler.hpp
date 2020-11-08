@@ -470,30 +470,40 @@ class RequestHandler {
    * @param[in] {KOperation} `op` The operation requested
    *
    */
-  std::map<int, std::string> operator()(KOperation op) {
-    auto kdb = Database::KDB{};
-    QueryValues result =
-      kdb.select(
-        "apps",                             // Table
-        {"name", "path", "data", "mask"},   // Fields
-        QueryFilter{}
-      );
-    std::map<int, std::string> command_map{};
-    std::vector<std::string> names{};
-    std::vector<int> masks{};
-    for (const auto& row : result) {
-      if (row.first == "name") {
-        names.push_back(row.second);
-      } else if (row.first == "mask") {
-        masks.push_back(stoi(row.second));
+  std::vector<KApplication> operator()(KOperation op) {
+    std::vector<KApplication> commands{};
+
+    if (op.compare("Start") == 0) {
+      Database::KDB kdb{};
+      QueryValues result =
+        kdb.select(
+          "apps",                             // Table
+          {"name", "path", "data", "mask"},   // Fields
+          QueryFilter{}
+        );
+
+      uint8_t arg_idx{};
+      KApplication command{};
+
+      for (const auto& row : result) {
+        if (row.first == "name") {
+          command.name = row.second;
+        } else if (row.first == "mask") {
+          command.mask = row.second;
+        } else if (row.first == "path") {
+          command.path = row.second;
+        } else if (row.first == "data") {
+          command.data = row.second;
+        }
+        if (arg_idx == 3) {
+          arg_idx = 0;
+          commands.push_back(command);
+        } else {
+          arg_idx++;
+        }
       }
     }
-    if (masks.size() == names.size()) {
-      for (uint8_t i = 0; i < masks.size(); i++) {
-        command_map.emplace(masks.at(i), names.at(i));
-      }
-    }
-    return command_map;
+    return commands;
   }
   /**
    * \b EXECUTE \b PROCESS
