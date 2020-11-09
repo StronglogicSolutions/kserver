@@ -20,3 +20,4 @@ lib
 **/.git
 **/kserver_test
 .vscode
+**/googletest
