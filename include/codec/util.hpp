@@ -217,8 +217,20 @@ bool isSessionMessageEvent(std::string event) {
 bool isCloseEvent(std::string event) {
   return event.compare("Close Session") == 0;
 }
-template <typename T>
-std::vector<std::string> getArgs(T data) {
+
+std::vector<std::string> getArgs(std::string data) {
+  Document d;
+  d.Parse(data.c_str());
+  std::vector<std::string> args{};
+  if (d.HasMember("args")) {
+    for (const auto &v : d["args"].GetArray()) {
+      args.push_back(v.GetString());
+    }
+  }
+  return args;
+}
+
+std::vector<std::string> getArgs(const char* data) {
   Document d;
   d.Parse(data);
   std::vector<std::string> args{};
