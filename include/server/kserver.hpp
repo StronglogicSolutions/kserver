@@ -13,7 +13,7 @@
 #include <interface/socket_listener.hpp>
 #include <iomanip>
 #include <request/request_handler.hpp>
-#include <process/manager/manager.hpp>
+#include <system/process/ipc/manager/manager.hpp>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -33,12 +33,13 @@ class KServer : public SocketListener {
    */
   KServer(int argc, char **argv)
   : SocketListener(argc, argv),
+    m_ipc_manager(IPCManager{}),
     file_pending(false),
-    file_pending_fd(-1),
-    m_ipc_manager(IPCManager{}) {
-    KLOG("Starting IPC manager");
-    m_ipc_manager.start();
-  }
+    file_pending_fd(-1) {
+      KLOG("Starting IPC manager");
+      m_ipc_manager.start();
+    }
+
   ~KServer() {
     KLOG("Server shutting down");
     m_file_handlers.clear();
@@ -376,30 +377,37 @@ class KServer : public SocketListener {
    */
   void handleOperation(std::string decoded_message, int client_socket_fd) {
     KOperation op = getOperation(decoded_message.c_str());
-    if (isStartOperation(op.c_str())) {  // Start
+    if (isStartOperation(op.c_str())) {               // Start
       KLOG("Start operation");
       handleStart(decoded_message, client_socket_fd);
       return;
-    } else if (isStopOperation(op.c_str())) {  // Stop
+    } else if (isStopOperation(op.c_str())) {         // Stop
       KLOG("Stop operation. Shutting down client and closing connection");
       handleStop(client_socket_fd);
       return;
-    } else if (isExecuteOperation(op.c_str())) {  // Process execution request
+    } else if (isExecuteOperation(op.c_str())) {      // Process execution request
       KLOG("Execute operation");
       handleExecute(decoded_message, client_socket_fd);
       return;
-    } else if (isFileUploadOperation(op.c_str())) {  // File upload request
+    } else if (isFileUploadOperation(op.c_str())) {   // File upload request
       KLOG("File upload operation");
       handleFileUploadRequest(client_socket_fd);
       return;
-    } else if (isIPCOperation(op.c_str())) { // IPC request
+    } else if (isIPCOperation(op.c_str())) {          // IPC request
       KLOG("Testing IPC");
       handleIPC(decoded_message);
+    } else if (isRegisterOperation(op.c_str())) {     // Register app
+      handleRegister(client_socket_fd, decoded_message);
     }
   }
 
   void handleIPC(std::string message) {
     m_ipc_manager.process(message);
+  }
+
+
+  void handleRegister(int client_fd, std::string message) {
+    m_request_handler.process(client_fd, message, RequestType::REGISTER_APPLICATION);
   }
 
   /**

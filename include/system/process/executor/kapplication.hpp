@@ -8,12 +8,10 @@ struct KApplication {
   std::string name;
   std::string path;
   std::string data;
-  std::string mask;
 
   friend std::ostream &operator<<(std::ostream &out, const KApplication &app) {
-    out << "Name: "   << app.name << "\nPath: " << app.path
-        << "\nData: " << app.data << "\nMask: " << app.mask
-        << std::endl;
+    out << "Name: " << app.name << "\nPath: " << app.path
+        << "\nData: " << app.data << std::endl;
     return out;
   }
 };

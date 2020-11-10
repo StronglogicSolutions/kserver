@@ -11,16 +11,14 @@
 #include <condition_variable>
 #include <config/config_parser.hpp>
 #include <database/kdb.hpp>
-#include <executor/executor.hpp>
-#include <executor/scheduler.hpp>
-#include <executor/task_handlers/instagram.hpp>
-#include <executor/task_handlers/task.hpp>
+#include <system/process/executor/executor.hpp>
+#include <system/process/scheduler.hpp>
+#include <system/process/registrar.hpp>
+#include <system/process/executor/task_handlers/instagram.hpp>
+#include <system/process/executor/task_handlers/generic.hpp>
 #include <iostream>
 #include <map>
 #include <mutex>
-#include <executor/task_handlers/task.hpp>
-#include <executor/task_handlers/instagram.hpp>
-#include <executor/task_handlers/generic.hpp>
 #include <server/types.hpp>
 #include <string>
 #include <system/cron.hpp>
@@ -28,8 +26,10 @@
 #include <utility>
 #include <vector>
 
+#include "types.hpp"
+
 #define OPERATION_SUCCESS "Operation succeeded"
-#define OPERATION_FAIL "Operation failed"
+#define OPERATION_FAIL    "Operation failed"
 
 namespace Request {
 
@@ -541,6 +541,20 @@ class RequestHandler {
     }
   }
 
+
+  /**
+   * process
+   */
+
+  void process(int client_fd, std::string message, RequestType type) {
+    if (type == RequestType::REGISTER_APPLICATION) {
+      (void)(message); // TODO: Process message into application arguments
+      if (m_registrar.find(KApplication{.name = "CWD Test"})) {
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS, {"Hi"});
+      }
+    }
+  }
+
  private:
   /**
    * onProcessComplete
@@ -635,6 +649,7 @@ class RequestHandler {
       }
     }
   }
+
   /**
    * onScheduledTaskComplete
    *
@@ -678,6 +693,7 @@ class RequestHandler {
   std::atomic<bool>                 handling_data;
   bool                              m_active;
   // Workers
+  Registrar                         m_registrar;
   Executor::ProcessExecutor*        m_executor;
   Scheduler::Scheduler*             m_scheduler;
   std::thread                       m_maintenance_worker;

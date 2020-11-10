@@ -2,8 +2,8 @@
 #define __GENERIC_HPP__
 
 #include <codec/util.hpp>
-#include <executor/task_handlers/task.hpp>
-#include <executor/scheduler.hpp>
+#include "task.hpp"
+#include <system/process/scheduler.hpp>
 #include <iostream>
 #include <vector>
 

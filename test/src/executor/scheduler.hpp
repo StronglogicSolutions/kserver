@@ -1,8 +1,8 @@
 #ifndef __SCHEDULER_TEST_HPP__
 #define __SCHEDULER_TEST_HPP__
 
-#include <executor/scheduler.hpp>
-#include <executor/task_handlers/generic.hpp>
+#include <system/process/scheduler.hpp>
+#include <system/process/executor/task_handlers/generic.hpp>
 #include <gtest/gtest.h>
 
 using namespace Executor;

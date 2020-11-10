@@ -4,11 +4,8 @@
 #include <string>
 #include <cstring>
 
-// #define MAX_BUFFER_SIZE (49152)
-// #define SMALL_BUFFER_SIZE (8192)
-
-static constexpr int MAX_PACKET_SIZE = 4096;
-static constexpr int HEADER_SIZE = 4;
+static const int MAX_PACKET_SIZE = 4096;
+static const int HEADER_SIZE = 4;
 
 template <typename MessageProcessor>
 void MessageHandler(MessageProcessor processor, int client_socket_fd,
@@ -19,12 +16,14 @@ void MessageHandler(MessageProcessor processor, int client_socket_fd,
 /**
  * SYSTEM EVENTS
  */
-static constexpr int SYSTEM_EVENTS__FILE_UPDATE = 1;
-static constexpr int SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 2;
-static constexpr int SYSTEM_EVENTS__SCHEDULED_TASKS_READY = 3;
-static constexpr int SYSTEM_EVENTS__SCHEDULED_TASKS_NONE = 4;
-static constexpr int SYSTEM_EVENTS__SCHEDULER_SUCCESS = 5;
-static constexpr int SYSTEM_EVENTS__SCHEDULER_FAIL = 6;
+static const int SYSTEM_EVENTS__FILE_UPDATE                 = 1;
+static const int SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 2;
+static const int SYSTEM_EVENTS__SCHEDULED_TASKS_READY       = 3;
+static const int SYSTEM_EVENTS__SCHEDULED_TASKS_NONE        = 4;
+static const int SYSTEM_EVENTS__SCHEDULER_SUCCESS           = 5;
+static const int SYSTEM_EVENTS__SCHEDULER_FAIL              = 6;
+static const int SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 7;
+static const int SYSTEM_EVENTS__REGISTRAR_FAIL              = 8;
 
 /**
  * FILE HANDLING STATES

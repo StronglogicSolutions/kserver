@@ -1,7 +1,7 @@
 #ifndef __CLIENT_HPP__
 #define __CLIENT_HPP__
 
-#include "process/ipc/ipc.hpp"
+#include <system/process/ipc/ipc.hpp>
 #include <zmq.hpp>
 #include <memory>
 

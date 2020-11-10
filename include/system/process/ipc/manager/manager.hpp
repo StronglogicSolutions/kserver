@@ -3,7 +3,7 @@
 
 #include <thread>
 #include <log/logger.h>
-#include "process/client/client.hpp"
+#include <system/process/ipc/client/client.hpp>
 
 class Worker {
  public:
