@@ -43,6 +43,14 @@ using namespace Executor;
 
 flatbuffers::FlatBufferBuilder builder(1024);
 
+KApplication parseApplication(std::string message) {
+  KApplication application{};
+
+
+
+  return application;
+}
+
 /**
  * RequestHandler
  *
@@ -546,14 +554,36 @@ class RequestHandler {
    * process
    */
 
-  void process(int client_fd, std::string message, RequestType type) {
+  void process(int client_fd, std::string message) {
+    std::vector<std::string> args = getArgs(message);
+    RequestType type = int_to_request_type(std::stoi(args.at(constants::REQUEST_TYPE_INDEX)));
+
+    if (type == RequestType::GET_APPLICATION) {
+      (m_registrar.find(args_to_application(args))) ?
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS, {"Application was found"}) :
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL, {"Application was found"});
+    }
+    else
     if (type == RequestType::REGISTER_APPLICATION) {
-      (void)(message); // TODO: Process message into application arguments
-      if (m_registrar.find(KApplication{.name = "CWD Test"})) {
-        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS, {"Hi"});
-      }
+      auto id = m_registrar.add(args_to_application(args));
+      (id.empty()) ?
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS, {"Application was registered", id}) :
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL, {"Failed to register application"});
+    }
+    else
+    if (type == RequestType::REMOVE_APPLICATION) {
+
+    }
+    else
+    if (type == RequestType::UPDATE_APPLICATION) {
+
+    }
+    else
+    if (type == RequestType::UNKNOWN) {
+      // TODO: handle
     }
   }
+
 
  private:
   /**

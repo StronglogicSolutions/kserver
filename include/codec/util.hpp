@@ -20,7 +20,7 @@
 #include <vector>
 #include <ctime>
 
-#include <executor/kapplication.hpp>
+#include <system/process/executor/kapplication.hpp>
 
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
@@ -217,8 +217,8 @@ bool isSessionMessageEvent(std::string event) {
 bool isCloseEvent(std::string event) {
   return event.compare("Close Session") == 0;
 }
-
-std::vector<std::string> getArgs(const char *data) {
+template <typename T>
+std::vector<std::string> getArgs(T data) {
   Document d;
   d.Parse(data);
   std::vector<std::string> args{};

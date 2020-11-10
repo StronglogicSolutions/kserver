@@ -153,6 +153,16 @@ class KServer : public SocketListener {
           sendEvent(client_socket_fd, "Process Execution Requested", args);
         break;
       }
+      case SYSTEM_EVENTS__REGISTRAR_SUCCESS: {
+        IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+          sendEvent(client_socket_fd, "Application registered successfully", args);
+        break;
+      }
+      case SYSTEM_EVENTS__REGISTRAR_FAIL: {
+        IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+          sendEvent(client_socket_fd, "Failed to register application", args);
+        break;
+      }
     }
   }
 
@@ -407,7 +417,7 @@ class KServer : public SocketListener {
 
 
   void handleRegister(int client_fd, std::string message) {
-    m_request_handler.process(client_fd, message, RequestType::REGISTER_APPLICATION);
+    m_request_handler.process(client_fd, message);
   }
 
   /**
