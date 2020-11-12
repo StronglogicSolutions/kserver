@@ -11,6 +11,7 @@ table GenericTask {
   user: string;
   recurring: int;
   notify: bool;
+  runtime: string;
 }
 
 root_type GenericTask;

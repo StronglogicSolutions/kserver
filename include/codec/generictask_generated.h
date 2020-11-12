@@ -23,7 +23,8 @@ struct GenericTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_HEADER = 16,
     VT_USER = 18,
     VT_RECURRING = 20,
-    VT_NOTIFY = 22
+    VT_NOTIFY = 22,
+    VT_RUNTIME = 24
   };
   int32_t id() const {
     return GetField<int32_t>(VT_ID, 0);
@@ -55,6 +56,9 @@ struct GenericTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool notify() const {
     return GetField<uint8_t>(VT_NOTIFY, 0) != 0;
   }
+  const flatbuffers::String *runtime() const {
+    return GetPointer<const flatbuffers::String *>(VT_RUNTIME);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int32_t>(verifier, VT_ID) &&
@@ -72,6 +76,8 @@ struct GenericTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyString(user()) &&
            VerifyField<int32_t>(verifier, VT_RECURRING) &&
            VerifyField<uint8_t>(verifier, VT_NOTIFY) &&
+           VerifyOffset(verifier, VT_RUNTIME) &&
+           verifier.VerifyString(runtime()) &&
            verifier.EndTable();
   }
 };
@@ -110,6 +116,9 @@ struct GenericTaskBuilder {
   void add_notify(bool notify) {
     fbb_.AddElement<uint8_t>(GenericTask::VT_NOTIFY, static_cast<uint8_t>(notify), 0);
   }
+  void add_runtime(flatbuffers::Offset<flatbuffers::String> runtime) {
+    fbb_.AddOffset(GenericTask::VT_RUNTIME, runtime);
+  }
   explicit GenericTaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -133,8 +142,10 @@ inline flatbuffers::Offset<GenericTask> CreateGenericTask(
     flatbuffers::Offset<flatbuffers::String> header = 0,
     flatbuffers::Offset<flatbuffers::String> user = 0,
     int32_t recurring = 0,
-    bool notify = false) {
+    bool notify = false,
+    flatbuffers::Offset<flatbuffers::String> runtime = 0) {
   GenericTaskBuilder builder_(_fbb);
+  builder_.add_runtime(runtime);
   builder_.add_recurring(recurring);
   builder_.add_user(user);
   builder_.add_header(header);
@@ -159,12 +170,14 @@ inline flatbuffers::Offset<GenericTask> CreateGenericTaskDirect(
     const char *header = nullptr,
     const char *user = nullptr,
     int32_t recurring = 0,
-    bool notify = false) {
+    bool notify = false,
+    const char *runtime = nullptr) {
   auto file_info__ = file_info ? _fbb.CreateString(file_info) : 0;
   auto time__ = time ? _fbb.CreateString(time) : 0;
   auto description__ = description ? _fbb.CreateString(description) : 0;
   auto header__ = header ? _fbb.CreateString(header) : 0;
   auto user__ = user ? _fbb.CreateString(user) : 0;
+  auto runtime__ = runtime ? _fbb.CreateString(runtime) : 0;
   return GenericData::CreateGenericTask(
       _fbb,
       id,
@@ -176,7 +189,8 @@ inline flatbuffers::Offset<GenericTask> CreateGenericTaskDirect(
       header__,
       user__,
       recurring,
-      notify);
+      notify,
+      runtime__);
 }
 
 inline const GenericData::GenericTask *GetGenericTask(const void *buf) {

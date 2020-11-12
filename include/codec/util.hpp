@@ -417,7 +417,7 @@ bool isStartOperation(const char *data) { return strcmp(data, "start") == 0; }
 
 bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
 
-bool isRegisterOperation(const char* data) { return strcmp(data, "RegisterApp") == 0; }
+bool isAppOperation(const char* data) { return strcmp(data, "AppRequest") == 0; }
 
 /**
  * General
