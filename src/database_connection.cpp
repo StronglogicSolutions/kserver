@@ -170,7 +170,24 @@ std::string getJoinStatement(Join join) {
   };
 }
 
+template <typename T>
+std::string deleteStatement(T query) {
+  std::string delim{""};
+  std::string filter_string{"WHERE "};
+  if constexpr (std::is_same_v<T, DatabaseQuery>) {
+    if (query.filter.empty()) {
+      return "";
+    }
 
+    DatabaseQuery query_struct = static_cast<DatabaseQuery>(query);
+    filter_string += query_struct.filter.at(0).first + "='" + query_struct.filter.at(0).second + "'";
+
+    return std::string{
+      "DELETE FROM " + query.table + " " + filter_string +
+     " RETURNING " + query_struct.filter.at(0).first
+    };
+  }
+}
 
 /**
  * \note Most of this can be removed and replaced with newer implementation as
@@ -317,6 +334,16 @@ pqxx::result DatabaseConnection::performSelect(T query) {
   return pqxx_result;
 }
 
+template <typename T>
+pqxx::result DatabaseConnection::performDelete(T query) {
+  pqxx::connection connection(getConnectionString().c_str());
+  pqxx::work worker(connection);
+  pqxx::result pqxx_result = worker.exec(deleteStatement(query));
+  worker.commit();
+
+  return pqxx_result;
+}
+
 std::string DatabaseConnection::getConnectionString() {
   std::string connectionString{};
   connectionString += "dbname = ";
@@ -354,14 +381,24 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
         int index = 0;
         for (const auto &value : row) {
           result.values.push_back(
-              std::make_pair(query.fields[index++], value.c_str()));
+            std::make_pair(query.fields[index++], value.c_str()));
         }
       }
       return result;
     }
 
     case QueryType::DELETE: {
-      return QueryResult{};
+      pqxx::result pqxx_result = performDelete(query);
+      QueryResult result{.table = query.table};
+      result.values.reserve(pqxx_result.size());
+      for (const auto &row : pqxx_result) {
+        int index = 0;
+        for (const auto &value : row) {
+          result.values.push_back(
+            std::make_pair(query.filter.front().first, value.c_str()));
+        }
+      }
+      return result;
     }
 
     case QueryType::UPDATE: {
@@ -380,7 +417,7 @@ QueryResult DatabaseConnection::query(T query) {
     int index = 0;
     for (const auto &value : row) {
       result.values.push_back(
-          std::make_pair(query.fields[index++], value.c_str()));
+        std::make_pair(query.fields[index++], value.c_str()));
     }
   }
   return result;
@@ -409,7 +446,8 @@ std::string DatabaseConnection::query(InsertReturnQuery query) {
   if (!pqxx_result.empty()) {
     auto row = pqxx_result.at(0);
     if (!row.empty()) {
-      return row.at(0).as<std::string>();
+      auto return_value = row.at(0).as<std::string>();
+      return return_value;
     }
   }
   return "";
