@@ -555,24 +555,53 @@ class RequestHandler {
    */
 
   void process(int client_fd, std::string message) {
+    using namespace constants;
+
     std::vector<std::string> args = getArgs(message);
     RequestType type = int_to_request_type(std::stoi(args.at(constants::REQUEST_TYPE_INDEX)));
 
     if (type == RequestType::GET_APPLICATION) {
       (m_registrar.find(args_to_application(args))) ?
-        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS, {"Application was found"}) :
-        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL, {"Application was found"});
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+          {"Application was found", args.at(REGISTER_NAME_INDEX)}
+        ) :
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_FAIL,
+          {"Application was not found", args.at(REGISTER_NAME_INDEX)}
+        );
     }
     else
     if (type == RequestType::REGISTER_APPLICATION) {
       auto id = m_registrar.add(args_to_application(args));
-      (id.empty()) ?
-        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS, {"Application was registered", id}) :
-        m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL, {"Failed to register application"});
+      (!id.empty()) ?
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+          {"Application was registered", args.at(REGISTER_NAME_INDEX), id}
+        ) :
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_FAIL,
+          {"Failed to register application", args.at(REGISTER_NAME_INDEX)}
+        );
     }
     else
     if (type == RequestType::REMOVE_APPLICATION) {
-
+      auto name = m_registrar.remove(args_to_application(args));
+      (!name.empty()) ?
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+          {"Application was deleted", name}
+        ) :
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_FAIL,
+          {"Failed to delete application", args.at(REGISTER_NAME_INDEX)}
+        );
     }
     else
     if (type == RequestType::UPDATE_APPLICATION) {

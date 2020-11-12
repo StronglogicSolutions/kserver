@@ -155,12 +155,12 @@ class KServer : public SocketListener {
       }
       case SYSTEM_EVENTS__REGISTRAR_SUCCESS: {
         IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-          sendEvent(client_socket_fd, "Application registered successfully", args);
+          sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
         break;
       }
       case SYSTEM_EVENTS__REGISTRAR_FAIL: {
         IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-          sendEvent(client_socket_fd, "Failed to register application", args);
+          sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
         break;
       }
     }
@@ -406,8 +406,8 @@ class KServer : public SocketListener {
     } else if (isIPCOperation(op.c_str())) {          // IPC request
       KLOG("Testing IPC");
       handleIPC(decoded_message);
-    } else if (isRegisterOperation(op.c_str())) {     // Register app
-      handleRegister(client_socket_fd, decoded_message);
+    } else if (isAppOperation(op.c_str())) {     // Register app
+      handleAppRequest(client_socket_fd, decoded_message);
     }
   }
 
@@ -416,7 +416,7 @@ class KServer : public SocketListener {
   }
 
 
-  void handleRegister(int client_fd, std::string message) {
+  void handleAppRequest(int client_fd, std::string message) {
     m_request_handler.process(client_fd, message);
   }
 

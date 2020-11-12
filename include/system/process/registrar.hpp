@@ -30,17 +30,20 @@ Registrar()
 : m_kdb(Database::KDB{}) {}
 
 std::string add(KApplication application) {
+  std::string id{};
+
   if (application.name.empty()) {
     // TODO: error or warning ?
     return "";
   }
 
-  if (find(application)) {
+  try {
+    if (find(application)) {
     // TODO: error or warning ?
     return "";
   }
 
-  auto id = m_kdb.insert(
+  id = m_kdb.insert(
     "apps",
     {
       "name",
@@ -49,18 +52,30 @@ std::string add(KApplication application) {
       "mask"
     },
     {
-      "application.name",
-      "application.data",
-      "application.path",
-      "application.mask"
+      application.name,
+      application.data,
+      application.path,
+      application.mask
     },
     "id"
   );
 
-  return id;
+  } catch (const std::exception& e) {
+    std::cout << "Caught exception: " << e.what() << std::endl;
+  }
+
+ return id;
 }
 
-void remove() {}
+std::string remove(KApplication application) {
+  return m_kdb.remove(
+    "apps",
+    QueryFilter{
+      {"name", application.name},
+      {"path", application.path}
+    }
+  );
+}
 
 void update() {}
 
@@ -78,7 +93,10 @@ bool find(KApplication application) {
     }
   );
 
-  if (result.empty()) {
+  for (const auto& item : result) {
+    std::cout << item.first << " : " << item.second << std::endl;
+  }
+  if (result.size() < 2) {
     return false;
   }
 
