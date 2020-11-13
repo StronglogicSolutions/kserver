@@ -271,7 +271,7 @@ class RequestHandler {
       if (jobs.empty()) {
         KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(30));
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
   }
 
@@ -537,8 +537,6 @@ class RequestHandler {
     );
 
     for (const auto &row : result) {
-      m_executor->request(row.second, mask, client_socket_fd, request_id, {},
-                          Executor::ExecutionRequestType::IMMEDIATE);
       std::string info_string{
           "PROCESS RUNNER - Process execution requested for "
           "applications matching the mask "};
@@ -546,6 +544,9 @@ class RequestHandler {
       m_system_callback_fn(client_socket_fd,
                            SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
                            {info_string, request_id});
+
+      m_executor->request(row.second, mask, client_socket_fd, request_id, {},
+                          Executor::ExecutionRequestType::IMMEDIATE);
     }
   }
 
@@ -561,46 +562,52 @@ class RequestHandler {
     RequestType type = int_to_request_type(std::stoi(args.at(constants::REQUEST_TYPE_INDEX)));
 
     if (type == RequestType::GET_APPLICATION) {
+      KApplication application = args_to_application(args);
+
       (m_registrar.find(args_to_application(args))) ?
         m_system_callback_fn(
           client_fd,
           SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-          {"Application was found", args.at(REGISTER_NAME_INDEX)}
+          {"Application was found", application.name, application.path, application.data, application.mask}
         ) :
         m_system_callback_fn(
           client_fd,
           SYSTEM_EVENTS__REGISTRAR_FAIL,
-          {"Application was not found", args.at(REGISTER_NAME_INDEX)}
+          {"Application was not found", application.name, application.path, application.data, application.mask}
         );
     }
     else
     if (type == RequestType::REGISTER_APPLICATION) {
-      auto id = m_registrar.add(args_to_application(args));
+      KApplication application = args_to_application(args);
+
+      auto id = m_registrar.add(application);
       (!id.empty()) ?
         m_system_callback_fn(
           client_fd,
           SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-          {"Application was registered", args.at(REGISTER_NAME_INDEX), id}
+          {"Application was registered", application.name, application.path, application.data, application.mask, id}
         ) :
         m_system_callback_fn(
           client_fd,
           SYSTEM_EVENTS__REGISTRAR_FAIL,
-          {"Failed to register application", args.at(REGISTER_NAME_INDEX)}
+          {"Failed to register application", application.name, application.path, application.data, application.mask}
         );
     }
     else
     if (type == RequestType::REMOVE_APPLICATION) {
-      auto name = m_registrar.remove(args_to_application(args));
+      KApplication application = args_to_application(args);
+
+      auto name = m_registrar.remove(application);
       (!name.empty()) ?
         m_system_callback_fn(
           client_fd,
           SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-          {"Application was deleted", name}
+          {"Application was deleted", application.name, application.path, application.data, application.mask}
         ) :
         m_system_callback_fn(
           client_fd,
           SYSTEM_EVENTS__REGISTRAR_FAIL,
-          {"Failed to delete application", args.at(REGISTER_NAME_INDEX)}
+          {"Failed to delete application", application.name, application.path, application.data, application.mask}
         );
     }
     else

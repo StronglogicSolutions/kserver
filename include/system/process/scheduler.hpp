@@ -114,13 +114,15 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
             "flags",
             "envfile",
             "recurring",
-            "notify"}, {
+            "notify",
+            "runtime"}, {
             task.datetime,                        // values
             std::to_string(task.execution_mask),
             task.execution_flags,
             task.envfile,
             std::to_string(task.recurring),
-            std::to_string(task.notify)},
+            std::to_string(task.notify),
+            task.runtime},
             "id");                      // return
         if (!id.empty()) {
           KLOG("Request to schedule task was accepted\nID {}", id);
@@ -184,6 +186,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         { task.recurring           = std::stoi(v.second);       }
  else if (v.first == Executor::Field::NOTIFY)
         { task.notify              = v.second.compare("t") == 0;}
+else if (v.first  == Executor::Field::RUNTIME)
+        { task.runtime             = v.second;                  }
     }
     return task;
   }
@@ -198,7 +202,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    */
   std::vector<Task> parseTasks(QueryValues&& result) {
     int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
-    std::string mask, flags, envfile, time, filename;
+    std::string mask, flags, envfile, time, filename, runtime;
     std::vector<Task> tasks;
 
     for (const auto& v : result) {
@@ -206,6 +210,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       else if (v.first == Executor::Field::FLAGS    ) { flags     = v.second; }
       else if (v.first == Executor::Field::ENVFILE  ) { envfile   = v.second; }
       else if (v.first == Executor::Field::TIME     ) { time      = v.second; }
+      else if (v.first == Executor::Field::RUNTIME  ) { runtime   = v.second; }
       else if (v.first == Executor::Field::ID       ) { id        = std::stoi(v.second); }
       else if (v.first == Executor::Field::COMPLETED) { completed = std::stoi(v.second); }
       else if (v.first == Executor::Field::RECURRING) { recurring = std::stoi(v.second); }
@@ -213,7 +218,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
           !mask.empty()    && completed != NO_COMPLETED_VALUE &&
-          id > 0           && recurring > -1 && notify > -1) {
+          id > 0           && recurring > -1 && notify > -1 && !runtime.empty()) {
         tasks.push_back(Task{
           .execution_mask   = std::stoi(mask),
           .datetime         = time,
@@ -224,13 +229,15 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           .id               = id,
           .completed        = completed,
           .recurring        = recurring,
-          .notify           = (notify == 1)
+          .notify           = (notify == 1),
+          .runtime          = runtime
         });
         id                  = 0;
         recurring           = -1;
         notify              = -1;
         completed           = NO_COMPLETED_VALUE;
         filename.clear();
+        runtime.clear();
         envfile.clear();
         flags.clear();
         time.clear();
@@ -262,7 +269,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           Executor::Field::ENVFILE,
           Executor::Field::COMPLETED,
           Executor::Field::NOTIFY,
-          Executor::Field::RECURRING
+          Executor::Field::RECURRING,
+          Executor::Field::RUNTIME
         }, std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>{
           CompFilter{                                   // filter
             "recurring",                                // field of comparison
@@ -306,6 +314,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           Executor::Field::COMPLETED,
           Executor::Field::RECURRING,
           Executor::Field::NOTIFY,
+          Executor::Field::RUNTIME,
           "recurring.time"
         }, SelectJoinFilters{
           CompFilter{                                                     // filter
@@ -349,7 +358,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       "schedule", {       // table
         "mask", "flags",  // fields
         "envfile", "time",
-        "completed"
+        "completed", "runtime"
         }, {
           {"id", id}      // filter
         }
@@ -369,7 +378,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       "schedule", {                // table
         Executor::Field::MASK, Executor::Field::FLAGS,           // fields
         Executor::Field::ENVFILE, Executor::Field::TIME,
-        Executor::Field::COMPLETED
+        Executor::Field::COMPLETED, Executor::Field::RUNTIME
       }, QueryFilter{
         {"id", std::to_string(id)} // filter
       }
