@@ -87,8 +87,7 @@ class GenericTaskHandler : public TaskHandler {
         .id              = 0,
         .completed       = 0,
         .recurring       = std::stoi(recurring),
-        .notify          = notify.compare("1") == 0,
-        .runtime         = runtime_args
+        .notify          = notify.compare("1") == 0
       };
     } else {
       task_ptr->execution_mask  = std::stoi(mask);
@@ -99,7 +98,6 @@ class GenericTaskHandler : public TaskHandler {
       task_ptr->execution_flags = GENERIC_TASK_EXECUTION_FLAGS,
       task_ptr->recurring       = std::stoi(recurring);
       task_ptr->notify          = notify.compare("1") == 0;
-      task_ptr->runtime         = runtime_args;
       return *task_ptr;
     }
   }

@@ -123,14 +123,14 @@ class ProcessExecutor : public ProcessManager {
     m_tracked_callback = f;
   }
   /** Callback to be used upon process completion */
-  virtual void notifyProcessEvent(std::string status, int mask,
+  virtual void notifyProcessEvent(std::string std_out, int mask,
                                   int client_socket_fd, bool error) override {
-    m_callback(status, mask, client_socket_fd, error);
+    m_callback(std_out, mask, client_socket_fd, error);
   }
-  virtual void notifyTrackedProcessEvent(std::string status, int mask,
+  virtual void notifyTrackedProcessEvent(std::string std_out, int mask,
                                          std::string id, int client_socket_fd,
                                          bool error) override {
-    m_tracked_callback(status, mask, id, client_socket_fd, error);
+    m_tracked_callback(std_out, mask, id, client_socket_fd, error);
   }
 
   /* Request execution of an anonymous task */
