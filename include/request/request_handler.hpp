@@ -428,7 +428,11 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      std::vector<Task> tasks = m_scheduler->fetchTasks();
+      std::vector<Task> tasks = m_scheduler->fetchTasks();                // Normal tasks
+      for (auto&& recurring_task : m_scheduler->fetchRecurringTasks()) {  // Recurring tasks
+        tasks.emplace_back(recurring_task);
+      }
+
       if (!tasks.empty()) {
         KLOG("There are tasks to be reviewed");
         for (const auto &task : tasks) {
@@ -640,6 +644,9 @@ class RequestHandler {
   void onProcessComplete(std::string value, int mask, std::string id,
                          int client_socket_fd, bool error,
                          bool scheduled_task = false) {
+    using TaskVectorMap = std::map<int, std::vector<Task>>;
+    using TaskVector    = std::vector<Task>;
+
     KLOG("Process complete notification for client {}'s request {}",
         client_socket_fd, id);
     m_event_callback_fn( // Inform system of process result
@@ -650,42 +657,48 @@ class RequestHandler {
       error
     );
     if (scheduled_task) { // If it was a scheduled task, we need to update task map held in memory
-      std::vector<Task>::iterator task_it; // Declare task iterator
+      TaskVector::iterator task_it;
+
       KLOG("Task complete notification for client {}'s task {}{}",
         client_socket_fd, id, error ? "\nERROR WAS RETURNED" : ""
       );
 
-      std::map<int, std::vector<Task>>::iterator it = // Find map iterator for client ID
-        m_tasks_map.find(client_socket_fd);
-      if (it != m_tasks_map.end()) { // Found client's tasks
-        task_it = std::find_if(      // Find specific task
+      TaskVectorMap::iterator it = m_tasks_map.find(client_socket_fd); // Find iterator to vector
+
+      if (it != m_tasks_map.end()) {
+        task_it = std::find_if(                                        // Find specific task
           it->second.begin(), it->second.end(),
           [id](Task task) {
             return task.id == std::stoi(id);
           }
         );
-        if (task_it != it->second.end()) {
-          uint8_t status{Scheduler::Completed::SUCCESS};
 
-          // Error handling
-          if (error) { // Email if it failed
-            SystemUtils::sendMail(
+        if (task_it != it->second.end()) {
+          uint8_t status{};
+
+          if (error) {
+            status = task_it->completed == Scheduler::Completed::FAILED ?
+              Scheduler::Completed::RETRY_FAIL :                           // No retry
+              Scheduler::Completed::FAILED;                                // Retry
+
+            KLOG("Sending email to administrator about failed task.\nNew "
+                "Status: {}",
+                Scheduler::Completed::STRINGS[status]);
+
+            SystemUtils::sendMail(                                         // Email error to notification recipient
               ConfigParser::Email::notification(),
               std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value},
               ConfigParser::Email::admin()
             );
-            status = task_it->completed == Scheduler::Completed::FAILED ? // If failed previously
-              Scheduler::Completed::RETRY_FAIL : // Retry failed
-              Scheduler::Completed::FAILED;      // Allow retry
-            KLOG("Sending email to administrator about failed task.\nNew "
-                "Status: {}",
-                Scheduler::Completed::STRINGS[status]);
-          }
-          // Update status
-          task_it->completed = status;
-          m_scheduler->updateStatus(&*task_it); // Failed tasks will re-run once more
 
-          if (!error && task_it->recurring) { // Only update if no error occurred
+          } else {
+            status = task_it->recurring ? Scheduler::Completed::SCHEDULED : Scheduler::Completed::SUCCESS;
+          }
+
+          task_it->completed = status;                                     // Update status
+          m_scheduler->updateStatus(&*task_it);                            // Failed tasks will re-run once more
+
+          if (!error && task_it->recurring) {                              // If no error, update last execution time
             task_it->datetime = std::to_string(TimeUtils::unixtime());
             m_scheduler->updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
@@ -694,7 +707,7 @@ class RequestHandler {
             );
           }
 
-          if (task_it->notify) { // Task notification enabled - send result by email
+          if (task_it->notify) {                                           // Send email notification
             KLOG("Task notification enabled - emailing result to administrator");
             std::string email_string{};
             email_string.reserve(value.size() + 84);
@@ -708,7 +721,7 @@ class RequestHandler {
               ConfigParser::Email::admin()
             );
           }
-          // Remove task - failed tasks will be fetched once more by the maintenance worker
+
           KLOG("removing completed task from memory");
           it->second.erase(task_it);
         }
