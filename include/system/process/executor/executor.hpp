@@ -188,7 +188,6 @@ class ProcessExecutor : public ProcessManager {
     }
   }
 
- private:
   static KApplication getAppInfo(int mask) {
     Database::KDB kdb{};
     KApplication k_app{};
@@ -207,6 +206,7 @@ class ProcessExecutor : public ProcessManager {
     return k_app;
   }
 
+private:
   ProcessEventCallback m_callback;
   TrackedEventCallback m_tracked_callback;
 };
