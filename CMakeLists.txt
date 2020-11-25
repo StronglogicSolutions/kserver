@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Project name
 project(kserver)
+# FPIC
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Conditionals
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
@@ -34,11 +36,21 @@ else ()
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -g -lzmq -lpqxx -lpq -lpthread -pthread -luuid ${KSERVER_HEADERS} -L /usr/local/include/pqxx")
 endif()
 
+set(SOURCE_FILES
+  "src/main.cpp"
+  "src/database_connection.cpp"
+  "include/config/config_parser.cpp"
+  "include/system/process/executor/executor.cpp"
+  "include/system/process/executor/task_handlers/task.cpp"
+  "include/common/util.cpp"
+  "include/log/logger.cpp"
+)
+
 # Sources
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
-  set(SOURCES "src/main.cpp" "src/database_connection.cpp" ${LISTENERLIB})
+  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB})
 else ()
-  set(SOURCES "src/main.cpp" "src/database_connection.cpp" ${LISTENERLIB} ${PQXX_STATIC_LIB})
+  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB} ${PQXX_STATIC_LIB})
 endif()
 
 

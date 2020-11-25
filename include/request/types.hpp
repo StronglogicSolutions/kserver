@@ -4,6 +4,7 @@
 #include <string>
 #include <cstring>
 
+namespace Request {
 namespace constants {
 const uint8_t REQUEST_TYPE_INDEX = 0x00;
 } // namespace constants
@@ -42,5 +43,5 @@ RequestType int_to_request_type(int byte) {
   }
   return UNKNOWN;
 }
-
+} // namespace Request
 #endif  // __REQUEST_TYPES_HPP__

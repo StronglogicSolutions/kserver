@@ -3,7 +3,6 @@
 
 #include <log/logger.h>
 #include "executor/task_handlers/task.hpp"
-#include <codec/util.hpp>
 #include <database/kdb.hpp>
 #include <functional>
 #include <iostream>

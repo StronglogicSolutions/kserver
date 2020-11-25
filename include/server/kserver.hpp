@@ -1,22 +1,22 @@
 #ifndef __KSERVER_HPP__
 #define __KSERVER_HPP__
 
-#include <codec/uuid.h>
-#include <log/logger.h>
 #include <math.h>
-
 #include <algorithm>
-#include <codec/decoder.hpp>
-#include <codec/util.hpp>
 #include <cstring>
 #include <functional>
-#include <interface/socket_listener.hpp>
 #include <iomanip>
-#include <request/request_handler.hpp>
-#include <system/process/ipc/manager/manager.hpp>
 #include <string>
 #include <string_view>
 #include <utility>
+
+#include <interface/socket_listener.hpp>
+
+#include <codec/uuid.h>
+#include <request/request_handler.hpp>
+#include <system/process/ipc/manager/manager.hpp>
+#include <log/logger.h>
+#include <codec/decoder.hpp>
 
 #define IF_NOT_HANDLING_PACKETS_FOR_CLIENT(x) if (file_pending_fd != x)
 

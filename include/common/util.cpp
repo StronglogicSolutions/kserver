@@ -1,64 +1,4 @@
-#ifndef __UTIL_HPP__
-#define __UTIL_HPP__
-#define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
-
-#include <codec/instatask_generated.h>
-#include <codec/generictask_generated.h>
-#include <codec/kmessage_generated.h>
-#include <codec/uuid.h>
-
-#include <filesystem>
-#include <bitset>
-#include <chrono>
-#include <fstream>
-#include <sstream>
-#include <iterator>
-#include <neither/either.hpp>
-#include <string>
-#include <utility>
-#include <map>
-#include <vector>
-#include <ctime>
-
-#include <system/process/executor/kapplication.hpp>
-
-#include "rapidjson/document.h"
-#include "rapidjson/error/en.h"
-#include "rapidjson/filereadstream.h"
-#include "rapidjson/filewritestream.h"
-#include "rapidjson/pointer.h"
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
-
-#include <iostream>
-
-using namespace rapidjson;
-using namespace uuids;
-using namespace neither;
-using namespace KData;
-using namespace IGData;
-using namespace GenericData;
-
-static const int SESSION_ACTIVE = 1;
-static const int SESSION_INACTIVE = 2;
-
-static const std::string_view APP_NAME = "kserver";
-static constexpr int APP_NAME_LENGTH = 7;
-
-typedef std::string                                      KOperation;
-typedef std::map<int, std::string>                       CommandMap;
-typedef std::vector<std::pair<std::string, std::string>> TupVec;
-typedef std::vector<std::map<int, std::string>>          MapVec;
-typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
-typedef std::vector<KApplication>                        ServerData;
-typedef std::pair<std::string, std::string>              FileInfo;
-
-struct KSession {
-  int fd;
-  int status;
-  uuid id;
-};
+#include "util.hpp"
 
 std::string get_cwd() {
   char *working_dir_path = realpath(".", NULL);
@@ -70,7 +10,7 @@ std::string get_executable_cwd() {
   return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
 }
 
-inline int findIndexAfter(std::string s, int pos, char c) {
+int findIndexAfter(std::string s, int pos, char c) {
   for (uint8_t i = pos; i < s.size(); i++) {
     if (s.at(i) == c) {
       return i;
@@ -92,7 +32,7 @@ std::string getJsonString(std::string s) {
   return buffer.GetString();
 }
 
-std::string createMessage(const char *data, std::string args = "") {
+std::string createMessage(const char *data, std::string args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -255,8 +195,8 @@ CommandMap getArgMap(const char *data) {
 }
 
 std::string createSessionEvent(
-    int status, std::string message = "",
-    std::vector<std::pair<std::string, std::string>> args = {}) {
+    int status, std::string message,
+    std::vector<std::pair<std::string, std::string>> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -304,7 +244,7 @@ std::string createMessage(
 }
 
 std::string createMessage(const char *data,
-                          std::map<int, std::string> map = {}) {
+                          std::map<int, std::string> map) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -349,7 +289,7 @@ std::string createMessage(const char *data, std::vector<KApplication> commands) 
 }
 
 std::string createMessage(const char *data,
-                          std::map<int, std::vector<std::string>> map = {}) {
+                          std::map<int, std::vector<std::string>> map) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -522,7 +462,7 @@ bool isNewSession(const char *data) {
 namespace SystemUtils {
   void sendMail(std::string recipient, std::string message, std::string from) {
     std::system(std::string{
-      "echo '" + message + "' | mail -s 'KServer notification' -a FROM:" + from + " " + recipient
+      "echo \"" + message + "\" | mail -s 'KServer notification' -a FROM:" + from + " " + recipient
       }.c_str()
     );
   }
@@ -592,6 +532,23 @@ bool createTaskDirectory(std::string uuid) {
 }
 }  // namespace FileUtils
 
+namespace StringUtils {
+template <typename T>
+void split(const std::string &s, char delim, T result) {
+    std::istringstream iss(s);
+    std::string item;
+    while (std::getline(iss, item, delim)) {
+        *result++ = item;
+    }
+}
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> v{};
+    split(s, delim, std::back_inserter(v));
+    return v;
+}
+} // namespace StringUtils
+
 // Bit helpers
 
 inline size_t findNullIndex(uint8_t *data) {
@@ -653,5 +610,3 @@ std::string format_timestamp(std::string unixtime) {
   return std::string{buf};
 }
 }  // namespace TimeUtils
-
-#endif  // __UTIL_HPP__

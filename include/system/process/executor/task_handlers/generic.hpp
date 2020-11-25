@@ -1,11 +1,12 @@
 #ifndef __GENERIC_HPP__
 #define __GENERIC_HPP__
 
-#include <codec/util.hpp>
-#include "task.hpp"
-#include <system/process/scheduler.hpp>
 #include <iostream>
 #include <vector>
+
+#include <system/process/scheduler.hpp>
+
+#include "task.hpp"
 
 namespace Executor {
   /**

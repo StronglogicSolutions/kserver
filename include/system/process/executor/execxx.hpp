@@ -5,8 +5,6 @@
 #include <sys/wait.h>
 #include <sys/poll.h>
 #include <unistd.h>
-
-#include <codec/util.hpp>
 #include <iostream>
 #include <string>
 #include <vector>

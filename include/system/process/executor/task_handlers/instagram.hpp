@@ -1,11 +1,11 @@
 #ifndef __INSTAGRAM_HPP__
 #define __INSTAGRAM_HPP__
 
-#include <codec/util.hpp>
-#include <system/process/scheduler.hpp>
-#include <system/process/executor/task_handlers/task.hpp>
 #include <iostream>
 #include <vector>
+
+#include <system/process/scheduler.hpp>
+#include <system/process/executor/task_handlers/task.hpp>
 
 namespace Executor {
   /**

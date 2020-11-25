@@ -7,7 +7,7 @@
 
 #include <atomic>
 #include <chrono>
-#include <codec/util.hpp>
+#include <common/util.hpp>
 #include <condition_variable>
 #include <config/config_parser.hpp>
 #include <database/kdb.hpp>
@@ -550,7 +550,7 @@ class RequestHandler {
                            {info_string, request_id});
 
       m_executor->request(row.second, mask, client_socket_fd, request_id, {},
-                          Executor::ExecutionRequestType::IMMEDIATE);
+                          Executor::constants::IMMEDIATE_REQUEST);
     }
   }
 
@@ -560,15 +560,13 @@ class RequestHandler {
    */
 
   void process(int client_fd, std::string message) {
-    using namespace constants;
-
     std::vector<std::string> args = getArgs(message);
-    RequestType type = int_to_request_type(std::stoi(args.at(constants::REQUEST_TYPE_INDEX)));
+    RequestType type = int_to_request_type(std::stoi(args.at(Request::constants::REQUEST_TYPE_INDEX)));
 
     if (type == RequestType::GET_APPLICATION) {
-      KApplication application = args_to_application(args);
+      KApplication application = Registrar::args_to_application(args);
 
-      (m_registrar.find(args_to_application(args))) ?
+      (m_registrar.find(Registrar::args_to_application(args))) ?
         m_system_callback_fn(
           client_fd,
           SYSTEM_EVENTS__REGISTRAR_SUCCESS,
@@ -582,7 +580,7 @@ class RequestHandler {
     }
     else
     if (type == RequestType::REGISTER_APPLICATION) {
-      KApplication application = args_to_application(args);
+      KApplication application = Registrar::args_to_application(args);
 
       auto id = m_registrar.add(application);
       (!id.empty()) ?
@@ -599,7 +597,7 @@ class RequestHandler {
     }
     else
     if (type == RequestType::REMOVE_APPLICATION) {
-      KApplication application = args_to_application(args);
+      KApplication application = Registrar::args_to_application(args);
 
       auto name = m_registrar.remove(application);
       (!name.empty()) ?
@@ -772,7 +770,7 @@ class RequestHandler {
   std::atomic<bool>                 handling_data;
   bool                              m_active;
   // Workers
-  Registrar                         m_registrar;
+  Registrar::Registrar              m_registrar;
   Executor::ProcessExecutor*        m_executor;
   Scheduler::Scheduler*             m_scheduler;
   std::thread                       m_maintenance_worker;

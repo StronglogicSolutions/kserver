@@ -3,15 +3,22 @@
 
 #include <system/process/executor/executor.hpp>
 #include <system/process/executor/task_handlers/task.hpp>
-#include <codec/util.hpp>
-// #include <database/kdb.hpp>
 
-using namespace Executor;
-// using namespace Database;
-
-std::vector<std::string> exec_flags_to_vector(std::string flags) {
-  throw std::invalid_argument{"fix this!"};
-  return std::vector<std::string>{};
+namespace Executor {
+/**
+ * exec_flags_to_vector
+ *
+ * Helper function to parse a string of flag expressions into a vector of flag tokens
+ *
+ * @param   [in]  {std::string}
+ * @returns [out] {std::vector<std::string>}
+ */
+inline std::vector<std::string> exec_flags_to_vector(std::string flag_s) {
+  std::vector<std::string> flags{};
+  for (const auto& expression : StringUtils::split(flag_s, ' ')) {
+    flags.push_back(expression.substr(expression.find_first_of('$') - 1));
+  }
+  return flags;
 }
 
 /**
@@ -48,17 +55,17 @@ virtual void setTask(Task task) override {
  */
 virtual bool prepareRuntime() override {
   if (m_task.validate()) {
-    std::string env  = FileUtils::readEnvFile(m_task.envfile);
-    KApplication app = ProcessExecutor::getAppInfo(m_task.execution_mask);
+    std::string  env  = FileUtils::readEnvFile(m_task.envfile);
+    KApplication app  = Executor::ProcessExecutor::getAppInfo(m_task.execution_mask);
 
     m_args.push_back(app.path);
 
-    std::vector<std::string> exec_flag_v = exec_flags_to_vector(m_task_execution_flags);
-
-    for (const auto&  : m_task.execution_flags) {
+    for (const auto& runtime_flag : exec_flags_to_vector(m_task.execution_flags)) {
       m_args.push_back(parseExecArgument(runtime_flag, env));
     }
+    return (!m_args.empty());
   }
+  return false;
 }
 
 /**
@@ -82,5 +89,6 @@ std::string parseExecArgument(std::string flag, const std::string& env) {
 Task                     m_task;
 std::vector<std::string> m_args;
 };
+} // namespace Executor
 
 #endif // __ENVIRONMENT_HPP__

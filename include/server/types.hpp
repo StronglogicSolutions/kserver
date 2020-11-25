@@ -5,7 +5,7 @@
 #include <cstring>
 
 static const int MAX_PACKET_SIZE = 4096;
-static const int HEADER_SIZE = 4;
+static const int HEADER_SIZE     = 4;
 
 template <typename MessageProcessor>
 void MessageHandler(MessageProcessor processor, int client_socket_fd,
