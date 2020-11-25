@@ -16,7 +16,7 @@ namespace Executor {
 inline std::vector<std::string> exec_flags_to_vector(std::string flag_s) {
   std::vector<std::string> flags{};
   for (const auto& expression : StringUtils::split(flag_s, ' ')) {
-    flags.push_back(expression.substr(expression.find_first_of('$') - 1));
+    flags.push_back(expression.substr(expression.find_first_of('$')));
   }
   return flags;
 }
