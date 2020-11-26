@@ -7,7 +7,7 @@ jobs:
       - checkout
       - run: git submodule sync
       - run: git submodule update --init
-      -run:
+      - run:
         name: dependencies
         command: |
           mkdir third_party/libzmq/build && cd third_party/libzmq/build && cmake ../ && make && make install
