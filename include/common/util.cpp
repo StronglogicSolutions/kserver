@@ -390,7 +390,7 @@ Either<std::string, std::vector<std::string>> getDecodedMessage(
 
         /**
          * /note The specification for the order of these arguments can be found
-         * in namespace: Executor::IGTaskIndex
+         * in namespace: IGTaskIndex
          */
         return right(std::move(
           std::vector<std::string>{
@@ -428,7 +428,7 @@ Either<std::string, std::vector<std::string>> getDecodedMessage(
 
         /**
          * /note The specification for the order of these arguments can be found
-         * in namespace: Executor::GenericTaskIndex
+         * in namespace: GenericTaskIndex
          */
         return right(std::move(
           std::vector<std::string>{
@@ -508,11 +508,12 @@ std::string saveEnvFile(std::string env_file_string, std::string uuid) {
   return relative_path;
 }
 
-std::string readEnvFile(std::string env_file_path) {
-    std::ifstream file_stream{env_file_path};
-    std::stringstream env_file_stream{};
-    env_file_stream << file_stream.rdbuf();
-    return env_file_stream.str();
+std::string readEnvFile(std::string env_file_path, bool relative_path) {
+  std::string full_path = (relative_path) ? get_cwd() + "/" + env_file_path : env_file_path;
+  std::ifstream file_stream{full_path};
+  std::stringstream env_file_stream{};
+  env_file_stream << file_stream.rdbuf();
+  return env_file_stream.str();
 }
 
 std::string readFile(std::string env_file_path) {

@@ -20,7 +20,7 @@
 #include <vector>
 #include <ctime>
 
-#include <system/process/executor/kapplication.hpp>
+#include "system/process/executor/kapplication.hpp"
 
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
@@ -148,7 +148,7 @@ bool        createDirectory(const char *dir_name);
 void        saveFile(std::vector<char> bytes, const char *filename);
 void        saveFile(uint8_t *bytes, int size, std::string filename);
 std::string saveEnvFile(std::string env_file_string, std::string uuid);
-std::string readEnvFile(std::string env_file_path);
+std::string readEnvFile(std::string env_file_path, bool relative_path = false);
 std::string readFile(std::string env_file_path);
 void        clearFile(std::string file_path);
 bool        createTaskDirectory(std::string uuid);

@@ -7,12 +7,12 @@
 #include <string>
 #include <string_view>
 
-#include <log/logger.h>
-#include <system/process/scheduler.hpp>
+#include "log/logger.h"
+#include "system/process/scheduler.hpp"
+#include "environment.hpp"
 #include "execxx.hpp"
 #include "kapplication.hpp"
 
-namespace Executor {
 namespace constants {
 extern const uint8_t IMMEDIATE_REQUEST;
 extern const uint8_t SCHEDULED_REQUEST;
@@ -115,6 +115,5 @@ private:
   ProcessEventCallback m_callback;
   TrackedEventCallback m_tracked_callback;
 };
-}  // namespace Executor
 
 #endif // __EXECUTOR_HPP__

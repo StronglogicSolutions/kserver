@@ -1,4 +1,3 @@
-#include <database/database_connection.hpp>
 #include <iostream>
 #include <memory>
 #include <pqxx/pqxx>
@@ -6,6 +5,8 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+
+#include "database/database_connection.hpp"
 
 std::string fieldsAsString(std::vector<std::string> fields) {
   std::string field_string{""};
@@ -163,11 +164,17 @@ std::string getFilterStatement(T filter) {  // TODO: fix template usage
   }
 }
 
-std::string getJoinStatement(Join join) {
-  return std::string{
-    "INNER JOIN " + join.table + \
-    " ON " + join.table + "." + join.field + "=" + join.join_table + "." + join.join_field
-  };
+std::string getJoinStatement(Joins joins) {
+  std::string join_s{};
+  if (!joins.empty()) {
+    for (const auto& join : joins) {
+      join_s += "INNER JOIN " + join.table + \
+      " ON " + join.table + "." + join.field + "=" + join.join_table + "." + join.join_field;
+      join_s += " ";
+    }
+    join_s.pop_back();
+  }
+  return join_s;
 }
 
 template <typename T>
@@ -279,7 +286,7 @@ std::string selectStatement(T query) {
                          query.table + " " + filter_string};
     } else if constexpr (std::is_same_v<T, JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>>) {
       filter_string += getVariantFilterStatement(query.filter);
-      std::string join_string = getJoinStatement(query.join);
+      std::string join_string = getJoinStatement(query.joins);
       return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + " " + filter_string};
     }
   }

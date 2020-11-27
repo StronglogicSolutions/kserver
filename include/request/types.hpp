@@ -5,9 +5,8 @@
 #include <cstring>
 
 namespace Request {
-namespace constants {
+
 const uint8_t REQUEST_TYPE_INDEX = 0x00;
-} // namespace constants
 
 enum RequestType {
   REGISTER_APPLICATION = 0x00,

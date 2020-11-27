@@ -1,5 +1,6 @@
 #ifndef __CLIENT_TEST_HPP__
 #define __CLIENT_TEST_HPP__
+
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -8,7 +9,7 @@
 #include <cstring>
 #include <iostream>
 #include <vector>
-#include <codec/util.hpp>
+#include <common/util.hpp>
 #include <codec/generictask_generated.h>
 #include <codec/instatask_generated.h>
 #include <codec/kmessage_generated.h>
@@ -83,54 +84,54 @@ void handleEvent(std::string) {
 }
 
 void handleMessages() {
-  uint8_t receive_buffer[MAX_PACKET_SIZE];
-  for (;;) {
-    memset(receive_buffer, 0, MAX_PACKET_SIZE);
-    ssize_t bytes_received = 0;
-    bytes_received = recv(m_client_socket_fd, receive_buffer, MAX_PACKET_SIZE, 0);
-    if (bytes_received < 1) { // Finish message loop
-        break;
-    }
-    size_t null_index{};
+  // uint8_t receive_buffer[MAX_PACKET_SIZE];
+  // for (;;) {
+  //   memset(receive_buffer, 0, MAX_PACKET_SIZE);
+  //   ssize_t bytes_received = 0;
+  //   bytes_received = recv(m_client_socket_fd, receive_buffer, MAX_PACKET_SIZE, 0);
+  //   if (bytes_received < 1) { // Finish message loop
+  //       break;
+  //   }
+  //   size_t null_index{};
 
-    if (m_raw_mode) {
-      std::vector<size_t> null_indexes = findNullIndexes(receive_buffer);
-      std::cout << "Buffer had " << null_indexes.size() << " indexes" << std::endl;
+  //   if (m_raw_mode) {
+  //     std::vector<size_t> null_indexes = findNullIndexes(receive_buffer);
+  //     std::cout << "Buffer had " << null_indexes.size() << " indexes" << std::endl;
 
-      for (const auto& i : null_indexes) {
-        std::cout << i;
-      }
+  //     for (const auto& i : null_indexes) {
+  //       std::cout << i;
+  //     }
 
-      null_index = null_indexes[0];
+  //     null_index = null_indexes[0];
 
-    } else {
-      null_index = findNullIndex(receive_buffer);
-    }
+  //   } else {
+  //     null_index = findNullIndex(receive_buffer);
+  //   }
 
-    if (null_index > 1) {
-      std::string data_string{receive_buffer, receive_buffer + null_index};
+  //   if (null_index > 1) {
+  //     std::string data_string{receive_buffer, receive_buffer + null_index};
 
-      m_received_message = data_string;
+  //     m_received_message = data_string;
 
-      if (!m_raw_mode) {
-        std::vector<std::string> s_v{};
-        if (isNewSession(data_string.c_str())) { // Session Start
-          m_commands = getArgMap(data_string.c_str());
-          for (const auto& [k, v] : m_commands) { // Receive available commands
-            s_v.push_back(v.data());
-          }
-          std::cout << "set new session message" << std::endl;
-        } else if (serverWaitingForFile(data_string.c_str())) { // Server expects a file
-          processFileQueue();
-        } else if (isEvent(data_string.c_str())) { // Receiving event
-          handleEvent(data_string);
-        }
-      }
-    }
-  }
+  //     if (!m_raw_mode) {
+  //       std::vector<std::string> s_v{};
+  //       if (isNewSession(data_string.c_str())) { // Session Start
+  //         m_commands = getArgMap(data_string.c_str());
+  //         for (const auto& [k, v] : m_commands) { // Receive available commands
+  //           s_v.push_back(v.data());
+  //         }
+  //         std::cout << "set new session message" << std::endl;
+  //       } else if (serverWaitingForFile(data_string.c_str())) { // Server expects a file
+  //         processFileQueue();
+  //       } else if (isEvent(data_string.c_str())) { // Receiving event
+  //         handleEvent(data_string);
+  //       }
+  //     }
+  //   }
+  // }
 
-  memset(receive_buffer, 0, 2048);
-  ::close(m_client_socket_fd);
+  // memset(receive_buffer, 0, 2048);
+  // ::close(m_client_socket_fd);
 }
 
 void close() {

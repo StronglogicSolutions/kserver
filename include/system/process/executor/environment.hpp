@@ -1,10 +1,54 @@
 #ifndef __ENVIRONMENT_HPP__
 #define __ENVIRONMENT_HPP__
 
-#include <system/process/executor/executor.hpp>
-#include <system/process/executor/task_handlers/task.hpp>
+#include "task_handlers/task.hpp"
+#include "executor.hpp"
+#include "database/kdb.hpp"
 
-namespace Executor {
+
+inline KApplication get_app_info(int mask) {
+  Database::KDB kdb{}; KApplication k_app{};
+
+  QueryValues values = kdb.select(
+    "apps",                           // table
+    {
+      "path", "data", "name"          // fields
+    },
+    {
+      {"mask", std::to_string(mask)}  // filter
+    }
+  );
+
+  for (const auto &value_pair : values) {
+    if (value_pair.first == "path")
+      k_app.path = value_pair.second;
+    else
+    if (value_pair.first == "data")
+      k_app.data = value_pair.second;
+    else
+    if (value_pair.first == "name")
+      k_app.name = value_pair.second;
+  }
+  return k_app;
+}
+
+struct ExecutionState{
+  std::string_view         path;
+  std::vector<std::string> argv;
+};
+
+const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
+  {"DESCRIPTION", "--description"},
+  {"FILE_TYPE", "--media"},
+  {"HEADER", "--header"},
+  {"USER", "--user"},
+  {"HASHTAGS", "--hashtags"},
+  {"LINK_BIO", "--link_bio"},
+  {"REQUESTED_BY", "--requested_by"},
+  {"REQUESTED_BY_PHRASE", "--requested_by_phrase"},
+  {"REQUESTED_BY", "--requested_by"},
+  {"PROMOTE_SHARE", "--promote_share"},
+};
 /**
  * exec_flags_to_vector
  *
@@ -16,11 +60,15 @@ namespace Executor {
 inline std::vector<std::string> exec_flags_to_vector(std::string flag_s) {
   std::vector<std::string> flags{};
   for (const auto& expression : StringUtils::split(flag_s, ' ')) {
-    flags.push_back(expression.substr(expression.find_first_of('$')));
+    flags.push_back(expression.substr(expression.find_first_of('$') + 1));
   }
   return flags;
 }
 
+
+inline std::string parse_filename(std::string filename) {
+  return std::string{"--filename=" + filename};
+}
 /**
  * ExecutionEnvironment Interface
  *
@@ -30,9 +78,9 @@ class ExecutionEnvironment {
 public:
 virtual ~ExecutionEnvironment() {}
 
-virtual void                     setTask(Task task)    = 0;
-virtual bool                     prepareRuntime()      = 0;
-virtual std::vector<std::string> getProcessArguments() = 0;
+virtual void           setTask(Task task)    = 0;
+virtual bool           prepareRuntime()      = 0;
+virtual ExecutionState get()                 = 0;
 };
 
 /**
@@ -55,15 +103,20 @@ virtual void setTask(Task task) override {
  */
 virtual bool prepareRuntime() override {
   if (m_task.validate()) {
-    std::string  env  = FileUtils::readEnvFile(m_task.envfile);
-    KApplication app  = Executor::ProcessExecutor::getAppInfo(m_task.execution_mask);
+    std::string  envfile = FileUtils::readEnvFile(m_task.envfile, true);
+    KApplication app     = get_app_info(m_task.execution_mask);
 
-    m_args.push_back(app.path);
+    m_state.path = app.name;
 
     for (const auto& runtime_flag : exec_flags_to_vector(m_task.execution_flags)) {
-      m_args.push_back(parseExecArgument(runtime_flag, env));
+      m_state.argv.push_back(parseExecArgument(runtime_flag, envfile));
     }
-    return (!m_args.empty());
+
+    for (const auto& filename : m_task.filenames) {
+      m_state.argv.push_back(parse_filename(filename));
+    }
+
+    return (!m_state.argv.empty());
   }
   return false;
 }
@@ -71,24 +124,27 @@ virtual bool prepareRuntime() override {
 /**
  * getProcessArguments
  */
-virtual std::vector<std::string> getProcessArguments() override { return m_args; }
+virtual ExecutionState get() override { return m_state; }
 
 private:
-
 std::string parseExecArgument(std::string flag, const std::string& env) {
-  std::string argument{};
-  std::string::size_type index = env.find(flag);
+  std::string            argument{};
+  std::string::size_type index       = env.find(flag);
+
   if (index != std::string::npos) {
     auto parsed = env.substr(index);
-    argument = parsed.substr(parsed.find_first_of('\''), parsed.find_first_of('\n') - 1);
-    std::cout << "Parsed argument: " << argument << std::endl;
+
+    argument += (PARAM_KEY_MAP.find(flag) == PARAM_KEY_MAP.end()) ?
+                  flag :
+                  PARAM_KEY_MAP.at(flag);
+    argument += "=";
+    argument += parsed.substr(parsed.find_first_of('\''), (parsed.find_first_of('\n') - flag.size() - 1));
   }
   return argument;
 }
 
-Task                     m_task;
-std::vector<std::string> m_args;
+Task           m_task;
+ExecutionState m_state;
 };
-} // namespace Executor
 
 #endif // __ENVIRONMENT_HPP__

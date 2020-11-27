@@ -1,7 +1,7 @@
 #include "task.hpp"
 
-namespace Executor {
-  #define TIMESTAMP_LENGTH 10
+
+#define TIMESTAMP_LENGTH 10
 
 
   /**
@@ -44,4 +44,3 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
   } while (index < file_info.size());
   return info_v;
 }
-} // namespace Executor

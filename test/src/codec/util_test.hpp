@@ -2,7 +2,7 @@
 #define __UTIL_TEST_HPP__
 
 #include <gtest/gtest.h>
-#include <codec/util.hpp>
+#include <common/util.hpp>
 
 auto util_cwd = get_executable_cwd();
 auto cwd = std::string{util_cwd.begin(), util_cwd.end() - 4};

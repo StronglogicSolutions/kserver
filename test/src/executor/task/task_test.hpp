@@ -5,8 +5,6 @@
 #include <system/process/executor/task_handlers/generic.hpp>
 #include <gtest/gtest.h>
 
-using namespace Executor;
-
 /**
  * GenericTask test
  */
@@ -24,10 +22,11 @@ TEST(Task, PrepareTaskTest) {
     .execution_flags = "--description=$DESCRIPTION --media=$FILE_TYPE --header=$HEADER --user=$USER",
     .id = 0, // default initialized value in Task struct
     .completed = 0,
-    .recurring = Executor::Constants::Recurring::YEARLY,
-    .notify = true
+    .recurring = Constants::Recurring::YEARLY,
+    .notify = true,
+    .runtime = "runtime_arg"
   };
-  std::vector<std::string> argv{std::to_string(mask), "1590776872testfile.txt|image:", "1590776872", "Test description", "1", "Test header", "test_user", "5", "1"};
+  std::vector<std::string> argv{std::to_string(mask), "1590776872testfile.txt|image:", "1590776872", "Test description", "1", "Test header", "test_user", "5", "1", "runtime_arg"};
 
   Task generic_task = generic_task_hander.prepareTask(argv, uuid);
 

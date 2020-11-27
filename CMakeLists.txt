@@ -42,6 +42,8 @@ set(SOURCE_FILES
   "include/config/config_parser.cpp"
   "include/system/process/executor/executor.cpp"
   "include/system/process/executor/task_handlers/task.cpp"
+  "include/system/process/executor/task_handlers/generic.cpp"
+  "include/system/process/executor/task_handlers/instagram.cpp"
   "include/common/util.cpp"
   "include/log/logger.cpp"
 )

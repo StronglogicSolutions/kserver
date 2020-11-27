@@ -2,9 +2,9 @@
 #define __KDB_HPP__
 
 #include <variant>
-#include <database/database_connection.hpp>
 #include <iostream>
-#include <log/logger.h>
+#include "database/database_connection.hpp"
+#include "log/logger.h"
 #include <memory>
 
 namespace Database {
@@ -179,13 +179,13 @@ QueryValues select(std::string table, Fields fields,
   }
 
   template <typename T>
-  QueryValues selectJoin(std::string table, Fields fields, T filters, Join join) {
+  QueryValues selectJoin(std::string table, Fields fields, T filters, Joins joins) {
     try {
       JoinQuery<T> select_query{
         .table  = table,
         .fields = fields,
         .filter = filters,
-        .join   = join
+        .joins   = joins
       };
       QueryResult result = m_connection->query(select_query);
       if (!result.values.empty()) {

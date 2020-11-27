@@ -1,14 +1,15 @@
 #ifndef __SCHEDULER_HPP__
 #define __SCHEDULER_HPP__
 
-#include <log/logger.h>
-#include "executor/task_handlers/task.hpp"
-#include <database/kdb.hpp>
 #include <functional>
 #include <iostream>
 #include <string>
 #include <type_traits>
 #include <vector>
+
+#include "log/logger.h"
+#include "executor/task_handlers/task.hpp"
+#include "database/kdb.hpp"
 
 #define NO_COMPLETED_VALUE 99
 
@@ -17,8 +18,6 @@
             "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
             "60 * extract(minute from(to_timestamp(schedule.time))) + "\
             "extract(second from (to_timestamp(schedule.time))))"
-
-using namespace Executor;
 
 namespace Scheduler {
 
@@ -69,13 +68,13 @@ class CalendarManagerInterface {
  */
 inline uint32_t getIntervalSeconds(uint32_t interval) {
   switch(interval) {
-    case Executor::Constants::Recurring::HOURLY:
+    case Constants::Recurring::HOURLY:
       return 3600;
-    case Executor::Constants::Recurring::DAILY:
+    case Constants::Recurring::DAILY:
       return 86400;
-    case Executor::Constants::Recurring::MONTHLY:
+    case Constants::Recurring::MONTHLY:
       return 86400 * 30;
-    case Executor::Constants::Recurring::YEARLY:
+    case Constants::Recurring::YEARLY:
       return 86400 * 365;
     default:
       return 0;
@@ -167,21 +166,21 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   Task parseTask(QueryValues&& result) {
     Task task{};
     for (const auto& v : result) {
-      if (v.first == Executor::Field::MASK)
+      if (v.first == Field::MASK)
         { task.execution_mask      = std::stoi(v.second);       }
- else if (v.first == Executor::Field::FLAGS)
+ else if (v.first == Field::FLAGS)
         { task.execution_flags     = v.second;                  }
- else if (v.first == Executor::Field::ENVFILE)
+ else if (v.first == Field::ENVFILE)
         { task.envfile             = v.second;                  }
- else if (v.first == Executor::Field::TIME)
+ else if (v.first == Field::TIME)
         { task.datetime            = v.second;                  }
- else if (v.first == Executor::Field::ID)
+ else if (v.first == Field::ID)
         { task.id                  = std::stoi(v.second);       }
- else if (v.first == Executor::Field::COMPLETED)
+ else if (v.first == Field::COMPLETED)
         { task.completed           = std::stoi(v.second);       }
- else if (v.first == Executor::Field::RECURRING)
+ else if (v.first == Field::RECURRING)
         { task.recurring           = std::stoi(v.second);       }
- else if (v.first == Executor::Field::NOTIFY)
+ else if (v.first == Field::NOTIFY)
         { task.notify              = v.second.compare("t") == 0;}
     }
     return task;
@@ -201,14 +200,14 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     std::vector<Task> tasks;
 
     for (const auto& v : result) {
-      if      (v.first == Executor::Field::MASK     ) { mask      = v.second; }
-      else if (v.first == Executor::Field::FLAGS    ) { flags     = v.second; }
-      else if (v.first == Executor::Field::ENVFILE  ) { envfile   = v.second; }
-      else if (v.first == Executor::Field::TIME     ) { time      = v.second; }
-      else if (v.first == Executor::Field::ID       ) { id        = std::stoi(v.second); }
-      else if (v.first == Executor::Field::COMPLETED) { completed = std::stoi(v.second); }
-      else if (v.first == Executor::Field::RECURRING) { recurring = std::stoi(v.second); }
-      else if (v.first == Executor::Field::NOTIFY   ) { notify    = v.second.compare("t") == 0; }
+      if      (v.first == Field::MASK     ) { mask      = v.second; }
+      else if (v.first == Field::FLAGS    ) { flags     = v.second; }
+      else if (v.first == Field::ENVFILE  ) { envfile   = v.second; }
+      else if (v.first == Field::TIME     ) { time      = v.second; }
+      else if (v.first == Field::ID       ) { id        = std::stoi(v.second); }
+      else if (v.first == Field::COMPLETED) { completed = std::stoi(v.second); }
+      else if (v.first == Field::RECURRING) { recurring = std::stoi(v.second); }
+      else if (v.first == Field::NOTIFY   ) { notify    = v.second.compare("t") == 0; }
 
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
           !mask.empty()    && completed != NO_COMPLETED_VALUE &&
@@ -251,17 +250,17 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         std::to_string(TimeUtils::unixtime() - 900);
     std::string future_5_minute_timestamp =
         std::to_string(TimeUtils::unixtime() + 300);
-    return parseTasks(
+    std::vector<Task> tasks = parseTasks(
       m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
         "schedule", {                                   // table
-          Executor::Field::ID,
-          Executor::Field::TIME,
-          Executor::Field::MASK,
-          Executor::Field::FLAGS,
-          Executor::Field::ENVFILE,
-          Executor::Field::COMPLETED,
-          Executor::Field::NOTIFY,
-          Executor::Field::RECURRING
+          Field::ID,
+          Field::TIME,
+          Field::MASK,
+          Field::FLAGS,
+          Field::ENVFILE,
+          Field::COMPLETED,
+          Field::NOTIFY,
+          Field::RECURRING
         }, std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>{
           CompFilter{                                   // filter
             "recurring",                                // field of comparison
@@ -283,6 +282,12 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         }
       )
     );
+
+    for (auto& task : tasks) {
+      task.filenames = getFiles(std::to_string(task.id));
+    }
+
+    return tasks;
   }
 
   /**
@@ -297,18 +302,18 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return parseTasks(
       m_kdb.selectJoin<SelectJoinFilters>(
         "schedule", {                                                     // table
-          Executor::Field::ID,                                            // fields
-          Executor::Field::TIME,
-          Executor::Field::MASK,
-          Executor::Field::FLAGS,
-          Executor::Field::ENVFILE,
-          Executor::Field::COMPLETED,
-          Executor::Field::RECURRING,
-          Executor::Field::NOTIFY,
+          Field::ID,                                            // fields
+          Field::TIME,
+          Field::MASK,
+          Field::FLAGS,
+          Field::ENVFILE,
+          Field::COMPLETED,
+          Field::RECURRING,
+          Field::NOTIFY,
           "recurring.time"
         }, SelectJoinFilters{
           CompFilter{                                                     // filter
-            Executor::Field::RECURRING,                                   // field
+            Field::RECURRING,                                   // field
             "0",                                                          // value
             "<>"                                                          // comparator
           },
@@ -325,11 +330,19 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
             }
           }
         },
-        Join{
-          .table="recurring",                                              // table to join
-          .field="sid",                                                    // field to join on
-          .join_table="schedule",                                          // table to join to
-          .join_field="id"                                                 // field to join to
+        Joins{
+          Join{
+            .table="recurring",                                              // table to join
+            .field="sid",                                                    // field to join on
+            .join_table="schedule",                                          // table to join to
+            .join_field="id"                                                 // field to join to
+          },
+          Join{
+            .table="file",
+            .field="sid",
+            .join_table="schedule",
+            .join_field="id"
+          }
         }
       )
     );
@@ -344,7 +357,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * @return [out] {Task}             A task
    */
   Task getTask(std::string id) {
-    return parseTask(m_kdb.select(
+    Task task = parseTask(m_kdb.select(
       "schedule", {       // table
         "mask", "flags",  // fields
         "envfile", "time",
@@ -353,8 +366,27 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           {"id", id}      // filter
         }
     ));
+
+    task.filenames = getFiles(id);
+
+    return task;
   }
 
+  std::vector<std::string> getFiles(std::string sid) {
+    std::vector<std::string> file_names{};
+
+    QueryValues result = m_kdb.select(
+      "file", {       // table
+        "name",  // fields
+        }, {
+          {"sid", sid}      // filter
+        }
+    );
+
+    for (const auto& v : result) if (v.first == "name")
+                                   file_names.push_back(v.second);
+    return file_names;
+  }
   /**
    * getTask
    *
@@ -364,15 +396,19 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * @return [out] {Task}     A task
    */
   Task getTask(int id) {
-    return parseTask(m_kdb.select( // SELECT
-      "schedule", {                // table
-        Executor::Field::MASK,    Executor::Field::FLAGS,           // fields
-        Executor::Field::ENVFILE, Executor::Field::TIME,
-        Executor::Field::COMPLETED
+    Task task =  parseTask(m_kdb.select(                  // SELECT
+      "schedule", {                                       // table
+        Field::MASK,    Field::FLAGS, // fields
+        Field::ENVFILE, Field::TIME,
+        Field::COMPLETED
       }, QueryFilter{
-        {"id", std::to_string(id)} // filter
+        {"id", std::to_string(id)}                        // filter
       }
     ));
+
+    task.filenames = getFiles(std::to_string(id));        // files
+
+    return task;
   }
   /**
    * updateTask

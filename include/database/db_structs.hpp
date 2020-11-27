@@ -135,12 +135,14 @@ struct Join {
   std::string join_field;
 };
 
+using Joins = std::vector<Join>;
+
 template <typename T>
 struct JoinQuery : MultiVariantFilterSelect<T> {
-  std::string table;
+  std::string              table;
   std::vector<std::string> fields;
-  T filter;
-  Join join;
+  T                        filter;
+  Joins                    joins;
 };
 
 #endif  // __DB_STRUCTS_H__

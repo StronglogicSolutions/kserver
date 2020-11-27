@@ -3,9 +3,9 @@
 
 #include <vector>
 #include <string>
-#include <common/util.hpp>
 
-namespace Executor {
+#include "common/util.hpp"
+
 #define TIMESTAMP_LENGTH 10
 namespace TaskIndexes {
   static constexpr uint8_t MASK = 0;
@@ -50,17 +50,18 @@ namespace Field {
 using TaskArguments = std::vector<std::string>;
 
 struct Task {
-  int                   execution_mask;
-  std::string           datetime;
-  bool                  file;
-  std::vector<FileInfo> files;
-  std::string           envfile;
-  std::string           execution_flags;
-  int                   id = 0;
-  int                   completed;
-  int                   recurring;
-  bool                  notify;
-  std::string           runtime;
+  int                      execution_mask;
+  std::string              datetime;
+  bool                     file;
+  std::vector<FileInfo>    files;
+  std::string              envfile;
+  std::string              execution_flags;
+  int                      id = 0;
+  int                      completed;
+  int                      recurring;
+  bool                     notify;
+  std::string              runtime;
+  std::vector<std::string> filenames;
 
   bool validate() {
     return !datetime.empty() && !envfile.empty() &&
@@ -123,10 +124,9 @@ struct Task {
  */
 std::vector<FileInfo> parseFileInfo(std::string file_info);
 
-  class TaskHandler {
-    public:
-      virtual Executor::Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
-  };
-}
+class TaskHandler {
+  public:
+    virtual Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
+};
 
 #endif // __TASK_HPP__

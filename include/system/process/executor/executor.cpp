@@ -1,6 +1,5 @@
 #include "executor.hpp"
 
-namespace Executor {
 namespace constants {
 const uint8_t IMMEDIATE_REQUEST = 0;
 const uint8_t SCHEDULED_REQUEST = 1;
@@ -87,8 +86,6 @@ void ProcessExecutor::request(std::string_view         path,
                               int                      mask,
                               int                      client_socket_fd,
                               std::vector<std::string> argv) {
-  using namespace Executor;
-
   if (path[0] != '\0') {
     ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
     auto result = pd_ptr->run();
@@ -131,16 +128,20 @@ void ProcessExecutor::request(std::string_view         path,
 
 void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
   KLOG("Executing task");
-  KApplication app_info = getAppInfo(task.execution_mask);
-  auto is_ready_to_execute = std::stoi(task.datetime) > 0;  // if close to now
-  auto flags = task.execution_flags;
-  auto envfile = task.envfile;
 
-  if (is_ready_to_execute) {
-    std::string id{std::to_string(task.id)};
+  Environment environment{};
+  environment.setTask(task);
 
-    request(ConfigParser::Process::executor(), task.execution_mask,
-            client_socket_fd, id, {id}, constants::SCHEDULED_REQUEST);
+  if (environment.prepareRuntime()) {
+    ExecutionState exec_state = environment.get();
+    request(
+      exec_state.path,
+      task.execution_mask,
+      client_socket_fd,
+      std::to_string(task.id),
+      exec_state.argv,
+      constants::SCHEDULED_REQUEST
+    );
   }
 }
 
@@ -168,5 +169,4 @@ KApplication ProcessExecutor::getAppInfo(int mask) {
       k_app.name = value_pair.second;
   }
   return k_app;
-}
 }

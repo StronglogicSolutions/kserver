@@ -1,31 +1,29 @@
 #ifndef __REQUEST_HANDLER_HPP__
 #define __REQUEST_HANDLER_HPP__
 
-#include <codec/kmessage_generated.h>
-#include <log/logger.h>
 #include <stdlib.h>
-
-#include <atomic>
-#include <chrono>
-#include <common/util.hpp>
-#include <condition_variable>
-#include <config/config_parser.hpp>
-#include <database/kdb.hpp>
-#include <system/process/executor/executor.hpp>
-#include <system/process/scheduler.hpp>
-#include <system/process/registrar.hpp>
-#include <system/process/executor/task_handlers/instagram.hpp>
-#include <system/process/executor/task_handlers/generic.hpp>
 #include <iostream>
 #include <map>
 #include <mutex>
-#include <server/types.hpp>
-#include <string>
-#include <system/cron.hpp>
 #include <thread>
 #include <utility>
 #include <vector>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 
+#include "common/util.hpp"
+#include "log/logger.h"
+#include "codec/kmessage_generated.h"
+#include "config/config_parser.hpp"
+#include "database/kdb.hpp"
+#include "system/process/executor/executor.hpp"
+#include "system/process/scheduler.hpp"
+#include "system/process/registrar.hpp"
+#include "system/process/executor/task_handlers/instagram.hpp"
+#include "system/process/executor/task_handlers/generic.hpp"
+#include "server/types.hpp"
+#include "system/cron.hpp"
 #include "types.hpp"
 
 #define OPERATION_SUCCESS "Operation succeeded"
@@ -39,7 +37,6 @@ enum DevTest {
 };
 
 using namespace KData;
-using namespace Executor;
 
 flatbuffers::FlatBufferBuilder builder(1024);
 
@@ -152,7 +149,7 @@ class RequestHandler {
   void initialize(EventCallbackFn event_callback_fn,
                   SystemCallbackFn system_callback_fn,
                   TaskCallbackFn task_callback_fn) {
-    m_executor = new Executor::ProcessExecutor();
+    m_executor = new ProcessExecutor();
     m_scheduler = getScheduler();
     m_executor->setEventCallback([this](std::string result,
                                         int mask,
@@ -282,7 +279,7 @@ class RequestHandler {
    */
   bool handlePendingTasks() {
     if (!m_tasks_map.empty()) {
-      Executor::ProcessExecutor executor{};
+      ProcessExecutor executor{};
       bool is_scheduled_task = true;
       executor.setEventCallback(
         [this, is_scheduled_task](std::string result, int mask,
@@ -298,7 +295,7 @@ class RequestHandler {
         if (!client_tasks.second.empty()) {
           for (const auto &task : client_tasks.second) {
             futures.push_back(std::async(
-              std::launch::deferred, &Executor::ProcessExecutor::executeTask,
+              std::launch::deferred, &ProcessExecutor::executeTask,
               std::ref(executor), client_tasks.first, task));
           }
         }
@@ -550,7 +547,7 @@ class RequestHandler {
                            {info_string, request_id});
 
       m_executor->request(row.second, mask, client_socket_fd, request_id, {},
-                          Executor::constants::IMMEDIATE_REQUEST);
+                          constants::IMMEDIATE_REQUEST);
     }
   }
 
@@ -561,7 +558,7 @@ class RequestHandler {
 
   void process(int client_fd, std::string message) {
     std::vector<std::string> args = getArgs(message);
-    RequestType type = int_to_request_type(std::stoi(args.at(Request::constants::REQUEST_TYPE_INDEX)));
+    RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
     if (type == RequestType::GET_APPLICATION) {
       KApplication application = Registrar::args_to_application(args);
@@ -701,7 +698,7 @@ class RequestHandler {
             m_scheduler->updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
               task_it->id,
-              Executor::Constants::Recurring::names[task_it->recurring]
+              Constants::Recurring::names[task_it->recurring]
             );
           }
 
@@ -732,7 +729,7 @@ class RequestHandler {
    *
    * @request
    *
-   * The callback function called by the Executor::Scheduler after a scheduled
+   * The callback function called by the Scheduler after a scheduled
    * task completes
    *
    * @param[in] <std::string> `value`             The stdout from value from the
@@ -771,7 +768,7 @@ class RequestHandler {
   bool                              m_active;
   // Workers
   Registrar::Registrar              m_registrar;
-  Executor::ProcessExecutor*        m_executor;
+  ProcessExecutor*                  m_executor;
   Scheduler::Scheduler*             m_scheduler;
   std::thread                       m_maintenance_worker;
 };
