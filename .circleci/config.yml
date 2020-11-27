@@ -8,13 +8,13 @@ jobs:
       - run: git submodule sync
       - run: git submodule update --init
       - run:
-        name: dependencies
-        command: |
-          mkdir third_party/libzmq/build && cd third_party/libzmq/build && cmake ../ && make && make install
+          name: dependencies
+          command: |
+            mkdir third_party/libzmq/build && cd third_party/libzmq/build && cmake ../ && make && make install
       - run:
           name: compile
           command: |
-            BUILD_ENV=CIRCLECI cmake . && make
+            BUILD=_ENV=CIRCLECI cmake . && make
       - store_artifacts:
           path: kserver
           destination: kserver
