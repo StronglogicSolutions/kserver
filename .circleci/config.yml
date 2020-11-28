@@ -10,7 +10,7 @@ jobs:
       - run:
           name: distro
           command: |
-            pacman -S --noconfirm libsodium
+            pacman -S --noconfirm libsodium zeromq
       - run:
           name: dependencies
           command: |
