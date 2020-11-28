@@ -14,7 +14,7 @@ jobs:
       - run:
           name: compile
           command: |
-            BUILD=_ENV=CIRCLECI cmake . && make
+            BUILD_ENV=CIRCLECI cmake . && make
       - store_artifacts:
           path: kserver
           destination: kserver
