@@ -5,7 +5,6 @@
 #include "executor.hpp"
 #include "database/kdb.hpp"
 
-
 inline KApplication get_app_info(int mask) {
   Database::KDB kdb{}; KApplication k_app{};
 
@@ -49,6 +48,9 @@ const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
   {"REQUESTED_BY", "--requested_by"},
   {"PROMOTE_SHARE", "--promote_share"},
 };
+
+static const std::string RUNTIME_FLAG{"R_ARGS"};
+
 /**
  * exec_flags_to_vector
  *
@@ -108,8 +110,13 @@ virtual bool prepareRuntime() override {
 
     m_state.path = app.name;
 
+    auto runtime_arguments = parseExecArguments(envfile);
+
+    if (!runtime_arguments.empty()) m_state.argv.emplace_back(runtime_arguments);
+
     for (const auto& runtime_flag : exec_flags_to_vector(m_task.execution_flags)) {
-      m_state.argv.push_back(parseExecArgument(runtime_flag, envfile));
+      auto arg = parseNamedArgument(runtime_flag, envfile);
+      if (!arg.empty()) m_state.argv.emplace_back(arg);
     }
 
     for (const auto& filename : m_task.filenames) {
@@ -127,7 +134,7 @@ virtual bool prepareRuntime() override {
 virtual ExecutionState get() override { return m_state; }
 
 private:
-std::string parseExecArgument(std::string flag, const std::string& env) {
+std::string parseNamedArgument(std::string flag, const std::string& env) {
   std::string            argument{};
   std::string::size_type index       = env.find(flag);
 
@@ -142,6 +149,22 @@ std::string parseExecArgument(std::string flag, const std::string& env) {
   }
   return argument;
 }
+
+std::string parseExecArguments(const std::string& env) {
+  std::string            argument{};
+  std::string::size_type index       = env.find(RUNTIME_FLAG);
+
+  if (index != std::string::npos) {
+    auto parsed = env.substr(index);
+    auto end    = parsed.find_first_of('\n');
+    argument += (end != std::string::npos) ?
+      parsed.substr(parsed.find_first_of('\''), (end - RUNTIME_FLAG.size() - 1)) :
+      parsed.substr(parsed.find_first_of('\''));
+  }
+  return argument;
+}
+
+
 
 Task           m_task;
 ExecutionState m_state;
