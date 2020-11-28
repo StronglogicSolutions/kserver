@@ -7,6 +7,9 @@ jobs:
       - checkout
       - run: git submodule sync
       - run: git submodule update --init
+      - run: distro
+          command: |
+            pacman -S --noconfirm libsodium
       - run:
           name: dependencies
           command: |
