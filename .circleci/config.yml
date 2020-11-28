@@ -7,7 +7,8 @@ jobs:
       - checkout
       - run: git submodule sync
       - run: git submodule update --init
-      - run: distro
+      - run:
+          name: distro
           command: |
             pacman -S --noconfirm libsodium
       - run:
