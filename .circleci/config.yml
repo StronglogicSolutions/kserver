@@ -12,10 +12,6 @@ jobs:
           command: |
             pacman -S --noconfirm libsodium zeromq
       - run:
-          name: dependencies
-          command: |
-            mkdir third_party/libzmq/build && cd third_party/libzmq/build && cmake ../ && make && make install
-      - run:
           name: compile
           command: |
             BUILD=_ENV=CIRCLECI cmake . && make
