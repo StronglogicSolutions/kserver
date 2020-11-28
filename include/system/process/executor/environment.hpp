@@ -32,7 +32,7 @@ inline KApplication get_app_info(int mask) {
 }
 
 struct ExecutionState{
-  std::string_view         path;
+  std::string              path;
   std::vector<std::string> argv;
 };
 
@@ -108,7 +108,7 @@ virtual bool prepareRuntime() override {
     std::string  envfile = FileUtils::readEnvFile(m_task.envfile, true);
     KApplication app     = get_app_info(m_task.execution_mask);
 
-    m_state.path = app.name;
+    m_state.path = app.path;
 
     auto runtime_arguments = parseExecArguments(envfile);
 
