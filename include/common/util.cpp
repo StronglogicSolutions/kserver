@@ -462,7 +462,9 @@ bool isNewSession(const char *data) {
 namespace SystemUtils {
 void sendMail(std::string recipient, std::string message, std::string from) {
   std::system(
-    "echo '" + message + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
+    std::string{
+      "echo '" + message + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
+    }.c_str()
   );
 }
 } // namespace SystemUtils
