@@ -168,8 +168,11 @@ std::string getJoinStatement(Joins joins) {
   std::string join_s{};
   if (!joins.empty()) {
     for (const auto& join : joins) {
-      join_s += "INNER JOIN " + join.table + \
-      " ON " + join.table + "." + join.field + "=" + join.join_table + "." + join.join_field;
+      join_s += join.type == JoinType::INNER ?
+        "INNER JOIN " :
+        "LEFT OUTER JOIN ";
+      join_s += join.table + \
+       " ON " + join.table + "." + join.field + "=" + join.join_table + "." + join.join_field;
       join_s += " ";
     }
     join_s.pop_back();
@@ -335,6 +338,8 @@ template <typename T>
 pqxx::result DatabaseConnection::performSelect(T query) {
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
+  // auto select_statement = selectStatement(query);
+  // std::cout << "SELECT: \n" << select_statement << std::endl;
   pqxx::result pqxx_result = worker.exec(selectStatement(query));
   worker.commit();
 

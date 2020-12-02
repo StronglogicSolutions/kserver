@@ -193,47 +193,66 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    *
    * @param  [in]  {QueryValues}        result  The DB query result consisting of string tuples
    * @return [out] {std::vector<Task>}          A vector of Task objects
+   *
+   * TODO: Remove "parse_files" boolean after refactoring `fetchTasks` (non-recurring tasks method) to use joins
    */
-  std::vector<Task> parseTasks(QueryValues&& result) {
+  std::vector<Task> parseTasks(QueryValues&& result, bool parse_files = false) {
     int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
-    std::string mask, flags, envfile, time, filename;
+    std::string mask, flags, envfile, time, filenames;
     std::vector<Task> tasks;
+    bool checked_for_files{false};
 
     for (const auto& v : result) {
-      if      (v.first == Field::MASK     ) { mask      = v.second; }
-      else if (v.first == Field::FLAGS    ) { flags     = v.second; }
-      else if (v.first == Field::ENVFILE  ) { envfile   = v.second; }
-      else if (v.first == Field::TIME     ) { time      = v.second; }
-      else if (v.first == Field::ID       ) { id        = std::stoi(v.second); }
-      else if (v.first == Field::COMPLETED) { completed = std::stoi(v.second); }
-      else if (v.first == Field::RECURRING) { recurring = std::stoi(v.second); }
+      if      (v.first == Field::MASK     ) { mask      = v.second;                   }
+      else if (v.first == Field::FLAGS    ) { flags     = v.second;                   }
+      else if (v.first == Field::ENVFILE  ) { envfile   = v.second;                   }
+      else if (v.first == Field::TIME     ) { time      = v.second;                   }
+      else if (v.first == Field::ID       ) { id        = std::stoi(v.second);        }
+      else if (v.first == Field::COMPLETED) { completed = std::stoi(v.second);        }
+      else if (v.first == Field::RECURRING) { recurring = std::stoi(v.second);        }
       else if (v.first == Field::NOTIFY   ) { notify    = v.second.compare("t") == 0; }
+      else if (v.first == "files"         ) { filenames = v.second;
+                                              KLOG("Found files");
+                                              checked_for_files = true;               }
 
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
           !mask.empty()    && completed != NO_COMPLETED_VALUE &&
-          id > 0           && recurring > -1 && notify > -1) {
-        tasks.push_back(Task{
-          .execution_mask   = std::stoi(mask),
-          .datetime         = time,
-          .file             = true,
-          .files            = {},
-          .envfile          = envfile,
-          .execution_flags  = flags,
-          .id               = id,
-          .completed        = completed,
-          .recurring        = recurring,
-          .notify           = (notify == 1)
-        });
-        id                  = 0;
-        recurring           = -1;
-        notify              = -1;
-        completed           = NO_COMPLETED_VALUE;
-        filename.clear();
-        envfile.clear();
-        flags.clear();
-        time.clear();
-        mask.clear();
+          id > 0           && recurring > -1 && notify > -1      ) {
+
+        if (parse_files && !checked_for_files) {
+          KLOG("Checking for files");
+          checked_for_files = true;
+          continue;
+        } else {
+          tasks.push_back(Task{
+            .execution_mask   = std::stoi(mask),
+            .datetime         = time,
+            .file             = true,
+            .files            = {},
+            .envfile          = envfile,
+            .execution_flags  = flags,
+            .id               = id,
+            .completed        = completed,
+            .recurring        = recurring,
+            .notify           = (notify == 1),
+            .runtime          = std::string{},                      // ⬅ set in environment.hpp
+            .filenames        = StringUtils::split(filenames, ' ')
+          });
+          id                  = 0;
+          recurring           = -1;
+          notify              = -1;
+          completed           = NO_COMPLETED_VALUE;
+          checked_for_files   = false;
+          filenames.clear();
+          envfile.clear();
+          flags.clear();
+          time.clear();
+          mask.clear();
+        }
       }
+    }
+    if (tasks.empty()) {
+      ELOG("Did not parse tasks. Returning empty container");
     }
     return tasks;
   }
@@ -282,7 +301,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         }
       )
     );
-
+    // TODO: Convert above to a JOIN query, and remove this code below
     for (auto& task : tasks) {
       task.filenames = getFiles(std::to_string(task.id));
     }
@@ -310,10 +329,11 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           Field::COMPLETED,
           Field::RECURRING,
           Field::NOTIFY,
-          "recurring.time"
+          "recurring.time",                                                                      // TODO: Improve constants
+          "(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files" // TODO: replace with grouping
         }, SelectJoinFilters{
           CompFilter{                                                     // filter
-            Field::RECURRING,                                   // field
+            Field::RECURRING,                                             // field
             "0",                                                          // value
             "<>"                                                          // comparator
           },
@@ -332,19 +352,22 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         },
         Joins{
           Join{
-            .table="recurring",                                              // table to join
-            .field="sid",                                                    // field to join on
-            .join_table="schedule",                                          // table to join to
-            .join_field="id"                                                 // field to join to
+            .table      ="recurring",                                     // table to join
+            .field      ="sid",                                           // field to join on
+            .join_table ="schedule",                                      // table to join to
+            .join_field ="id",                                            // field to join to
+            .type       = JoinType::INNER                                 // type of join
           },
           Join{
-            .table="file",
-            .field="sid",
-            .join_table="schedule",
-            .join_field="id"
+            .table      ="file",
+            .field      ="sid",
+            .join_table ="schedule",
+            .join_field ="id",
+            .type       = JoinType::OUTER
           }
         }
-      )
+      ),
+      true // ⬅ Parse files
     );
   }
 
@@ -376,10 +399,10 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     std::vector<std::string> file_names{};
 
     QueryValues result = m_kdb.select(
-      "file", {       // table
-        "name",  // fields
+      "file", {        // table
+        "name",        // fields
         }, {
-          {"sid", sid}      // filter
+          {"sid", sid} // filter
         }
     );
 

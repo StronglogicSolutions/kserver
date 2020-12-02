@@ -460,13 +460,12 @@ bool isNewSession(const char *data) {
 }
 
 namespace SystemUtils {
-  void sendMail(std::string recipient, std::string message, std::string from) {
-    std::system(std::string{
-      "echo \"" + message + "\" | mail -s 'KServer notification' -a FROM:" + from + " " + recipient
-      }.c_str()
-    );
-  }
+void sendMail(std::string recipient, std::string message, std::string from) {
+  std::system(
+    "echo '" + message + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
+  );
 }
+} // namespace SystemUtils
 
 namespace FileUtils {
 
@@ -545,7 +544,9 @@ void split(const std::string &s, char delim, T result) {
 
 std::vector<std::string> split(const std::string &s, char delim) {
     std::vector<std::string> v{};
-    split(s, delim, std::back_inserter(v));
+    if (!s.empty()) {
+      split(s, delim, std::back_inserter(v));
+    }
     return v;
 }
 } // namespace StringUtils
