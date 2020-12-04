@@ -614,6 +614,39 @@ class RequestHandler {
 
     }
     else
+    if (type == RequestType::SCHEDULE) {
+      const uint8_t AVERAGE_TASK_SIZE = 9;
+      uint8_t       i{0};
+      uint8_t       TASKS_PER_EVENT{5};
+      std::vector<Task> tasks = m_scheduler->fetchAllTasks();
+      std::vector<std::string> payload{};
+      payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
+      payload.emplace_back("Schedule");
+
+
+      for (const auto& task : tasks) {
+        KApplication app = m_executor->getAppInfo(task.execution_mask);
+        payload.emplace_back(std::to_string(task.id));
+        payload.emplace_back(app.name);
+        payload.emplace_back(task.datetime);
+        payload.emplace_back(task.execution_flags);
+        payload.emplace_back(std::to_string(task.completed));
+        payload.emplace_back(std::to_string(task.recurring));
+        payload.emplace_back(std::to_string(task.notify));
+        payload.emplace_back(task.runtime);
+        payload.emplace_back(task.filesToString());
+        if (!(++i % TASKS_PER_EVENT)) {
+           m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__SCHEDULER_FETCH,
+            payload
+          );
+          payload.clear();
+          payload.emplace_back("Schedule more");
+        }
+      }
+    }
+    else
     if (type == RequestType::UNKNOWN) {
       // TODO: handle
     }

@@ -13,7 +13,8 @@ enum RequestType {
   UPDATE_APPLICATION   = 0x01,
   REMOVE_APPLICATION   = 0x02,
   GET_APPLICATION      = 0x03,
-  UNKNOWN              = 0x04
+  SCHEDULE             = 0x04,
+  UNKNOWN              = 0x05
 };
 
 /**
@@ -39,6 +40,10 @@ RequestType int_to_request_type(int byte) {
   if (byte == GET_APPLICATION)
   {
     return GET_APPLICATION;
+  }
+  if (byte == SCHEDULE)
+  {
+    return SCHEDULE;
   }
   return UNKNOWN;
 }
