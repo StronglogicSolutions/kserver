@@ -451,6 +451,10 @@ template QueryResult DatabaseConnection::query(
   JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>
 );
 
+template QueryResult DatabaseConnection::query(
+  JoinQuery<QueryFilter>
+);
+
 std::string DatabaseConnection::query(InsertReturnQuery query) {
   std::string returning = query.returning;
   pqxx::result pqxx_result = performInsert(query, returning);
