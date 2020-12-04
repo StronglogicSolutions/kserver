@@ -85,6 +85,14 @@ struct Task {
     return return_string;
   }
 
+  std::string filesToString() const {
+    std::string files_s{};
+    for (const auto& file : filenames) files_s += file + ":";
+    if (!files_s.empty())
+      files_s.pop_back();
+    return files_s;
+  }
+
   friend std::ostream &operator<<(std::ostream &out, const Task &task) {
     return out << task.toString();
   }
