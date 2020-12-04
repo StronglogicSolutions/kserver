@@ -371,6 +371,36 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     );
   }
 
+  std::vector<Task> fetchAllTasks() {
+    return parseTasks(
+      m_kdb.selectJoin<QueryFilter>(
+        "schedule",
+        {
+          Field::ID,                                            // fields
+          Field::TIME,
+          Field::MASK,
+          Field::FLAGS,
+          Field::ENVFILE,
+          Field::COMPLETED,
+          Field::RECURRING,
+          Field::NOTIFY,
+          "(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files" // TODO: replace with grouping
+        },
+        {},
+        Joins{
+          Join{
+              .table      ="file",
+              .field      ="sid",
+              .join_table ="schedule",
+              .join_field ="id",
+              .type       = JoinType::OUTER
+            }
+        }
+      ),
+      true
+    );
+  }
+
   /**
    * getTask
    *
