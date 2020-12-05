@@ -197,6 +197,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * TODO: Remove "parse_files" boolean after refactoring `fetchTasks` (non-recurring tasks method) to use joins
    */
   std::vector<Task> parseTasks(QueryValues&& result, bool parse_files = false) {
+    const std::string files_field{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
     int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
     std::string mask, flags, envfile, time, filenames;
     std::vector<Task> tasks;
@@ -211,7 +212,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       else if (v.first == Field::COMPLETED) { completed = std::stoi(v.second);        }
       else if (v.first == Field::RECURRING) { recurring = std::stoi(v.second);        }
       else if (v.first == Field::NOTIFY   ) { notify    = v.second.compare("t") == 0; }
-      else if (v.first == "files"         ) { filenames = v.second;
+      else if (v.first == files_field     ) { filenames = v.second;
                                               KLOG("Found files");
                                               checked_for_files = true;               }
 
@@ -235,7 +236,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
             .completed        = completed,
             .recurring        = recurring,
             .notify           = (notify == 1),
-            .runtime          = std::string{},                      // ⬅ set in environment.hpp
+            .runtime          = FileUtils::readRunArgs(envfile),                      // ⬅ set in environment.hpp
             .filenames        = StringUtils::split(filenames, ' ')
           });
           id                  = 0;

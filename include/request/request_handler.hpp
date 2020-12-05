@@ -617,7 +617,7 @@ class RequestHandler {
     if (type == RequestType::SCHEDULE) {
       const uint8_t AVERAGE_TASK_SIZE = 9;
       uint8_t       i{0};
-      uint8_t       TASKS_PER_EVENT{5};
+      uint8_t       TASKS_PER_EVENT{4};
       std::vector<Task> tasks = m_scheduler->fetchAllTasks();
       std::vector<std::string> payload{};
       payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);

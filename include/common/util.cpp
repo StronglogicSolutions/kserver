@@ -517,6 +517,14 @@ std::string readEnvFile(std::string env_file_path, bool relative_path) {
   return env_file_stream.str();
 }
 
+std::string readRunArgs(std::string env_file_path) {
+  std::string env = readEnvFile(env_file_path);
+  auto start = env.find("R_ARGS=");
+  auto sub_s = env.substr(start);
+  auto end   = sub_s.find_first_of("\n");
+  return sub_s.substr(0, end);
+}
+
 std::string readFile(std::string env_file_path) {
     std::ifstream file_stream{env_file_path};
     std::stringstream env_file_stream{};

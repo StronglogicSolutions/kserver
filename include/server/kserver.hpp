@@ -399,23 +399,37 @@ class KServer : public SocketListener {
       KLOG("Start operation");
       handleStart(decoded_message, client_socket_fd);
       return;
-    } else if (isStopOperation(op.c_str())) {         // Stop
+    }
+    else
+    if (isStopOperation(op.c_str())) {         // Stop
       KLOG("Stop operation. Shutting down client and closing connection");
       handleStop(client_socket_fd);
       return;
-    } else if (isExecuteOperation(op.c_str())) {      // Process execution request
+    }
+    else
+    if (isExecuteOperation(op.c_str())) {      // Process execution request
       KLOG("Execute operation");
       handleExecute(decoded_message, client_socket_fd);
       return;
-    } else if (isFileUploadOperation(op.c_str())) {   // File upload request
+    }
+    else
+    if (isFileUploadOperation(op.c_str())) {   // File upload request
       KLOG("File upload operation");
       handleFileUploadRequest(client_socket_fd);
       return;
-    } else if (isIPCOperation(op.c_str())) {          // IPC request
+    }
+    else
+    if (isIPCOperation(op.c_str())) {          // IPC request
       KLOG("Testing IPC");
       handleIPC(decoded_message);
-    } else if (isAppOperation(op.c_str())) {     // Register app
+    }
+    else
+    if (isAppOperation(op.c_str())) {     // Register app
       handleAppRequest(client_socket_fd, decoded_message);
+    }
+    else
+    if (isScheduleOperation(op.c_str())) {     // Register app
+      handleScheduleRequest(client_socket_fd, decoded_message);
     }
   }
 
@@ -425,6 +439,10 @@ class KServer : public SocketListener {
 
 
   void handleAppRequest(int client_fd, std::string message) {
+    m_request_handler.process(client_fd, message);
+  }
+
+  void handleScheduleRequest(int client_fd, std::string message) {
     m_request_handler.process(client_fd, message);
   }
 
