@@ -252,9 +252,6 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         }
       }
     }
-    if (tasks.empty()) {
-      ELOG("Did not parse tasks. Returning empty container");
-    }
     return tasks;
   }
 
