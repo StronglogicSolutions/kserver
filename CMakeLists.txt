@@ -51,26 +51,45 @@ set(SOURCE_FILES
 
 # Sources
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
-  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB} ${ZMQ})
+  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB})
 else ()
-  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB} ${PQXX_STATIC_LIB} ${ZMQ})
+  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB} ${PQXX_STATIC_LIB})
 endif()
 
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 # Linking
-target_link_libraries(${PROJECT_NAME} ${UUID} ${PQXX_LIB} ${PQ_LIB} ${ZMQ} Threads::Threads)
-target_link_libraries(${PROJECT_NAME}_lib ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} ${ZMQ} Threads::Threads)
+target_link_libraries(
+  ${PROJECT_NAME}
+  PRIVATE
+  ${UUID}
+  ${PQXX_LIB}
+  ${PQ_LIB}
+  Threads::Threads
+  zmq ${CMAKE_THREAD_LIBS_INIT}
+)
+
+target_link_libraries(
+  ${PROJECT_NAME}_lib
+  PRIVATE
+  ${LISTENERLIB}
+  ${UUID}
+  ${PQXX_LIB}
+  ${PQ_LIB}
+  Threads::Threads
+  zmq ${CMAKE_THREAD_LIBS_INIT}
+)
 
 # Includes
 target_include_directories(${PROJECT_NAME} PRIVATE
-    "include"
-    "third_party"
- )
-target_include_directories(${PROJECT_NAME}_lib PRIVATE
-    "include"
-    "third_party"
- )
-add_subdirectory(test)
+  "include"
+  "third_party"
+)
 
+target_include_directories(${PROJECT_NAME}_lib PRIVATE
+  "include"
+  "third_party"
+)
+
+add_subdirectory(test)
