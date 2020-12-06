@@ -263,7 +263,6 @@ class KServer : public SocketListener {
       KLOG("Event arg - {}", arg);
     }
     std::string event_string = createEvent(event.c_str(), argv);
-    KLOG("Event JSON: \n{}", event_string);
     sendMessage(client_socket_fd, event_string.c_str(), event_string.size());
   }
 
@@ -395,7 +394,7 @@ class KServer : public SocketListener {
    */
   void handleOperation(std::string decoded_message, int client_socket_fd) {
     KOperation op = getOperation(decoded_message.c_str());
-    if (isStartOperation(op.c_str())) {               // Start
+    if (isStartOperation(op.c_str())) {        // Start
       KLOG("Start operation");
       handleStart(decoded_message, client_socket_fd);
       return;
@@ -424,11 +423,13 @@ class KServer : public SocketListener {
       handleIPC(decoded_message);
     }
     else
-    if (isAppOperation(op.c_str())) {     // Register app
+    if (isAppOperation(op.c_str())) {          // Register app
+      KLOG("App request");
       handleAppRequest(client_socket_fd, decoded_message);
     }
     else
-    if (isScheduleOperation(op.c_str())) {     // Register app
+    if (isScheduleOperation(op.c_str())) {     // Fetch schedule
+      KLOG("Fetch schedule request");
       handleScheduleRequest(client_socket_fd, decoded_message);
     }
   }

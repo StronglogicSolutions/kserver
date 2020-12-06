@@ -615,6 +615,7 @@ class RequestHandler {
     }
     else
     if (type == RequestType::SCHEDULE) {
+      KLOG("Processing schedule fetch request");
       const uint8_t AVERAGE_TASK_SIZE = 9;
       uint8_t       i{0};
       uint8_t       TASKS_PER_EVENT{4};
@@ -622,7 +623,6 @@ class RequestHandler {
       std::vector<std::string> payload{};
       payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
       payload.emplace_back("Schedule");
-
 
       for (const auto& task : tasks) {
         KApplication app = m_executor->getAppInfo(task.execution_mask);
@@ -645,6 +645,7 @@ class RequestHandler {
           payload.emplace_back("Schedule more");
         }
       }
+      KLOG("Fetched {} scheduled tasks for client", tasks.size());
     }
     else
     if (type == RequestType::UNKNOWN) {
