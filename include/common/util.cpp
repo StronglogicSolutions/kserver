@@ -519,6 +519,9 @@ std::string readEnvFile(std::string env_file_path, bool relative_path) {
 
 std::string readRunArgs(std::string env_file_path) {
   std::string env = readEnvFile(env_file_path);
+  if (env.empty())
+    return std::string{};
+
   auto start = env.find("R_ARGS=");
   auto sub_s = env.substr(start);
   auto end   = sub_s.find_first_of("\n");
