@@ -25,6 +25,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_library(UUID uuid)
 find_library(PQXX_LIB pqxx)
 find_library(PQ_LIB pq)
+find_library(ZMQ lzmq)
 find_package(Threads REQUIRED)
 
 set(KSERVER_HEADERS "-I include -I third_party")
@@ -50,17 +51,17 @@ set(SOURCE_FILES
 
 # Sources
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
-  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB})
+  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB} ${ZMQ})
 else ()
-  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB} ${PQXX_STATIC_LIB})
+  set(SOURCES ${SOURCE_FILES} ${LISTENERLIB} ${PQXX_STATIC_LIB} ${ZMQ})
 endif()
 
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 # Linking
-target_link_libraries(${PROJECT_NAME} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
-target_link_libraries(${PROJECT_NAME}_lib ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
+target_link_libraries(${PROJECT_NAME} ${UUID} ${PQXX_LIB} ${PQ_LIB} ${ZMQ} Threads::Threads)
+target_link_libraries(${PROJECT_NAME}_lib ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} ${ZMQ} Threads::Threads)
 
 # Includes
 target_include_directories(${PROJECT_NAME} PRIVATE
