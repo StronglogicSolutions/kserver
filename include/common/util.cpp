@@ -521,10 +521,10 @@ std::string readRunArgs(std::string env_file_path) {
   std::string run_arg_s{};
   std::string env = readEnvFile(env_file_path);
   if (!env.empty()) {
-    auto start = env.find("R_ARGS=");
+    auto start = env.find("R_ARGS="); // TODO: use a constant
     if (start != std::string::npos) {
       auto sub_s = env.substr(start);
-      auto end   = sub_s.find_first_of("\n");
+      auto end   = sub_s.find_first_of("\n"); // TODO: change index to not include `R_ARGS`
       run_arg_s  = sub_s.substr(0, end);
     }
   }
