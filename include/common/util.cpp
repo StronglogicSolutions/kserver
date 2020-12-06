@@ -518,14 +518,17 @@ std::string readEnvFile(std::string env_file_path, bool relative_path) {
 }
 
 std::string readRunArgs(std::string env_file_path) {
+  std::string run_arg_s{};
   std::string env = readEnvFile(env_file_path);
-  if (env.empty())
-    return std::string{};
-
-  auto start = env.find("R_ARGS=");
-  auto sub_s = env.substr(start);
-  auto end   = sub_s.find_first_of("\n");
-  return sub_s.substr(0, end);
+  if (!env.empty()) {
+    auto start = env.find("R_ARGS=");
+    if (start != std::string::npos) {
+      auto sub_s = env.substr(start);
+      auto end   = sub_s.find_first_of("\n");
+      run_arg_s  = sub_s.substr(0, end);
+    }
+  }
+  return run_arg_s;
 }
 
 std::string readFile(std::string env_file_path) {
