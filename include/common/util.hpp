@@ -22,14 +22,14 @@
 
 #include "system/process/executor/kapplication.hpp"
 
-#include "rapidjson/document.h"
-#include "rapidjson/error/en.h"
-#include "rapidjson/filereadstream.h"
-#include "rapidjson/filewritestream.h"
-#include "rapidjson/pointer.h"
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
+#include "codec/rapidjson/document.h"
+#include "codec/rapidjson/error/en.h"
+#include "codec/rapidjson/filereadstream.h"
+#include "codec/rapidjson/filewritestream.h"
+#include "codec/rapidjson/pointer.h"
+#include "codec/rapidjson/prettywriter.h"
+#include "codec/rapidjson/stringbuffer.h"
+#include "codec/rapidjson/writer.h"
 
 #include <iostream>
 
