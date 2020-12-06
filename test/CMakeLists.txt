@@ -31,4 +31,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 add_subdirectory(googletest)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC gtest gmock ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
+target_link_libraries(
+   ${PROJECT_NAME} PRIVATE
+   gtest
+   gmock
+   ${UUID}
+   ${PQXX_LIB}
+   ${PQ_LIB}
+   Threads::Threads
+   zmq ${CMAKE_THREAD_LIBS_INIT}
+)

@@ -25,7 +25,6 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_library(UUID uuid)
 find_library(PQXX_LIB pqxx)
 find_library(PQ_LIB pq)
-find_library(ZMQ lzmq)
 find_package(Threads REQUIRED)
 
 set(KSERVER_HEADERS "-I include -I third_party")
