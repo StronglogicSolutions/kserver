@@ -614,7 +614,7 @@ class RequestHandler {
 
     }
     else
-    if (type == RequestType::SCHEDULE) {
+    if (type == RequestType::FETCH_SCHEDULE) {
       KLOG("Processing schedule fetch request");
       const uint8_t AVERAGE_TASK_SIZE = 9;
       uint8_t       i{0};
@@ -624,7 +624,7 @@ class RequestHandler {
       payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
       payload.emplace_back("Schedule");
 
-      for (const auto& task : tasks) {
+      for (const auto& task : tasks) { // TODO: This needs to handle < 4 items
         KApplication app = m_executor->getAppInfo(task.execution_mask);
         payload.emplace_back(std::to_string(task.id));
         payload.emplace_back(app.name);
@@ -645,7 +645,20 @@ class RequestHandler {
           payload.emplace_back("Schedule more");
         }
       }
+      if (!payload.empty())
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
       KLOG("Fetched {} scheduled tasks for client", tasks.size());
+    }
+    else
+    if (type == RequestType::UPDATE_SCHEDULE) {
+      Task task = Scheduler::args_to_task(args);
+      bool save_success = m_scheduler->update(task);
+
+      m_system_callback_fn(
+        client_fd,
+        SYSTEM_EVENTS__SCHEDULER_UPDATE,
+        {std::to_string(task.id), (save_success) ? "Success" : "Failure"}
+      );
     }
     else
     if (type == RequestType::UNKNOWN) {

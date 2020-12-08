@@ -106,6 +106,14 @@ class KServer : public SocketListener {
         }
         break;
       }
+      case SYSTEM_EVENTS__SCHEDULER_UPDATE: {
+        if (client_socket_fd != -1) {
+          KLOG("Sending schedule fetch results to client {}", client_socket_fd);
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+            sendEvent(client_socket_fd, "Schedule PUT", args);
+        }
+        break;
+      }
       case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
         KLOG("Task successfully scheduled");
         if (client_socket_fd == -1) {
@@ -490,7 +498,7 @@ class KServer : public SocketListener {
               } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "schedule") == 0) {
                 // TODO: temporary. This should be done by the client application
                 std::string fetch_schedule_operation = createOperation(
-                  "Schedule", {std::to_string(Request::RequestType::SCHEDULE)}
+                  "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
                 );
                 m_request_handler.process(client_socket_fd, fetch_schedule_operation);
               }

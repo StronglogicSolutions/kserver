@@ -7,6 +7,8 @@
 #include "common/util.hpp"
 
 #define TIMESTAMP_LENGTH 10
+
+const uint32_t NO_APP_MASK = std::numeric_limits<uint32_t>::max();
 namespace TaskIndexes {
   static constexpr uint8_t MASK = 0;
 }

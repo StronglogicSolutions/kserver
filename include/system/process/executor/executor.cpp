@@ -91,7 +91,7 @@ void ProcessExecutor::request(std::string_view         path,
     ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
     auto result = pd_ptr->run();
     if (!result.output.empty()) {
-      (result.output, mask, client_socket_fd, result.error);
+      notifyProcessEvent(result.output, mask, client_socket_fd, result.error);
     }
     delete pd_ptr;
   }

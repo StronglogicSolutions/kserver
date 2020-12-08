@@ -21,9 +21,50 @@
 
 namespace Scheduler {
 
+
+ /**
+  * TODO: This should be moved elsewhere. Perhaps the Registrar
+  */
+ static uint32_t getAppMask(std::string name) {
+  const std::string field{"name"};
+
+  QueryValues values = Database::KDB{}.select(
+    "apps",
+    {
+      field
+    },
+    {
+      {field, name}
+    }
+  );
+
+  for (const auto &pair : values) {
+    auto key = pair.first;
+    auto value = pair.second;
+
+    if (key == field)
+      return std::stoi(value);
+  }
+
+  return std::numeric_limits<uint32_t>::max();
+}
+
 using ScheduleEventCallback =
     std::function<void(std::string, int, int, std::vector<std::string>)>;
 
+namespace constants {
+const uint8_t PAYLOAD_ID_INDEX        {0x00};
+const uint8_t PAYLOAD_NAME_INDEX      {0x01};
+const uint8_t PAYLOAD_TIME_INDEX      {0x02};
+const uint8_t PAYLOAD_FLAGS_INDEX     {0x03};
+const uint8_t PAYLOAD_COMPLETED_INDEX {0x04};
+const uint8_t PAYLOAD_RECURRING_INDEX {0x05};
+const uint8_t PAYLOAD_NOTIFY_INDEX    {0x06};
+const uint8_t PAYLOAD_RUNTIME_INDEX   {0x07};
+const uint8_t PAYLOAD_FILES_INDEX     {0x08};
+
+const uint8_t PAYLOAD_SIZE            {0x09};
+} // namespace constants
 /**
  * \note Scheduled Task Completion States
  *
@@ -79,6 +120,28 @@ inline uint32_t getIntervalSeconds(uint32_t interval) {
     default:
       return 0;
   }
+}
+
+inline Task args_to_task(std::vector<std::string> args) {
+  Task task{};
+
+  if (args.size() == constants::PAYLOAD_SIZE) {
+    auto mask = getAppMask(args.at(constants::PAYLOAD_NAME_INDEX));
+
+    if (mask != NO_APP_MASK) {
+      task.id              = std::stoi(args.at(constants::PAYLOAD_ID_INDEX));
+      task.execution_mask  = mask;
+      task.datetime        = args.at(constants::PAYLOAD_TIME_INDEX);
+      task.execution_flags = args.at(constants::PAYLOAD_ID_INDEX);
+      task.completed       = args.at(constants::PAYLOAD_COMPLETED_INDEX).compare("1") == 0;
+      task.recurring       = std::stoi(args.at(constants::PAYLOAD_RECURRING_INDEX));
+      task.notify          = args.at(constants::PAYLOAD_NOTIFY_INDEX).compare("1") == 0;
+      task.runtime         = args.at(constants::PAYLOAD_RUNTIME_INDEX);
+      // task.filenames = args.at(constants::PAYLOAD_ID_INDEX;
+      KLOG("Can't parse files from schedule payload. Must be implemented");
+    }
+  }
+  return task;
 }
 
 class Scheduler : public DeferInterface, CalendarManagerInterface {
@@ -462,7 +525,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return task;
   }
   /**
-   * updateTask
+   * updateStatus
    *
    * update the completion status of a task
    *
@@ -477,6 +540,40 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         std::to_string(task->completed)  // value
       }, QueryFilter{
         {"id", std::to_string(task->id)} // filter
+      },
+      "id"                               // returning value
+    )
+    .empty();                            // not empty = success
+  }
+
+   /**
+   * update
+   *
+   * @param   [in] {Task}   task  The task to update
+   * @return [out] {bool}         Whether the UPDATE query was successful
+   */
+  bool update(Task task) {
+    KLOG("Runtime flags cannot be updated. Must be implemented");
+    // TODO: implement writing of R_FLAGS to envfile
+    return !m_kdb.update(                // UPDATE
+      "schedule", {                      // table
+            "mask",
+            "time",
+            "flags",
+            "completed",
+            "recurring",
+            "notify",
+            "runtime"
+      }, {
+        std::to_string(task.execution_mask),
+        task.datetime,
+        task.execution_flags,
+        std::to_string(task.completed),
+        std::to_string(task.recurring),
+        std::to_string(task.notify),
+        task.runtime
+      }, QueryFilter{
+        {"id", std::to_string(task.id)} // filter
       },
       "id"                               // returning value
     )

@@ -21,10 +21,11 @@ static const int SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 2;
 static const int SYSTEM_EVENTS__SCHEDULED_TASKS_READY       = 3;
 static const int SYSTEM_EVENTS__SCHEDULED_TASKS_NONE        = 4;
 static const int SYSTEM_EVENTS__SCHEDULER_FETCH             = 5;
-static const int SYSTEM_EVENTS__SCHEDULER_SUCCESS           = 6;
-static const int SYSTEM_EVENTS__SCHEDULER_FAIL              = 7;
-static const int SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 8;
-static const int SYSTEM_EVENTS__REGISTRAR_FAIL              = 9;
+static const int SYSTEM_EVENTS__SCHEDULER_UPDATE            = 6;
+static const int SYSTEM_EVENTS__SCHEDULER_SUCCESS           = 7;
+static const int SYSTEM_EVENTS__SCHEDULER_FAIL              = 8;
+static const int SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 9;
+static const int SYSTEM_EVENTS__REGISTRAR_FAIL              = 10;
 
 /**
  * FILE HANDLING STATES
