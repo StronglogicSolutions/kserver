@@ -26,15 +26,16 @@ namespace Scheduler {
   * TODO: This should be moved elsewhere. Perhaps the Registrar
   */
  static uint32_t getAppMask(std::string name) {
-  const std::string field{"name"};
+  const std::string filter_field{"name"};
+  const std::string value_field{"mask"};
 
   QueryValues values = Database::KDB{}.select(
     "apps",
     {
-      field
+      value_field
     },
     {
-      {field, name}
+      {filter_field, name}
     }
   );
 
@@ -42,7 +43,7 @@ namespace Scheduler {
     auto key = pair.first;
     auto value = pair.second;
 
-    if (key == field)
+    if (key == value_field)
       return std::stoi(value);
   }
 
@@ -53,17 +54,17 @@ using ScheduleEventCallback =
     std::function<void(std::string, int, int, std::vector<std::string>)>;
 
 namespace constants {
-const uint8_t PAYLOAD_ID_INDEX        {0x00};
-const uint8_t PAYLOAD_NAME_INDEX      {0x01};
-const uint8_t PAYLOAD_TIME_INDEX      {0x02};
-const uint8_t PAYLOAD_FLAGS_INDEX     {0x03};
-const uint8_t PAYLOAD_COMPLETED_INDEX {0x04};
-const uint8_t PAYLOAD_RECURRING_INDEX {0x05};
-const uint8_t PAYLOAD_NOTIFY_INDEX    {0x06};
-const uint8_t PAYLOAD_RUNTIME_INDEX   {0x07};
-const uint8_t PAYLOAD_FILES_INDEX     {0x08};
+const uint8_t PAYLOAD_ID_INDEX        {0x01};
+const uint8_t PAYLOAD_NAME_INDEX      {0x02};
+const uint8_t PAYLOAD_TIME_INDEX      {0x03};
+const uint8_t PAYLOAD_FLAGS_INDEX     {0x04};
+const uint8_t PAYLOAD_COMPLETED_INDEX {0x05};
+const uint8_t PAYLOAD_RECURRING_INDEX {0x06};
+const uint8_t PAYLOAD_NOTIFY_INDEX    {0x07};
+const uint8_t PAYLOAD_RUNTIME_INDEX   {0x08};
+const uint8_t PAYLOAD_FILES_INDEX     {0x09};
 
-const uint8_t PAYLOAD_SIZE            {0x09};
+const uint8_t PAYLOAD_SIZE            {0x0A};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States
@@ -132,7 +133,7 @@ inline Task args_to_task(std::vector<std::string> args) {
       task.id              = std::stoi(args.at(constants::PAYLOAD_ID_INDEX));
       task.execution_mask  = mask;
       task.datetime        = args.at(constants::PAYLOAD_TIME_INDEX);
-      task.execution_flags = args.at(constants::PAYLOAD_ID_INDEX);
+      task.execution_flags = args.at(constants::PAYLOAD_FLAGS_INDEX);
       task.completed       = args.at(constants::PAYLOAD_COMPLETED_INDEX).compare("1") == 0;
       task.recurring       = std::stoi(args.at(constants::PAYLOAD_RECURRING_INDEX));
       task.notify          = args.at(constants::PAYLOAD_NOTIFY_INDEX).compare("1") == 0;
