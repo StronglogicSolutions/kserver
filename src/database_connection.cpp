@@ -70,8 +70,8 @@ std::string updateStatement(UpdateReturnQuery query, std::string returning,
         for (uint8_t i = 0; i < query.values.size(); i++) {
           auto field = query.fields.at(i);
           auto value = query.values.at(i);
-          update_string += field + "=" + value;
-          delim = " AND ";
+          update_string += delim + field + "=" + "'" + value + "'";
+          delim = ',';
         }
       }
       return std::string{"UPDATE " + query.table + " " + update_string + " " +
@@ -328,6 +328,8 @@ pqxx::result DatabaseConnection::performUpdate(UpdateReturnQuery query,
   std::string table = query.table;
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
+  // auto update_statement = updateStatement(query, returning);
+  // std::cout << "UPDATE:\n" << update_statement << std::endl;
   pqxx::result pqxx_result = worker.exec(updateStatement(query, returning));
   worker.commit();
 
@@ -338,8 +340,8 @@ template <typename T>
 pqxx::result DatabaseConnection::performSelect(T query) {
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
-  // auto select_statement = selectStatement(query);
-  // std::cout << "SELECT: \n" << select_statement << std::endl;
+  auto select_statement = selectStatement(query);
+  std::cout << "SELECT: \n" << select_statement << std::endl;
   pqxx::result pqxx_result = worker.exec(selectStatement(query));
   worker.commit();
 
