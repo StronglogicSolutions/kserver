@@ -328,8 +328,9 @@ pqxx::result DatabaseConnection::performUpdate(UpdateReturnQuery query,
   std::string table = query.table;
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
-  // auto update_statement = updateStatement(query, returning);
-  // std::cout << "UPDATE:\n" << update_statement << std::endl;
+  #ifndef NDEBUG
+    std::cout << "Update query:\n" << updateStatement(query, returning) << std::endl;
+  #endif
   pqxx::result pqxx_result = worker.exec(updateStatement(query, returning));
   worker.commit();
 
@@ -340,8 +341,9 @@ template <typename T>
 pqxx::result DatabaseConnection::performSelect(T query) {
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
-  auto select_statement = selectStatement(query);
-  std::cout << "SELECT: \n" << select_statement << std::endl;
+  #ifndef NDEBUG
+    std::cout << "Select query: \n" << selectStatement(query) << std::endl;
+  #endif
   pqxx::result pqxx_result = worker.exec(selectStatement(query));
   worker.commit();
 
@@ -406,7 +408,6 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
       QueryResult result{.table = query.table};
       result.values.reserve(pqxx_result.size());
       for (const auto &row : pqxx_result) {
-        int index = 0;
         for (const auto &value : row) {
           result.values.push_back(
             std::make_pair(query.filter.front().first, value.c_str()));
