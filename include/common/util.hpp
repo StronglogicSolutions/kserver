@@ -170,6 +170,7 @@ template <typename T>
 static std::string toBinaryString(const T &x);
 
 bool hasNthBitSet(int value, int n);
+std::string stripSQuotes(std::string s);
 bool isdigits(const std::string &s);
 
 namespace TimeUtils {

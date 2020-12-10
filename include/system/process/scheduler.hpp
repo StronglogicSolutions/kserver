@@ -137,7 +137,7 @@ inline Task args_to_task(std::vector<std::string> args) {
       task.completed       = args.at(constants::PAYLOAD_COMPLETED_INDEX).compare("1") == 0;
       task.recurring       = std::stoi(args.at(constants::PAYLOAD_RECURRING_INDEX));
       task.notify          = args.at(constants::PAYLOAD_NOTIFY_INDEX).compare("1") == 0;
-      task.runtime         = args.at(constants::PAYLOAD_RUNTIME_INDEX);
+      task.runtime         = stripSQuotes(args.at(constants::PAYLOAD_RUNTIME_INDEX));
       // task.filenames = args.at(constants::PAYLOAD_ID_INDEX;
       KLOG("Can't parse files from schedule payload. Must be implemented");
     }

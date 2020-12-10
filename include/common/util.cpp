@@ -596,6 +596,14 @@ bool hasNthBitSet(int value, int n) {
   return false;
 }
 
+std::string stripSQuotes(std::string s) {
+  s.erase(
+    std::remove(s.begin(), s.end(),'\''),
+    s.end()
+  );
+  return s;
+}
+
 // aka isNumber
 bool isdigits(const std::string &s) {
   for (char c : s)
