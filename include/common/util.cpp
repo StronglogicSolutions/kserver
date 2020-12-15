@@ -509,6 +509,21 @@ std::string saveEnvFile(std::string env_file_string, std::string uuid) {
   return relative_path;
 }
 
+void saveFopenFile(std::vector<char> bytes, const char *filename) {
+  std::ofstream output(filename,
+                       std::ios::binary | std::ios::out | std::ios::app);
+  char *raw_data = bytes.data();
+  for (size_t i = 0; i < bytes.size(); i++) {
+    output.write(const_cast<const char *>(&raw_data[i]), 1);
+  }
+  output.close();
+}
+
+void saveFile(std::string env_file_string, std::string env_file_path) {
+  std::ofstream out{env_file_path.c_str(), (std::ios::trunc | std::ios::out | std::ios::binary)};
+  out << env_file_string;
+}
+
 std::string readEnvFile(std::string env_file_path, bool relative_path) {
   std::string full_path = (relative_path) ? get_cwd() + "/" + env_file_path : env_file_path;
   std::ifstream file_stream{full_path};
@@ -518,14 +533,15 @@ std::string readEnvFile(std::string env_file_path, bool relative_path) {
 }
 
 std::string readRunArgs(std::string env_file_path) {
+  const std::string token_key{"R_ARGS="};
   std::string run_arg_s{};
   std::string env = readEnvFile(env_file_path);
   if (!env.empty()) {
-    auto start = env.find("R_ARGS="); // TODO: use a constant
+    auto start = env.find(token_key);
     if (start != std::string::npos) {
       auto sub_s = env.substr(start);
-      auto end   = sub_s.find_first_of("\n"); // TODO: change index to not include `R_ARGS`
-      run_arg_s  = sub_s.substr(0, end);
+      auto end   = sub_s.find_first_of("\n");
+      run_arg_s  = sub_s.substr(token_key.size(), end);
     }
   }
   return run_arg_s;
@@ -536,6 +552,70 @@ std::string readFile(std::string env_file_path) {
     std::stringstream env_file_stream{};
     env_file_stream << file_stream.rdbuf();
     return env_file_stream.str();
+}
+
+std::string readEnvToken(std::string env_file_path, std::string token_key) {
+  std::string run_arg_s{};
+  std::string env = readEnvFile(env_file_path);
+  if (!env.empty()) {
+    auto start = env.find(token_key);
+    if (start != std::string::npos) {
+      auto sub_s = env.substr(start + token_key.size() + 1);
+      auto end   = sub_s.find_first_of("\n");
+      run_arg_s  = sub_s.substr(0, end);
+    }
+  }
+  return run_arg_s;
+}
+
+bool writeEnvToken(std::string env_file_path, std::string token_key, std::string token_value) {
+  std::string env = readEnvFile(env_file_path);
+  if (!env.empty()) {
+    auto key_index = env.find(token_key);
+    if (key_index != std::string::npos) {
+      auto start_index = key_index + token_key.size() + 1;
+      auto rem_s       = env.substr(start_index);
+      auto end_index   = rem_s.find_first_of("\n");
+
+      if (end_index != std::string::npos) {
+        end_index += start_index;
+        env.replace(start_index, end_index - start_index, token_value);
+        saveFile(env, env_file_path);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+std::vector<std::string> extractFlagTokens(std::string flags) {
+  const char token_symbol{'$'};
+  std::vector<std::string> tokens{};
+  auto delim_index = flags.find_first_of(token_symbol);
+  while (delim_index != std::string::npos) {
+    std::string token_start = flags.substr(delim_index);
+    auto end_index = token_start.find_first_of(' ') - 1;
+    std::string token = token_start.substr(1, end_index);
+    tokens.push_back(token);
+
+    if (token_start.size() >= token.size()) {
+      flags = token_start.substr(token.size());
+      delim_index = flags.find_first_of(token_symbol);
+    } else {
+      break;
+    }
+  }
+  return tokens;
+}
+
+std::vector<std::string> readFlagTokens(std::string env_file_path, std::string flags) {
+  std::vector<std::string> tokens = extractFlagTokens(flags);
+  std::vector<std::string> token_values{};
+  // TODO: Do this in one pass without reading the entire environment file each time
+  for (const auto& token : tokens) {
+    token_values.emplace_back(readEnvToken(env_file_path, token));
+  }
+  return token_values;
 }
 
 void clearFile(std::string file_path) {

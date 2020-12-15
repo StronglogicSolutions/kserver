@@ -108,11 +108,18 @@ class KServer : public SocketListener {
       }
       case SYSTEM_EVENTS__SCHEDULER_UPDATE: {
         if (client_socket_fd != -1) {
-          KLOG("Sending schedule fetch results to client {}", client_socket_fd);
+          KLOG("Sending schedule update result to client {}", client_socket_fd);
           IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
             sendEvent(client_socket_fd, "Schedule PUT", args);
         }
         break;
+      }
+      case SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS: {
+        if (client_socket_fd != -1) {
+          KLOG("Sending schedule flag values to client {}", client_socket_fd);
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+            sendEvent(client_socket_fd, "Schedule VALUES", args);
+        }
       }
       case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
         KLOG("Task successfully scheduled");

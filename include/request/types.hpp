@@ -9,13 +9,14 @@ namespace Request {
 const uint8_t REQUEST_TYPE_INDEX = 0x00;
 
 enum RequestType {
-  REGISTER_APPLICATION = 0x00,
-  UPDATE_APPLICATION   = 0x01,
-  REMOVE_APPLICATION   = 0x02,
-  GET_APPLICATION      = 0x03,
-  FETCH_SCHEDULE       = 0x04,
-  UPDATE_SCHEDULE      = 0x05,
-  UNKNOWN              = 0x06
+  REGISTER_APPLICATION  = 0x00,
+  UPDATE_APPLICATION    = 0x01,
+  REMOVE_APPLICATION    = 0x02,
+  GET_APPLICATION       = 0x03,
+  FETCH_SCHEDULE        = 0x04,
+  UPDATE_SCHEDULE       = 0x05,
+  FETCH_SCHEDULE_TOKENS = 0x06,
+  UNKNOWN               = 0x07
 };
 
 /**

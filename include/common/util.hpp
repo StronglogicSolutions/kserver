@@ -7,6 +7,7 @@
 #include <codec/kmessage_generated.h>
 #include <codec/uuid.h>
 
+#include <stdio.h>
 #include <filesystem>
 #include <bitset>
 #include <chrono>
@@ -144,15 +145,22 @@ namespace SystemUtils {
 }
 
 namespace FileUtils {
-bool        createDirectory(const char *dir_name);
-void        saveFile(std::vector<char> bytes, const char *filename);
-void        saveFile(uint8_t *bytes, int size, std::string filename);
-std::string saveEnvFile(std::string env_file_string, std::string uuid);
-std::string readEnvFile(std::string env_file_path, bool relative_path = false);
-std::string readRunArgs(std::string env_file_path);
-std::string readFile(std::string env_file_path);
-void        clearFile(std::string file_path);
-bool        createTaskDirectory(std::string uuid);
+bool                     createDirectory(const char *dir_name);
+void                     saveFile(std::vector<char> bytes, const char *filename);
+void                     saveFile(uint8_t *bytes, int size, std::string filename);
+void                     saveFile(std::string env_file_string, std::string env_file_path);
+std::string              saveEnvFile(std::string env_file_string, std::string uuid);
+std::string              readEnvFile(std::string env_file_path, bool relative_path = false);
+std::string              readRunArgs(std::string env_file_path);
+std::string              readEnvToken(std::string env_file_path, std::string token_key);
+bool                     writeEnvToken(std::string env_file_path,
+                                       std::string token_key,
+                                       std::string token_value);
+std::vector<std::string> extractFlagTokens(std::string flags);
+std::vector<std::string> readFlagTokens(std::string env_file_path, std::string flags);
+std::string              readFile(std::string env_file_path);
+void                     clearFile(std::string file_path);
+bool                     createTaskDirectory(std::string uuid);
 }  // namespace FileUtils
 
 namespace StringUtils {
