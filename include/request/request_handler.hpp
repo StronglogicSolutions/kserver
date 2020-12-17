@@ -667,7 +667,7 @@ class RequestHandler {
       if (task.validate()) {
         std::vector<std::string> flag_values = FileUtils::readFlagTokens(task.envfile, task.execution_flags);
         std::vector<std::string> event_args{};
-        event_args.resize(flag_values.size() + 1);
+        event_args.reserve(flag_values.size() + 1);
         event_args.emplace_back(id);
         event_args.insert(event_args.end(), flag_values.begin(), flag_values.end());
         m_system_callback_fn(

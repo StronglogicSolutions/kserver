@@ -51,6 +51,10 @@ RequestType int_to_request_type(int byte) {
   {
     return UPDATE_SCHEDULE;
   }
+  if (byte == FETCH_SCHEDULE_TOKENS)
+  {
+    return FETCH_SCHEDULE_TOKENS;
+  }
   return UNKNOWN;
 }
 } // namespace Request

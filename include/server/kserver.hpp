@@ -118,8 +118,9 @@ class KServer : public SocketListener {
         if (client_socket_fd != -1) {
           KLOG("Sending schedule flag values to client {}", client_socket_fd);
           IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-            sendEvent(client_socket_fd, "Schedule VALUES", args);
+            sendEvent(client_socket_fd, "Schedule Tokens", args);
         }
+      break;
       }
       case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
         KLOG("Task successfully scheduled");

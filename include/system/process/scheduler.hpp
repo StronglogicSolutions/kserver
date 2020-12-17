@@ -231,7 +231,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     Task task{};
     for (const auto& v : result) {
       if (v.first == Field::MASK)
-        { task.execution_mask      = std::stoi(v.second);       }
+        {
+          task.execution_mask      = std::stoi(v.second);
+        }
  else if (v.first == Field::FLAGS)
         { task.execution_flags     = v.second;                  }
  else if (v.first == Field::ENVFILE)
@@ -474,9 +476,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   Task getTask(std::string id) {
     Task task = parseTask(m_kdb.select(
       "schedule", {       // table
-        "mask", "flags",  // fields
-        "envfile", "time",
-        "completed"
+        Field::MASK,    Field::FLAGS, // fields
+        Field::ENVFILE, Field::TIME,
+        Field::COMPLETED
         }, {
           {"id", id}      // filter
         }
