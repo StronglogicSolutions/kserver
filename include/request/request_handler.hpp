@@ -758,7 +758,16 @@ class RequestHandler {
           m_scheduler->updateStatus(&*task_it);                            // Failed tasks will re-run once more
 
           if (!error && task_it->recurring) {                              // If no error, update last execution time
-            task_it->datetime = std::to_string(TimeUtils::unixtime());
+            task_it->datetime = std::to_string(                            // Compute next execution time
+              (std::stoi(task_it->datetime) + Scheduler::getIntervalSeconds(task_it->recurring))
+            );
+
+            KLOG(
+              "Task {} will be scheduled for {}",
+              task_it->id,
+              TimeUtils::format_timestamp(task_it->datetime)
+            );
+
             m_scheduler->updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
               task_it->id,
