@@ -44,9 +44,6 @@ using namespace GenericData;
 static const int              SESSION_ACTIVE   = 1;
 static const int              SESSION_INACTIVE = 2;
 
-static const std::string_view APP_NAME         = "kserver";
-static       int              APP_NAME_LENGTH  = 7;
-
 typedef std::string                                      KOperation;
 typedef std::map<int, std::string>                       CommandMap;
 typedef std::vector<std::pair<std::string, std::string>> TupVec;

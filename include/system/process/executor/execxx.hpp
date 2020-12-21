@@ -56,6 +56,7 @@ std::string readFd(int fd) {
  * @param   [in]
  * @returns [out]
  */
+[[maybe_unused]]
 ProcessResult qx(    std::vector<std::string> args,
                const std::string&             working_directory = "") {
   int stdout_fds[2];
@@ -133,6 +134,10 @@ ProcessResult qx(    std::vector<std::string> args,
   for (;;) {
     // TODO: Do something with result or remove
     int poll_result = poll(poll_fds, 2, 30000);
+
+    if (!poll_result) {
+      ELOG("Failed to poll file descriptor");
+    }
 
     if        (poll_fds[1].revents & POLLIN) {
 

@@ -1,5 +1,8 @@
 #include "util.hpp"
 
+static const std::string_view APP_NAME         = "kserver";
+static       int              APP_NAME_LENGTH  = 7;
+
 std::string get_cwd() {
   char *working_dir_path = realpath(".", NULL);
   return std::string{working_dir_path};
