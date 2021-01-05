@@ -291,6 +291,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           checked_for_files = true;
           continue;
         } else {
+          if (recurring != Constants::Recurring::NO)
+            time = TimeUtils::time_as_today(time);
+
           tasks.push_back(Task{
             .execution_mask   = std::stoi(mask),
             .datetime         = time,
@@ -331,8 +334,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   virtual std::vector<Task> fetchTasks() override {
     std::string past_15_minute_timestamp =
         std::to_string(TimeUtils::unixtime() - 900);
-    std::string future_5_minute_timestamp =
-        std::to_string(TimeUtils::unixtime() + 300);
+    std::string current_timestamp =
+        std::to_string(TimeUtils::unixtime());
     std::vector<Task> tasks = parseTasks(
       m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
         "schedule", {                                   // table
@@ -353,7 +356,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           CompBetweenFilter{                            // filter
             "time",                                     // field of comparison
             past_15_minute_timestamp,                   // min range
-            future_5_minute_timestamp                   // max range
+            current_timestamp                           // max range
           },
           MultiOptionFilter{                            // filter
             "completed",                                // field of comparison
@@ -403,7 +406,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           },
           CompFilter{                                                     // filter
             std::to_string(TimeUtils::unixtime()),                        // field
-            "(recurring.time + (SELECT get_recurring_seconds(schedule.recurring) - 900))",  // value (from function)
+            "recurring.time + (SELECT get_recurring_seconds(schedule.recurring))",  // value (from function)
             ">"                                                           // comparator
           },
           MultiOptionFilter{                            // filter

@@ -148,7 +148,7 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
         constants::RECURRING_REQUEST :
         constants::SCHEDULED_REQUEST
     );
-  }
+  } // TODO: Handle failed preparation -> tasks can get stuck in the request_handler's task map
 }
 
 KApplication ProcessExecutor::getAppInfo(int mask) {

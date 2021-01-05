@@ -645,13 +645,23 @@ class RequestHandler {
           payload.emplace_back("Schedule more");
         }
       }
-      if (!payload.empty())
+      if (!payload.empty()) {
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
-      KLOG("Fetched {} scheduled tasks for client", tasks.size());
+      }
+
+      auto size = tasks.size();
+      KLOG("Fetched {} scheduled tasks for client", size);
+
+      usleep(100000); // TODO: Get rid of this once we implement proper protocol
+      m_system_callback_fn( // Demarcate end of fetch
+        client_fd,
+        SYSTEM_EVENTS__SCHEDULER_FETCH,
+        {"Schedule end", std::to_string(size)}
+      );
     }
     else
     if (type == RequestType::UPDATE_SCHEDULE) {
-      Task task = Scheduler::args_to_task(args);
+      Task task = Scheduler::args_to_task(args); // TODO: Not getting completed/status value
       bool save_success = m_scheduler->update(task);
 
       m_system_callback_fn(
@@ -758,10 +768,6 @@ class RequestHandler {
           m_scheduler->updateStatus(&*task_it);                            // Failed tasks will re-run once more
 
           if (!error && task_it->recurring) {                              // If no error, update last execution time
-            task_it->datetime = std::to_string(                            // Compute next execution time
-              (std::stoi(task_it->datetime) + Scheduler::getIntervalSeconds(task_it->recurring))
-            );
-
             KLOG(
               "Task {} will be scheduled for {}",
               task_it->id,

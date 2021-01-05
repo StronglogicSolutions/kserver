@@ -464,9 +464,10 @@ bool isNewSession(const char *data) {
 
 namespace SystemUtils {
 void sendMail(std::string recipient, std::string message, std::string from) {
+  std::string sanitized = StringUtils::sanitizeSingleQuotes(message);
   std::system(
     std::string{
-      "echo '" + message + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
+      "echo '" + sanitized + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
     }.c_str()
   );
 }
@@ -648,6 +649,20 @@ std::vector<std::string> split(const std::string &s, char delim) {
     }
     return v;
 }
+
+std::string sanitizeSingleQuotes(const std::string& s) {
+  std::string o{};
+
+  for (const char& c : s) {
+    if (c == '\'')
+      o += "&#39;";
+    else
+      o += c;
+  }
+
+  return o;
+}
+
 } // namespace StringUtils
 
 // Bit helpers
@@ -717,5 +732,17 @@ std::string format_timestamp(std::string unixtime) {
   struct tm ts = *localtime(&time);
   std::strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
   return std::string{buf};
+}
+
+std::string time_as_today(std::string unixtime) {
+  const std::time_t time = static_cast<std::time_t>(stoi(unixtime));
+  const std::time_t now  = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  struct tm         ts   = *localtime(&time);
+  struct tm         tn   = *localtime(&now);
+  ts.tm_year = tn.tm_year;
+  ts.tm_mon  = tn.tm_mon;
+  ts.tm_mday = tn.tm_mday;
+
+  return std::to_string(mktime(&ts));
 }
 }  // namespace TimeUtils

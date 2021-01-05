@@ -29,11 +29,11 @@ class KDB {
     m_credentials(std::move(k.m_credentials)) {}
 
   KDB(DatabaseConfiguration config)
-    : m_connection(std::move(
-        std::unique_ptr<DatabaseConnection>{
-          new DatabaseConnection
-        }
-      )) {
+  : m_connection(std::move(
+      std::unique_ptr<DatabaseConnection>{
+        new DatabaseConnection
+      }
+    )) {
     m_connection->setConfig(config);
   }
 

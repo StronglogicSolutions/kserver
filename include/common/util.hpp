@@ -163,8 +163,8 @@ bool                     createTaskDirectory(std::string uuid);
 namespace StringUtils {
 template <typename T>
 void split(const std::string &s, char delim, T result);
-
 std::vector<std::string> split(const std::string &s, char delim);
+std::string sanitizeSingleQuotes(const std::string& s);
 } // namespace StringUtils
 
 // Bit helpers
@@ -184,6 +184,8 @@ int unixtime();
 std::string_view format_timestamp(int unixtime);
 
 std::string format_timestamp(std::string unixtime);
+
+std::string time_as_today(std::string unixtime);
 }  // namespace TimeUtils
 
 #endif  // __UTIL_HPP__
