@@ -37,7 +37,8 @@ Task GenericTaskHandler::prepareTask(std::vector<std::string> argv,
   if (!user.empty())         env_file_string +=            "USER='" + user + "'\n";
   if (!runtime_args.empty()) env_file_string +=            "R_ARGS='" + runtime_args + "'\n";
   if (has_files) {
-                              env_file_string +=            "FILE_TYPE='" + (is_video) ?
+                              env_file_string +=            "FILE_TYPE='";
+                              env_file_string +=            (is_video) ?
                                                               "video'\n" :
                                                               "image'\n";
   }
