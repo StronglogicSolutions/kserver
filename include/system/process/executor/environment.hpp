@@ -145,8 +145,9 @@ std::string parseNamedArgument(std::string flag, const std::string& env) {
                   flag :
                   PARAM_KEY_MAP.at(flag);
     argument += "=";
-    argument += parsed.substr(parsed.find_first_of('\''), (parsed.find_first_of('\n') - flag.size() - 1));
+    argument += parsed.substr(parsed.find_first_of('\"'), (parsed.find_first_of('|') - flag.size() - 1));
   }
+
   return argument;
 }
 
@@ -158,8 +159,8 @@ std::string parseExecArguments(const std::string& env) {
     auto parsed = env.substr(index);
     auto end    = parsed.find_first_of('\n');
     argument += (end != std::string::npos) ?
-      parsed.substr(parsed.find_first_of('\''), (end - RUNTIME_FLAG.size() - 1)) :
-      parsed.substr(parsed.find_first_of('\''));
+      parsed.substr(parsed.find_first_of('\"'), (end - RUNTIME_FLAG.size() - 1)) :
+      parsed.substr(parsed.find_first_of('\"'));
   }
   return argument;
 }
