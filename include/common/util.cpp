@@ -544,7 +544,7 @@ std::string readRunArgs(std::string env_file_path) {
     auto start = env.find(token_key);
     if (start != std::string::npos) {
       auto sub_s = env.substr(start);
-      auto end   = sub_s.find_first_of("\n");
+      auto end   = sub_s.find_first_of("|");
       run_arg_s  = sub_s.substr(token_key.size(), end);
     }
   }
@@ -565,7 +565,7 @@ std::string readEnvToken(std::string env_file_path, std::string token_key) {
     auto start = env.find(token_key);
     if (start != std::string::npos) {
       auto sub_s = env.substr(start + token_key.size() + 1);
-      auto end   = sub_s.find_first_of("\n");
+      auto end   = sub_s.find_first_of("|");
       run_arg_s  = sub_s.substr(0, end);
     }
   }
@@ -579,7 +579,7 @@ bool writeEnvToken(std::string env_file_path, std::string token_key, std::string
     if (key_index != std::string::npos) {
       auto start_index = key_index + token_key.size() + 1;
       auto rem_s       = env.substr(start_index);
-      auto end_index   = rem_s.find_first_of("\n");
+      auto end_index   = rem_s.find_first_of("|");
 
       if (end_index != std::string::npos) {
         end_index += start_index;
