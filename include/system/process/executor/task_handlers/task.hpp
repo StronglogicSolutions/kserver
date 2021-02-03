@@ -42,6 +42,7 @@ namespace Field {
   static const char* const FLAGS     = "schedule.flags";
   static const char* const ENVFILE   = "schedule.envfile";
   static const char* const TIME      = "schedule.time";
+  static const char* const REC_TIME  = "recurring.time";
   static const char* const ID        = "schedule.id";
   static const char* const COMPLETED = "schedule.completed";
   static const char* const RECURRING = "schedule.recurring";
