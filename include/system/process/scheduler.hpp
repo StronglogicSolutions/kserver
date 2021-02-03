@@ -279,7 +279,6 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       else if (v.first == Field::RECURRING) { recurring = std::stoi(v.second);        }
       else if (v.first == Field::NOTIFY   ) { notify    = v.second.compare("t") == 0; }
       else if (v.first == files_field     ) { filenames = v.second;
-                                              KLOG("Found files");
                                               checked_for_files = true;               }
 
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
@@ -287,12 +286,20 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           id > 0           && recurring > -1 && notify > -1      ) {
 
         if (parse_files && !checked_for_files) {
-          KLOG("Checking for files");
           checked_for_files = true;
           continue;
         } else {
           if (recurring != Constants::Recurring::NO)
-            time = TimeUtils::time_as_today(time);
+          {
+            if (recurring == Constants::Recurring::HOURLY)
+            {
+              time = std::stoi(time) + getIntervalSeconds(recurring);
+            }
+            else
+            {
+              time = TimeUtils::time_as_today(time);
+            }
+          }
 
           tasks.push_back(Task{
             .execution_mask   = std::stoi(mask),
