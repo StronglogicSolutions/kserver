@@ -341,10 +341,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * @return [out] {std::vector<Task>} A vector of Task objects
    */
   virtual std::vector<Task> fetchTasks() override {
-    std::string past_15_minute_timestamp =
-        std::to_string(TimeUtils::unixtime() - 900);
-    std::string current_timestamp =
-        std::to_string(TimeUtils::unixtime());
+    std::string       past_15_minute_timestamp = std::to_string(TimeUtils::unixtime() - 900);
+    std::string       current_timestamp        = std::to_string(TimeUtils::unixtime());
     std::vector<Task> tasks = parseTasks(
       m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
         "schedule", {                                   // table
