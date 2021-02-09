@@ -436,7 +436,7 @@ class KServer : public SocketListener {
     else
     if (isIPCOperation(op.c_str())) {          // IPC request
       KLOG("Testing IPC");
-      handleIPC(decoded_message);
+      handleIPC(decoded_message, client_socket_fd);
     }
     else
     if (isAppOperation(op.c_str())) {          // Register app
@@ -450,8 +450,8 @@ class KServer : public SocketListener {
     }
   }
 
-  void handleIPC(std::string message) {
-    m_ipc_manager.process(message);
+  void handleIPC(std::string message, int32_t client_socket_fd) {
+    m_ipc_manager.process(message, client_socket_fd);
   }
 
 
