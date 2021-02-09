@@ -41,34 +41,41 @@ public:
 
 IPCManager() {}
 
-void process(std::string message) {
+void process(std::string message, int32_t fd) {
   KLOG("Received processing request");
 
-  if (m_clients.empty()) {
-    m_clients.push_back(IPCClient{28473});
+  if (m_clients.find(fd) == m_clients.end()) {
+    m_clients.insert({fd, IPCClient{28473}});
   }
 
-  m_clients.front().SendMessage(message);
+  m_clients.at(fd).SendMessage(message);
 
   return;
 }
 
-private:
+void close(int32_t fd) {
+  std::unordered_map<int32_t, IPCClient>::iterator it = m_clients.find(fd);
 
+  if (it != m_clients.end())
+  {
+    IPCClient& client = it->second;
+    client.Shutdown();
+    m_clients.erase(it);
+  }
+}
+
+private:
 virtual void loop() override {
   while (m_is_running) {
-    for (IPCClient& client : m_clients) {
-      if (client.Poll()) {
-        if (client.ReceiveMessage()) {
-          client.ProcessMessage();
-        }
-      }
+    for (auto&&[fd, client] : m_clients) {
+      if (client.Poll() && client.ReceiveMessage())
+        client.ProcessMessage();
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10000));
   }
 }
 
-std::vector<IPCClient> m_clients;
+std::unordered_map<int32_t, IPCClient> m_clients;
 
 };
 

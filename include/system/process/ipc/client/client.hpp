@@ -43,7 +43,6 @@ void ProcessMessage() {
   if (!m_rx_msg.empty()) {
     KLOG("Processing {}", m_rx_msg);
   }
-  SendMessage("Get Results");
 }
 
 bool ReceiveMessage() {
@@ -74,6 +73,10 @@ bool Poll() {
   zmq::poll(&items[0], 1, 0);
 
   return (items[0].revents & ZMQ_POLLIN);
+}
+
+void Shutdown() {
+  // TODO: handle shutdown
 }
 
 private:
