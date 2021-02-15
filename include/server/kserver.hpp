@@ -569,6 +569,7 @@ class KServer : public SocketListener {
 
  private:
   virtual void onConnectionClose(int client_socket_fd) {
+    KLOG("Connection closed for {}", client_socket_fd);
     auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
                                    [client_socket_fd](KSession session) {
                                      return session.fd == client_socket_fd;
