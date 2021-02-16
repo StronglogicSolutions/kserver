@@ -29,7 +29,9 @@ std::string valuesAsString(StringVec values, size_t number_of_fields) {
     } else {
       delim = ",";
     }
-    value_string += "'" + value + "'" + delim;
+    value_string += "'";
+    value_string += (value.empty()) ? "NULL" : value;
+    value_string += "'" + delim;
   }
   value_string.erase(value_string.end() - 2, value_string.end());
 
@@ -317,6 +319,9 @@ pqxx::result DatabaseConnection::performInsert(InsertReturnQuery query,
   std::string table = query.table;
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
+  #ifndef NDEBUG
+    std::cout << "Insert query:\n" << insertStatement(query, returning) << std::endl;
+  #endif
   pqxx::result pqxx_result = worker.exec(insertStatement(query, returning));
   worker.commit();
 
