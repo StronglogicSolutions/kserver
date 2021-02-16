@@ -1,5 +1,4 @@
-#ifndef __SCHEDULER_HPP__
-#define __SCHEDULER_HPP__
+#pragma once
 
 #include <functional>
 #include <iostream>
@@ -9,6 +8,7 @@
 
 #include "log/logger.h"
 #include "executor/task_handlers/task.hpp"
+#include "executor/executor.hpp"
 #include "database/kdb.hpp"
 
 #define NO_COMPLETED_VALUE 99
@@ -20,6 +20,20 @@
             "extract(second from (to_timestamp(schedule.time))))"
 
 namespace Scheduler {
+/**
+ * @brief isSocialMediaPost
+ *
+ * TODO: modify DB schema and compare against values in there
+ *
+ */
+static bool isSocialMediaPost(uint32_t mask) {
+  KLOG("this function should be replaced");
+  return (
+    mask == 16 ||
+    mask == 256
+  );
+}
+
 
 
  /**
@@ -52,41 +66,6 @@ namespace Scheduler {
 
 using ScheduleEventCallback =
     std::function<void(std::string, int, int, std::vector<std::string>)>;
-
-namespace constants {
-const uint8_t PAYLOAD_ID_INDEX        {0x01};
-const uint8_t PAYLOAD_NAME_INDEX      {0x02};
-const uint8_t PAYLOAD_TIME_INDEX      {0x03};
-const uint8_t PAYLOAD_FLAGS_INDEX     {0x04};
-const uint8_t PAYLOAD_COMPLETED_INDEX {0x05};
-const uint8_t PAYLOAD_RECURRING_INDEX {0x06};
-const uint8_t PAYLOAD_NOTIFY_INDEX    {0x07};
-const uint8_t PAYLOAD_RUNTIME_INDEX   {0x08};
-const uint8_t PAYLOAD_FILES_INDEX     {0x09};
-
-const uint8_t PAYLOAD_SIZE            {0x0A};
-} // namespace constants
-/**
- * \note Scheduled Task Completion States
- *
- * SCHEDULED  - Has not yet run
- * COMPLETED  - Ran successfully
- * FAILED     - Ran once and failed
- * RETRY_FAIL - Failed on retry
- */
-namespace Completed {
-static constexpr uint8_t SCHEDULED  = 0;
-static constexpr uint8_t SUCCESS    = 1;
-static constexpr uint8_t FAILED     = 2;
-static constexpr uint8_t RETRY_FAIL = 3;
-
-static constexpr const char* STRINGS[4] = {"0", "1", "2", "3"};
-}  // namespace Completed
-
-namespace Messages {
-static constexpr const char* TASK_ERROR_EMAIL =
-    "Scheduled task ran but returned an error:\n";
-}
 
 class DeferInterface {
  public:
@@ -546,11 +525,13 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    *
    * update the completion status of a task
    *
+   * TODO: Figure out a way to get UUID for platform posts
+   *
    * @param   [in] {Task}   task  The task to update
    * @return [out] {bool}         Whether the UPDATE query was successful
    */
   bool updateStatus(Task* task) {
-    return !m_kdb.update(                // UPDATE
+    bool schedule_update_result = !m_kdb.update(                // UPDATE
       "schedule", {                      // table
         "completed"                      // field
       }, {
@@ -561,6 +542,47 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       "id"                               // returning value
     )
     .empty();                            // not empty = success
+
+    if (schedule_update_result && isSocialMediaPost(task->execution_mask)) {
+      auto platform_id = getPlatformID(task->execution_mask);
+      const std::string UNKNOWN_UID{"00000000-0000-0000-0000-000000000000"};
+      savePlatformPost(platform_id, UNKNOWN_UID, TimeUtils::unixtime());
+    }
+
+    return schedule_update_result;
+  }
+
+  bool savePlatformPost(std::string pid, std::string uuid, uint32_t timestamp, std::string o_pid = "") {
+    o_pid = (o_pid.empty()) ?
+              "2" : o_pid; // TODO : This is brittle. Platform id of 2 means NO platform
+
+    auto result = m_kdb.insert(
+        "platform_post",
+        {"pid", "unique_id", "time", "o_pid"},
+        {pid, uuid, std::to_string(timestamp), o_pid},
+        "id"
+      ).empty();
+
+      return result;
+  }
+
+  std::string getPlatformID(uint32_t mask) {
+    auto app_info = ProcessExecutor::getAppInfo(mask);
+    if (!app_info.name.empty()) {
+      auto result = m_kdb.select(
+        "platform",
+        {
+          "id"
+        },
+        QueryFilter{
+        {"name", app_info.name}
+        }
+      );
+      for (const auto& value : result)
+        if (value.first == "id")
+          return value.second;
+    }
+    return "";
   }
 
    /**
@@ -633,5 +655,3 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   Database::KDB           m_kdb;
 };
 }  // namespace Scheduler
-
-#endif  // __SCHEDULER_HPP__

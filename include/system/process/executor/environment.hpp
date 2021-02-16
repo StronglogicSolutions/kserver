@@ -1,5 +1,4 @@
-#ifndef __ENVIRONMENT_HPP__
-#define __ENVIRONMENT_HPP__
+#pragma once
 
 #include "task_handlers/task.hpp"
 #include "executor.hpp"
@@ -170,5 +169,3 @@ std::string parseExecArguments(const std::string& env) {
 Task           m_task;
 ExecutionState m_state;
 };
-
-#endif // __ENVIRONMENT_HPP__

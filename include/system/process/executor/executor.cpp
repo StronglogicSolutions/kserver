@@ -114,8 +114,8 @@ void ProcessExecutor::request(std::string_view         path,
 
         auto COMPLETED =
           type == constants::RECURRING_REQUEST ?
-           Scheduler::Completed::STRINGS[Scheduler::Completed::SCHEDULED] :
-           Scheduler::Completed::STRINGS[Scheduler::Completed::SUCCESS];
+           Completed::STRINGS[Completed::SCHEDULED] :
+           Completed::STRINGS[Completed::SUCCESS];
 
         std::string result = kdb.update("schedule",               // table
                                         {"completed"},            // field
@@ -129,6 +129,46 @@ void ProcessExecutor::request(std::string_view         path,
     delete pd_ptr;
   }
 }
+
+template <typename T>
+bool ProcessExecutor::saveResult(uint32_t mask, T status, uint32_t time) {
+  try {
+    auto app_info = ProcessExecutor::getAppInfo(mask);
+
+    if (!app_info.id.empty()) {
+      Database::KDB kdb{};
+
+      std::string id =
+        kdb.insert("process_result", {        // table
+          "aid",                              // fields
+          "time",
+          "status"}, {
+          app_info.id,                        // values
+          std::to_string(time),
+          std::to_string(status)},
+          "id");                             // return
+      if (!id.empty()) {
+        KLOG("Recorded process {} with result of {} at {}",
+          app_info.name,
+          Completed::NAMES[status],
+          TimeUtils::format_timestamp(time)
+        );
+
+        return true;
+      }
+    }
+  } catch (const pqxx::sql_error &e) {
+    ELOG("Insert query failed: {}", e.what());
+  } catch (const std::exception &e) {
+    ELOG("Insert query failed: {}", e.what());
+  }
+
+  return false;
+}
+
+template bool ProcessExecutor::saveResult(uint32_t, int,     uint32_t);
+template bool ProcessExecutor::saveResult(uint32_t, uint8_t, uint32_t);
+template bool ProcessExecutor::saveResult(uint32_t, char,    uint32_t);
 
 void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
   KLOG("Executing task");
@@ -157,7 +197,7 @@ KApplication ProcessExecutor::getAppInfo(int mask) {
   QueryValues values = kdb.select(
     "apps",                           // table
     {
-      "path", "data", "name"          // fields
+      "id", "path", "data", "name"          // fields
     },
     {
       {"mask", std::to_string(mask)}  // filter
@@ -173,6 +213,9 @@ KApplication ProcessExecutor::getAppInfo(int mask) {
     else
     if (value_pair.first == "name")
       k_app.name = value_pair.second;
+    else
+    if (value_pair.first == "id")
+      k_app.id = value_pair.second;
   }
   return k_app;
 }

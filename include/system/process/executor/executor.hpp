@@ -1,5 +1,4 @@
-#ifndef __EXECUTOR_HPP__
-#define __EXECUTOR_HPP__
+#pragma once
 
 #include <functional>
 #include <future>
@@ -8,9 +7,8 @@
 #include <string_view>
 
 #include "log/logger.h"
-#include "system/process/scheduler.hpp"
-#include "environment.hpp"
 #include "execxx.hpp"
+#include "environment.hpp"
 #include "kapplication.hpp"
 
 namespace constants {
@@ -109,11 +107,12 @@ class ProcessExecutor : public ProcessManager {
 
   void executeTask(int client_socket_fd, Task task);
 
+  template <typename T = uint8_t>
+  bool saveResult(uint32_t mask, T status, uint32_t time);
+
   static KApplication getAppInfo(int mask);
 
 private:
   ProcessEventCallback m_callback;
   TrackedEventCallback m_tracked_callback;
 };
-
-#endif // __EXECUTOR_HPP__

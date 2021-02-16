@@ -1,5 +1,4 @@
-#ifndef __EXECXX_HPP__
-#define __EXECXX_HPP__
+#pragma once
 
 #include <log/logger.h>
 #include <sys/wait.h>
@@ -59,6 +58,13 @@ std::string readFd(int fd) {
 [[maybe_unused]]
 ProcessResult qx(    std::vector<std::string> args,
                const std::string&             working_directory = "") {
+
+#ifndef NDEBUG
+  std::string execution_command{};
+  for (const auto& arg : args) execution_command += arg + ' ';
+  KLOG("ProcessExecutor running the following command:\n {}", execution_command);
+#endif
+
   int stdout_fds[2];
   int stderr_fds[2];
 
@@ -185,5 +191,3 @@ ProcessResult qx(    std::vector<std::string> args,
   return result;
 }
 }  // namespace
-
-#endif // __EXECXX_HPP__

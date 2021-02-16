@@ -1,5 +1,4 @@
-#ifndef __REQUEST_HANDLER_HPP__
-#define __REQUEST_HANDLER_HPP__
+#pragma once
 
 #include <stdlib.h>
 #include <iostream>
@@ -672,7 +671,7 @@ class RequestHandler {
     }
     else
     if (type == RequestType::FETCH_SCHEDULE_TOKENS) {
-      auto id = args.at(Scheduler::constants::PAYLOAD_ID_INDEX);
+      auto id = args.at(constants::PAYLOAD_ID_INDEX);
       Task task = m_scheduler->getTask(id);
       if (task.validate()) {
         std::vector<std::string> flag_values = FileUtils::readFlagTokens(task.envfile, task.execution_flags);
@@ -746,26 +745,29 @@ class RequestHandler {
           uint8_t status{};
 
           if (error) {
-            status = task_it->completed == Scheduler::Completed::FAILED ?
-              Scheduler::Completed::RETRY_FAIL :                           // No retry
-              Scheduler::Completed::FAILED;                                // Retry
+            status = task_it->completed == Completed::FAILED ?
+              Completed::RETRY_FAIL :                           // No retry
+              Completed::FAILED;                                // Retry
 
             KLOG("Sending email to administrator about failed task.\nNew "
                 "Status: {}",
-                Scheduler::Completed::STRINGS[status]);
+                Completed::STRINGS[status]);
 
             SystemUtils::sendMail(                                         // Email error to notification recipient
               ConfigParser::Email::notification(),
-              std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value},
+              std::string{Messages::TASK_ERROR_EMAIL + value},
               ConfigParser::Email::admin()
             );
 
           } else {
-            status = task_it->recurring ? Scheduler::Completed::SCHEDULED : Scheduler::Completed::SUCCESS;
+            status = task_it->recurring ?
+              Completed::SCHEDULED :
+              Completed::SUCCESS;
           }
 
           task_it->completed = status;                                     // Update status
           m_scheduler->updateStatus(&*task_it);                            // Failed tasks will re-run once more
+          m_executor->saveResult(mask, 1, TimeUtils::unixtime());     // Save execution result
 
           if (!error && task_it->recurring) {                              // If no error, update last execution time
             KLOG(
@@ -852,4 +854,3 @@ class RequestHandler {
   std::thread                       m_maintenance_worker;
 };
 }  // namespace Request
-#endif  // __REQUEST_HANDLER_HPP__
