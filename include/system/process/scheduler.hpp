@@ -7,9 +7,10 @@
 #include <vector>
 
 #include "log/logger.h"
+#include "server/types.hpp"
+#include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"
 #include "executor/executor.hpp"
-#include "database/kdb.hpp"
 
 #define NO_COMPLETED_VALUE 99
 
@@ -65,7 +66,7 @@ static bool isSocialMediaPost(uint32_t mask) {
 }
 
 using ScheduleEventCallback =
-    std::function<void(std::string, int, int, std::vector<std::string>)>;
+    std::function<void(int32_t, int32_t, const std::vector<std::string>&)>;
 
 class DeferInterface {
  public:
@@ -530,7 +531,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * @param   [in] {Task}   task  The task to update
    * @return [out] {bool}         Whether the UPDATE query was successful
    */
-  bool updateStatus(Task* task) {
+  bool updateStatus(Task* task, const std::string& output = "") {
     bool schedule_update_result = !m_kdb.update(                // UPDATE
       "schedule", {                      // table
         "completed"                      // field
@@ -545,25 +546,55 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
 
     if (schedule_update_result && isSocialMediaPost(task->execution_mask)) {
       auto platform_id = getPlatformID(task->execution_mask);
-      const std::string UNKNOWN_UID{"00000000-0000-0000-0000-000000000000"};
-      savePlatformPost(platform_id, UNKNOWN_UID, TimeUtils::unixtime());
+      // TODO: Task should have a unique identifier - either from platform, or we generate
+
+      m_event_callback(
+        ALL_CLIENTS,
+        SYSTEM_EVENTS__PLATFORM_NEW_POST,
+        std::vector<std::string>{
+          platform_id,
+          "",
+          StringUtils::generate_uuid_string(),
+          std::to_string(TimeUtils::unixtime()),
+          output
+        }
+      );
     }
 
     return schedule_update_result;
   }
 
-  bool savePlatformPost(std::string pid, std::string uuid, uint32_t timestamp, std::string o_pid = "") {
-    o_pid = (o_pid.empty()) ?
-              "2" : o_pid; // TODO : This is brittle. Platform id of 2 means NO platform
+  bool savePlatformPost(const std::string& pid,
+                        const std::string& identifier,
+                        const std::string& timestamp,
+                        std::string        o_pid = "") {
+    // TODO : This is brittle. We should query for the "no originating platform" in this case, or the database value should accept null value
 
-    auto result = m_kdb.insert(
+    const std::string NO_ORIGIN_PLATFORM_EXISTS{"2"};
+    o_pid = (o_pid.empty()) ?
+              NO_ORIGIN_PLATFORM_EXISTS :
+              o_pid;
+
+    auto result = (!m_kdb.insert(
         "platform_post",
         {"pid", "unique_id", "time", "o_pid"},
-        {pid, uuid, std::to_string(timestamp), o_pid},
+        {pid, identifier, timestamp, o_pid},
         "id"
-      ).empty();
+      ).empty()); // NOT empty = success
 
       return result;
+  }
+
+  bool savePlatformPost(std::vector<std::string> payload) {
+    return (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE) ?
+      false
+      :
+      savePlatformPost(
+        payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
+        payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
+        payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX),
+        payload.at(constants::PLATFORM_PAYLOAD_O_PLATFORM_INDEX)
+      );
   }
 
   std::string getPlatformID(uint32_t mask) {

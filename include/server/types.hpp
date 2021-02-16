@@ -27,6 +27,7 @@ static const int SYSTEM_EVENTS__SCHEDULER_SUCCESS           = 8;
 static const int SYSTEM_EVENTS__SCHEDULER_FAIL              = 9;
 static const int SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 10;
 static const int SYSTEM_EVENTS__REGISTRAR_FAIL              = 11;
+static const int SYSTEM_EVENTS__PLATFORM_NEW_POST           = 12;
 
 /**
  * FILE HANDLING STATES
@@ -38,7 +39,8 @@ static constexpr const char* const PING = "253";
 static constexpr const char* const PONG = "PONG";
 static constexpr size_t PONG_SIZE = 4;
 
-bool isPing(std::string s) {
+// TODO: Create an implementation file, or move this to utilities
+inline bool isPing(std::string s) {
   return s.size() == 3 && strcmp(s.c_str(), PING) == 0;
 }
 struct ReceivedFile {

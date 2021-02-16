@@ -48,6 +48,14 @@ const uint8_t PAYLOAD_RUNTIME_INDEX   {0x08};
 const uint8_t PAYLOAD_FILES_INDEX     {0x09};
 
 const uint8_t PAYLOAD_SIZE            {0x0A};
+
+const uint8_t PLATFORM_PAYLOAD_PLATFORM_INDEX  {0x00};
+const uint8_t PLATFORM_PAYLOAD_O_PLATFORM_INDEX{0x01};
+const uint8_t PLATFORM_PAYLOAD_ID_INDEX        {0x02};
+const uint8_t PLATFORM_PAYLOAD_TIME_INDEX      {0x03};
+const uint8_t PLATFORM_PAYLOAD_CONTENT_INDEX   {0x04};
+const uint8_t PLATFORM_PAYLOAD_URL_INDEX       {0x05};
+const uint8_t PLATFORM_MINIMUM_PAYLOAD_SIZE    {0x04};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States

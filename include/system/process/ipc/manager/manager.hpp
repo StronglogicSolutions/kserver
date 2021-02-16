@@ -24,6 +24,11 @@ void process(std::string message, int32_t fd) {
   return;
 }
 
+bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
+{
+  return false;
+}
+
 void close(int32_t fd) {
   std::unordered_map<int32_t, IPCClient>::iterator it = m_clients.find(fd);
 
