@@ -35,6 +35,13 @@ static bool isSocialMediaPost(uint32_t mask) {
   );
 }
 
+static bool willHandleProcessResult(uint32_t mask) {
+  KLOG("this function should be replaced");
+  return (
+    mask == 16 ||
+    mask == 256
+  );
+}
 
 
  /**
@@ -679,6 +686,17 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       task = getTask(id);
     }
     return "";
+  }
+
+  bool handleProcessResult(const std::string& result, const int32_t mask) {
+    const auto  info = ProcessExecutor::getAppInfo(mask);
+    const auto& name = info.name;
+
+    if (name == "IG_feed")
+    {
+
+    }
+    return false;
   }
 
  private:

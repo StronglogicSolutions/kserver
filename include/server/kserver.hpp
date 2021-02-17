@@ -287,6 +287,10 @@ class KServer : public SocketListener {
     } else {  // Send response to specifically indicated session
       sendEvent(client_socket_fd, "Process Result", event_args);
     }
+
+    if (Scheduler::willHandleProcessResult(mask)) {
+      m_request_handler.getScheduler().handleProcessResult(result, mask);
+    }
   }
 
   /**
