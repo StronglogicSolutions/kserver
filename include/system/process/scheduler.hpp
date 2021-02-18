@@ -7,10 +7,9 @@
 #include <vector>
 
 #include "log/logger.h"
-#include "server/types.hpp"
 #include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"
-#include "executor/executor.hpp"
+#include "result_parser.hpp"
 
 #define NO_COMPLETED_VALUE 99
 
@@ -35,7 +34,8 @@ static bool isSocialMediaPost(uint32_t mask) {
   );
 }
 
-static bool willHandleProcessResult(uint32_t mask) {
+[[maybe_unused]]
+static bool isKIQProcess(uint32_t mask) {
   KLOG("this function should be replaced");
   return (
     mask == 16 ||
@@ -688,13 +688,13 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return "";
   }
 
-  bool handleProcessResult(const std::string& result, const int32_t mask) {
-    const auto  info = ProcessExecutor::getAppInfo(mask);
-    const auto& name = info.name;
-
-    if (name == "IG_feed")
+  bool handleProcessOutput(const std::string& output, const int32_t mask) {
+    ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
+    if (!result.data.empty())
     {
-
+      for (const auto& outgoing_event : result.data)
+        m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
+      return true;
     }
     return false;
   }
@@ -702,5 +702,6 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
  private:
   ScheduleEventCallback   m_event_callback;
   Database::KDB           m_kdb;
+  ResultProcessor         m_result_processor;
 };
 }  // namespace Scheduler
