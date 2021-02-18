@@ -288,8 +288,8 @@ class KServer : public SocketListener {
       sendEvent(client_socket_fd, "Process Result", event_args);
     }
 
-    if (Scheduler::willHandleProcessResult(mask)) {
-      m_request_handler.getScheduler().handleProcessResult(result, mask);
+    if (Scheduler::isKIQProcess(mask)) {
+      m_request_handler.getScheduler().handleProcessOutput(result, mask);
     }
   }
 
