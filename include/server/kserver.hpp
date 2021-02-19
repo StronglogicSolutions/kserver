@@ -32,7 +32,12 @@ class KServer : public SocketListener {
    */
   KServer(int argc, char **argv)
   : SocketListener(argc, argv),
-    m_ipc_manager(IPCManager{}),
+    m_ipc_manager(IPCManager{
+      [this](int32_t event, std::vector<std::string> payload)
+        {
+          systemEventNotify(ALL_CLIENTS, event, payload);
+        }
+    }),
     file_pending(false),
     file_pending_fd(-1) {
       KLOG("Starting IPC manager");
