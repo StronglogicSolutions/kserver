@@ -2,6 +2,8 @@
 
 #include <thread>
 #include <deque>
+#include <condition_variable>
+#include <mutex>
 #include "log/logger.h"
 #include "system/process/ipc/ipc.hpp"
 #include "system/process/ipc/client/client.hpp"
@@ -13,6 +15,7 @@ static const uint32_t KSERVER_IPC_DEFAULT_PORT{28473};
 using SystemCallback_fn_ptr = std::function<void(int, std::vector<std::string>)>;
 
 class IPCManager : public Worker {
+using u_ipc_msg_ptr = ipc_message::u_ipc_msg_ptr;
 public:
 
 IPCManager(SystemCallback_fn_ptr system_event_fn)
@@ -49,16 +52,30 @@ void close(int32_t fd) {
 
 void HandleClientMessages()
 {
-  while (!m_incoming_queue.empty())
+  if (!m_incoming_queue.empty())
   {
-    ipc_message message = m_incoming_queue.front();
-    // TODO: process
-    if (!message.data().empty())
+    std::deque<u_ipc_msg_ptr>::iterator it = m_incoming_queue.begin();
+
+    while (it != m_incoming_queue.end())
     {
-      std::vector<std::string> payload{message.string()};
-      m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
+      if (it->get()->type() == constants::IPC_PLATFORM_TYPE)
+      {
+        platform_message* message = static_cast<platform_message*>(it->get());
+
+        std::vector<std::string> payload{};
+        payload.reserve(4);
+        payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)   = message->name();
+        payload.at(constants::PLATFORM_PAYLOAD_O_PLATFORM_INDEX) = "";
+        payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)         = message->id();
+        payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)       = "";
+        payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)    = message->content();
+        payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)        = message->urls();
+
+        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
+
+        it = m_incoming_queue.erase(it);
+      }
     }
-    m_incoming_queue.pop_front();
   }
 }
 
@@ -66,24 +83,29 @@ private:
 virtual void loop() override {
   while (m_is_running) {
     for (auto&&[fd, client] : m_clients) {
-      if (client.Poll() && client.ReceiveMessage())
+      if (client.Poll() && client.ReceiveIPCMessage())
       {
         client.ProcessMessage();
-        std::vector<ipc_message> messages = client.GetMessages();
+
+        std::vector<u_ipc_msg_ptr> messages = client.GetMessages();
+
         m_incoming_queue.insert(
           m_incoming_queue.end(),
           std::make_move_iterator(messages.begin()),
           std::make_move_iterator(messages.end())
         );
       }
-
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+
+    std::unique_lock<std::mutex> lock{m_mutex};
+    m_condition.wait_for(lock, std::chrono::milliseconds(10000));
+
   }
 }
 
 std::unordered_map<int32_t, IPCClient> m_clients;
 SystemCallback_fn_ptr                  m_system_event_fn;
-std::deque<ipc_message>                m_incoming_queue;
-
+std::deque<u_ipc_msg_ptr>              m_incoming_queue;
+std::mutex                             m_mutex;
+std::condition_variable                m_condition;
 };
