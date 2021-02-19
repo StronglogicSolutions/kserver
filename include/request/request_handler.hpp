@@ -189,10 +189,10 @@ class RequestHandler {
    *
    * @returns [out] {Scheduler}  New instance of Scheduler
    */
-  Scheduler::Scheduler getScheduler() {
-    return Scheduler::Scheduler{[this](int32_t client_socket_fd,
-                                       int32_t event,
-                                       const std::vector<std::string>& args) {
+  Scheduler getScheduler() {
+    return Scheduler{[this](int32_t                         client_socket_fd,
+                            int32_t                         event,
+                            const std::vector<std::string>& args) {
       onSchedulerEvent(client_socket_fd, event, args);
     }};
   }
@@ -276,7 +276,7 @@ class RequestHandler {
   bool handlePendingTasks() {
     if (!m_tasks_map.empty()) {
       ProcessExecutor executor{};
-      bool is_scheduled_task = true;
+      const bool is_scheduled_task = true;
       executor.setEventCallback(
         [this, is_scheduled_task](std::string result, int mask,
                                   std::string id, int client_socket_fd,
@@ -657,7 +657,7 @@ class RequestHandler {
     }
     else
     if (type == RequestType::UPDATE_SCHEDULE) {
-      Task task = Scheduler::args_to_task(args); // TODO: Not getting completed/status value
+      Task task = args_to_task(args); // TODO: Not getting completed/status value
       bool save_success = m_scheduler.update(task);
 
       m_system_callback_fn(
@@ -846,7 +846,7 @@ class RequestHandler {
   // Workers
   Registrar::Registrar              m_registrar;
   ProcessExecutor*                  m_executor;
-  Scheduler::Scheduler              m_scheduler;
+  Scheduler                         m_scheduler;
   std::thread                       m_maintenance_worker;
 };
 }  // namespace Request
