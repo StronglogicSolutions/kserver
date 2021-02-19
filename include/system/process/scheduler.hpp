@@ -19,31 +19,11 @@
             "60 * extract(minute from(to_timestamp(schedule.time))) + "\
             "extract(second from (to_timestamp(schedule.time))))"
 
-namespace Scheduler {
-/**
- * @brief isSocialMediaPost
- *
- * TODO: modify DB schema and compare against values in there
- *
- */
-static bool isSocialMediaPost(uint32_t mask) {
-  KLOG("this function should be replaced");
-  return (
-    mask == 16 ||
-    mask == 256
-  );
-}
-
-[[maybe_unused]]
-static bool isKIQProcess(uint32_t mask) {
-  KLOG("this function should be replaced");
-  return (
-    mask == 16 ||
-    mask == 256
-  );
-}
-
-
+namespace constants {
+const std::string NO_ORIGIN_PLATFORM_EXISTS{"2"};
+const std::string PLATFORM_POST_INCOMPLETE{"0"};
+const std::string PLATFORM_POST_COMPLETE{"1"};
+} // namespace constants
  /**
   * TODO: This should be moved elsewhere. Perhaps the Registrar
   */
@@ -110,6 +90,12 @@ inline uint32_t getIntervalSeconds(uint32_t interval) {
   }
 }
 
+/**
+ * @brief
+ *
+ * @param args
+ * @return Task
+ */
 inline Task args_to_task(std::vector<std::string> args) {
   Task task{};
 
@@ -132,6 +118,12 @@ inline Task args_to_task(std::vector<std::string> args) {
   return task;
 }
 
+/**
+ * Scheduler
+ *
+ * @class
+ *
+ */
 class Scheduler : public DeferInterface, CalendarManagerInterface {
  public:
   Scheduler() : m_kdb(Database::KDB{}) {}
@@ -433,6 +425,11 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     );
   }
 
+/**
+ * @brief
+ *
+ * @return std::vector<Task>
+ */
   std::vector<Task> fetchAllTasks() {
     return parseTasks(
       m_kdb.selectJoin<QueryFilter>(
@@ -488,6 +485,12 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return task;
   }
 
+/**
+ * @brief Get the Files object
+ *
+ * @param sid
+ * @return std::vector<std::string>
+ */
   std::vector<std::string> getFiles(std::string sid) {
     std::vector<std::string> file_names{};
 
@@ -533,65 +536,97 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    *
    * update the completion status of a task
    *
-   * TODO: Figure out a way to get UUID for platform posts
-   *
    * @param   [in] {Task}   task  The task to update
    * @return [out] {bool}         Whether the UPDATE query was successful
    */
   bool updateStatus(Task* task, const std::string& output = "") {
-    bool schedule_update_result = !m_kdb.update(                // UPDATE
-      "schedule", {                      // table
-        "completed"                      // field
-      }, {
-        std::to_string(task->completed)  // value
-      }, QueryFilter{
-        {"id", std::to_string(task->id)} // filter
+    return (!m_kdb.update(              // UPDATE
+      "schedule",                       // table
+      {
+        "completed"                     // field
       },
-      "id"                               // returning value
+      {
+        std::to_string(task->completed) // value
+      },
+      QueryFilter{
+        {"id", std::to_string(task->id)}// filter
+      },
+      "id"                              // returning value
     )
-    .empty();                            // not empty = success
-
-    if (schedule_update_result && isSocialMediaPost(task->execution_mask)) {
-      auto platform_id = getPlatformID(task->execution_mask);
-      // TODO: Task should have a unique identifier - either from platform, or we generate
-
-      m_event_callback(
-        ALL_CLIENTS,
-        SYSTEM_EVENTS__PLATFORM_NEW_POST,
-        std::vector<std::string>{
-          platform_id,
-          "",
-          StringUtils::generate_uuid_string(),
-          std::to_string(TimeUtils::unixtime()),
-          output
-        }
-      );
-    }
-
-    return schedule_update_result;
+    .empty());                          // not empty = success
   }
 
+/**
+ * @brief
+ *
+ * @param pid
+ * @param identifier
+ * @param timestamp
+ * @param o_pid
+ * @param status
+ * @return true
+ * @return false
+ */
   bool savePlatformPost(const std::string& pid,
                         const std::string& identifier,
                         const std::string& timestamp,
-                        std::string        o_pid = "") {
+                        std::string        o_pid = "",
+                        const std::string& status = constants::PLATFORM_POST_COMPLETE) {
     // TODO : This is brittle. We should query for the "no originating platform" in this case, or the database value should accept null value
+    o_pid = (o_pid.empty()) ? constants::NO_ORIGIN_PLATFORM_EXISTS : o_pid;
 
-    const std::string NO_ORIGIN_PLATFORM_EXISTS{"2"};
-    o_pid = (o_pid.empty()) ?
-              NO_ORIGIN_PLATFORM_EXISTS :
-              o_pid;
+    auto insert_id = m_kdb.insert(
+      "platform_post",
+      {"pid", "unique_id", "time", "o_pid", "status"},
+      {pid, identifier, timestamp, o_pid, status},
+      "id"
+    );
 
-    auto result = (!m_kdb.insert(
-        "platform_post",
-        {"pid", "unique_id", "time", "o_pid"},
-        {pid, identifier, timestamp, o_pid},
-        "id"
-      ).empty()); // NOT empty = success
+    bool result = (!insert_id.empty());
 
-      return result;
+    if (result && (o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
+      for (const auto& platform_id : fetchRepostIDs(pid))
+        savePlatformPost(platform_id, identifier, timestamp, pid, constants::PLATFORM_POST_INCOMPLETE);
+
+    return result;
   }
 
+/**
+ * @brief
+ *
+ * @param pid
+ * @return std::vector<std::string>
+ */
+  std::vector<std::string> fetchRepostIDs(const std::string& pid)
+  {
+    std::vector<std::string> pids{};
+
+    auto result = m_kdb.select(
+      "platform_repost",
+      {
+        "r_pid"
+      },
+      QueryFilter{
+        {"pid", pid}
+      }
+    );
+
+    for (const auto& value : result)
+    {
+      if (value.first == "r_pid")
+        pids.emplace_back(value.second);
+    }
+
+    return pids;
+  }
+
+/**
+ * @brief
+ *
+ * @param payload
+ * @return true
+ * @return false
+ */
   bool savePlatformPost(std::vector<std::string> payload) {
     return (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE) ?
       false
@@ -604,6 +639,12 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       );
   }
 
+/**
+ * @brief Get the Platform I D object
+ *
+ * @param mask
+ * @return std::string
+ */
   std::string getPlatformID(uint32_t mask) {
     auto app_info = ProcessExecutor::getAppInfo(mask);
     if (!app_info.name.empty()) {
@@ -621,6 +662,44 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           return value.second;
     }
     return "";
+  }
+
+/**
+ * @brief
+ *
+ * @return std::vector<std::string>
+ */
+  std::vector<std::string> fetchPlatformPayload() {
+    return {};
+  }
+
+/**
+ * @brief
+ *
+ */
+  void processPlatformPending()
+  {
+    auto result = m_kdb.select(
+      "platform_post",
+      {"pid"},
+      QueryFilter{
+        {"status", constants::PLATFORM_POST_INCOMPLETE}
+      }
+    );
+
+    std::vector<std::string> payload = fetchPlatformPayload();
+
+    for (const auto& [key, value] : result)
+    {
+      if (key == "pid")
+      {
+        m_event_callback(
+          ALL_CLIENTS,
+          SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
+          payload
+        );
+      }
+    }
   }
 
    /**
@@ -679,21 +758,48 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     .empty();                            // not empty = success
   }
 
-  template <typename T>
-  std::string getTaskInfo(T id) {
-    Task task = NULL;
-    if constexpr ((std::is_same_v<T, std::string>) || std::is_same_v<T, int>) {
-      task = getTask(id);
-    }
-    return "";
+  /**
+   * @brief
+   *
+   * @param mask
+   * @return true
+   * @return false
+   */
+  static bool isKIQProcess(uint32_t mask) {
+    return ProcessExecutor::getAppInfo(mask).is_kiq;
   }
 
+  /**
+   * @brief
+   *
+   * @param output
+   * @param mask
+   * @return true
+   * @return false
+   */
   bool handleProcessOutput(const std::string& output, const int32_t mask) {
     ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
     if (!result.data.empty())
     {
-      for (const auto& outgoing_event : result.data)
-        m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
+      for (auto&& outgoing_event : result.data)
+      {
+        if (outgoing_event.event == SYSTEM_EVENTS__PLATFORM_NEW_POST)
+        {
+          std::vector<std::string> payload{};
+          payload.reserve(outgoing_event.payload.size() + 2);
+          payload.at(0) = getPlatformID(mask);
+          payload.at(1) = "";
+          payload.insert(
+            payload.end(),
+            std::make_move_iterator(outgoing_event.payload.begin()),
+            std::make_move_iterator(outgoing_event.payload.end())
+          );
+
+          m_event_callback(ALL_CLIENTS, outgoing_event.event, payload);
+        }
+        else
+          ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
+      }
       return true;
     }
     return false;
@@ -704,4 +810,3 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   Database::KDB           m_kdb;
   ResultProcessor         m_result_processor;
 };
-}  // namespace Scheduler
