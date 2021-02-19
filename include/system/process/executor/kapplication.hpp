@@ -1,22 +1,19 @@
-#ifndef __KAPPLICATION_HPP__
-#define __KAPPLICATION_HPP__
+#pragma once
 
 #include <iostream>
 #include <string>
 
 struct KApplication {
+  std::string id;
   std::string name;
   std::string path;
   std::string data;
   std::string mask;
-  std::string id;
+  bool        is_kiq;
 
   friend std::ostream &operator<<(std::ostream &out, const KApplication &app) {
     out << "ID: " << app.id << "Name: " << app.name << "\nPath: " << app.path
-        << "\nData: " << app.data << std::endl;
+        << "\nData: " << app.data <<  "\nIs KIQ App: " << static_cast<const char*>((app.is_kiq) ? "Yes" : "No") << std::endl;
     return out;
   }
 };
-
-#endif  // _KAPPLICATION_HPP__
-
