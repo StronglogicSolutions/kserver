@@ -1,5 +1,4 @@
-#ifndef __IPC_HPP__
-#define __IPC_HPP__
+#pragma once
 
 #include <string>
 #include <vector>
@@ -41,5 +40,3 @@ std::string string() {
   };
 }
 };
-
-#endif // __IPC_HPP__

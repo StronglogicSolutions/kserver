@@ -74,6 +74,11 @@ bool Poll() {
   return (items[0].revents & ZMQ_POLLIN);
 }
 
+std::vector<ipc_message> GetMessages()
+{
+  return m_rx_msgs;
+}
+
 void Shutdown() {
   // TODO: handle shutdown
 }
@@ -85,4 +90,5 @@ std::vector<ipc_message>       m_tx_msgs;
 std::vector<ipc_message>       m_rx_msgs;
 std::string                    m_addr;
 std::string                    m_rx_msg;
+
 };
