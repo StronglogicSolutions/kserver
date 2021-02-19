@@ -94,6 +94,27 @@ bool ReceiveIPCMessage()
   return false;
 }
 
+bool SendIPCMessage(u_ipc_msg_ptr message)
+{
+  auto    payload = message->data();
+  int32_t frame_num = payload.size();
+
+  auto socket_ptr = m_socket.get();
+
+  for (int i = 0; i < frame_num; i++)
+  {
+    int  flag   = i == (frame_num - 1) ? 0 : ZMQ_SNDMORE;
+    auto data  = payload.at(i);
+
+    zmq::message_t message{data.size()};
+    std::memcpy(message.data(), data.data(), data.size());
+
+    socket_ptr->send(message, flag);
+  }
+
+  return true;
+}
+
 bool Poll() {
   void* socket_ptr = static_cast<void*>(*m_socket.get());
 
