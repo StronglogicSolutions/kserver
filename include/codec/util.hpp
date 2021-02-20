@@ -373,6 +373,10 @@ bool isFileUploadOperation(const char *data) {
   return strcmp(data, "FileUpload") == 0;
 }
 
+bool isIPCOperation(const char *data) {
+  return strcmp(data, "ipc") == 0;
+}
+
 bool isStartOperation(const char *data) { return strcmp(data, "start") == 0; }
 
 bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
