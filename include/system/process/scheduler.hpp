@@ -21,9 +21,51 @@
 
 namespace Scheduler {
 
+
+ /**
+  * TODO: This should be moved elsewhere. Perhaps the Registrar
+  */
+ static uint32_t getAppMask(std::string name) {
+  const std::string filter_field{"name"};
+  const std::string value_field{"mask"};
+
+  QueryValues values = Database::KDB{}.select(
+    "apps",
+    {
+      value_field
+    },
+    {
+      {filter_field, name}
+    }
+  );
+
+  for (const auto &pair : values) {
+    auto key = pair.first;
+    auto value = pair.second;
+
+    if (key == value_field)
+      return std::stoi(value);
+  }
+
+  return std::numeric_limits<uint32_t>::max();
+}
+
 using ScheduleEventCallback =
     std::function<void(std::string, int, int, std::vector<std::string>)>;
 
+namespace constants {
+const uint8_t PAYLOAD_ID_INDEX        {0x01};
+const uint8_t PAYLOAD_NAME_INDEX      {0x02};
+const uint8_t PAYLOAD_TIME_INDEX      {0x03};
+const uint8_t PAYLOAD_FLAGS_INDEX     {0x04};
+const uint8_t PAYLOAD_COMPLETED_INDEX {0x05};
+const uint8_t PAYLOAD_RECURRING_INDEX {0x06};
+const uint8_t PAYLOAD_NOTIFY_INDEX    {0x07};
+const uint8_t PAYLOAD_RUNTIME_INDEX   {0x08};
+const uint8_t PAYLOAD_FILES_INDEX     {0x09};
+
+const uint8_t PAYLOAD_SIZE            {0x0A};
+} // namespace constants
 /**
  * \note Scheduled Task Completion States
  *
@@ -79,6 +121,28 @@ inline uint32_t getIntervalSeconds(uint32_t interval) {
     default:
       return 0;
   }
+}
+
+inline Task args_to_task(std::vector<std::string> args) {
+  Task task{};
+
+  if (args.size() == constants::PAYLOAD_SIZE) {
+    auto mask = getAppMask(args.at(constants::PAYLOAD_NAME_INDEX));
+
+    if (mask != NO_APP_MASK) {
+      task.id              = std::stoi(args.at(constants::PAYLOAD_ID_INDEX));
+      task.execution_mask  = mask;
+      task.datetime        = args.at(constants::PAYLOAD_TIME_INDEX);
+      task.execution_flags = args.at(constants::PAYLOAD_FLAGS_INDEX);
+      task.completed       = args.at(constants::PAYLOAD_COMPLETED_INDEX).compare("1") == 0;
+      task.recurring       = std::stoi(args.at(constants::PAYLOAD_RECURRING_INDEX));
+      task.notify          = args.at(constants::PAYLOAD_NOTIFY_INDEX).compare("1") == 0;
+      task.runtime         = stripSQuotes(args.at(constants::PAYLOAD_RUNTIME_INDEX));
+      // task.filenames = args.at(constants::PAYLOAD_ID_INDEX;
+      KLOG("Can't parse files from schedule payload. Must be implemented");
+    }
+  }
+  return task;
 }
 
 class Scheduler : public DeferInterface, CalendarManagerInterface {
@@ -167,7 +231,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     Task task{};
     for (const auto& v : result) {
       if (v.first == Field::MASK)
-        { task.execution_mask      = std::stoi(v.second);       }
+        {
+          task.execution_mask      = std::stoi(v.second);
+        }
  else if (v.first == Field::FLAGS)
         { task.execution_flags     = v.second;                  }
  else if (v.first == Field::ENVFILE)
@@ -197,6 +263,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * TODO: Remove "parse_files" boolean after refactoring `fetchTasks` (non-recurring tasks method) to use joins
    */
   std::vector<Task> parseTasks(QueryValues&& result, bool parse_files = false) {
+    const std::string files_field{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
     int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
     std::string mask, flags, envfile, time, filenames;
     std::vector<Task> tasks;
@@ -211,7 +278,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       else if (v.first == Field::COMPLETED) { completed = std::stoi(v.second);        }
       else if (v.first == Field::RECURRING) { recurring = std::stoi(v.second);        }
       else if (v.first == Field::NOTIFY   ) { notify    = v.second.compare("t") == 0; }
-      else if (v.first == "files"         ) { filenames = v.second;
+      else if (v.first == files_field     ) { filenames = v.second;
                                               KLOG("Found files");
                                               checked_for_files = true;               }
 
@@ -224,6 +291,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           checked_for_files = true;
           continue;
         } else {
+          if (recurring != Constants::Recurring::NO)
+            time = TimeUtils::time_as_today(time);
+
           tasks.push_back(Task{
             .execution_mask   = std::stoi(mask),
             .datetime         = time,
@@ -235,7 +305,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
             .completed        = completed,
             .recurring        = recurring,
             .notify           = (notify == 1),
-            .runtime          = std::string{},                      // ⬅ set in environment.hpp
+            .runtime          = FileUtils::readRunArgs(envfile),                      // ⬅ set in environment.hpp
             .filenames        = StringUtils::split(filenames, ' ')
           });
           id                  = 0;
@@ -251,9 +321,6 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         }
       }
     }
-    if (tasks.empty()) {
-      ELOG("Did not parse tasks. Returning empty container");
-    }
     return tasks;
   }
 
@@ -267,8 +334,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   virtual std::vector<Task> fetchTasks() override {
     std::string past_15_minute_timestamp =
         std::to_string(TimeUtils::unixtime() - 900);
-    std::string future_5_minute_timestamp =
-        std::to_string(TimeUtils::unixtime() + 300);
+    std::string current_timestamp =
+        std::to_string(TimeUtils::unixtime());
     std::vector<Task> tasks = parseTasks(
       m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
         "schedule", {                                   // table
@@ -289,7 +356,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           CompBetweenFilter{                            // filter
             "time",                                     // field of comparison
             past_15_minute_timestamp,                   // min range
-            future_5_minute_timestamp                   // max range
+            current_timestamp                           // max range
           },
           MultiOptionFilter{                            // filter
             "completed",                                // field of comparison
@@ -339,7 +406,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           },
           CompFilter{                                                     // filter
             std::to_string(TimeUtils::unixtime()),                        // field
-            "(recurring.time + (SELECT get_recurring_seconds(schedule.recurring) - 900))",  // value (from function)
+            "recurring.time + (SELECT get_recurring_seconds(schedule.recurring))",  // value (from function)
             ">"                                                           // comparator
           },
           MultiOptionFilter{                            // filter
@@ -371,6 +438,36 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     );
   }
 
+  std::vector<Task> fetchAllTasks() {
+    return parseTasks(
+      m_kdb.selectJoin<QueryFilter>(
+        "schedule",
+        {
+          Field::ID,                                            // fields
+          Field::TIME,
+          Field::MASK,
+          Field::FLAGS,
+          Field::ENVFILE,
+          Field::COMPLETED,
+          Field::RECURRING,
+          Field::NOTIFY,
+          "(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files" // TODO: replace with grouping
+        },
+        {},
+        Joins{
+          Join{
+              .table      ="file",
+              .field      ="sid",
+              .join_table ="schedule",
+              .join_field ="id",
+              .type       = JoinType::OUTER
+            }
+        }
+      ),
+      true
+    );
+  }
+
   /**
    * getTask
    *
@@ -382,9 +479,9 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   Task getTask(std::string id) {
     Task task = parseTask(m_kdb.select(
       "schedule", {       // table
-        "mask", "flags",  // fields
-        "envfile", "time",
-        "completed"
+        Field::MASK,    Field::FLAGS, // fields
+        Field::ENVFILE, Field::TIME,
+        Field::COMPLETED
         }, {
           {"id", id}      // filter
         }
@@ -434,7 +531,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     return task;
   }
   /**
-   * updateTask
+   * updateStatus
    *
    * update the completion status of a task
    *
@@ -449,6 +546,40 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
         std::to_string(task->completed)  // value
       }, QueryFilter{
         {"id", std::to_string(task->id)} // filter
+      },
+      "id"                               // returning value
+    )
+    .empty();                            // not empty = success
+  }
+
+   /**
+   * update
+   *
+   * @param   [in] {Task}   task  The task to update
+   * @return [out] {bool}         Whether the UPDATE query was successful
+   */
+  bool update(Task task) {
+    KLOG("Runtime flags cannot be updated. Must be implemented");
+    // TODO: implement writing of R_FLAGS to envfile
+    return !m_kdb.update(                // UPDATE
+      "schedule", {                      // table
+            "mask",
+            "time",
+            "flags",
+            "completed",
+            "recurring",
+            "notify",
+            "runtime"
+      }, {
+        std::to_string(task.execution_mask),
+        task.datetime,
+        task.execution_flags,
+        std::to_string(task.completed),
+        std::to_string(task.recurring),
+        std::to_string(task.notify),
+        task.runtime
+      }, QueryFilter{
+        {"id", std::to_string(task.id)} // filter
       },
       "id"                               // returning value
     )

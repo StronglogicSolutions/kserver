@@ -3,6 +3,7 @@
 namespace constants {
 const uint8_t IMMEDIATE_REQUEST = 0;
 const uint8_t SCHEDULED_REQUEST = 1;
+const uint8_t RECURRING_REQUEST = 2;
 } // namespace constants
 
 const char* findWorkDir(std::string_view path) {
@@ -90,7 +91,7 @@ void ProcessExecutor::request(std::string_view         path,
     ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
     auto result = pd_ptr->run();
     if (!result.output.empty()) {
-      (result.output, mask, client_socket_fd, result.error);
+      notifyProcessEvent(result.output, mask, client_socket_fd, result.error);
     }
     delete pd_ptr;
   }
@@ -108,14 +109,17 @@ void ProcessExecutor::request(std::string_view         path,
     if (!result.output.empty()) {
       notifyTrackedProcessEvent(result.output, mask, id, client_socket_fd,
                                 result.error);
-      if (!result.error && type == constants::SCHEDULED_REQUEST) {
-        // TODO: Get rid of this? Handle in request_handler
+      if (!result.error && type != constants::IMMEDIATE_REQUEST) {
         Database::KDB kdb{};
-        auto SUCCESS =
-            Scheduler::Completed::STRINGS[Scheduler::Completed::SUCCESS];
+
+        auto COMPLETED =
+          type == constants::RECURRING_REQUEST ?
+           Scheduler::Completed::STRINGS[Scheduler::Completed::SCHEDULED] :
+           Scheduler::Completed::STRINGS[Scheduler::Completed::SUCCESS];
+
         std::string result = kdb.update("schedule",               // table
                                         {"completed"},            // field
-                                        {SUCCESS},                // value
+                                        {COMPLETED},              // value
                                         QueryFilter{{"id", id}},  // filter
                                         "id"  // field value to return
         );
@@ -140,9 +144,11 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
       client_socket_fd,
       std::to_string(task.id),
       exec_state.argv,
-      constants::SCHEDULED_REQUEST
+      (task.recurring) ?
+        constants::RECURRING_REQUEST :
+        constants::SCHEDULED_REQUEST
     );
-  }
+  } // TODO: Handle failed preparation -> tasks can get stuck in the request_handler's task map
 }
 
 KApplication ProcessExecutor::getAppInfo(int mask) {

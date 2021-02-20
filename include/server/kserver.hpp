@@ -98,6 +98,30 @@ class KServer : public SocketListener {
         }
         break;
       }
+      case SYSTEM_EVENTS__SCHEDULER_FETCH: {
+        if (client_socket_fd != -1) {
+          KLOG("Sending schedule fetch results to client {}", client_socket_fd);
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+            sendEvent(client_socket_fd, "Scheduled Tasks", args);
+        }
+        break;
+      }
+      case SYSTEM_EVENTS__SCHEDULER_UPDATE: {
+        if (client_socket_fd != -1) {
+          KLOG("Sending schedule update result to client {}", client_socket_fd);
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+            sendEvent(client_socket_fd, "Schedule PUT", args);
+        }
+        break;
+      }
+      case SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS: {
+        if (client_socket_fd != -1) {
+          KLOG("Sending schedule flag values to client {}", client_socket_fd);
+          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+            sendEvent(client_socket_fd, "Schedule Tokens", args);
+        }
+      break;
+      }
       case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
         KLOG("Task successfully scheduled");
         if (client_socket_fd == -1) {
@@ -255,7 +279,6 @@ class KServer : public SocketListener {
       KLOG("Event arg - {}", arg);
     }
     std::string event_string = createEvent(event.c_str(), argv);
-    KLOG("Event JSON: \n{}", event_string);
     sendMessage(client_socket_fd, event_string.c_str(), event_string.size());
   }
 
@@ -387,27 +410,43 @@ class KServer : public SocketListener {
    */
   void handleOperation(std::string decoded_message, int client_socket_fd) {
     KOperation op = getOperation(decoded_message.c_str());
-    if (isStartOperation(op.c_str())) {               // Start
+    if (isStartOperation(op.c_str())) {        // Start
       KLOG("Start operation");
       handleStart(decoded_message, client_socket_fd);
       return;
-    } else if (isStopOperation(op.c_str())) {         // Stop
+    }
+    else
+    if (isStopOperation(op.c_str())) {         // Stop
       KLOG("Stop operation. Shutting down client and closing connection");
       handleStop(client_socket_fd);
       return;
-    } else if (isExecuteOperation(op.c_str())) {      // Process execution request
+    }
+    else
+    if (isExecuteOperation(op.c_str())) {      // Process execution request
       KLOG("Execute operation");
       handleExecute(decoded_message, client_socket_fd);
       return;
-    } else if (isFileUploadOperation(op.c_str())) {   // File upload request
+    }
+    else
+    if (isFileUploadOperation(op.c_str())) {   // File upload request
       KLOG("File upload operation");
       handleFileUploadRequest(client_socket_fd);
       return;
-    } else if (isIPCOperation(op.c_str())) {          // IPC request
+    }
+    else
+    if (isIPCOperation(op.c_str())) {          // IPC request
       KLOG("Testing IPC");
       handleIPC(decoded_message);
-    } else if (isAppOperation(op.c_str())) {     // Register app
+    }
+    else
+    if (isAppOperation(op.c_str())) {          // Register app
+      KLOG("App request");
       handleAppRequest(client_socket_fd, decoded_message);
+    }
+    else
+    if (isScheduleOperation(op.c_str())) {     // Fetch schedule
+      KLOG("Fetch schedule request");
+      handleScheduleRequest(client_socket_fd, decoded_message);
     }
   }
 
@@ -417,6 +456,10 @@ class KServer : public SocketListener {
 
 
   void handleAppRequest(int client_fd, std::string message) {
+    m_request_handler.process(client_fd, message);
+  }
+
+  void handleScheduleRequest(int client_fd, std::string message) {
     m_request_handler.process(client_fd, message);
   }
 
@@ -460,8 +503,12 @@ class KServer : public SocketListener {
                 KLOG("Testing task execution");
                 m_request_handler(client_socket_fd, "Test",
                                   Request::DevTest::ExecuteTask);
-              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "ipc") == 0) {
-
+              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "schedule") == 0) {
+                // TODO: temporary. This should be done by the client application
+                std::string fetch_schedule_operation = createOperation(
+                  "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
+                );
+                m_request_handler.process(client_socket_fd, fetch_schedule_operation);
               }
               sendEvent(client_socket_fd, "Message Received",
                         {"Message received by KServer",

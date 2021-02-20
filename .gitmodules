@@ -1,6 +1,6 @@
 [submodule "test/googletest"]
 	path = test/googletest
 	url = https://github.com/google/googletest
-[submodule "third_party/czmq"]
-	path = third_party/czmq
-	url = https://github.com/zeromq/czmq
+[submodule "cppzmq"]
+	path = third_party/cppzmq
+	url = https://github.com/zeromq/cppzmq

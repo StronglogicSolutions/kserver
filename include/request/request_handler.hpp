@@ -268,7 +268,7 @@ class RequestHandler {
       if (jobs.empty()) {
         KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(10));
+      std::this_thread::sleep_for(std::chrono::seconds(20));
     }
   }
 
@@ -614,6 +614,80 @@ class RequestHandler {
 
     }
     else
+    if (type == RequestType::FETCH_SCHEDULE) {
+      KLOG("Processing schedule fetch request");
+      const uint8_t AVERAGE_TASK_SIZE = 9;
+      uint8_t       i{0};
+      uint8_t       TASKS_PER_EVENT{4};
+      std::vector<Task> tasks = m_scheduler->fetchAllTasks();
+      std::vector<std::string> payload{};
+      payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
+      payload.emplace_back("Schedule");
+
+      for (const auto& task : tasks) { // TODO: This needs to handle < 4 items
+        KApplication app = m_executor->getAppInfo(task.execution_mask);
+        payload.emplace_back(std::to_string(task.id));
+        payload.emplace_back(app.name);
+        payload.emplace_back(task.datetime);
+        payload.emplace_back(task.execution_flags);
+        payload.emplace_back(std::to_string(task.completed));
+        payload.emplace_back(std::to_string(task.recurring));
+        payload.emplace_back(std::to_string(task.notify));
+        payload.emplace_back(task.runtime);
+        payload.emplace_back(task.filesToString());
+        if (!(++i % TASKS_PER_EVENT)) {
+           m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__SCHEDULER_FETCH,
+            payload
+          );
+          payload.clear();
+          payload.emplace_back("Schedule more");
+        }
+      }
+      if (!payload.empty()) {
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
+      }
+
+      auto size = tasks.size();
+      KLOG("Fetched {} scheduled tasks for client", size);
+
+      usleep(100000); // TODO: Get rid of this once we implement proper protocol
+      m_system_callback_fn( // Demarcate end of fetch
+        client_fd,
+        SYSTEM_EVENTS__SCHEDULER_FETCH,
+        {"Schedule end", std::to_string(size)}
+      );
+    }
+    else
+    if (type == RequestType::UPDATE_SCHEDULE) {
+      Task task = Scheduler::args_to_task(args); // TODO: Not getting completed/status value
+      bool save_success = m_scheduler->update(task);
+
+      m_system_callback_fn(
+        client_fd,
+        SYSTEM_EVENTS__SCHEDULER_UPDATE,
+        {std::to_string(task.id), (save_success) ? "Success" : "Failure"}
+      );
+    }
+    else
+    if (type == RequestType::FETCH_SCHEDULE_TOKENS) {
+      auto id = args.at(Scheduler::constants::PAYLOAD_ID_INDEX);
+      Task task = m_scheduler->getTask(id);
+      if (task.validate()) {
+        std::vector<std::string> flag_values = FileUtils::readFlagTokens(task.envfile, task.execution_flags);
+        std::vector<std::string> event_args{};
+        event_args.reserve(flag_values.size() + 1);
+        event_args.emplace_back(id);
+        event_args.insert(event_args.end(), flag_values.begin(), flag_values.end());
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
+          event_args
+        );
+      }
+    }
+    else
     if (type == RequestType::UNKNOWN) {
       // TODO: handle
     }
@@ -694,7 +768,12 @@ class RequestHandler {
           m_scheduler->updateStatus(&*task_it);                            // Failed tasks will re-run once more
 
           if (!error && task_it->recurring) {                              // If no error, update last execution time
-            task_it->datetime = std::to_string(TimeUtils::unixtime());
+            KLOG(
+              "Task {} will be scheduled for {}",
+              task_it->id,
+              TimeUtils::format_timestamp(task_it->datetime)
+            );
+
             m_scheduler->updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
               task_it->id,

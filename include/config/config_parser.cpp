@@ -10,7 +10,7 @@ std::string requiredConfig(std::string missing_config) {
 }
 
 /**
- * init
+ * init  .
  */
 bool init() {
   if (reader_ptr == nullptr) {

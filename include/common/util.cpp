@@ -1,5 +1,8 @@
 #include "util.hpp"
 
+static const std::string_view APP_NAME         = "kserver";
+static       int              APP_NAME_LENGTH  = 7;
+
 std::string get_cwd() {
   char *working_dir_path = realpath(".", NULL);
   return std::string{working_dir_path};
@@ -461,9 +464,10 @@ bool isNewSession(const char *data) {
 
 namespace SystemUtils {
 void sendMail(std::string recipient, std::string message, std::string from) {
+  std::string sanitized = StringUtils::sanitizeSingleQuotes(message);
   std::system(
     std::string{
-      "echo '" + message + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
+      "echo '" + sanitized + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
     }.c_str()
   );
 }
@@ -509,6 +513,21 @@ std::string saveEnvFile(std::string env_file_string, std::string uuid) {
   return relative_path;
 }
 
+void saveFopenFile(std::vector<char> bytes, const char *filename) {
+  std::ofstream output(filename,
+                       std::ios::binary | std::ios::out | std::ios::app);
+  char *raw_data = bytes.data();
+  for (size_t i = 0; i < bytes.size(); i++) {
+    output.write(const_cast<const char *>(&raw_data[i]), 1);
+  }
+  output.close();
+}
+
+void saveFile(std::string env_file_string, std::string env_file_path) {
+  std::ofstream out{env_file_path.c_str(), (std::ios::trunc | std::ios::out | std::ios::binary)};
+  out << env_file_string;
+}
+
 std::string readEnvFile(std::string env_file_path, bool relative_path) {
   std::string full_path = (relative_path) ? get_cwd() + "/" + env_file_path : env_file_path;
   std::ifstream file_stream{full_path};
@@ -517,11 +536,90 @@ std::string readEnvFile(std::string env_file_path, bool relative_path) {
   return env_file_stream.str();
 }
 
+std::string readRunArgs(std::string env_file_path) {
+  const std::string token_key{"R_ARGS="};
+  std::string run_arg_s{};
+  std::string env = readEnvFile(env_file_path);
+  if (!env.empty()) {
+    auto start = env.find(token_key);
+    if (start != std::string::npos) {
+      auto sub_s = env.substr(start);
+      auto end   = sub_s.find_first_of("\n");
+      run_arg_s  = sub_s.substr(token_key.size(), end);
+    }
+  }
+  return run_arg_s;
+}
+
 std::string readFile(std::string env_file_path) {
     std::ifstream file_stream{env_file_path};
     std::stringstream env_file_stream{};
     env_file_stream << file_stream.rdbuf();
     return env_file_stream.str();
+}
+
+std::string readEnvToken(std::string env_file_path, std::string token_key) {
+  std::string run_arg_s{};
+  std::string env = readEnvFile(env_file_path);
+  if (!env.empty()) {
+    auto start = env.find(token_key);
+    if (start != std::string::npos) {
+      auto sub_s = env.substr(start + token_key.size() + 1);
+      auto end   = sub_s.find_first_of("\n");
+      run_arg_s  = sub_s.substr(0, end);
+    }
+  }
+  return run_arg_s;
+}
+
+bool writeEnvToken(std::string env_file_path, std::string token_key, std::string token_value) {
+  std::string env = readEnvFile(env_file_path);
+  if (!env.empty()) {
+    auto key_index = env.find(token_key);
+    if (key_index != std::string::npos) {
+      auto start_index = key_index + token_key.size() + 1;
+      auto rem_s       = env.substr(start_index);
+      auto end_index   = rem_s.find_first_of("\n");
+
+      if (end_index != std::string::npos) {
+        end_index += start_index;
+        env.replace(start_index, end_index - start_index, token_value);
+        saveFile(env, env_file_path);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+std::vector<std::string> extractFlagTokens(std::string flags) {
+  const char token_symbol{'$'};
+  std::vector<std::string> tokens{};
+  auto delim_index = flags.find_first_of(token_symbol);
+  while (delim_index != std::string::npos) {
+    std::string token_start = flags.substr(delim_index);
+    auto end_index = token_start.find_first_of(' ') - 1;
+    std::string token = token_start.substr(1, end_index);
+    tokens.push_back(token);
+
+    if (token_start.size() >= token.size()) {
+      flags = token_start.substr(token.size());
+      delim_index = flags.find_first_of(token_symbol);
+    } else {
+      break;
+    }
+  }
+  return tokens;
+}
+
+std::vector<std::string> readFlagTokens(std::string env_file_path, std::string flags) {
+  std::vector<std::string> tokens = extractFlagTokens(flags);
+  std::vector<std::string> token_values{};
+  // TODO: Do this in one pass without reading the entire environment file each time
+  for (const auto& token : tokens) {
+    token_values.emplace_back(readEnvToken(env_file_path, token));
+  }
+  return token_values;
 }
 
 void clearFile(std::string file_path) {
@@ -551,6 +649,20 @@ std::vector<std::string> split(const std::string &s, char delim) {
     }
     return v;
 }
+
+std::string sanitizeSingleQuotes(const std::string& s) {
+  std::string o{};
+
+  for (const char& c : s) {
+    if (c == '\'')
+      o += "&#39;";
+    else
+      o += c;
+  }
+
+  return o;
+}
+
 } // namespace StringUtils
 
 // Bit helpers
@@ -580,6 +692,14 @@ bool hasNthBitSet(int value, int n) {
     return true;
   }
   return false;
+}
+
+std::string stripSQuotes(std::string s) {
+  s.erase(
+    std::remove(s.begin(), s.end(),'\''),
+    s.end()
+  );
+  return s;
 }
 
 // aka isNumber
@@ -612,5 +732,17 @@ std::string format_timestamp(std::string unixtime) {
   struct tm ts = *localtime(&time);
   std::strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
   return std::string{buf};
+}
+
+std::string time_as_today(std::string unixtime) {
+  const std::time_t time = static_cast<std::time_t>(stoi(unixtime));
+  const std::time_t now  = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  struct tm         ts   = *localtime(&time);
+  struct tm         tn   = *localtime(&now);
+  ts.tm_year = tn.tm_year;
+  ts.tm_mon  = tn.tm_mon;
+  ts.tm_mday = tn.tm_mday;
+
+  return std::to_string(mktime(&ts));
 }
 }  // namespace TimeUtils

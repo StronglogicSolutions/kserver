@@ -7,6 +7,7 @@
 #include <codec/kmessage_generated.h>
 #include <codec/uuid.h>
 
+#include <stdio.h>
 #include <filesystem>
 #include <bitset>
 #include <chrono>
@@ -22,14 +23,14 @@
 
 #include "system/process/executor/kapplication.hpp"
 
-#include "rapidjson/document.h"
-#include "rapidjson/error/en.h"
-#include "rapidjson/filereadstream.h"
-#include "rapidjson/filewritestream.h"
-#include "rapidjson/pointer.h"
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
+#include "codec/rapidjson/document.h"
+#include "codec/rapidjson/error/en.h"
+#include "codec/rapidjson/filereadstream.h"
+#include "codec/rapidjson/filewritestream.h"
+#include "codec/rapidjson/pointer.h"
+#include "codec/rapidjson/prettywriter.h"
+#include "codec/rapidjson/stringbuffer.h"
+#include "codec/rapidjson/writer.h"
 
 #include <iostream>
 
@@ -42,9 +43,6 @@ using namespace GenericData;
 
 static const int              SESSION_ACTIVE   = 1;
 static const int              SESSION_INACTIVE = 2;
-
-static const std::string_view APP_NAME         = "kserver";
-static       int              APP_NAME_LENGTH  = 7;
 
 typedef std::string                                      KOperation;
 typedef std::map<int, std::string>                       CommandMap;
@@ -144,21 +142,29 @@ namespace SystemUtils {
 }
 
 namespace FileUtils {
-bool        createDirectory(const char *dir_name);
-void        saveFile(std::vector<char> bytes, const char *filename);
-void        saveFile(uint8_t *bytes, int size, std::string filename);
-std::string saveEnvFile(std::string env_file_string, std::string uuid);
-std::string readEnvFile(std::string env_file_path, bool relative_path = false);
-std::string readFile(std::string env_file_path);
-void        clearFile(std::string file_path);
-bool        createTaskDirectory(std::string uuid);
+bool                     createDirectory(const char *dir_name);
+void                     saveFile(std::vector<char> bytes, const char *filename);
+void                     saveFile(uint8_t *bytes, int size, std::string filename);
+void                     saveFile(std::string env_file_string, std::string env_file_path);
+std::string              saveEnvFile(std::string env_file_string, std::string uuid);
+std::string              readEnvFile(std::string env_file_path, bool relative_path = false);
+std::string              readRunArgs(std::string env_file_path);
+std::string              readEnvToken(std::string env_file_path, std::string token_key);
+bool                     writeEnvToken(std::string env_file_path,
+                                       std::string token_key,
+                                       std::string token_value);
+std::vector<std::string> extractFlagTokens(std::string flags);
+std::vector<std::string> readFlagTokens(std::string env_file_path, std::string flags);
+std::string              readFile(std::string env_file_path);
+void                     clearFile(std::string file_path);
+bool                     createTaskDirectory(std::string uuid);
 }  // namespace FileUtils
 
 namespace StringUtils {
 template <typename T>
 void split(const std::string &s, char delim, T result);
-
 std::vector<std::string> split(const std::string &s, char delim);
+std::string sanitizeSingleQuotes(const std::string& s);
 } // namespace StringUtils
 
 // Bit helpers
@@ -169,6 +175,7 @@ template <typename T>
 static std::string toBinaryString(const T &x);
 
 bool hasNthBitSet(int value, int n);
+std::string stripSQuotes(std::string s);
 bool isdigits(const std::string &s);
 
 namespace TimeUtils {
@@ -177,6 +184,8 @@ int unixtime();
 std::string_view format_timestamp(int unixtime);
 
 std::string format_timestamp(std::string unixtime);
+
+std::string time_as_today(std::string unixtime);
 }  // namespace TimeUtils
 
 #endif  // __UTIL_HPP__

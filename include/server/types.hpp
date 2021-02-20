@@ -20,10 +20,13 @@ static const int SYSTEM_EVENTS__FILE_UPDATE                 = 1;
 static const int SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 2;
 static const int SYSTEM_EVENTS__SCHEDULED_TASKS_READY       = 3;
 static const int SYSTEM_EVENTS__SCHEDULED_TASKS_NONE        = 4;
-static const int SYSTEM_EVENTS__SCHEDULER_SUCCESS           = 5;
-static const int SYSTEM_EVENTS__SCHEDULER_FAIL              = 6;
-static const int SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 7;
-static const int SYSTEM_EVENTS__REGISTRAR_FAIL              = 8;
+static const int SYSTEM_EVENTS__SCHEDULER_FETCH             = 5;
+static const int SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS      = 6;
+static const int SYSTEM_EVENTS__SCHEDULER_UPDATE            = 7;
+static const int SYSTEM_EVENTS__SCHEDULER_SUCCESS           = 8;
+static const int SYSTEM_EVENTS__SCHEDULER_FAIL              = 9;
+static const int SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 10;
+static const int SYSTEM_EVENTS__REGISTRAR_FAIL              = 11;
 
 /**
  * FILE HANDLING STATES

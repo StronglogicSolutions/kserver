@@ -1,5 +1,6 @@
 kserver
-config
+config.ini
+execute_script.sh
 tags
 data
 cron.txt

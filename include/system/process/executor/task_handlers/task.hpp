@@ -7,6 +7,8 @@
 #include "common/util.hpp"
 
 #define TIMESTAMP_LENGTH 10
+
+const uint32_t NO_APP_MASK = std::numeric_limits<uint32_t>::max();
 namespace TaskIndexes {
   static constexpr uint8_t MASK = 0;
 }
@@ -83,6 +85,14 @@ struct Task {
     if (notify)   return_string += "Yes";
     else          return_string += "No";
     return return_string;
+  }
+
+  std::string filesToString() const {
+    std::string files_s{};
+    for (const auto& file : filenames) files_s += file + ":";
+    if (!files_s.empty())
+      files_s.pop_back();
+    return files_s;
   }
 
   friend std::ostream &operator<<(std::ostream &out, const Task &task) {

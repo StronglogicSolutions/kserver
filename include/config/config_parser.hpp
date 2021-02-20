@@ -13,7 +13,7 @@ extern INIReader  reader;
 std::string requiredConfig(std::string missing_config = "");
 
 /**
- * init
+ * init  .
  */
 bool init();
 
