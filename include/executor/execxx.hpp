@@ -13,15 +13,31 @@
 #include <future>
 
 namespace {
+/**
+ * ProcessResult
+ */
 struct ProcessResult {
   std::string output;
   bool error = false;
 };
 
-constexpr int buf_size = 32768;
+/**
+ * Child process output buffer
+ * 32k
+ */
+const uint32_t buf_size{32768};
 
+/**
+ * readFd
+ *
+ * Helper function to read output from a file descriptor
+ *
+ * @param   [in]
+ * @returns [out]
+ *
+ */
 std::string readFd(int fd) {
-  char buffer[32768];
+  char buffer[buf_size];
   std::string s{};
   do {
     const ssize_t r = read(fd, buffer, buf_size);
@@ -32,15 +48,26 @@ std::string readFd(int fd) {
   return s;
 }
 
-ProcessResult qx(std::vector<std::string> args,
-                 const std::string&       working_directory = "") {
-  int stdout_fds[2], stderr_fds[2];
+/**
+ * qx
+ *
+ * Function to fork a child process, execute an application and return the stdout or stderr
+ *
+ * @param   [in]
+ * @param   [in]
+ * @returns [out]
+ */
+ProcessResult qx(    std::vector<std::string> args,
+               const std::string&             working_directory = "") {
+  int stdout_fds[2];
+  int stderr_fds[2];
+
   pipe(stdout_fds);
   pipe(stderr_fds);
 
   const pid_t pid = fork();
 
-  if (!pid) { // Child process
+  if (!pid) {                                     // Child process
 
     if (!working_directory.empty()) {
       chdir(working_directory.c_str());
@@ -53,20 +80,43 @@ ProcessResult qx(std::vector<std::string> args,
     dup2 (stderr_fds[1], 2);
     close(stderr_fds[1]);
 
-    std::vector<char*> process_arguments{};
-    process_arguments.reserve(args.size() + 1);
+    std::vector<char*> vc(args.size() + 1, 0);
 
     for (size_t i = 0; i < args.size(); ++i) {
-      process_arguments[i] = const_cast<char*>(args[i].c_str());
+      vc[i] = const_cast<char*>(args[i].c_str());
     }
-    // Execute
-    execvp(*process_arguments.data(), process_arguments.data());
-    exit(0); // Exit with no error
+
+    execvp(vc[0], &vc[0]); // Execute application
+    exit(0);               // Exit with no error
   }
+                                                  // Parent process
   close(stdout_fds[1]);
   close(stderr_fds[1]);
 
-  ProcessResult result{};                         // To gather result
+  ProcessResult result{};
+
+  std::clock_t start_time = std::clock();
+  int          ret{};
+  int          status{};
+
+  for (;;) {
+
+    ret = waitpid(pid, &status, (WNOHANG | WUNTRACED | WCONTINUED));
+
+    KLOG("waitpid returned {}", ret);
+    if (ret == 0) {
+      break;
+    }
+
+    if ((std::clock() - start_time) > 30) {
+
+      kill(pid, SIGKILL);
+      result.error  = true;
+      result.output = "Child process timed out";
+
+      return result;
+    }
+  }
 
   pollfd poll_fds[2]{
     pollfd{
@@ -82,39 +132,54 @@ ProcessResult qx(std::vector<std::string> args,
   };
 
   for (;;) {
-
+    // TODO: Do something with result or remove
     int poll_result = poll(poll_fds, 2, 30000);
-    // stdout
-    if (poll_fds[0].revents & POLLIN) {
+
+    if        (poll_fds[1].revents & POLLIN) {
+
+      result.output = readFd(poll_fds[1].fd);;
+      result.error  = true;
+      break;
+
+    } else if (poll_fds[0].revents & POLLIN) {
+
       result.output = readFd(poll_fds[0].fd);
       if (!result.output.empty()) {
         break;
       }
       result.error = true;
-      poll_fds[0].revents = 0;
-    }
 
-    if (poll_fds[0].revents & POLLHUP) {
+    } else if (poll_fds[0].revents & POLLHUP) {
+
       close(stdout_fds[0]);
       close(stderr_fds[0]);
-      printf("POLLHUP\n");
+
+      result.error  = true;
       result.output = "Lost connection to forked process";
-      result.error = true;
-      break;
+
+    } else {
+
+      kill(pid, SIGKILL);  // Make sure the process is dead
+      result.error  = true;
+      result.output = "Child process timed out";
+
     }
-    // stderr
-    if (poll_fds[1].revents & POLL_IN) {
-      std::string stderr_output = readFd(poll_fds[0].fd);
-      result.output = stderr_output;
-      result.error = true;
+
+    if (result.error) {
       break;
     }
   }
 
   close(stdout_fds[0]);
   close(stderr_fds[0]);
+  close(stderr_fds[1]);
+
+  if (result.output.empty()) {
+    result.output = "Process returned no output";
+  }
 
   return result;
 }
 }  // namespace
+
 #endif // __EXECXX_HPP__

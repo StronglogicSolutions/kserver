@@ -83,7 +83,7 @@ void TaskQueue::workerLoop() {
  * @method
  */
 void TaskQueue::deployWorkers() {
-  for (uint8_t i = 0; i < (num_threads - 1); i++) {
+  for (uint8_t i = 0; i < num_threads; i++) {
     m_thread_pool.push_back(std::thread([this]() { workerLoop(); }));
   }
 
@@ -99,7 +99,12 @@ void TaskQueue::deployWorkers() {
  * To be called after an instance of TaskQueue is created.
  * @method
  */
-void TaskQueue::initialize() { deployWorkers(); }
+void TaskQueue::initialize() {
+  if (num_threads < 2) {
+    num_threads = 2;
+  }
+  deployWorkers();
+}
 
 /**
  * detachThreads

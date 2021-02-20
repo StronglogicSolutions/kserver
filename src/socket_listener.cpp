@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 
+const size_t ARG_NOT_FOUND{std::string::npos};
 /**
  * Constructor
  * Initialize with ip_address, port and message_handler
@@ -20,18 +21,23 @@ SocketListener::SocketListener(int arg_num, char** args)
 : m_port(-1),
   m_service_enabled(true) {
   for (int i = 0; i < arg_num; i++) {
-    std::string argument = std::string(args[i]);
-    if (argument.find("--ip") != -1) {
+
+    std::string argument{args[i]};
+
+    if (argument.find("--ip") != ARG_NOT_FOUND) {
       m_ip_address = argument.substr(5);
       continue;
     }
-    if (argument.find("--port") != -1) {
+
+    if (argument.find("--port") != ARG_NOT_FOUND) {
       m_port = std::stoi(argument.substr(7));
       continue;
     }
+
     if (m_ip_address.empty()) {
       m_ip_address = "0.0.0.0";
     }
+
     if (m_port == -1) {
       m_port = 9009;
     }

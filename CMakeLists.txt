@@ -17,7 +17,8 @@ else ()
 endif()
 
 # External dependencies
-set(LISTENERLIB "${CMAKE_SOURCE_DIR}/include/server/libsocket_listener.a")
+# set(LISTENERLIB "${CMAKE_SOURCE_DIR}/include/server/libsocket_listener.a")
+set(LISTENERLIB "${CMAKE_SOURCE_DIR}/src/socket_listener.cpp" "${CMAKE_SOURCE_DIR}/src/task_queue.cpp")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_library(UUID uuid)
 find_library(PQXX_LIB pqxx)
@@ -44,7 +45,7 @@ endif()
 add_executable(${PROJECT_NAME} ${SOURCES})
 add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 # Linking
-target_link_libraries(${PROJECT_NAME} ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
+target_link_libraries(${PROJECT_NAME} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
 target_link_libraries(${PROJECT_NAME}_lib ${LISTENERLIB} ${UUID} ${PQXX_LIB} ${PQ_LIB} Threads::Threads)
 
 # Includes
@@ -56,5 +57,5 @@ target_include_directories(${PROJECT_NAME}_lib PRIVATE
     "include"
     "third_party"
  )
- add_subdirectory(test)
+add_subdirectory(test)
 
