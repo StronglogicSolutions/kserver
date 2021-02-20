@@ -565,7 +565,7 @@ std::string createEnvFile(std::unordered_map<std::string, std::string>&& key_pai
 
   for (const auto& [key, value] : key_pairs)
   {
-    environment_file += key + "=\"" + value + '\"';
+    environment_file += key + "=\"" + value + "\"|\n";
   }
 
   return environment_file;
