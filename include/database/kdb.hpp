@@ -199,6 +199,26 @@ QueryValues select(std::string table, Fields fields,
     return {{}};
   }
 
+  QueryValues selectSimpleJoin(std::string table, Fields fields, QueryFilter filter, Join join) {
+    try {
+      SimpleJoinQuery select_query{
+        .table  = table,
+        .fields = fields,
+        .filter = filter,
+        .join   = join
+      };
+      QueryResult result = m_connection->query(select_query);
+      if (!result.values.empty()) {
+        return result.values;
+      }
+    } catch (const pqxx::sql_error &e) {
+      throw e;
+    } catch (const std::exception &e) {
+      throw e;
+    }
+    return {{}};
+  }
+
   std::string update(std::string table, Fields fields, Values values,
                      QueryFilter filter, std::string returning) {
     try {

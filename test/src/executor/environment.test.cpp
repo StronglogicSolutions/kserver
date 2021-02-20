@@ -1,6 +1,6 @@
 #include "environment.test.hpp"
 
-TEST(EnvironmentTest, ParseFlagsFromString) {
+TEST(EnvironmentTest, DISABLED_ParseFlagsFromString) {
   std::string flag_string{
     "--description=$DESCRIPTION --media=$FILE_TYPE --header=$HEADER --user=$USER"
   };

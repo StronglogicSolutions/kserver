@@ -39,7 +39,6 @@ endif()
 set(SOURCE_FILES
   "src/main.cpp"
   "src/database_connection.cpp"
-  "include/config/config_parser.cpp"
   "include/system/process/executor/executor.cpp"
   "include/system/process/executor/task_handlers/task.cpp"
   "include/system/process/executor/task_handlers/generic.cpp"

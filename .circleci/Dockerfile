@@ -1,5 +1,8 @@
-FROM ymcold/manjaro:latest
+FROM logicp/kserver:1.0.0
 # Initial update of package lists
-ENV TZ="America/Toronto"
-RUN pacman -Sy --debug --noconfirm base-devel gcc cmake git libpqxx postgresql postgresql-libs flatbuffers
-RUN git clone https://github.com/jtv/libpqxx && cd libpqxx && cmake . && make && make install
+RUN pacman -S --noconfirm libsodium zeromq
+RUN git clone https://github.com/stronglogicsolutions/kserver
+WORKDIR kserver
+RUN git submodule sync
+RUN git submodule update --init --recursive
+RUN BUILD_TYPE=Debug ./build.sh

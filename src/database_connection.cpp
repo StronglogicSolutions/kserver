@@ -147,9 +147,21 @@ std::string getVariantFilterStatement(
 // TODO: Phase this out, and only use "filterStatement" above
 template <typename T>
 std::string getFilterStatement(T filter) {  // TODO: fix template usage
+  std::string delim = "";
+
+  if constexpr (std::is_same_v<T, QueryFilter>)
+  {
+    std::string filter_string{};
+    for (const auto& filter_pair : filter)
+    {
+      filter_string += delim + filter_pair.first + '=' + filter_pair.second;
+      delim = ',';
+    }
+    return filter_string;
+  }
+  else
   if constexpr (std::is_same_v<T, MultiOptionFilter>) {
     std::string filter_string{filter.a + " " + filter.comparison + " ("};
-    std::string delim = "";
     for (const auto &option : filter.options) {
       filter_string += delim + option;
       delim = ",";
@@ -294,6 +306,14 @@ std::string selectStatement(T query) {
       std::string join_string = getJoinStatement(query.joins);
       return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + " " + filter_string};
     }
+    else
+    if constexpr (std::is_same_v<T, SimpleJoinQuery>)
+    {
+      filter_string += getFilterStatement(query.filter);
+      std::string join_string = getJoinStatement({query.join});
+      return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + " " + filter_string;
+    }
+
   }
   return std::string{
     "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table};
@@ -456,11 +476,15 @@ template QueryResult DatabaseConnection::query(
 );
 
 template QueryResult DatabaseConnection::query(
-  JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>
+  JoinQuery<QueryFilter>
 );
 
 template QueryResult DatabaseConnection::query(
-  JoinQuery<QueryFilter>
+  SimpleJoinQuery
+);
+
+template QueryResult DatabaseConnection::query(
+  JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>
 );
 
 std::string DatabaseConnection::query(InsertReturnQuery query) {

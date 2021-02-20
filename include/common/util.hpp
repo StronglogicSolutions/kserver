@@ -144,21 +144,23 @@ namespace SystemUtils {
 
 namespace FileUtils {
 bool                     createDirectory(const char *dir_name);
-void                     saveFile(std::vector<char> bytes, const char *filename);
-void                     saveFile(uint8_t *bytes, int size, std::string filename);
-void                     saveFile(std::string env_file_string, std::string env_file_path);
-std::string              saveEnvFile(std::string env_file_string, std::string uuid);
-std::string              readEnvFile(std::string env_file_path, bool relative_path = false);
-std::string              readRunArgs(std::string env_file_path);
-std::string              readEnvToken(std::string env_file_path, std::string token_key);
-bool                     writeEnvToken(std::string env_file_path,
-                                       std::string token_key,
-                                       std::string token_value);
-std::vector<std::string> extractFlagTokens(std::string flags);
-std::vector<std::string> readFlagTokens(std::string env_file_path, std::string flags);
-std::string              readFile(std::string env_file_path);
-void                     clearFile(std::string file_path);
-bool                     createTaskDirectory(std::string uuid);
+void                     saveFile(uint8_t *bytes, int size, const std::string& filename);
+void                     saveFile(     const std::vector<char>& bytes, const char* filename);
+void                     saveFile(     const std::string& env_file_string, const std::string& env_file_path);
+std::string              saveEnvFile(  const std::string& env_file_string, const std::string& unique_id);
+std::string              readEnvFile(  const std::string& env_file_path, bool relative_path = false);
+std::string              readRunArgs(  const std::string& env_file_path);
+std::string              readEnvToken( const std::string& env_file_path, const std::string& token_key);
+bool                     writeEnvToken(const std::string& env_file_path,
+                                       const std::string& token_key,
+                                       const std::string& token_value);
+std::vector<std::string> extractFlagTokens(std::string);
+std::vector<std::string> readFlagTokens(const std::string& env_file_path, const std::string& flags);
+std::vector<std::string> readEnvValues(const std::string& env_file_path, const std::vector<std::string>& flags);
+std::string              createEnvFile(std::unordered_map<std::string, std::string>&& key_pairs);
+std::string              readFile( const std::string& env_file_path);
+void                     clearFile(const std::string& file_path);
+bool                     createTaskDirectory(const std::string& unique_id);
 }  // namespace FileUtils
 
 namespace StringUtils {
