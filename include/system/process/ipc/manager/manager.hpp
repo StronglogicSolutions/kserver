@@ -26,18 +26,31 @@ IPCManager(SystemCallback_fn_ptr system_event_fn)
 void process(std::string message, int32_t fd) {
   KLOG("Received outgoing IPC request");
 
-  if (m_clients.find(fd) == m_clients.end()) {
-    m_clients.insert({fd, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
-  }
+  if (m_clients.empty())
+    m_clients.insert({ALL_CLIENTS, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
 
-  m_clients.at(fd).SendMessage(message);
+  m_clients.at(ALL_CLIENTS).SendMessage(message);
 
   return;
 }
 
 bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
 {
-  return false;
+  // TODO: Dynamic ports
+  if (m_clients.empty())
+    m_clients.insert({ALL_CLIENTS, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
+
+  if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED)
+    KLOG("Implement IPC protocol both ways!");
+    // m_clients.at(ALL_CLIENTS).SendIPCMessage(std::move(std::make_unique<platform_message>(
+    //   args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
+    //   args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
+    //   args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
+    //   args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
+    //   args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "true"
+    // )));
+
+  return true;
 }
 
 void close(int32_t fd) {
@@ -64,7 +77,7 @@ void HandleClientMessages()
         platform_message* message = static_cast<platform_message*>(it->get());
 
         std::vector<std::string> payload{};
-        payload.reserve(4);
+        payload.resize(6);
         payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)   = message->name();
         payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)         = message->id();
         payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)       = "";
@@ -84,23 +97,28 @@ private:
 virtual void loop() override {
   while (m_is_running) {
     for (auto&&[fd, client] : m_clients) {
-      if (client.Poll() && client.ReceiveIPCMessage())
+      const uint8_t mask = client.Poll();
+      if (HasIPCMessage(mask) && client.ReceiveIPCMessage())
       {
-        client.ProcessMessage();
-
-        std::vector<u_ipc_msg_ptr> messages = client.GetMessages();
-
-        m_incoming_queue.insert(
-          m_incoming_queue.end(),
-          std::make_move_iterator(messages.begin()),
-          std::make_move_iterator(messages.end())
-        );
+        client.ReplyIPC();
       }
+
+      if (HasMessage(mask))
+        client.ReceiveMessage();
+
+      std::vector<u_ipc_msg_ptr> messages = client.GetMessages();
+
+      m_incoming_queue.insert(
+        m_incoming_queue.end(),
+        std::make_move_iterator(messages.begin()),
+        std::make_move_iterator(messages.end())
+      );
+
+      HandleClientMessages();
     }
 
     std::unique_lock<std::mutex> lock{m_mutex};
-    m_condition.wait_for(lock, std::chrono::milliseconds(10000));
-
+    m_condition.wait_for(lock, std::chrono::milliseconds(300));
   }
 }
 
