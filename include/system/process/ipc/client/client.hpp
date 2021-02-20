@@ -13,6 +13,8 @@ std::string name;
 class IPCClient
 {
 public:
+using u_ipc_msg_ptr = ipc_message::u_ipc_msg_ptr;
+
 explicit IPCClient(uint32_t port)
 : m_context{1},
   m_socket{nullptr},
@@ -34,7 +36,6 @@ bool SendMessage(std::string message) {
 }
 
 bool SendIPCMessage(uint8_t* data, uint32_t size) {
-  ipc_message ipc{data, size};
   return false;
 }
 
@@ -62,6 +63,58 @@ bool ReceiveMessage() {
   return false;
 }
 
+bool ReceiveIPCMessage()
+{
+  std::vector<ipc_message::byte_buffer> received_message{};
+  zmq::message_t                        message;
+  int                                   more_flag{1};
+
+  zmq::socket_t* socket_ptr = m_socket.get();
+
+  while (more_flag)
+  {
+    zmq::mutable_buffer buffer{};
+    socket_ptr->recv(&message, static_cast<int>(zmq::recv_flags::none));
+    size_t size = sizeof(more_flag);
+    socket_ptr->getsockopt(ZMQ_RCVMORE, &more_flag, &size);
+
+    received_message.push_back(std::vector<unsigned char>{
+        static_cast<char*>(message.data()), static_cast<char*>(message.data()) + message.size()
+    });
+  }
+
+  ipc_message::u_ipc_msg_ptr ipc_message = DeserializeIPCMessage(std::move(received_message));
+
+  if (ipc_message != nullptr)
+  {
+    m_rx_msgs.emplace_back(std::move(ipc_message));
+    return true;
+  }
+
+  return false;
+}
+
+bool SendIPCMessage(u_ipc_msg_ptr message)
+{
+  auto    payload = message->data();
+  int32_t frame_num = payload.size();
+
+  auto socket_ptr = m_socket.get();
+
+  for (int i = 0; i < frame_num; i++)
+  {
+    int  flag   = i == (frame_num - 1) ? 0 : ZMQ_SNDMORE;
+    auto data  = payload.at(i);
+
+    zmq::message_t message{data.size()};
+    std::memcpy(message.data(), data.data(), data.size());
+
+    socket_ptr->send(message, flag);
+  }
+
+  return true;
+}
+
 bool Poll() {
   void* socket_ptr = static_cast<void*>(*m_socket.get());
 
@@ -74,6 +127,11 @@ bool Poll() {
   return (items[0].revents & ZMQ_POLLIN);
 }
 
+std::vector<u_ipc_msg_ptr> GetMessages()
+{
+  return std::move(m_rx_msgs);
+}
+
 void Shutdown() {
   // TODO: handle shutdown
 }
@@ -81,8 +139,9 @@ void Shutdown() {
 private:
 zmq::context_t                 m_context;
 std::unique_ptr<zmq::socket_t> m_socket;
-std::vector<ipc_message>       m_tx_msgs;
-std::vector<ipc_message>       m_rx_msgs;
+std::vector<u_ipc_msg_ptr>     m_tx_msgs;
+std::vector<u_ipc_msg_ptr>     m_rx_msgs;
 std::string                    m_addr;
 std::string                    m_rx_msg;
+
 };
