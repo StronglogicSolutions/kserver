@@ -7,7 +7,7 @@
 #include <gmock/gmock.h>
 #include <database/database_connection.hpp>
 #include <pqxx/pqxx>
-#include <config/config_parser.hpp>
+#include "log/logger.h"
 
 using ::testing::_;
 using ::testing::Return;

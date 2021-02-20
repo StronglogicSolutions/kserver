@@ -14,7 +14,6 @@
 #include "common/util.hpp"
 #include "log/logger.h"
 #include "codec/kmessage_generated.h"
-#include "config/config_parser.hpp"
 #include "database/kdb.hpp"
 #include "system/process/executor/executor.hpp"
 #include "system/process/scheduler.hpp"
