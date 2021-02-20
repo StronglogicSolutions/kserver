@@ -22,7 +22,7 @@ TEST(SchedulerTest, ScheduleInvalidTaskReturnsEmptyString) {
       "5432"
     }
   };
-  Scheduler::Scheduler scheduler{std::move(kdb)};
+  Scheduler scheduler{std::move(kdb)};
 
   Task generic_task = generic_task_hander.prepareTask(argv, uuid);
   generic_task.execution_mask = 0; // invalidate task

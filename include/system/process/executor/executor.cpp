@@ -197,7 +197,7 @@ KApplication ProcessExecutor::getAppInfo(int mask) {
   QueryValues values = kdb.select(
     "apps",                           // table
     {
-      "id", "path", "data", "name"          // fields
+      "id", "path", "data", "name", "internal"          // fields
     },
     {
       {"mask", std::to_string(mask)}  // filter
@@ -216,6 +216,11 @@ KApplication ProcessExecutor::getAppInfo(int mask) {
     else
     if (value_pair.first == "id")
       k_app.id = value_pair.second;
+    else
+    if (value_pair.first == "internal")
+      k_app.is_kiq = (value_pair.second == "true") ?
+                       true:
+                       false;
   }
   return k_app;
 }
