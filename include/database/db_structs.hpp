@@ -128,19 +128,27 @@ struct QueryResult {
   std::vector<std::pair<std::string, std::string>> values;
 };
 
+enum JoinType {
+  INNER = 0x00,
+  OUTER = 0x01
+};
+
 struct Join {
   std::string table;
   std::string field;
   std::string join_table;
   std::string join_field;
+  JoinType    type;
 };
+
+using Joins = std::vector<Join>;
 
 template <typename T>
 struct JoinQuery : MultiVariantFilterSelect<T> {
-  std::string table;
+  std::string              table;
   std::vector<std::string> fields;
-  T filter;
-  Join join;
+  T                        filter;
+  Joins                    joins;
 };
 
 #endif  // __DB_STRUCTS_H__

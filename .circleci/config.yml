@@ -8,6 +8,10 @@ jobs:
       - run: git submodule sync
       - run: git submodule update --init
       - run:
+          name: distro
+          command: |
+            pacman -S --noconfirm libsodium zeromq
+      - run:
           name: compile
           command: |
             BUILD_ENV=CIRCLECI cmake . && make

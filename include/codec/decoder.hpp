@@ -3,7 +3,7 @@
 
 #include <log/logger.h>
 #include <server/types.hpp>
-#include <codec/util.hpp>
+#include <common/util.hpp>
 
 namespace Decoder {
 /**

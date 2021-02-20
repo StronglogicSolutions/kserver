@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.6)
 project(kserver_test)
 set(CMAKE_CXX_STANDARD 17)
+
+# FPIC
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 set(LISTENERLIB "../include/server/libsocket_listener.a")
 set(KSERVER_LIB "libkserver_lib.a")
 set(KSERVER_SRC "../src")
@@ -13,7 +17,7 @@ find_library(UUID uuid)
 find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Wall")
-file(GLOB_RECURSE TEST_SOURCES true src/*.cpp src/*.h* ../src/database_connection.cpp ../src/socket_listener.cpp ../src/task_queue.cpp ${KSERVER_SRC} ${MOCK_DATA_SRC})
+file(GLOB_RECURSE TEST_SOURCES true ../include/system/process/executor/task_handlers/task.cpp ../include/*.cpp src/*.cpp src/*.h* ../src/database_connection.cpp ../src/socket_listener.cpp ../src/task_queue.cpp ${MOCK_DATA_SRC})
 
 set(FULL_SOURCES ${TEST_SOURCES})
 

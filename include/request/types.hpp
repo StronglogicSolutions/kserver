@@ -4,9 +4,9 @@
 #include <string>
 #include <cstring>
 
-namespace constants {
+namespace Request {
+
 const uint8_t REQUEST_TYPE_INDEX = 0x00;
-} // namespace constants
 
 enum RequestType {
   REGISTER_APPLICATION = 0x00,
@@ -42,5 +42,5 @@ RequestType int_to_request_type(int byte) {
   }
   return UNKNOWN;
 }
-
+} // namespace Request
 #endif  // __REQUEST_TYPES_HPP__

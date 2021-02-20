@@ -1,16 +1,4 @@
-// Project headers
-#include <interface/socket_listener.hpp>
-// System libraries
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-// C++ Libraries
-#include <iostream>
-#include <memory>
-#include <string>
+#include "interface/socket_listener.hpp"
 
 const size_t ARG_NOT_FOUND{std::string::npos};
 /**
@@ -140,7 +128,7 @@ void SocketListener::handleClientSocket(
     }
   }
   // TODO: Determine if we should free memory, or handle as class member
-  close(client_socket_fd);  // Destroy client socket and deallocate its fd
+  ::close(client_socket_fd);  // Destroy client socket and deallocate its fd
 }
 
 /**

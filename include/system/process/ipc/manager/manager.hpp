@@ -2,8 +2,8 @@
 #define __IPC_MANAGER_HPP__
 
 #include <thread>
-#include <log/logger.h>
-#include <system/process/ipc/client/client.hpp>
+#include "log/logger.h"
+#include "system/process/ipc/client/client.hpp"
 
 class Worker {
  public:

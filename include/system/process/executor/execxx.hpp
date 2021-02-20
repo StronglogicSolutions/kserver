@@ -5,8 +5,6 @@
 #include <sys/wait.h>
 #include <sys/poll.h>
 #include <unistd.h>
-
-#include <codec/util.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -39,12 +37,13 @@ const uint32_t buf_size{32768};
 std::string readFd(int fd) {
   char buffer[buf_size];
   std::string s{};
+  ssize_t r{};
   do {
-    const ssize_t r = read(fd, buffer, buf_size);
+    r = read(fd, buffer, buf_size);
     if (r > 0) {
       s.append(buffer, r);
     }
-  } while (errno == EAGAIN || errno == EINTR);
+  } while (r > 0);
   return s;
 }
 

@@ -4,6 +4,7 @@
 #include "codec/util_test.hpp"
 #include "database/database_connection_test.hpp"
 #include "executor/scheduler.hpp"
+#include "executor/environment.test.hpp"
 #include "executor/task/task_test.hpp"
 #include "server/kserver_test.hpp"
 // #include "socket/socket_listener.hpp"

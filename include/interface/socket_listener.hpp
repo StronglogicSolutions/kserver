@@ -1,13 +1,14 @@
 #ifndef __SOCKET_LISTENER_HPP__
 #define __SOCKET_LISTENER_HPP__
 
-// Project libraries
-#include <interface/listen_interface.hpp>
-#include <interface/send_interface.hpp>
-#include <task/task_queue.hpp>
-#include <types/constants.hpp>
 // System libraries
+#include <cstring>
+#include <unistd.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
 
 // C++ Libraries
 #include <functional>
@@ -15,6 +16,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+
+// Project libraries
+#include "listen_interface.hpp"
+#include "interface/send_interface.hpp"
+#include "task/task_queue.hpp"
+#include "types/constants.hpp"
 
 /**
  * SocketListener
