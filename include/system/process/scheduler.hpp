@@ -88,7 +88,7 @@ static const uint32_t getIntervalSeconds(uint32_t interval) {
 static std::string savePlatformEnvFile(const PlatformPost& post)
 {
   const std::string directory_name{post.time + post.id + post.pid};
-  const std::string filename      {directory_name + "/v.env"};
+  const std::string filename      {directory_name};
 
   FileUtils::createTaskDirectory(directory_name);
 
@@ -112,7 +112,7 @@ static const std::vector<std::string> PLATFORM_KEYS{
 };
 
 static const std::vector<std::string> PLATFORM_ENV_KEYS{
-  "content"
+  "content",
   "urls"
 };
 
@@ -371,7 +371,7 @@ std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result) {
     else if (v.first == "platform.name" ) { name = v.second; }
     else if (v.first == "platform.method" ) { method = v.second; }
 
-    if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() && !repost.empty() && !name.empty()) {
+    if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() && !repost.empty() && !name.empty() && !method.empty()) {
       PlatformPost post{};
       post.pid = pid;
       post.o_pid = o_pid;
@@ -676,11 +676,11 @@ std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result) {
  * @param   [in]  {std::string}  status
  * @returns [out] {bool}
  */
-bool savePlatformPost(const PlatformPost& post, const std::string& status = constants::PLATFORM_POST_COMPLETE) {
+bool savePlatformPost(PlatformPost post, const std::string& status = constants::PLATFORM_POST_COMPLETE) {
   auto insert_id = m_kdb.insert(
     "platform_post",
-    {"pid", "unique_id", "time", "o_pid", "status"},
-    {post.pid, post.id, post.time, post.o_pid, status},
+    {"pid", "unique_id", "time", "o_pid", "status", "repost"},
+    {post.pid, post.id, post.time, post.o_pid, status, post.repost},
     "id"
   );
 
@@ -720,19 +720,23 @@ bool savePlatformPost(const PlatformPost& post, const std::string& status = cons
     if (payload_size < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
        return false;
 
-    const std::string& platform_id = getPlatformID(payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX));
+    const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
+    const std::string& time = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
+    const std::string& id   = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+    const std::string& platform_id = getPlatformID(name);
 
     if (platform_id.empty())
       return false;
 
     return savePlatformPost(PlatformPost{
       .pid     = platform_id,
-      .o_pid   = "",
-      .id      = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
-      .time    = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX),
+      .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
+      .id      = id.empty() ? StringUtils::generate_uuid_string() : id,
+      .time    = time.empty() ? std::to_string(TimeUtils::unixtime()) : time,
       .content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
       .urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
-      .repost  = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)
+      .repost  = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX),
+      .name    = name
     });
   }
 
@@ -782,20 +786,18 @@ std::string getPlatformID(const std::string& name) {
 std::vector<PlatformPost> fetchPendingPlatformPosts()
 {
   return parsePlatformPosts(
-    m_kdb.selectJoin<QueryFilter>(
+    m_kdb.selectSimpleJoin(
       "platform_post",
-      {"platform_post.pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform.method"},
+      {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method"},
       QueryFilter{
         {"status", constants::PLATFORM_POST_INCOMPLETE}
       },
-      Joins{
-        Join{
-          .table      = "platform",
-          .field      = "id",
-          .join_table = "platform_post",
-          .join_field = "pid",
-          .type       =  JoinType::INNER
-        }
+      Join{
+        .table      = "platform",
+        .field      = "id",
+        .join_table = "platform_post",
+        .join_field = "pid",
+        .type       =  JoinType::INNER
       }
     )
   );
@@ -804,7 +806,7 @@ std::vector<PlatformPost> fetchPendingPlatformPosts()
 std::vector<std::string> platformToPayload(PlatformPost& platform)
 {
   std::vector<std::string> payload{};
-  payload.reserve(8);
+  payload.resize(8);
   payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = platform.name;
   payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = platform.id;
   payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)     = platform.time;
