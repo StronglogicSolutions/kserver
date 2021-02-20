@@ -1,5 +1,4 @@
-#ifndef __SCHEDULER_HPP__
-#define __SCHEDULER_HPP__
+#pragma once
 
 #include <functional>
 #include <iostream>
@@ -8,8 +7,10 @@
 #include <vector>
 
 #include "log/logger.h"
-#include "executor/task_handlers/task.hpp"
+#include "server/types.hpp"
 #include "database/kdb.hpp"
+#include "executor/task_handlers/task.hpp"
+#include "executor/executor.hpp"
 
 #define NO_COMPLETED_VALUE 99
 
@@ -20,6 +21,20 @@
             "extract(second from (to_timestamp(schedule.time))))"
 
 namespace Scheduler {
+/**
+ * @brief isSocialMediaPost
+ *
+ * TODO: modify DB schema and compare against values in there
+ *
+ */
+static bool isSocialMediaPost(uint32_t mask) {
+  KLOG("this function should be replaced");
+  return (
+    mask == 16 ||
+    mask == 256
+  );
+}
+
 
 
  /**
@@ -51,42 +66,7 @@ namespace Scheduler {
 }
 
 using ScheduleEventCallback =
-    std::function<void(std::string, int, int, std::vector<std::string>)>;
-
-namespace constants {
-const uint8_t PAYLOAD_ID_INDEX        {0x01};
-const uint8_t PAYLOAD_NAME_INDEX      {0x02};
-const uint8_t PAYLOAD_TIME_INDEX      {0x03};
-const uint8_t PAYLOAD_FLAGS_INDEX     {0x04};
-const uint8_t PAYLOAD_COMPLETED_INDEX {0x05};
-const uint8_t PAYLOAD_RECURRING_INDEX {0x06};
-const uint8_t PAYLOAD_NOTIFY_INDEX    {0x07};
-const uint8_t PAYLOAD_RUNTIME_INDEX   {0x08};
-const uint8_t PAYLOAD_FILES_INDEX     {0x09};
-
-const uint8_t PAYLOAD_SIZE            {0x0A};
-} // namespace constants
-/**
- * \note Scheduled Task Completion States
- *
- * SCHEDULED  - Has not yet run
- * COMPLETED  - Ran successfully
- * FAILED     - Ran once and failed
- * RETRY_FAIL - Failed on retry
- */
-namespace Completed {
-static constexpr uint8_t SCHEDULED  = 0;
-static constexpr uint8_t SUCCESS    = 1;
-static constexpr uint8_t FAILED     = 2;
-static constexpr uint8_t RETRY_FAIL = 3;
-
-static constexpr const char* STRINGS[4] = {"0", "1", "2", "3"};
-}  // namespace Completed
-
-namespace Messages {
-static constexpr const char* TASK_ERROR_EMAIL =
-    "Scheduled task ran but returned an error:\n";
-}
+    std::function<void(int32_t, int32_t, const std::vector<std::string>&)>;
 
 class DeferInterface {
  public:
@@ -341,10 +321,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * @return [out] {std::vector<Task>} A vector of Task objects
    */
   virtual std::vector<Task> fetchTasks() override {
-    std::string past_15_minute_timestamp =
-        std::to_string(TimeUtils::unixtime() - 900);
-    std::string current_timestamp =
-        std::to_string(TimeUtils::unixtime());
+    std::string       past_15_minute_timestamp = std::to_string(TimeUtils::unixtime() - 900);
+    std::string       current_timestamp        = std::to_string(TimeUtils::unixtime());
     std::vector<Task> tasks = parseTasks(
       m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
         "schedule", {                                   // table
@@ -548,11 +526,13 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    *
    * update the completion status of a task
    *
+   * TODO: Figure out a way to get UUID for platform posts
+   *
    * @param   [in] {Task}   task  The task to update
    * @return [out] {bool}         Whether the UPDATE query was successful
    */
-  bool updateStatus(Task* task) {
-    return !m_kdb.update(                // UPDATE
+  bool updateStatus(Task* task, const std::string& output = "") {
+    bool schedule_update_result = !m_kdb.update(                // UPDATE
       "schedule", {                      // table
         "completed"                      // field
       }, {
@@ -563,6 +543,77 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
       "id"                               // returning value
     )
     .empty();                            // not empty = success
+
+    if (schedule_update_result && isSocialMediaPost(task->execution_mask)) {
+      auto platform_id = getPlatformID(task->execution_mask);
+      // TODO: Task should have a unique identifier - either from platform, or we generate
+
+      m_event_callback(
+        ALL_CLIENTS,
+        SYSTEM_EVENTS__PLATFORM_NEW_POST,
+        std::vector<std::string>{
+          platform_id,
+          "",
+          StringUtils::generate_uuid_string(),
+          std::to_string(TimeUtils::unixtime()),
+          output
+        }
+      );
+    }
+
+    return schedule_update_result;
+  }
+
+  bool savePlatformPost(const std::string& pid,
+                        const std::string& identifier,
+                        const std::string& timestamp,
+                        std::string        o_pid = "") {
+    // TODO : This is brittle. We should query for the "no originating platform" in this case, or the database value should accept null value
+
+    const std::string NO_ORIGIN_PLATFORM_EXISTS{"2"};
+    o_pid = (o_pid.empty()) ?
+              NO_ORIGIN_PLATFORM_EXISTS :
+              o_pid;
+
+    auto result = (!m_kdb.insert(
+        "platform_post",
+        {"pid", "unique_id", "time", "o_pid"},
+        {pid, identifier, timestamp, o_pid},
+        "id"
+      ).empty()); // NOT empty = success
+
+      return result;
+  }
+
+  bool savePlatformPost(std::vector<std::string> payload) {
+    return (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE) ?
+      false
+      :
+      savePlatformPost(
+        payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
+        payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
+        payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX),
+        payload.at(constants::PLATFORM_PAYLOAD_O_PLATFORM_INDEX)
+      );
+  }
+
+  std::string getPlatformID(uint32_t mask) {
+    auto app_info = ProcessExecutor::getAppInfo(mask);
+    if (!app_info.name.empty()) {
+      auto result = m_kdb.select(
+        "platform",
+        {
+          "id"
+        },
+        QueryFilter{
+        {"name", app_info.name}
+        }
+      );
+      for (const auto& value : result)
+        if (value.first == "id")
+          return value.second;
+    }
+    return "";
   }
 
    /**
@@ -635,5 +686,3 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   Database::KDB           m_kdb;
 };
 }  // namespace Scheduler
-
-#endif  // __SCHEDULER_HPP__

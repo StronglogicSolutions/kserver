@@ -1,5 +1,4 @@
-#ifndef __CLIENT_HPP__
-#define __CLIENT_HPP__
+#pragma once
 
 #include <system/process/ipc/ipc.hpp>
 #include <zmq.hpp>
@@ -43,7 +42,6 @@ void ProcessMessage() {
   if (!m_rx_msg.empty()) {
     KLOG("Processing {}", m_rx_msg);
   }
-  SendMessage("Get Results");
 }
 
 bool ReceiveMessage() {
@@ -76,6 +74,10 @@ bool Poll() {
   return (items[0].revents & ZMQ_POLLIN);
 }
 
+void Shutdown() {
+  // TODO: handle shutdown
+}
+
 private:
 zmq::context_t                 m_context;
 std::unique_ptr<zmq::socket_t> m_socket;
@@ -84,4 +86,3 @@ std::vector<ipc_message>       m_rx_msgs;
 std::string                    m_addr;
 std::string                    m_rx_msg;
 };
-#endif // __CLIENT_HPP__

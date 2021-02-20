@@ -1,5 +1,4 @@
-#ifndef __TASK_HPP__
-#define __TASK_HPP__
+#pragma once
 
 #include <vector>
 #include <string>
@@ -36,6 +35,52 @@ namespace Recurring {
   };
 } // namespace Recurring
 } // namespace Constants
+
+namespace constants {
+const uint8_t PAYLOAD_ID_INDEX        {0x01};
+const uint8_t PAYLOAD_NAME_INDEX      {0x02};
+const uint8_t PAYLOAD_TIME_INDEX      {0x03};
+const uint8_t PAYLOAD_FLAGS_INDEX     {0x04};
+const uint8_t PAYLOAD_COMPLETED_INDEX {0x05};
+const uint8_t PAYLOAD_RECURRING_INDEX {0x06};
+const uint8_t PAYLOAD_NOTIFY_INDEX    {0x07};
+const uint8_t PAYLOAD_RUNTIME_INDEX   {0x08};
+const uint8_t PAYLOAD_FILES_INDEX     {0x09};
+
+const uint8_t PAYLOAD_SIZE            {0x0A};
+
+const uint8_t PLATFORM_PAYLOAD_PLATFORM_INDEX  {0x00};
+const uint8_t PLATFORM_PAYLOAD_O_PLATFORM_INDEX{0x01};
+const uint8_t PLATFORM_PAYLOAD_ID_INDEX        {0x02};
+const uint8_t PLATFORM_PAYLOAD_TIME_INDEX      {0x03};
+const uint8_t PLATFORM_PAYLOAD_CONTENT_INDEX   {0x04};
+const uint8_t PLATFORM_PAYLOAD_URL_INDEX       {0x05};
+const uint8_t PLATFORM_MINIMUM_PAYLOAD_SIZE    {0x04};
+} // namespace constants
+/**
+ * \note Scheduled Task Completion States
+ *
+ * SCHEDULED  - Has not yet run
+ * COMPLETED  - Ran successfully
+ * FAILED     - Ran once and failed
+ * RETRY_FAIL - Failed on retry
+ */
+namespace Completed {
+static constexpr uint8_t SCHEDULED  = 0;
+static constexpr uint8_t SUCCESS    = 1;
+static constexpr uint8_t FAILED     = 2;
+static constexpr uint8_t RETRY_FAIL = 3;
+
+static constexpr const char* STRINGS[4] = {"0", "1", "2", "3"};
+static const std::vector<std::string> NAMES{
+  "Scheduled", "Success", "Failed", "Retry Failed"
+};
+}  // namespace Completed
+
+namespace Messages {
+static constexpr const char* TASK_ERROR_EMAIL =
+    "Scheduled task ran but returned an error:\n";
+}
 
 namespace Field {
   static const char* const MASK      = "schedule.mask";
@@ -139,5 +184,3 @@ class TaskHandler {
   public:
     virtual Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
 };
-
-#endif // __TASK_HPP__

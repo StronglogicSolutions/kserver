@@ -1,5 +1,5 @@
-#ifndef __UTIL_HPP__
-#define __UTIL_HPP__
+#pragma once
+
 #define FLATBUFFERS_DEBUG_VERIFICATION_FAILURE
 
 #include <codec/instatask_generated.h>
@@ -41,8 +41,9 @@ using namespace KData;
 using namespace IGData;
 using namespace GenericData;
 
-static const int              SESSION_ACTIVE   = 1;
-static const int              SESSION_INACTIVE = 2;
+static const int32_t SESSION_ACTIVE   = 1;
+static const int32_t SESSION_INACTIVE = 2;
+static const int32_t ALL_CLIENTS      = -1;
 
 typedef std::string                                      KOperation;
 typedef std::map<int, std::string>                       CommandMap;
@@ -165,6 +166,7 @@ template <typename T>
 void split(const std::string &s, char delim, T result);
 std::vector<std::string> split(const std::string &s, char delim);
 std::string sanitizeSingleQuotes(const std::string& s);
+std::string generate_uuid_string();
 } // namespace StringUtils
 
 // Bit helpers
@@ -187,5 +189,3 @@ std::string format_timestamp(std::string unixtime);
 
 std::string time_as_today(std::string unixtime);
 }  // namespace TimeUtils
-
-#endif  // __UTIL_HPP__

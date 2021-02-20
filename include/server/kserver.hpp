@@ -1,5 +1,4 @@
-#ifndef __KSERVER_HPP__
-#define __KSERVER_HPP__
+#pragma once
 
 #include <math.h>
 #include <algorithm>
@@ -135,6 +134,33 @@ class KServer : public SocketListener {
         }
         break;
       }
+      case SYSTEM_EVENTS__PLATFORM_NEW_POST: {
+        KLOG("Platform Post event received");
+        if (m_request_handler.getScheduler().savePlatformPost(args))
+        {
+          std::vector<std::string> outgoing_args{};
+          outgoing_args.reserve(args.size());
+          for (const auto& arg : args) outgoing_args.emplace_back(
+              (arg.size() > 2046) ?
+                arg.substr(0, 2046) :
+                arg
+            );
+          if (client_socket_fd == -1) {
+            for (const auto &session : m_sessions) {
+              IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
+                sendEvent(session.fd, "Platform Post", args);
+            }
+          } else {
+            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
+              sendEvent(client_socket_fd, "Platform Post", args);
+          }
+
+          // TODO: Find out what platforms have not yet reposted and
+          //       send event to the ipc manager
+          // m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST)
+        }
+      }
+      break;
       case SYSTEM_EVENTS__FILE_UPDATE: {
         // metadata for a received file
         auto timestamp = args.at(1);
@@ -436,7 +462,7 @@ class KServer : public SocketListener {
     else
     if (isIPCOperation(op.c_str())) {          // IPC request
       KLOG("Testing IPC");
-      handleIPC(decoded_message);
+      handleIPC(decoded_message, client_socket_fd);
     }
     else
     if (isAppOperation(op.c_str())) {          // Register app
@@ -450,8 +476,8 @@ class KServer : public SocketListener {
     }
   }
 
-  void handleIPC(std::string message) {
-    m_ipc_manager.process(message);
+  void handleIPC(std::string message, int32_t client_socket_fd) {
+    m_ipc_manager.process(message, client_socket_fd);
   }
 
 
@@ -569,6 +595,7 @@ class KServer : public SocketListener {
 
  private:
   virtual void onConnectionClose(int client_socket_fd) {
+    KLOG("Connection closed for {}", client_socket_fd);
     auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
                                    [client_socket_fd](KSession session) {
                                      return session.fd == client_socket_fd;
@@ -604,4 +631,3 @@ class KServer : public SocketListener {
   int                         file_pending_fd;
 };
 };     // namespace KYO
-#endif // __KSERVER_HPP__

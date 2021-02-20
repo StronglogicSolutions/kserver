@@ -663,6 +663,11 @@ std::string sanitizeSingleQuotes(const std::string& s) {
   return o;
 }
 
+std::string generate_uuid_string()
+{
+  return uuids::to_string(uuids::uuid_system_generator{}());
+}
+
 } // namespace StringUtils
 
 // Bit helpers

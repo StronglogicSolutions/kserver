@@ -1,5 +1,4 @@
-#ifndef __REQUEST_HANDLER_HPP__
-#define __REQUEST_HANDLER_HPP__
+#pragma once
 
 #include <stdlib.h>
 #include <iostream>
@@ -67,7 +66,11 @@ class RequestHandler {
    * Loads configuration and instantiates a DatabaseConfiguration object
    *
    */
-  RequestHandler() : m_active(true), m_executor(nullptr) {}
+  RequestHandler()
+  : m_active(true),
+    m_executor(nullptr),
+    m_scheduler(getScheduler())
+  {}
 
   /**
    * @constructor
@@ -76,8 +79,7 @@ class RequestHandler {
    */
   RequestHandler(RequestHandler &&r)
       : m_active(r.m_active),
-        m_executor(r.m_executor),
-        m_scheduler(r.m_scheduler) {
+        m_executor(r.m_executor) {
     r.m_executor = nullptr;
   }
 
@@ -98,7 +100,6 @@ class RequestHandler {
    */
   RequestHandler &operator=(const RequestHandler &handler) {
     this->m_executor  = nullptr;
-    this->m_scheduler = nullptr;
     return *this;
   }
 
@@ -110,12 +111,9 @@ class RequestHandler {
   RequestHandler &operator=(RequestHandler &&handler) {
     if (&handler != this) {
       delete m_executor;
-      delete m_scheduler;
       m_executor          = handler.m_executor;
-      m_scheduler         = handler.m_scheduler;
       m_active            = handler.m_active;
       handler.m_executor  = nullptr;
-      handler.m_scheduler = nullptr;
     }
     return *this;
   }
@@ -129,7 +127,6 @@ class RequestHandler {
   ~RequestHandler() {
     if (m_executor != nullptr) {
       delete m_executor;
-      delete m_scheduler;
     }
     //    if (m_maintenance_worker.valid()) {
     if (m_maintenance_worker.joinable()) {
@@ -150,7 +147,6 @@ class RequestHandler {
                   SystemCallbackFn system_callback_fn,
                   TaskCallbackFn task_callback_fn) {
     m_executor = new ProcessExecutor();
-    m_scheduler = getScheduler();
     m_executor->setEventCallback([this](std::string result,
                                         int mask,
                                         std::string request_id,
@@ -191,13 +187,13 @@ class RequestHandler {
   /**
    * getScheduler
    *
-   * @returns [out] {Scheduler*}  A pointer to a new instance of Scheduler
+   * @returns [out] {Scheduler}  New instance of Scheduler
    */
-  Scheduler::Scheduler* getScheduler() {
-    return new Scheduler::Scheduler{[this](std::string id, int client_socket_fd,
-                                           int event,
-                                           std::vector<std::string> args) {
-      onSchedulerEvent(id, client_socket_fd, event, args);
+  Scheduler::Scheduler getScheduler() {
+    return Scheduler::Scheduler{[this](int32_t client_socket_fd,
+                                       int32_t event,
+                                       const std::vector<std::string>& args) {
+      onSchedulerEvent(client_socket_fd, event, args);
     }};
   }
 
@@ -216,8 +212,8 @@ class RequestHandler {
                                       [this]() { return !handling_data; });
       int client_socket_fd = -1;
 
-      std::vector<Task> tasks = m_scheduler->fetchTasks();                // Normal tasks
-      for (auto&& recurring_task : m_scheduler->fetchRecurringTasks()) {  // Recurring tasks
+      std::vector<Task> tasks = m_scheduler.fetchTasks();                // Normal tasks
+      for (auto&& recurring_task : m_scheduler.fetchRecurringTasks()) {  // Recurring tasks
         tasks.emplace_back(recurring_task);
       }
 
@@ -263,11 +259,11 @@ class RequestHandler {
           ELOG("ERROR handling pending tasks");
         }
       }
-      System::Cron<System::SingleJob> cron{};
-      std::string jobs = cron.listJobs();
-      if (jobs.empty()) {
-        KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
-      }
+      // System::Cron<System::SingleJob> cron{};
+      // std::string jobs = cron.listJobs();
+      // if (jobs.empty()) {
+      //   KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
+      // }
       std::this_thread::sleep_for(std::chrono::seconds(20));
     }
   }
@@ -371,7 +367,7 @@ class RequestHandler {
         }
         if (task.validate()) {
           KLOG("Sending task request to Scheduler");
-          auto id = m_scheduler->schedule(task);
+          auto id = m_scheduler.schedule(task);
           if (!id.empty()) {
             // Task was scheduled. Prepare a vector with info about the task.
             std::vector<std::string> callback_args{};
@@ -425,8 +421,8 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      std::vector<Task> tasks = m_scheduler->fetchTasks();                // Normal tasks
-      for (auto&& recurring_task : m_scheduler->fetchRecurringTasks()) {  // Recurring tasks
+      std::vector<Task> tasks = m_scheduler.fetchTasks();                // Normal tasks
+      for (auto&& recurring_task : m_scheduler.fetchRecurringTasks()) {  // Recurring tasks
         tasks.emplace_back(recurring_task);
       }
 
@@ -619,7 +615,7 @@ class RequestHandler {
       const uint8_t AVERAGE_TASK_SIZE = 9;
       uint8_t       i{0};
       uint8_t       TASKS_PER_EVENT{4};
-      std::vector<Task> tasks = m_scheduler->fetchAllTasks();
+      std::vector<Task> tasks = m_scheduler.fetchAllTasks();
       std::vector<std::string> payload{};
       payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
       payload.emplace_back("Schedule");
@@ -662,7 +658,7 @@ class RequestHandler {
     else
     if (type == RequestType::UPDATE_SCHEDULE) {
       Task task = Scheduler::args_to_task(args); // TODO: Not getting completed/status value
-      bool save_success = m_scheduler->update(task);
+      bool save_success = m_scheduler.update(task);
 
       m_system_callback_fn(
         client_fd,
@@ -672,8 +668,8 @@ class RequestHandler {
     }
     else
     if (type == RequestType::FETCH_SCHEDULE_TOKENS) {
-      auto id = args.at(Scheduler::constants::PAYLOAD_ID_INDEX);
-      Task task = m_scheduler->getTask(id);
+      auto id = args.at(constants::PAYLOAD_ID_INDEX);
+      Task task = m_scheduler.getTask(id);
       if (task.validate()) {
         std::vector<std::string> flag_values = FileUtils::readFlagTokens(task.envfile, task.execution_flags);
         std::vector<std::string> event_args{};
@@ -746,35 +742,38 @@ class RequestHandler {
           uint8_t status{};
 
           if (error) {
-            status = task_it->completed == Scheduler::Completed::FAILED ?
-              Scheduler::Completed::RETRY_FAIL :                           // No retry
-              Scheduler::Completed::FAILED;                                // Retry
+            status = task_it->completed == Completed::FAILED ?
+              Completed::RETRY_FAIL :                           // No retry
+              Completed::FAILED;                                // Retry
 
             KLOG("Sending email to administrator about failed task.\nNew "
                 "Status: {}",
-                Scheduler::Completed::STRINGS[status]);
+                Completed::STRINGS[status]);
 
             SystemUtils::sendMail(                                         // Email error to notification recipient
               ConfigParser::Email::notification(),
-              std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value},
+              std::string{Messages::TASK_ERROR_EMAIL + value},
               ConfigParser::Email::admin()
             );
 
           } else {
-            status = task_it->recurring ? Scheduler::Completed::SCHEDULED : Scheduler::Completed::SUCCESS;
+            status = task_it->recurring ?
+              Completed::SCHEDULED :
+              Completed::SUCCESS;
           }
 
-          task_it->completed = status;                                     // Update status
-          m_scheduler->updateStatus(&*task_it);                            // Failed tasks will re-run once more
+          task_it->completed = status;                            // Update status
+          m_scheduler.updateStatus(&*task_it, value);             // Failed tasks will re-run once more
+          m_executor->saveResult(mask, 1, TimeUtils::unixtime()); // Save execution result
 
-          if (!error && task_it->recurring) {                              // If no error, update last execution time
+          if (!error && task_it->recurring) {                     // If no error, update last execution time
             KLOG(
               "Task {} will be scheduled for {}",
               task_it->id,
               TimeUtils::format_timestamp(task_it->datetime)
             );
 
-            m_scheduler->updateRecurring(&*task_it); // Latest time
+            m_scheduler.updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
               task_it->id,
               Constants::Recurring::names[task_it->recurring]
@@ -828,10 +827,9 @@ class RequestHandler {
    * respective callback.
    */
 
-  void onSchedulerEvent(std::string id,
-                        int client_socket_fd,
-                        int event,
-                        std::vector<std::string> args = {}) {
+  void onSchedulerEvent(int32_t client_socket_fd,
+                        int32_t event,
+                        const std::vector<std::string>& args = {}) {
     m_system_callback_fn(client_socket_fd, event, args);
   }
 
@@ -848,8 +846,7 @@ class RequestHandler {
   // Workers
   Registrar::Registrar              m_registrar;
   ProcessExecutor*                  m_executor;
-  Scheduler::Scheduler*             m_scheduler;
+  Scheduler::Scheduler              m_scheduler;
   std::thread                       m_maintenance_worker;
 };
 }  // namespace Request
-#endif  // __REQUEST_HANDLER_HPP__
