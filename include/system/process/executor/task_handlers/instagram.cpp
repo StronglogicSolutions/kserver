@@ -28,16 +28,16 @@ Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
   }
 
   std::string env_file_string{"#!/usr/bin/env bash\n"};
-  env_file_string += "HEADER='" + header + "'\n";
-  env_file_string += "DESCRIPTION='" + description + "'\n";
-  env_file_string += "HASHTAGS='" + hashtags + "'\n";
-  env_file_string += "REQUESTED_BY='" + requested_by + "'\n";
-  env_file_string += "REQUESTED_BY_PHRASE='" + requested_by_phrase + "'\n";
-  env_file_string += "PROMOTE_SHARE='" + promote_share + "'\n";
-  env_file_string += "LINK_BIO='" + link_bio + "'\n";
-  env_file_string += "FILE_TYPE='";
-  env_file_string += is_video ? "video'\n" : "image'\n";
-  env_file_string += "USER='" + user + "'\n";
+  env_file_string += "HEADER=\"" + header + "\"|\n";
+  env_file_string += "DESCRIPTION=\"" + description + "\"|\n";
+  env_file_string += "HASHTAGS=\"" + hashtags + "\"|\n";
+  env_file_string += "REQUESTED_BY=\"" + requested_by + "\"|\n";
+  env_file_string += "REQUESTED_BY_PHRASE=\"" + requested_by_phrase + "\"|\n";
+  env_file_string += "PROMOTE_SHARE=\"" + promote_share + "\"|\n";
+  env_file_string += "LINK_BIO=\"" + link_bio + "\"|\n";
+  env_file_string += "FILE_TYPE=\"";
+  env_file_string += is_video ? "video\"\n" : "image\"|\n";
+  env_file_string += "USER=\"" + user + "\"|\n";
 
   std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);
   if (task_ptr == nullptr) {

@@ -262,24 +262,25 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    *
    * TODO: Remove "parse_files" boolean after refactoring `fetchTasks` (non-recurring tasks method) to use joins
    */
-  std::vector<Task> parseTasks(QueryValues&& result, bool parse_files = false) {
+  std::vector<Task> parseTasks(QueryValues&& result, bool parse_files = false, bool is_recurring = false) {
     const std::string files_field{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
     int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
     std::string mask, flags, envfile, time, filenames;
     std::vector<Task> tasks;
     bool checked_for_files{false};
+    std::string TIME_FIELD = (is_recurring) ?
+                               Field::REC_TIME : Field::TIME;
 
     for (const auto& v : result) {
       if      (v.first == Field::MASK     ) { mask      = v.second;                   }
       else if (v.first == Field::FLAGS    ) { flags     = v.second;                   }
       else if (v.first == Field::ENVFILE  ) { envfile   = v.second;                   }
-      else if (v.first == Field::TIME     ) { time      = v.second;                   }
+      else if (v.first == TIME_FIELD      ) { time      = v.second;                   }
       else if (v.first == Field::ID       ) { id        = std::stoi(v.second);        }
       else if (v.first == Field::COMPLETED) { completed = std::stoi(v.second);        }
       else if (v.first == Field::RECURRING) { recurring = std::stoi(v.second);        }
       else if (v.first == Field::NOTIFY   ) { notify    = v.second.compare("t") == 0; }
       else if (v.first == files_field     ) { filenames = v.second;
-                                              KLOG("Found files");
                                               checked_for_files = true;               }
 
       if (!envfile.empty() && !flags.empty() && !time.empty() &&
@@ -287,12 +288,20 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           id > 0           && recurring > -1 && notify > -1      ) {
 
         if (parse_files && !checked_for_files) {
-          KLOG("Checking for files");
           checked_for_files = true;
           continue;
         } else {
           if (recurring != Constants::Recurring::NO)
-            time = TimeUtils::time_as_today(time);
+          {
+            if (recurring == Constants::Recurring::HOURLY)
+            {
+              time = std::to_string(std::stoi(time) + getIntervalSeconds(recurring));
+            }
+            else
+            {
+              time = TimeUtils::time_as_today(time);
+            }
+          }
 
           tasks.push_back(Task{
             .execution_mask   = std::stoi(mask),
@@ -434,7 +443,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
           }
         }
       ),
-      true // ⬅ Parse files
+      true, // ⬅ Parse files
+      true  // ⬅ Is recurring task
     );
   }
 
@@ -473,6 +483,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    *
    * get one task by ID
    *
+   * @deprecated   NOT SAFE FOR USE
    * @param  [in]  {std::string}  id  The task ID
    * @return [out] {Task}             A task
    */
@@ -511,6 +522,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
    * getTask
    *
    * get one task by ID
+   *
+   * @deprecated   NOT SAFE FOR USE
    *
    * @param  [in]  {int}  id  The task ID
    * @return [out] {Task}     A task
