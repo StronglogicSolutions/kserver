@@ -4,14 +4,13 @@ jobs:
     docker:
       - image: logicp/kserver:1.0.0
     steps:
-      - checkout
       - run:
           name: distro
           command: |
             pacman -S --noconfirm libsodium zeromq
+      - checkout
       - run: git submodule sync
       - run: git submodule update --init --recursive
-      - run: ls -la include/config
       - run:
           name: compile
           command: |
