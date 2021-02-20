@@ -11,16 +11,14 @@
 #include <condition_variable>
 #include <config/config_parser.hpp>
 #include <database/kdb.hpp>
-#include <executor/executor.hpp>
-#include <executor/scheduler.hpp>
-#include <executor/task_handlers/instagram.hpp>
-#include <executor/task_handlers/task.hpp>
+#include <system/process/executor/executor.hpp>
+#include <system/process/scheduler.hpp>
+#include <system/process/registrar.hpp>
+#include <system/process/executor/task_handlers/instagram.hpp>
+#include <system/process/executor/task_handlers/generic.hpp>
 #include <iostream>
 #include <map>
 #include <mutex>
-#include <executor/task_handlers/task.hpp>
-#include <executor/task_handlers/instagram.hpp>
-#include <executor/task_handlers/generic.hpp>
 #include <server/types.hpp>
 #include <string>
 #include <system/cron.hpp>
@@ -28,8 +26,10 @@
 #include <utility>
 #include <vector>
 
+#include "types.hpp"
+
 #define OPERATION_SUCCESS "Operation succeeded"
-#define OPERATION_FAIL "Operation failed"
+#define OPERATION_FAIL    "Operation failed"
 
 namespace Request {
 
@@ -42,6 +42,14 @@ using namespace KData;
 using namespace Executor;
 
 flatbuffers::FlatBufferBuilder builder(1024);
+
+KApplication parseApplication(std::string message) {
+  KApplication application{};
+
+
+
+  return application;
+}
 
 /**
  * RequestHandler
@@ -263,7 +271,7 @@ class RequestHandler {
       if (jobs.empty()) {
         KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(30));
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
   }
 
@@ -420,7 +428,11 @@ class RequestHandler {
    */
   void operator()(int client_socket_fd, KOperation op, DevTest test) {
     if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      std::vector<Task> tasks = m_scheduler->fetchTasks();
+      std::vector<Task> tasks = m_scheduler->fetchTasks();                // Normal tasks
+      for (auto&& recurring_task : m_scheduler->fetchRecurringTasks()) {  // Recurring tasks
+        tasks.emplace_back(recurring_task);
+      }
+
       if (!tasks.empty()) {
         KLOG("There are tasks to be reviewed");
         for (const auto &task : tasks) {
@@ -470,30 +482,40 @@ class RequestHandler {
    * @param[in] {KOperation} `op` The operation requested
    *
    */
-  std::map<int, std::string> operator()(KOperation op) {
-    auto kdb = Database::KDB{};
-    QueryValues result =
-      kdb.select(
-        "apps",                             // Table
-        {"name", "path", "data", "mask"},   // Fields
-        QueryFilter{}
-      );
-    std::map<int, std::string> command_map{};
-    std::vector<std::string> names{};
-    std::vector<int> masks{};
-    for (const auto& row : result) {
-      if (row.first == "name") {
-        names.push_back(row.second);
-      } else if (row.first == "mask") {
-        masks.push_back(stoi(row.second));
+  std::vector<KApplication> operator()(KOperation op) {
+    std::vector<KApplication> commands{};
+
+    if (op.compare("Start") == 0) {
+      Database::KDB kdb{};
+      QueryValues result =
+        kdb.select(
+          "apps",                             // Table
+          {"name", "path", "data", "mask"},   // Fields
+          QueryFilter{}
+        );
+
+      uint8_t arg_idx{};
+      KApplication command{};
+
+      for (const auto& row : result) {
+        if (row.first == "name") {
+          command.name = row.second;
+        } else if (row.first == "mask") {
+          command.mask = row.second;
+        } else if (row.first == "path") {
+          command.path = row.second;
+        } else if (row.first == "data") {
+          command.data = row.second;
+        }
+        if (arg_idx == 3) {
+          arg_idx = 0;
+          commands.push_back(command);
+        } else {
+          arg_idx++;
+        }
       }
     }
-    if (masks.size() == names.size()) {
-      for (uint8_t i = 0; i < masks.size(); i++) {
-        command_map.emplace(masks.at(i), names.at(i));
-      }
-    }
-    return command_map;
+    return commands;
   }
   /**
    * \b EXECUTE \b PROCESS
@@ -519,8 +541,6 @@ class RequestHandler {
     );
 
     for (const auto &row : result) {
-      m_executor->request(row.second, mask, client_socket_fd, request_id, {},
-                          Executor::ExecutionRequestType::IMMEDIATE);
       std::string info_string{
           "PROCESS RUNNER - Process execution requested for "
           "applications matching the mask "};
@@ -528,8 +548,82 @@ class RequestHandler {
       m_system_callback_fn(client_socket_fd,
                            SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
                            {info_string, request_id});
+
+      m_executor->request(row.second, mask, client_socket_fd, request_id, {},
+                          Executor::ExecutionRequestType::IMMEDIATE);
     }
   }
+
+
+  /**
+   * process
+   */
+
+  void process(int client_fd, std::string message) {
+    using namespace constants;
+
+    std::vector<std::string> args = getArgs(message);
+    RequestType type = int_to_request_type(std::stoi(args.at(constants::REQUEST_TYPE_INDEX)));
+
+    if (type == RequestType::GET_APPLICATION) {
+      KApplication application = args_to_application(args);
+
+      (m_registrar.find(args_to_application(args))) ?
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+          {"Application was found", application.name, application.path, application.data, application.mask}
+        ) :
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_FAIL,
+          {"Application was not found", application.name, application.path, application.data, application.mask}
+        );
+    }
+    else
+    if (type == RequestType::REGISTER_APPLICATION) {
+      KApplication application = args_to_application(args);
+
+      auto id = m_registrar.add(application);
+      (!id.empty()) ?
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+          {"Application was registered", application.name, application.path, application.data, application.mask, id}
+        ) :
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_FAIL,
+          {"Failed to register application", application.name, application.path, application.data, application.mask}
+        );
+    }
+    else
+    if (type == RequestType::REMOVE_APPLICATION) {
+      KApplication application = args_to_application(args);
+
+      auto name = m_registrar.remove(application);
+      (!name.empty()) ?
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+          {"Application was deleted", application.name, application.path, application.data, application.mask}
+        ) :
+        m_system_callback_fn(
+          client_fd,
+          SYSTEM_EVENTS__REGISTRAR_FAIL,
+          {"Failed to delete application", application.name, application.path, application.data, application.mask}
+        );
+    }
+    else
+    if (type == RequestType::UPDATE_APPLICATION) {
+
+    }
+    else
+    if (type == RequestType::UNKNOWN) {
+      // TODO: handle
+    }
+  }
+
 
  private:
   /**
@@ -550,6 +644,9 @@ class RequestHandler {
   void onProcessComplete(std::string value, int mask, std::string id,
                          int client_socket_fd, bool error,
                          bool scheduled_task = false) {
+    using TaskVectorMap = std::map<int, std::vector<Task>>;
+    using TaskVector    = std::vector<Task>;
+
     KLOG("Process complete notification for client {}'s request {}",
         client_socket_fd, id);
     m_event_callback_fn( // Inform system of process result
@@ -560,42 +657,48 @@ class RequestHandler {
       error
     );
     if (scheduled_task) { // If it was a scheduled task, we need to update task map held in memory
-      std::vector<Task>::iterator task_it; // Declare task iterator
+      TaskVector::iterator task_it;
+
       KLOG("Task complete notification for client {}'s task {}{}",
         client_socket_fd, id, error ? "\nERROR WAS RETURNED" : ""
       );
 
-      std::map<int, std::vector<Task>>::iterator it = // Find map iterator for client ID
-        m_tasks_map.find(client_socket_fd);
-      if (it != m_tasks_map.end()) { // Found client's tasks
-        task_it = std::find_if(      // Find specific task
+      TaskVectorMap::iterator it = m_tasks_map.find(client_socket_fd); // Find iterator to vector
+
+      if (it != m_tasks_map.end()) {
+        task_it = std::find_if(                                        // Find specific task
           it->second.begin(), it->second.end(),
           [id](Task task) {
             return task.id == std::stoi(id);
           }
         );
-        if (task_it != it->second.end()) {
-          uint8_t status{Scheduler::Completed::SUCCESS};
 
-          // Error handling
-          if (error) { // Email if it failed
-            SystemUtils::sendMail(
+        if (task_it != it->second.end()) {
+          uint8_t status{};
+
+          if (error) {
+            status = task_it->completed == Scheduler::Completed::FAILED ?
+              Scheduler::Completed::RETRY_FAIL :                           // No retry
+              Scheduler::Completed::FAILED;                                // Retry
+
+            KLOG("Sending email to administrator about failed task.\nNew "
+                "Status: {}",
+                Scheduler::Completed::STRINGS[status]);
+
+            SystemUtils::sendMail(                                         // Email error to notification recipient
               ConfigParser::Email::notification(),
               std::string{Scheduler::Messages::TASK_ERROR_EMAIL + value},
               ConfigParser::Email::admin()
             );
-            status = task_it->completed == Scheduler::Completed::FAILED ? // If failed previously
-              Scheduler::Completed::RETRY_FAIL : // Retry failed
-              Scheduler::Completed::FAILED;      // Allow retry
-            KLOG("Sending email to administrator about failed task.\nNew "
-                "Status: {}",
-                Scheduler::Completed::STRINGS[status]);
-          }
-          // Update status
-          task_it->completed = status;
-          m_scheduler->updateStatus(&*task_it); // Failed tasks will re-run once more
 
-          if (!error && task_it->recurring) { // Only update if no error occurred
+          } else {
+            status = task_it->recurring ? Scheduler::Completed::SCHEDULED : Scheduler::Completed::SUCCESS;
+          }
+
+          task_it->completed = status;                                     // Update status
+          m_scheduler->updateStatus(&*task_it);                            // Failed tasks will re-run once more
+
+          if (!error && task_it->recurring) {                              // If no error, update last execution time
             task_it->datetime = std::to_string(TimeUtils::unixtime());
             m_scheduler->updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
@@ -604,7 +707,7 @@ class RequestHandler {
             );
           }
 
-          if (task_it->notify) { // Task notification enabled - send result by email
+          if (task_it->notify) {                                           // Send email notification
             KLOG("Task notification enabled - emailing result to administrator");
             std::string email_string{};
             email_string.reserve(value.size() + 84);
@@ -618,13 +721,14 @@ class RequestHandler {
               ConfigParser::Email::admin()
             );
           }
-          // Remove task - failed tasks will be fetched once more by the maintenance worker
+
           KLOG("removing completed task from memory");
           it->second.erase(task_it);
         }
       }
     }
   }
+
   /**
    * onScheduledTaskComplete
    *
@@ -668,6 +772,7 @@ class RequestHandler {
   std::atomic<bool>                 handling_data;
   bool                              m_active;
   // Workers
+  Registrar                         m_registrar;
   Executor::ProcessExecutor*        m_executor;
   Scheduler::Scheduler*             m_scheduler;
   std::thread                       m_maintenance_worker;

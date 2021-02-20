@@ -2,7 +2,7 @@
 #define __SCHEDULER_HPP__
 
 #include <log/logger.h>
-#include <executor/task_handlers/task.hpp>
+#include "executor/task_handlers/task.hpp"
 #include <codec/util.hpp>
 #include <database/kdb.hpp>
 #include <functional>
@@ -121,7 +121,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
             task.envfile,
             std::to_string(task.recurring),
             std::to_string(task.notify)},
-            "id");                      // return
+            "id");                                // return
         if (!id.empty()) {
           KLOG("Request to schedule task was accepted\nID {}", id);
           for (const auto& file : task.files) {
@@ -367,7 +367,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   Task getTask(int id) {
     return parseTask(m_kdb.select( // SELECT
       "schedule", {                // table
-        Executor::Field::MASK, Executor::Field::FLAGS,           // fields
+        Executor::Field::MASK,    Executor::Field::FLAGS,           // fields
         Executor::Field::ENVFILE, Executor::Field::TIME,
         Executor::Field::COMPLETED
       }, QueryFilter{

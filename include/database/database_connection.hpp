@@ -33,6 +33,8 @@ class DatabaseConnection : public DatabaseInterface {
 
   template <typename T>
   pqxx::result performSelect(T query);
+  template <typename T>
+  pqxx::result performDelete(T query);
   pqxx::result performUpdate(UpdateReturnQuery query, std::string returning);
 };
 

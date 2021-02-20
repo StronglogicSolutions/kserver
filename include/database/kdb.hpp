@@ -219,6 +219,29 @@ QueryValues select(std::string table, Fields fields,
     return "";
   }
 
+  std::string remove(std::string table, QueryFilter filter) {
+    try {
+      auto result = m_connection->query(
+        DatabaseQuery{
+          .table  = table,
+          .fields = {},
+          .type   = QueryType::DELETE,
+          .values = {},
+          .filter = filter
+        }
+      );
+
+      if (!result.values.empty()) {
+        return result.values.at(0).second;
+      }
+    } catch (const pqxx::sql_error &e) {
+      throw e;
+    } catch (const std::exception &e) {
+      throw e;
+    }
+    return "";
+  }
+
   bool insert(std::string table, Fields fields, Values values) {
     try {
       QueryResult result = m_connection->query(

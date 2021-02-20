@@ -1,9 +1,8 @@
 #ifndef __TASK_TEST_HPP__
 #define __TASK_TEST_HPP__
 
-#include <executor/task_handlers/task.hpp>
-#include <executor/task_handlers/instagram.hpp>
-#include <executor/task_handlers/generic.hpp>
+#include <system/process/executor/task_handlers/instagram.hpp>
+#include <system/process/executor/task_handlers/generic.hpp>
 #include <gtest/gtest.h>
 
 using namespace Executor;

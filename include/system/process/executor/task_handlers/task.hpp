@@ -45,21 +45,23 @@ namespace Executor {
     static const char* const COMPLETED = "schedule.completed";
     static const char* const RECURRING = "schedule.recurring";
     static const char* const NOTIFY    = "schedule.notify";
+    static const char* const RUNTIME   = "schedule.runtime";
   } // namespace Field
 
   using TaskArguments = std::vector<std::string>;
 
   struct Task {
-    int execution_mask;
-    std::string datetime;
-    bool file;
+    int                   execution_mask;
+    std::string           datetime;
+    bool                  file;
     std::vector<FileInfo> files;
-    std::string envfile;
-    std::string execution_flags;
-    int id = 0;
-    int completed;
-    int recurring;
-    bool notify;
+    std::string           envfile;
+    std::string           execution_flags;
+    int                   id = 0;
+    int                   completed;
+    int                   recurring;
+    bool                  notify;
+    std::string           runtime;
 
     bool validate() {
       return !datetime.empty() && !envfile.empty() &&
@@ -74,6 +76,7 @@ namespace Executor {
       return_string += "\nTime: " + datetime;
       return_string += "\nFiles: " + std::to_string(files.size());
       return_string += "\nCompleted: " + std::to_string(completed);
+      return_string += "\nRuntime: " + runtime;
       return_string += "\nRecurring: ";
       return_string += Constants::Recurring::names[recurring];
       return_string += "\nEmail notification: ";
@@ -91,16 +94,17 @@ namespace Executor {
 
     friend bool operator==(const Task& t1, const Task& t2) {
       return (
-        t1.completed == t2.completed &&
-        t1.datetime == t2.datetime &&
-        t1.envfile == t2.envfile &&
+        t1.completed       == t2.completed       &&
+        t1.datetime        == t2.datetime        &&
+        t1.envfile         == t2.envfile         &&
         t1.execution_flags == t2.execution_flags &&
-        t1.execution_mask == t2.execution_mask &&
-        t1.file == t2.file &&
-        t1.files.size() == t2.files.size() && // TODO: implement comparison for FileInfo
-        t1.id == t2.id &&
-        t1.recurring == t2.recurring &&
-        t1.notify == t2.notify
+        t1.execution_mask  == t2.execution_mask  &&
+        t1.file            == t2.file            &&
+        t1.files.size()    == t2.files.size()    && // TODO: implement comparison for FileInfo
+        t1.id              == t2.id              &&
+        t1.recurring       == t2.recurring       &&
+        t1.notify          == t2.notify,
+        t1.runtime         == t1.runtime
       );
     }
 
@@ -122,9 +126,9 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
   std::vector<FileInfo> info_v{};
   info_v.reserve(file_info.size() / 32); // estimate ~ 32 characters for each file's metadata
 
-  uint32_t index      = 0; // index points to beginning of each file's metadata
-  uint32_t pipe_pos   = 0; // file name delimiter
-  uint32_t delim_pos  = 0; // file metadata delimiter
+  uint32_t index     = 0; // index points to beginning of each file's metadata
+  uint32_t pipe_pos  = 0; // file name delimiter
+  uint32_t delim_pos = 0; // file metadata delimiter
   do {
     auto timestamp = file_info.substr(index, TIMESTAMP_LENGTH);
     pipe_pos = findIndexAfter(file_info, index, '|');
