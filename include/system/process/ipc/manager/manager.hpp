@@ -4,6 +4,7 @@
 #include <deque>
 #include <condition_variable>
 #include <mutex>
+
 #include "log/logger.h"
 #include "system/process/ipc/ipc.hpp"
 #include "system/process/ipc/client/client.hpp"
@@ -65,11 +66,11 @@ void HandleClientMessages()
         std::vector<std::string> payload{};
         payload.reserve(4);
         payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)   = message->name();
-        payload.at(constants::PLATFORM_PAYLOAD_O_PLATFORM_INDEX) = "";
         payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)         = message->id();
         payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)       = "";
         payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)    = message->content();
         payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)        = message->urls();
+        payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)     = std::to_string(message->repost());
 
         m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
 

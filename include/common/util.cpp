@@ -486,17 +486,17 @@ bool createDirectory(const char *dir_name) {
   return false;
 }
 
-void saveFile(std::vector<char> bytes, const char *filename) {
+void saveFile(const std::vector<char>& bytes, const char *filename) {
   std::ofstream output(filename,
                        std::ios::binary | std::ios::out | std::ios::app);
-  char *raw_data = bytes.data();
+  const char* raw_data = bytes.data();
   for (size_t i = 0; i < bytes.size(); i++) {
     output.write(const_cast<const char *>(&raw_data[i]), 1);
   }
   output.close();
 }
 
-void saveFile(uint8_t *bytes, int size, std::string filename) {
+void saveFile(uint8_t *bytes, int size, const std::string& filename) {
   std::ofstream output(filename.c_str(),
                        std::ios::binary | std::ios::out | std::ios::app);
   for (int i = 0; i < size; i++) {
@@ -505,8 +505,8 @@ void saveFile(uint8_t *bytes, int size, std::string filename) {
   output.close();
 }
 
-std::string saveEnvFile(std::string env_file_string, std::string uuid) {
-  std::string relative_path{"data/" + uuid + "/v.env"};
+std::string saveEnvFile(const std::string& env_file_string, const std::string& unique_id) {
+  std::string relative_path{"data/" + unique_id + "/v.env"};
   std::string filename{get_executable_cwd() + "/" + relative_path};
   std::ofstream out{filename.c_str()};
   out << env_file_string;
@@ -523,12 +523,12 @@ void saveFopenFile(std::vector<char> bytes, const char *filename) {
   output.close();
 }
 
-void saveFile(std::string env_file_string, std::string env_file_path) {
+void saveFile(const std::string& env_file_string, const std::string& env_file_path) {
   std::ofstream out{env_file_path.c_str(), (std::ios::trunc | std::ios::out | std::ios::binary)};
   out << env_file_string;
 }
 
-std::string readEnvFile(std::string env_file_path, bool relative_path) {
+std::string readEnvFile(const std::string& env_file_path, bool relative_path) {
   std::string full_path = (relative_path) ? get_cwd() + "/" + env_file_path : env_file_path;
   std::ifstream file_stream{full_path};
   std::stringstream env_file_stream{};
@@ -536,7 +536,7 @@ std::string readEnvFile(std::string env_file_path, bool relative_path) {
   return env_file_stream.str();
 }
 
-std::string readRunArgs(std::string env_file_path) {
+std::string readRunArgs(const std::string& env_file_path) {
   const std::string token_key{"R_ARGS="};
   std::string run_arg_s{};
   std::string env = readEnvFile(env_file_path);
@@ -551,14 +551,27 @@ std::string readRunArgs(std::string env_file_path) {
   return run_arg_s;
 }
 
-std::string readFile(std::string env_file_path) {
+std::string readFile(const std::string& env_file_path) {
     std::ifstream file_stream{env_file_path};
     std::stringstream env_file_stream{};
     env_file_stream << file_stream.rdbuf();
     return env_file_stream.str();
 }
 
-std::string readEnvToken(std::string env_file_path, std::string token_key) {
+std::string createEnvFile(std::unordered_map<std::string, std::string>&& key_pairs)
+{
+  const std::string SHEBANG{"#!/usr/bin/env bash\n"};
+  std::string       environment_file{SHEBANG};
+
+  for (const auto& [key, value] : key_pairs)
+  {
+    environment_file += key + "=\"" + value + '\"';
+  }
+
+  return environment_file;
+}
+
+std::string readEnvToken(const std::string& env_file_path, const std::string& token_key) {
   std::string run_arg_s{};
   std::string env = readEnvFile(env_file_path);
   if (!env.empty()) {
@@ -572,7 +585,7 @@ std::string readEnvToken(std::string env_file_path, std::string token_key) {
   return run_arg_s;
 }
 
-bool writeEnvToken(std::string env_file_path, std::string token_key, std::string token_value) {
+bool writeEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
   std::string env = readEnvFile(env_file_path);
   if (!env.empty()) {
     auto key_index = env.find(token_key);
@@ -612,7 +625,7 @@ std::vector<std::string> extractFlagTokens(std::string flags) {
   return tokens;
 }
 
-std::vector<std::string> readFlagTokens(std::string env_file_path, std::string flags) {
+std::vector<std::string> readFlagTokens(const std::string& env_file_path, const std::string& flags) {
   std::vector<std::string> tokens = extractFlagTokens(flags);
   std::vector<std::string> token_values{};
   // TODO: Do this in one pass without reading the entire environment file each time
@@ -622,12 +635,20 @@ std::vector<std::string> readFlagTokens(std::string env_file_path, std::string f
   return token_values;
 }
 
+std::vector<std::string> readEnvValues(const std::string& env_file_path, const std::vector<std::string>& flags) {
+  std::vector<std::string> values{};
+  for (const auto& flag : flags) {
+    values.emplace_back(readEnvToken(env_file_path, flag));
+  }
+  return values;
+}
+
 void clearFile(std::string file_path) {
   std::ofstream file(file_path);
 }
 
-bool createTaskDirectory(std::string uuid) {
-  std::string directory_name{"data/" + uuid};
+bool createTaskDirectory(const std::string& unique_id) {
+  std::string directory_name{"data/" + unique_id};
   return createDirectory(directory_name.c_str());
 }
 }  // namespace FileUtils

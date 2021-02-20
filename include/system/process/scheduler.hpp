@@ -19,11 +19,6 @@
             "60 * extract(minute from(to_timestamp(schedule.time))) + "\
             "extract(second from (to_timestamp(schedule.time))))"
 
-namespace constants {
-const std::string NO_ORIGIN_PLATFORM_EXISTS{"2"};
-const std::string PLATFORM_POST_INCOMPLETE{"0"};
-const std::string PLATFORM_POST_COMPLETE{"1"};
-} // namespace constants
  /**
   * TODO: This should be moved elsewhere. Perhaps the Registrar
   */
@@ -75,7 +70,7 @@ class CalendarManagerInterface {
  * @param  [in]  {uint32_t}  The integer value representing a recurring interval
  * @return [out] {uint32_t}  The number of seconds equivalent to that interval
  */
-inline uint32_t getIntervalSeconds(uint32_t interval) {
+static const uint32_t getIntervalSeconds(uint32_t interval) {
   switch(interval) {
     case Constants::Recurring::HOURLY:
       return 3600;
@@ -90,6 +85,50 @@ inline uint32_t getIntervalSeconds(uint32_t interval) {
   }
 }
 
+static std::string savePlatformEnvFile(const PlatformPost& post)
+{
+  const std::string directory_name{post.time + post.id + post.pid};
+  const std::string filename      {directory_name + "/v.env"};
+
+  FileUtils::createTaskDirectory(directory_name);
+
+  return FileUtils::saveEnvFile(
+    FileUtils::createEnvFile(
+    std::unordered_map<std::string, std::string>{
+      {"content", post.content},
+      {"urls",    post.urls}
+    }
+  ), filename);
+}
+
+static const std::vector<std::string> PLATFORM_KEYS{
+  "pid"
+  "o_pid"
+  "id"
+  "time"
+  "content"
+  "urls"
+  "repost"
+};
+
+static const std::vector<std::string> PLATFORM_ENV_KEYS{
+  "content"
+  "urls"
+};
+
+static bool populatePlatformPost(PlatformPost& post)
+{
+  const std::string env_path{"data/" + post.time + post.id + post.pid + "/v.env"};
+  const std::vector<std::string> post_values = FileUtils::readEnvValues(env_path, PLATFORM_ENV_KEYS);
+  if (post_values.size() == 2)
+  {
+    post.content = post_values.at(0);
+    post.urls    = post_values.at(1);
+    return true;
+  }
+
+  return false;
+}
 /**
  * @brief
  *
@@ -311,6 +350,51 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
     }
     return tasks;
   }
+
+/**
+ * parsePlatformPosts
+ *
+ * @param   [in] {QueryValues} r-value reference to a QueryValues object
+ * @returns [out] {std::vector<PlatformPost>}
+ */
+std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result) {
+  std::vector<PlatformPost> posts{};
+  posts.reserve(result.size() / 5);
+  std::string pid, o_pid, id, time, repost, name, method;
+
+  for (const auto& v : result) {
+         if (v.first == "platform_post.pid"  ) { pid = v.second; }
+    else if (v.first == "platform_post.o_pid"  ) { o_pid = v.second; }
+    else if (v.first == "platform_post.unique_id" ) { id = v.second; }
+    else if (v.first == "platform_post.time" ) { time = v.second; }
+    else if (v.first == "platform_post.repost" ) { repost = v.second; }
+    else if (v.first == "platform.name" ) { name = v.second; }
+    else if (v.first == "platform.method" ) { method = v.second; }
+
+    if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() && !repost.empty() && !name.empty()) {
+      PlatformPost post{};
+      post.pid = pid;
+      post.o_pid = o_pid;
+      post.id = id;
+      post.time = time;
+      post.repost = repost;
+      post.name = name;
+      post.method = method;
+
+      posts.emplace_back(std::move(post));
+
+      pid   .clear();
+      o_pid .clear();
+      id    .clear();
+      time  .clear();
+      repost.clear();
+      name  .clear();
+      method.clear();
+    }
+  }
+
+  return posts;
+}
 
   /**
    * fetchTasks
@@ -560,41 +644,6 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
  * @brief
  *
  * @param pid
- * @param identifier
- * @param timestamp
- * @param o_pid
- * @param status
- * @return true
- * @return false
- */
-  bool savePlatformPost(const std::string& pid,
-                        const std::string& identifier,
-                        const std::string& timestamp,
-                        std::string        o_pid = "",
-                        const std::string& status = constants::PLATFORM_POST_COMPLETE) {
-    // TODO : This is brittle. We should query for the "no originating platform" in this case, or the database value should accept null value
-    o_pid = (o_pid.empty()) ? constants::NO_ORIGIN_PLATFORM_EXISTS : o_pid;
-
-    auto insert_id = m_kdb.insert(
-      "platform_post",
-      {"pid", "unique_id", "time", "o_pid", "status"},
-      {pid, identifier, timestamp, o_pid, status},
-      "id"
-    );
-
-    bool result = (!insert_id.empty());
-
-    if (result && (o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
-      for (const auto& platform_id : fetchRepostIDs(pid))
-        savePlatformPost(platform_id, identifier, timestamp, pid, constants::PLATFORM_POST_INCOMPLETE);
-
-    return result;
-  }
-
-/**
- * @brief
- *
- * @param pid
  * @return std::vector<std::string>
  */
   std::vector<std::string> fetchRepostIDs(const std::string& pid)
@@ -621,22 +670,70 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
   }
 
 /**
- * @brief
+ * savePlatformPost
+ *
+ * @param   [in]  {PlatformPost} post
+ * @param   [in]  {std::string}  status
+ * @returns [out] {bool}
+ */
+bool savePlatformPost(const PlatformPost& post, const std::string& status = constants::PLATFORM_POST_COMPLETE) {
+  auto insert_id = m_kdb.insert(
+    "platform_post",
+    {"pid", "unique_id", "time", "o_pid", "status"},
+    {post.pid, post.id, post.time, post.o_pid, status},
+    "id"
+  );
+
+  savePlatformEnvFile(post);
+
+  bool result = (!insert_id.empty());
+
+  if (result && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
+    for (const auto& platform_id : fetchRepostIDs(post.pid))
+      savePlatformPost(
+        PlatformPost{
+          .pid     = platform_id,
+          .o_pid   = post.pid,
+          .id      = post.id,
+          .time    = post.time,
+          .content = post.content,
+          .urls    = post.urls,
+          .repost  = post.repost
+        },
+        constants::PLATFORM_POST_INCOMPLETE
+     );
+
+  return result;
+}
+
+/**
+ * savePlatformPost
  *
  * @param payload
  * @return true
  * @return false
  */
   bool savePlatformPost(std::vector<std::string> payload) {
-    return (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE) ?
-      false
-      :
-      savePlatformPost(
-        payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
-        payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
-        payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX),
-        payload.at(constants::PLATFORM_PAYLOAD_O_PLATFORM_INDEX)
-      );
+    const auto payload_size = payload.size();
+    KLOG("Attempting to save platform post with payload size of {}", payload_size);
+
+    if (payload_size < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
+       return false;
+
+    const std::string& platform_id = getPlatformID(payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX));
+
+    if (platform_id.empty())
+      return false;
+
+    return savePlatformPost(PlatformPost{
+      .pid     = platform_id,
+      .o_pid   = "",
+      .id      = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
+      .time    = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX),
+      .content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
+      .urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
+      .repost  = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)
+    });
   }
 
 /**
@@ -645,60 +742,98 @@ class Scheduler : public DeferInterface, CalendarManagerInterface {
  * @param mask
  * @return std::string
  */
-  std::string getPlatformID(uint32_t mask) {
-    auto app_info = ProcessExecutor::getAppInfo(mask);
-    if (!app_info.name.empty()) {
-      auto result = m_kdb.select(
-        "platform",
-        {
-          "id"
-        },
-        QueryFilter{
-        {"name", app_info.name}
-        }
-      );
-      for (const auto& value : result)
-        if (value.first == "id")
-          return value.second;
-    }
-    return "";
-  }
-
-/**
- * @brief
- *
- * @return std::vector<std::string>
- */
-  std::vector<std::string> fetchPlatformPayload() {
-    return {};
-  }
-
-/**
- * @brief
- *
- */
-  void processPlatformPending()
-  {
+std::string getPlatformID(uint32_t mask) {
+  auto app_info = ProcessExecutor::getAppInfo(mask);
+  if (!app_info.name.empty()) {
     auto result = m_kdb.select(
-      "platform_post",
-      {"pid"},
+      "platform",
+      {
+        "id"
+      },
       QueryFilter{
-        {"status", constants::PLATFORM_POST_INCOMPLETE}
+      {"name", app_info.name}
       }
     );
+    for (const auto& value : result)
+      if (value.first == "id")
+        return value.second;
+  }
+  return "";
+}
 
-    std::vector<std::string> payload = fetchPlatformPayload();
-
-    for (const auto& [key, value] : result)
-    {
-      if (key == "pid")
+std::string getPlatformID(const std::string& name) {
+  if (!name.empty()) {
+    auto result = m_kdb.select(
+      "platform",
       {
+        "id"
+      },
+      QueryFilter{
+      {"name", name}
+      }
+    );
+    for (const auto& value : result)
+      if (value.first == "id")
+        return value.second;
+  }
+  return "";
+}
+
+std::vector<PlatformPost> fetchPendingPlatformPosts()
+{
+  return parsePlatformPosts(
+    m_kdb.selectJoin<QueryFilter>(
+      "platform_post",
+      {"platform_post.pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform.method"},
+      QueryFilter{
+        {"status", constants::PLATFORM_POST_INCOMPLETE}
+      },
+      Joins{
+        Join{
+          .table      = "platform",
+          .field      = "id",
+          .join_table = "platform_post",
+          .join_field = "pid",
+          .type       =  JoinType::INNER
+        }
+      }
+    )
+  );
+}
+
+std::vector<std::string> platformToPayload(PlatformPost& platform)
+{
+  std::vector<std::string> payload{};
+  payload.reserve(8);
+  payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = platform.name;
+  payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = platform.id;
+  payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)     = platform.time;
+  payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)  = platform.content;
+  payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)      = platform.urls; // concatenated string
+  payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)   = platform.repost;
+  payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX)   = platform.method;
+
+  return payload;
+}
+/**
+ * @brief
+ *
+ */
+void processPlatformPending()
+  {
+    for (auto&& platform_post : fetchPendingPlatformPosts())
+    {
+      if (populatePlatformPost(platform_post))
         m_event_callback(
           ALL_CLIENTS,
           SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
-          payload
+          platformToPayload(platform_post)
         );
-      }
+      else
+        ELOG("Failed to retrieve values for {} platform post with id {}",
+          platform_post.name,
+          platform_post.id
+        );
     }
   }
 

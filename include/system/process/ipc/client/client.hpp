@@ -73,7 +73,6 @@ bool ReceiveIPCMessage()
 
   while (more_flag)
   {
-    zmq::mutable_buffer buffer{};
     socket_ptr->recv(&message, static_cast<int>(zmq::recv_flags::none));
     size_t size = sizeof(more_flag);
     socket_ptr->getsockopt(ZMQ_RCVMORE, &more_flag, &size);

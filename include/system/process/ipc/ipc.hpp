@@ -18,12 +18,13 @@ namespace constants {
 const uint8_t IPC_PLATFORM_TYPE{0x00};
 
 namespace index {
-const uint8_t EMPTY = 0x01;
-const uint8_t TYPE  = 0x02;
-const uint8_t NAME  = 0x03;
-const uint8_t ID    = 0x04;
-const uint8_t DATA  = 0x05;
-const uint8_t URLS  = 0x06;
+const uint8_t EMPTY  = 0x01;
+const uint8_t TYPE   = 0x02;
+const uint8_t NAME   = 0x03;
+const uint8_t ID     = 0x04;
+const uint8_t DATA   = 0x05;
+const uint8_t URLS   = 0x06;
+const uint8_t REPOST = 0x07;
 } // namespace index
 } // namespace constants
 
@@ -49,7 +50,7 @@ std::vector<byte_buffer> m_frames;
 class platform_message : public ipc_message
 {
 public:
-platform_message(const std::string& name, const std::string& id, const std::string& content, const std::string& urls)
+platform_message(const std::string& name, const std::string& id, const std::string& content, const std::string& urls, const bool repost = false)
 {
   m_frames = {
     byte_buffer{},
@@ -57,7 +58,8 @@ platform_message(const std::string& name, const std::string& id, const std::stri
     byte_buffer{name.data(), name.data() + name.size()},
     byte_buffer{id.data(), id.data() + id.size()},
     byte_buffer{content.data(), content.data() + content.size()},
-    byte_buffer{urls.data(), urls.data() + urls.size()}
+    byte_buffer{urls.data(), urls.data() + urls.size()},
+    byte_buffer{static_cast<uint8_t>(repost)}
   };
 }
 
@@ -70,6 +72,7 @@ platform_message(const std::vector<byte_buffer> data)
     byte_buffer{data.at(constants::index::ID)},
     byte_buffer{data.at(constants::index::DATA)},
     byte_buffer{data.at(constants::index::URLS)},
+    byte_buffer{data.at(constants::index::REPOST)}
   };
 }
 
@@ -103,6 +106,11 @@ const std::string urls() const
     reinterpret_cast<const char*>(m_frames.at(constants::index::URLS).data()),
     reinterpret_cast<const char*>(m_frames.at(constants::index::URLS).data(), m_frames.at(constants::index::URLS).size())
   };
+}
+
+const bool repost() const
+{
+  return (m_frames.at(constants::index::REPOST).front() != 0x00);
 }
 };
 
