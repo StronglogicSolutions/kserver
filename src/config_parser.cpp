@@ -1,4 +1,4 @@
-#include "config_parser.hpp"
+#include "config/config_parser.hpp"
 
 namespace ConfigParser {
 
