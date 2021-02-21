@@ -25,7 +25,7 @@ TEST(KUtilities, createMessageTest) {
 /**
  * FileUtils::readEnvFile
  */
-TEST(KUtilities, readEnvFileTest) {
+TEST(KUtilities, DISABLED_readEnvFileTest) {
   auto env_file_path = cwd + "/data/mock_v.env";
   EXPECT_EQ("#!/usr/bin/env bash\nKEY='value'", FileUtils::readEnvFile(env_file_path));
 }
@@ -46,7 +46,7 @@ TEST(KUtilities, extractTokens) {
   EXPECT_FALSE(token_values.empty());
 }
 
-TEST(KUtilities, writeTokens) {
+TEST(KUtilities, DISABLED_writeTokens) {
   auto env_file_path = cwd + "/data/mock_v_2.env";
   std::string flag_s{"--description=$DESCRIPTION --hashtags=$HASHTAGS --requested_by=$REQUESTED_BY --media=$FILE_TYPE --requested_by_phrase=$REQUESTED_BY_PHRASE --promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO --header=$HEADER --user=$USER"};
 

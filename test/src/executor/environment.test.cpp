@@ -1,19 +1,11 @@
 #include "environment.test.hpp"
 
-TEST(EnvironmentTest, ParseFlagsFromString) {
+TEST(EnvironmentTest, DISABLED_ParseFlagsFromString) {
   std::string flag_string{
     "--description=$DESCRIPTION --media=$FILE_TYPE --header=$HEADER --user=$USER"
   };
 
-  // std::string env_file{
-  //   "#!/usr/bin/env bash"
-  //   "HEADER='Test Task'"
-  //   "USER='Test User'"
-  //   "DESCRIPTION='Test Description'"
-  //   "FILE_TYPE='IMAGE'"
-  // };
-
-  std::string env_file{"data/e47919f8-0c2a-41f6-908c-8112f4923781/v.env"};
+  std::string env_file{"data/mock_v_2.env"};
 
   Task test_task{
     .execution_mask = 16,
