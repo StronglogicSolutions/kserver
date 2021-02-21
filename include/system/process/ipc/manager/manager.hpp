@@ -20,7 +20,8 @@ using u_ipc_msg_ptr = ipc_message::u_ipc_msg_ptr;
 public:
 
 IPCManager(SystemCallback_fn_ptr system_event_fn)
-: m_system_event_fn{system_event_fn}
+: m_system_event_fn{system_event_fn},
+  m_req_ready(true)
 {}
 
 void process(std::string message, int32_t fd) {
@@ -36,19 +37,18 @@ void process(std::string message, int32_t fd) {
 
 bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
 {
-  // TODO: Dynamic ports
   if (m_clients.empty())
     m_clients.insert({ALL_CLIENTS, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
 
   if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED)
-    KLOG("Implement IPC protocol both ways!");
-    // m_clients.at(ALL_CLIENTS).SendIPCMessage(std::move(std::make_unique<platform_message>(
-    //   args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
-    //   args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
-    //   args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
-    //   args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
-    //   args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "true"
-    // )));
+    // m_clients.at(ALL_CLIENTS).SendIPCMessage(
+    m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<platform_message>(
+      args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
+      args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
+      args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
+      args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
+      args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y"
+    )));
 
   return true;
 }
@@ -104,7 +104,7 @@ virtual void loop() override {
       }
 
       if (HasReply(mask))
-        client.ReceiveMessage();
+        client.ReceiveIPCMessage();
 
       std::vector<u_ipc_msg_ptr> messages = client.GetMessages();
 
@@ -113,6 +113,8 @@ virtual void loop() override {
         std::make_move_iterator(messages.begin()),
         std::make_move_iterator(messages.end())
       );
+
+      client.ProcessQueue();
 
       HandleClientMessages();
     }
@@ -127,4 +129,5 @@ SystemCallback_fn_ptr                  m_system_event_fn;
 std::deque<u_ipc_msg_ptr>              m_incoming_queue;
 std::mutex                             m_mutex;
 std::condition_variable                m_condition;
+bool                                   m_req_ready;
 };

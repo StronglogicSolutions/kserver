@@ -121,6 +121,7 @@ bool ReceiveIPCMessage(const bool use_req = true)
   if (ipc_message != nullptr)
   {
     m_rx_msgs.emplace_back(std::move(ipc_message));
+    m_req_ready = (use_req) ? true : m_req_ready;
     return true;
   }
 
@@ -157,6 +158,21 @@ void Shutdown() {
   // TODO: handle shutdown
 }
 
+void ProcessQueue()
+{
+  const bool IS_REQUEST{true};
+  if (!m_outgoing_queue.empty() && m_req_ready)
+  {
+    m_req_ready = false;
+    SendIPCMessage(std::move(m_outgoing_queue.front()), IS_REQUEST);
+    m_outgoing_queue.pop_front();
+  }
+}
+void Enqueue(u_ipc_msg_ptr message)
+{
+  m_outgoing_queue.emplace_back(std::move(message));
+}
+
 private:
 zmq::context_t                 m_context;
 zmq::socket_t                  m_rep_socket;
@@ -165,5 +181,6 @@ std::vector<u_ipc_msg_ptr>     m_tx_msgs;
 std::vector<u_ipc_msg_ptr>     m_rx_msgs;
 std::string                    m_addr;
 std::string                    m_rx_msg;
-
+std::deque<u_ipc_msg_ptr>      m_outgoing_queue;
+bool                           m_req_ready;
 };
