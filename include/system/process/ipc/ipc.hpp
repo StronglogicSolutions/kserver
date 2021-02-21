@@ -16,7 +16,8 @@
 
 namespace constants {
 const uint8_t IPC_OK_TYPE      {0x00};
-const uint8_t IPC_PLATFORM_TYPE{0x01};
+const uint8_t KIQ_MESSAGE      {0x01};
+const uint8_t IPC_PLATFORM_TYPE{0x02};
 
 namespace index {
 const uint8_t EMPTY  = 0x00;
@@ -26,6 +27,7 @@ const uint8_t ID     = 0x03;
 const uint8_t DATA   = 0x04;
 const uint8_t URLS   = 0x05;
 const uint8_t REPOST = 0x06;
+const uint8_t KIQ_DATA = 0x02;
 } // namespace index
 } // namespace constants
 
@@ -58,6 +60,39 @@ okay_message()
     byte_buffer{constants::IPC_OK_TYPE}
   };
 }
+
+virtual ~okay_message() override {}
+};
+
+class kiq_message : public ipc_message
+{
+public:
+kiq_message(const std::string& payload)
+{
+  m_frames = {
+    byte_buffer{},
+    byte_buffer{constants::KIQ_MESSAGE},
+    byte_buffer{payload.data(), payload.data() + payload.size()}
+  };
+}
+
+kiq_message(const std::vector<byte_buffer>& data)
+{
+  m_frames = {
+    byte_buffer{},
+    byte_buffer{data.at(constants::index::TYPE)},
+    byte_buffer{data.at(constants::index::KIQ_DATA)}
+  };
+}
+
+const std::string payload()
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::KIQ_DATA).data()),
+    m_frames.at(constants::index::KIQ_DATA).size()
+  };
+}
+
 };
 
 class platform_message : public ipc_message
@@ -76,7 +111,7 @@ platform_message(const std::string& name, const std::string& id, const std::stri
   };
 }
 
-platform_message(const std::vector<byte_buffer> data)
+platform_message(const std::vector<byte_buffer>& data)
 {
   m_frames = {
     byte_buffer{},
@@ -88,6 +123,8 @@ platform_message(const std::vector<byte_buffer> data)
     byte_buffer{data.at(constants::index::REPOST)}
   };
 }
+
+virtual ~platform_message() override {}
 
 const std::string name() const
 {
@@ -135,6 +172,8 @@ ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message::byte_b
      return std::make_unique<platform_message>(data);
    if (message_type == constants::IPC_OK_TYPE)
     return std::make_unique<okay_message>();
+   if (message_type == constants::KIQ_MESSAGE)
+    return std::make_unique<kiq_message>(data);
 
    return nullptr;
 }

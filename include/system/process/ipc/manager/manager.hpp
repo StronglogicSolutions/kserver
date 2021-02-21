@@ -29,7 +29,7 @@ void process(std::string message, int32_t fd) {
   if (m_clients.empty())
     m_clients.insert({ALL_CLIENTS, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
 
-  m_clients.at(ALL_CLIENTS).SendMessage(message);
+  m_clients.at(ALL_CLIENTS).SendIPCMessage(std::make_unique<kiq_message>(message));
 
   return;
 }
@@ -98,12 +98,12 @@ virtual void loop() override {
   while (m_is_running) {
     for (auto&&[fd, client] : m_clients) {
       const uint8_t mask = client.Poll();
-      if (HasIPCMessage(mask) && client.ReceiveIPCMessage())
+      if (HasRequest(mask) && client.ReceiveIPCMessage())
       {
         client.ReplyIPC();
       }
 
-      if (HasMessage(mask))
+      if (HasReply(mask))
         client.ReceiveMessage();
 
       std::vector<u_ipc_msg_ptr> messages = client.GetMessages();

@@ -7,12 +7,12 @@
 const std::string REQ_ADDRESS{"tcp://0.0.0.0:28473"};
 const std::string REP_ADDRESS{"tcp://0.0.0.0:28474"};
 
-static const bool HasIPCMessage(uint8_t mask)
+static const bool HasRequest(uint8_t mask)
 {
   return (mask & 0x01 << 0);
 }
 
-static const bool HasMessage(uint8_t mask)
+static const bool HasReply(uint8_t mask)
 {
   return (mask & 0x01 << 1);
 }
@@ -49,9 +49,13 @@ bool SendMessage(std::string message) {
   return result.has_value();
 }
 
-bool SendIPCMessage(u_ipc_msg_ptr message) {
-  auto    payload = message->data();
-  int32_t frame_num = payload.size();
+bool SendIPCMessage(u_ipc_msg_ptr message, const bool use_req = false)
+{
+  auto           payload   = message->data();
+  int32_t        frame_num = payload.size();
+  zmq::socket_t& socket    = (use_req) ?
+                               m_req_socket :
+                               m_rep_socket;
 
   for (int i = 0; i < frame_num; i++)
   {
@@ -61,7 +65,7 @@ bool SendIPCMessage(u_ipc_msg_ptr message) {
     zmq::message_t message{data.size()};
     std::memcpy(message.data(), data.data(), data.size());
 
-    m_rep_socket.send(message, flag);
+    socket.send(message, flag);
   }
 
   return true;
@@ -91,17 +95,21 @@ bool ReceiveMessage() {
 }
 
 
-bool ReceiveIPCMessage()
+bool ReceiveIPCMessage(const bool use_req = true)
 {
   std::vector<ipc_message::byte_buffer> received_message{};
   zmq::message_t                        message;
   int                                   more_flag{1};
 
+  zmq::socket_t&                        socket = (use_req) ?
+                                                   m_req_socket :
+                                                   m_rep_socket;
+
   while (more_flag)
   {
-    m_rep_socket.recv(&message, static_cast<int>(zmq::recv_flags::none));
+    socket.recv(&message, static_cast<int>(zmq::recv_flags::none));
     size_t size = sizeof(more_flag);
-    m_rep_socket.getsockopt(ZMQ_RCVMORE, &more_flag, &size);
+    socket.getsockopt(ZMQ_RCVMORE, &more_flag, &size);
 
     received_message.push_back(std::vector<unsigned char>{
         static_cast<char*>(message.data()), static_cast<char*>(message.data()) + message.size()
