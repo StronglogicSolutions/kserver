@@ -166,6 +166,14 @@ class KServer : public SocketListener {
         }
       }
       break;
+      case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED: {
+        auto method = args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
+        if (method == "bot")
+          m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, args);
+        else
+          KLOG("Platform Post requested: Must implement process execution");
+      }
+      break;
       case SYSTEM_EVENTS__FILE_UPDATE: {
         // metadata for a received file
         auto timestamp = args.at(1);

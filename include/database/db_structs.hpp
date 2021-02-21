@@ -151,4 +151,11 @@ struct JoinQuery : MultiVariantFilterSelect<T> {
   Joins                    joins;
 };
 
+struct SimpleJoinQuery{
+  std::string              table;
+  std::vector<std::string> fields;
+  QueryFilter              filter;
+  Join                     join;
+};
+
 #endif  // __DB_STRUCTS_H__

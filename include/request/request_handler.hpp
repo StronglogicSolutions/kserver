@@ -259,12 +259,14 @@ class RequestHandler {
           ELOG("ERROR handling pending tasks");
         }
       }
+
+      m_scheduler.processPlatformPending();
       // System::Cron<System::SingleJob> cron{};
       // std::string jobs = cron.listJobs();
       // if (jobs.empty()) {
       //   KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
       // }
-      std::this_thread::sleep_for(std::chrono::seconds(20));
+      maintenance_loop_condition.wait_for(lock, std::chrono::milliseconds(20000));
     }
   }
 

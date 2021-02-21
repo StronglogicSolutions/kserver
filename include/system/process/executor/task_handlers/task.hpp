@@ -37,25 +37,31 @@ namespace Recurring {
 } // namespace Constants
 
 namespace constants {
-const uint8_t PAYLOAD_ID_INDEX        {0x01};
-const uint8_t PAYLOAD_NAME_INDEX      {0x02};
-const uint8_t PAYLOAD_TIME_INDEX      {0x03};
-const uint8_t PAYLOAD_FLAGS_INDEX     {0x04};
-const uint8_t PAYLOAD_COMPLETED_INDEX {0x05};
-const uint8_t PAYLOAD_RECURRING_INDEX {0x06};
-const uint8_t PAYLOAD_NOTIFY_INDEX    {0x07};
-const uint8_t PAYLOAD_RUNTIME_INDEX   {0x08};
-const uint8_t PAYLOAD_FILES_INDEX     {0x09};
+// Scheduled Tasks
+const uint8_t PAYLOAD_ID_INDEX                 {0x01};
+const uint8_t PAYLOAD_NAME_INDEX               {0x02};
+const uint8_t PAYLOAD_TIME_INDEX               {0x03};
+const uint8_t PAYLOAD_FLAGS_INDEX              {0x04};
+const uint8_t PAYLOAD_COMPLETED_INDEX          {0x05};
+const uint8_t PAYLOAD_RECURRING_INDEX          {0x06};
+const uint8_t PAYLOAD_NOTIFY_INDEX             {0x07};
+const uint8_t PAYLOAD_RUNTIME_INDEX            {0x08};
+const uint8_t PAYLOAD_FILES_INDEX              {0x09};
+const uint8_t PAYLOAD_SIZE                     {0x0A};
 
-const uint8_t PAYLOAD_SIZE            {0x0A};
-
+// Platform Posts
 const uint8_t PLATFORM_PAYLOAD_PLATFORM_INDEX  {0x00};
-const uint8_t PLATFORM_PAYLOAD_O_PLATFORM_INDEX{0x01};
-const uint8_t PLATFORM_PAYLOAD_ID_INDEX        {0x02};
-const uint8_t PLATFORM_PAYLOAD_TIME_INDEX      {0x03};
-const uint8_t PLATFORM_PAYLOAD_CONTENT_INDEX   {0x04};
-const uint8_t PLATFORM_PAYLOAD_URL_INDEX       {0x05}; // concatenated string
-const uint8_t PLATFORM_MINIMUM_PAYLOAD_SIZE    {0x04};
+const uint8_t PLATFORM_PAYLOAD_ID_INDEX        {0x01};
+const uint8_t PLATFORM_PAYLOAD_TIME_INDEX      {0x02};
+const uint8_t PLATFORM_PAYLOAD_CONTENT_INDEX   {0x03};
+const uint8_t PLATFORM_PAYLOAD_URL_INDEX       {0x04}; // concatenated string
+const uint8_t PLATFORM_PAYLOAD_REPOST_INDEX    {0x05};
+const uint8_t PLATFORM_PAYLOAD_METHOD_INDEX    {0x06};
+const uint8_t PLATFORM_MINIMUM_PAYLOAD_SIZE    {0x06};
+
+const std::string NO_ORIGIN_PLATFORM_EXISTS    {"2"};
+const std::string PLATFORM_POST_INCOMPLETE     {"0"};
+const std::string PLATFORM_POST_COMPLETE       {"1"};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States
@@ -183,4 +189,16 @@ std::vector<FileInfo> parseFileInfo(std::string file_info);
 class TaskHandler {
   public:
     virtual Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
+};
+
+struct PlatformPost {
+std::string pid;
+std::string o_pid = constants::NO_ORIGIN_PLATFORM_EXISTS;
+std::string id;
+std::string time;
+std::string content;
+std::string urls;
+std::string repost;
+std::string name;
+std::string method;
 };
