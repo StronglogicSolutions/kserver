@@ -669,6 +669,27 @@ std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result) {
     return pids;
   }
 
+bool postAlreadyExists(const PlatformPost& post)
+{
+  return !(m_kdb.select(
+    "platform_post",
+    {"id"},
+    QueryFilter{{"pid", post.pid},
+    {"unique_id", post.id}}
+  ).empty());
+}
+
+bool updatePostStatus(const PlatformPost& post, const std::string& status)
+{
+  return (!m_kdb.update(
+    "platform_post",
+    {"status"},
+    {status},
+    QueryFilter{{"pid", post.pid},
+    {"unique_id", post.id}},
+    "id"
+  ).empty());
+}
 /**
  * savePlatformPost
  *
@@ -677,6 +698,10 @@ std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result) {
  * @returns [out] {bool}
  */
 bool savePlatformPost(PlatformPost post, const std::string& status = constants::PLATFORM_POST_COMPLETE) {
+
+  if (postAlreadyExists(post))
+    return updatePostStatus(post, status);
+
   auto insert_id = m_kdb.insert(
     "platform_post",
     {"pid", "unique_id", "time", "o_pid", "status", "repost"},
@@ -714,10 +739,7 @@ bool savePlatformPost(PlatformPost post, const std::string& status = constants::
  * @return false
  */
   bool savePlatformPost(std::vector<std::string> payload) {
-    const auto payload_size = payload.size();
-    KLOG("Attempting to save platform post with payload size of {}", payload_size);
-
-    if (payload_size < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
+    if (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
        return false;
 
     const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
@@ -731,7 +753,7 @@ bool savePlatformPost(PlatformPost post, const std::string& status = constants::
     return savePlatformPost(PlatformPost{
       .pid     = platform_id,
       .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
-      .id      = id.empty() ? StringUtils::generate_uuid_string() : id,
+      .id      = id  .empty() ? StringUtils::generate_uuid_string()   : id,
       .time    = time.empty() ? std::to_string(TimeUtils::unixtime()) : time,
       .content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
       .urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
@@ -785,12 +807,14 @@ std::string getPlatformID(const std::string& name) {
 
 std::vector<PlatformPost> fetchPendingPlatformPosts()
 {
+  static const std::string SHOULD_REPOST{"true"};
   return parsePlatformPosts(
     m_kdb.selectSimpleJoin(
       "platform_post",
       {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method"},
       QueryFilter{
-        {"status", constants::PLATFORM_POST_INCOMPLETE}
+        {"platform_post.status", constants::PLATFORM_POST_INCOMPLETE},
+        {"platform_post.repost", SHOULD_REPOST}
       },
       Join{
         .table      = "platform",
