@@ -155,7 +155,7 @@ std::string getFilterStatement(T filter) {  // TODO: fix template usage
     for (const auto& filter_pair : filter)
     {
       filter_string += delim + filter_pair.first + '=' + filter_pair.second;
-      delim = ',';
+      delim = " AND ";
     }
     return filter_string;
   }
