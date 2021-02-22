@@ -30,18 +30,19 @@ void process(std::string message, int32_t fd) {
   if (m_clients.empty())
     m_clients.insert({ALL_CLIENTS, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
 
-  m_clients.at(ALL_CLIENTS).SendIPCMessage(std::make_unique<kiq_message>(message));
+  m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<kiq_message>(message)));
 
   return;
 }
 
 bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
 {
+  KLOG("Processing IPC message for event {}", event);
+
   if (m_clients.empty())
     m_clients.insert({ALL_CLIENTS, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
 
   if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED)
-    // m_clients.at(ALL_CLIENTS).SendIPCMessage(
     m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<platform_message>(
       args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
@@ -86,9 +87,9 @@ void HandleClientMessages()
         payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)     = std::to_string(message->repost());
 
         m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
-
-        it = m_incoming_queue.erase(it);
       }
+      // TODO: handle other messages
+      it = m_incoming_queue.erase(it);
     }
   }
 }
@@ -97,14 +98,23 @@ private:
 virtual void loop() override {
   while (m_is_running) {
     for (auto&&[fd, client] : m_clients) {
-      const uint8_t mask = client.Poll();
-      if (HasRequest(mask) && client.ReceiveIPCMessage())
-      {
-        client.ReplyIPC();
-      }
+      try {
+        const uint8_t mask = client.Poll();
+        if (HasRequest(mask) && client.ReceiveIPCMessage(false))
+        {
+          client.ReplyIPC();
+        }
 
-      if (HasReply(mask))
-        client.ReceiveIPCMessage();
+        if (HasReply(mask))
+        {
+          client.ReceiveIPCMessage();
+        }
+      }
+      catch (const std::exception& e)
+      {
+        ELOG("Caught IPC exception: {}\nResetting client socket", e.what());
+        client.ResetSocket();
+      }
 
       std::vector<u_ipc_msg_ptr> messages = client.GetMessages();
 
