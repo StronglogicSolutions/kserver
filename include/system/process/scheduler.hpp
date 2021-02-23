@@ -713,7 +713,7 @@ bool savePlatformPost(PlatformPost post, const std::string& status = constants::
 
   bool result = (!insert_id.empty());
 
-  if (result && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
+  if (result && post.repost == "1" && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
     for (const auto& platform_id : fetchRepostIDs(post.pid))
       savePlatformPost(
         PlatformPost{
@@ -743,8 +743,8 @@ bool savePlatformPost(PlatformPost post, const std::string& status = constants::
        return false;
 
     const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
-    const std::string& time = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
     const std::string& id   = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+    const std::string& time = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
     const std::string& platform_id = getPlatformID(name);
 
     if (platform_id.empty())
@@ -807,14 +807,13 @@ std::string getPlatformID(const std::string& name) {
 
 std::vector<PlatformPost> fetchPendingPlatformPosts()
 {
-  static const std::string SHOULD_REPOST{"true"};
   return parsePlatformPosts(
     m_kdb.selectSimpleJoin(
       "platform_post",
       {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method"},
       QueryFilter{
         {"platform_post.status", constants::PLATFORM_POST_INCOMPLETE},
-        {"platform_post.repost", SHOULD_REPOST}
+        {"platform_post.repost", constants::SHOULD_REPOST}
       },
       Join{
         .table      = "platform",
@@ -940,27 +939,14 @@ void processPlatformPending()
    */
   bool handleProcessOutput(const std::string& output, const int32_t mask) {
     ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
+
     if (!result.data.empty())
     {
       for (auto&& outgoing_event : result.data)
-      {
         if (outgoing_event.event == SYSTEM_EVENTS__PLATFORM_NEW_POST)
-        {
-          std::vector<std::string> payload{};
-          payload.reserve(outgoing_event.payload.size() + 2);
-          payload.at(0) = getPlatformID(mask);
-          payload.at(1) = "";
-          payload.insert(
-            payload.end(),
-            std::make_move_iterator(outgoing_event.payload.begin()),
-            std::make_move_iterator(outgoing_event.payload.end())
-          );
-
-          m_event_callback(ALL_CLIENTS, outgoing_event.event, payload);
-        }
+          m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
         else
           ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
-      }
       return true;
     }
     return false;
