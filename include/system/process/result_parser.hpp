@@ -139,7 +139,7 @@ ResultProcessor()
 
 ProcessParseResult process(const std::string& output, KApplication app)
 {
-  if (app.name == "Instagram")
+  if (app.name == "IG Feed")
   {
     IGFeedResultParser ig_parser{app.name};
     ig_parser.read(output);
