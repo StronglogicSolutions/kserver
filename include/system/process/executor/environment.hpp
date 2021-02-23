@@ -156,7 +156,7 @@ std::string parseExecArguments(const std::string& env) {
 
   if (index != std::string::npos) {
     auto parsed = env.substr(index);
-    auto end    = parsed.find_first_of('\n');
+    auto end    = parsed.find_first_of('|');
     argument += (end != std::string::npos) ?
       parsed.substr(parsed.find_first_of('\"'), (end - RUNTIME_FLAG.size() - 1)) :
       parsed.substr(parsed.find_first_of('\"'));
