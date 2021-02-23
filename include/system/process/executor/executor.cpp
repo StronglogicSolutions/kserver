@@ -218,12 +218,10 @@ KApplication ProcessExecutor::getAppInfo(int mask) {
       k_app.id = value_pair.second;
     else
     if (value_pair.first == "internal")
-    {
-      KLOG("Interval value: {}", value_pair.second);
       k_app.is_kiq = (value_pair.second == "t") ?
                        true:
                        false;
-    }
+
   }
   return k_app;
 }
