@@ -62,6 +62,9 @@ const uint8_t PLATFORM_MINIMUM_PAYLOAD_SIZE    {0x06};
 const std::string NO_ORIGIN_PLATFORM_EXISTS    {"2"};
 const std::string PLATFORM_POST_INCOMPLETE     {"0"};
 const std::string PLATFORM_POST_COMPLETE       {"1"};
+
+const std::string SHOULD_REPOST{"true"};
+const std::string PLATFORM_PROCESS_METHOD{"process"};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States
