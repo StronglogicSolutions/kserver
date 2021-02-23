@@ -218,7 +218,7 @@ KApplication ProcessExecutor::getAppInfo(int mask) {
       k_app.id = value_pair.second;
     else
     if (value_pair.first == "internal")
-      k_app.is_kiq = (value_pair.second == "true") ?
+      k_app.is_kiq = (value_pair.second == "t") ?
                        true:
                        false;
   }
