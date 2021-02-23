@@ -58,6 +58,10 @@ virtual ProcessParseResult get_result() = 0;
 
 class IGFeedResultParser : public ProcessParseInterface {
 public:
+IGFeedResultParser(const std::string& app_name)
+: m_app_name{app_name}
+{}
+
 virtual ~IGFeedResultParser() override {}
 
 virtual bool read(const std::string& s) {
@@ -105,27 +109,27 @@ virtual ProcessParseResult get_result() override {
 
   for (const auto& item : m_feed_items)
   {
-    if (true || "Not in database")
-    {
-      result.data.emplace_back(
-        ProcessEventData{
-          .event = SYSTEM_EVENTS__PLATFORM_NEW_POST,
-          .payload = std::vector<std::string>{
-            item.id,
-            item.content,
-            item.username,
-            std::to_string(item.time),
-            url_string(item.media_urls)
-          }
+    result.data.emplace_back(
+      ProcessEventData{
+        .event = SYSTEM_EVENTS__PLATFORM_NEW_POST,
+        .payload = std::vector<std::string>{
+          m_app_name,
+          item.id,
+          std::to_string(item.time),
+          item.content,
+          url_string(item.media_urls),
+          constants::SHOULD_REPOST,
+          constants::PLATFORM_PROCESS_METHOD
         }
-      );
-    }
+      }
+    );
   }
   return result;
 }
 
 private:
 std::vector<IGFeedItem> m_feed_items;
+std::string             m_app_name;
 };
 
 class ResultProcessor {
@@ -137,7 +141,7 @@ ProcessParseResult process(const std::string& output, KApplication app)
 {
   if (app.name == "Instagram")
   {
-    IGFeedResultParser ig_parser{};
+    IGFeedResultParser ig_parser{app.name};
     ig_parser.read(output);
     return ig_parser.get_result();
   }
