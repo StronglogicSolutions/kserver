@@ -55,9 +55,8 @@ QueryValues select(std::string table, Fields fields,
           .values = {},
           .filter = filter
         });
-      if (!result.values.empty()) {
-        return result.values;
-      }
+      return result.values;
+
     } catch (const pqxx::sql_error &e) {
       KLOG("Select error: {}", e.what());
       throw e;
@@ -65,7 +64,6 @@ QueryValues select(std::string table, Fields fields,
       KLOG("Select error: {}", e.what());
       throw e;
     }
-    return {{}};
   }
 
   QueryValues select(std::string table, Fields fields,
@@ -78,15 +76,13 @@ QueryValues select(std::string table, Fields fields,
           .values = {},
           .filter = filter
         });
-      if (!result.values.empty()) {
-        return result.values;
-      }
+      return result.values;
+
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
       throw e;
     }
-    return {{}};
   }
 
   QueryValues selectCompare(std::string table, Fields fields,
@@ -99,15 +95,13 @@ QueryValues select(std::string table, Fields fields,
         .filter = filter
       };
       QueryResult result = m_connection->query(select_query);
-      if (!result.values.empty()) {
-        return result.values;
-      }
+      return result.values;
+
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
       throw e;
     }
-    return {{}};
   }
 
   QueryValues selectMultiFilter(std::string table, Fields fields,
@@ -119,15 +113,13 @@ QueryValues select(std::string table, Fields fields,
         .filter = filters
       };
       QueryResult result = m_connection->query(select_query);
-      if (!result.values.empty()) {
-        return result.values;
-      }
+      return result.values;
+
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
       throw e;
     }
-    return {{}};
   }
 
   template <typename FilterA, typename FilterB>
@@ -144,15 +136,13 @@ QueryValues select(std::string table, Fields fields,
       for (const auto &value : result.values) {
         std::cout << "Query value: " << value.second << std::endl;
       }
-      if (!result.values.empty()) {
-        return result.values;
-      }
+      return result.values;
+
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
       throw e;
     }
-    return {{}};
   }
 
   template <typename FilterA, typename FilterB, typename FilterC>
@@ -166,15 +156,12 @@ QueryValues select(std::string table, Fields fields,
         .filter = filters
       };
       QueryResult result = m_connection->query(select_query);
-      if (!result.values.empty()) {
-        return result.values;
-      }
+      return result.values;
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
       throw e;
     }
-    return {{}};
   }
 
   template <typename T>
@@ -187,15 +174,12 @@ QueryValues select(std::string table, Fields fields,
         .joins   = joins
       };
       QueryResult result = m_connection->query(select_query);
-      if (!result.values.empty()) {
-        return result.values;
-      }
+      return result.values;
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
       throw e;
     }
-    return {{}};
   }
 
   QueryValues selectSimpleJoin(std::string table, Fields fields, QueryFilter filter, Join join) {
@@ -207,15 +191,13 @@ QueryValues select(std::string table, Fields fields,
         .join   = join
       };
       QueryResult result = m_connection->query(select_query);
-      if (!result.values.empty()) {
-        return result.values;
-      }
+      return result.values;
+
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
       throw e;
     }
-    return {{}};
   }
 
   std::string update(std::string table, Fields fields, Values values,
