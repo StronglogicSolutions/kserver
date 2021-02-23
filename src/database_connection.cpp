@@ -38,51 +38,6 @@ std::string valuesAsString(StringVec values, size_t number_of_fields) {
   return value_string;
 }
 
-std::string insertStatement(DatabaseQuery query) {
-  return std::string{"INSERT INTO " + query.table + "(" +
-                     fieldsAsString(query.fields) + ") " +
-                     valuesAsString(query.values, query.fields.size())};
-}
-
-std::string insertStatement(InsertReturnQuery query, std::string returning) {
-  if (returning.empty()) {
-    return std::string{"INSERT INTO " + query.table + "(" +
-                       fieldsAsString(query.fields) + ") " +
-                       valuesAsString(query.values, query.fields.size())};
-  } else {
-    return std::string{"INSERT INTO " + query.table + "(" +
-                       fieldsAsString(query.fields) + ") " +
-                       valuesAsString(query.values, query.fields.size()) +
-                       " RETURNING " + returning};
-  }
-}
-
-// To filter properly, you must have the same number of values as fields
-std::string updateStatement(UpdateReturnQuery query, std::string returning,
-                            bool multiple = false) {
-  if (!query.filter.empty()) {
-    if (!multiple) {  // TODO: Handle case for updating multiple rows at once
-      std::string filter_string{"WHERE " + query.filter.at(0).first + " = "};
-      filter_string += query.filter.at(0).second;
-      std::string update_string{"SET "};
-      std::string delim = "";
-      if (query.values.size() ==
-          query.fields.size()) {  // can only update if the `fields` and
-                                  // `values` arguments are matching
-        for (uint8_t i = 0; i < query.values.size(); i++) {
-          auto field = query.fields.at(i);
-          auto value = query.values.at(i);
-          update_string += delim + field + "=" + "'" + value + "'";
-          delim = ',';
-        }
-      }
-      return std::string{"UPDATE " + query.table + " " + update_string + " " +
-                         filter_string + " RETURNING " + returning};
-    }
-  }
-  return "";
-}
-
 template <typename T>
 std::string filterStatement(T filter) {
   std::string filter_string{};
@@ -154,7 +109,7 @@ std::string getFilterStatement(T filter) {  // TODO: fix template usage
     std::string filter_string{};
     for (const auto& filter_pair : filter)
     {
-      filter_string += delim + filter_pair.first + '=' + filter_pair.second;
+      filter_string += delim + filter_pair.first + '=' + '\'' + filter_pair.second + '\'';
       delim = " AND ";
     }
     return filter_string;
@@ -194,10 +149,56 @@ std::string getJoinStatement(Joins joins) {
   return join_s;
 }
 
+std::string insertStatement(DatabaseQuery query) {
+  return std::string{"INSERT INTO " + query.table + "(" +
+                     fieldsAsString(query.fields) + ") " +
+                     valuesAsString(query.values, query.fields.size())};
+}
+
+std::string insertStatement(InsertReturnQuery query, std::string returning) {
+  if (returning.empty()) {
+    return std::string{"INSERT INTO " + query.table + "(" +
+                       fieldsAsString(query.fields) + ") " +
+                       valuesAsString(query.values, query.fields.size())};
+  } else {
+    return std::string{"INSERT INTO " + query.table + "(" +
+                       fieldsAsString(query.fields) + ") " +
+                       valuesAsString(query.values, query.fields.size()) +
+                       " RETURNING " + returning};
+  }
+}
+
+// To filter properly, you must have the same number of values as fields
+std::string updateStatement(UpdateReturnQuery query, std::string returning,
+                            bool multiple = false) {
+  if (!query.filter.empty()) {
+    if (!multiple) {  // TODO: Handle case for updating multiple rows at once
+      std::string filter_string{"WHERE "};
+      filter_string += getFilterStatement(query.filter);
+      std::string update_string{"SET "};
+      std::string delim = "";
+      if (query.values.size() ==
+          query.fields.size()) {  // can only update if the `fields` and
+                                  // `values` arguments are matching
+        for (uint8_t i = 0; i < query.values.size(); i++) {
+          auto field = query.fields.at(i);
+          auto value = query.values.at(i);
+          update_string += delim + field + "=" + "'" + value + "'";
+          delim = ',';
+        }
+      }
+      return std::string{"UPDATE " + query.table + " " + update_string + " " +
+                         filter_string + " RETURNING " + returning};
+    }
+  }
+  return "";
+}
+
 template <typename T>
 std::string deleteStatement(T query) {
   std::string delim{""};
   std::string filter_string{"WHERE "};
+  std::cout << "PROBLEMATIC DELETE STATEMENT" << std::endl;
   if constexpr (std::is_same_v<T, DatabaseQuery>) {
     if (query.filter.empty()) {
       return "";
