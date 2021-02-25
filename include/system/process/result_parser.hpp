@@ -3,9 +3,6 @@
 #include <string>
 #include <vector>
 
-#include "executor/executor.hpp"
-#include "server/types.hpp"
-
 #include "codec/rapidjson/document.h"
 #include "codec/rapidjson/error/en.h"
 #include "codec/rapidjson/filereadstream.h"
@@ -15,6 +12,12 @@
 #include "codec/rapidjson/stringbuffer.h"
 #include "codec/rapidjson/writer.h"
 
+#include "executor/executor.hpp"
+#include "server/types.hpp"
+
+#include "log/logger.h"
+
+
 static std::string url_string(const std::vector<std::string> urls)
 {
   std::string delim{};
@@ -23,14 +26,14 @@ static std::string url_string(const std::vector<std::string> urls)
   for (const auto& url : urls)
   {
     result += delim + url;
-    delim = "|";
+    delim = ">";
   }
 
   return result;
 }
 
 struct IGFeedItem {
-uint32_t                 time;
+std::string              time;
 uint32_t                 pk;
 std::string              id;
 std::string              username;
@@ -66,6 +69,7 @@ virtual ~IGFeedResultParser() override {}
 
 virtual bool read(const std::string& s) {
   using namespace rapidjson;
+  // const std::string sanitized_string = StringUtils::SanitizeJSON(s);
   Document d{};
   d.Parse(s.c_str());
   if (!d.IsNull() && d.IsArray())
@@ -78,7 +82,7 @@ virtual bool read(const std::string& s) {
         for (const auto& k : item.GetObject())
         {
           if (strcmp(k.name.GetString(), "time") == 0)
-            ig_item.time = k.value.GetUint();
+            ig_item.time = k.value.GetString();
           else
           if (strcmp(k.name.GetString(), "pk") == 0)
             ig_item.pk = k.value.GetUint();
@@ -92,7 +96,7 @@ virtual bool read(const std::string& s) {
           if (strcmp(k.name.GetString(), "content") == 0)
             ig_item.content = k.value.GetString();
           else
-          if (strcmp(k.name.GetString(), "media_urls") == 0 && k.value.IsArray())
+          if (strcmp(k.name.GetString(), "urls") == 0 && k.value.IsArray())
           for (const auto& url : k.value.GetArray())
             ig_item.media_urls.emplace_back(url.GetString());
         }
@@ -107,6 +111,8 @@ virtual bool read(const std::string& s) {
 virtual ProcessParseResult get_result() override {
   ProcessParseResult result{};
 
+  KLOG("Returning {} IG Feed items", m_feed_items.size());
+
   for (const auto& item : m_feed_items)
   {
     result.data.emplace_back(
@@ -115,7 +121,7 @@ virtual ProcessParseResult get_result() override {
         .payload = std::vector<std::string>{
           m_app_name,
           item.id,
-          std::to_string(item.time),
+          item.time,
           item.content,
           url_string(item.media_urls),
           constants::SHOULD_REPOST,
@@ -124,6 +130,7 @@ virtual ProcessParseResult get_result() override {
       }
     );
   }
+
   return result;
 }
 
