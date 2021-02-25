@@ -47,6 +47,15 @@
   return std::numeric_limits<uint32_t>::max();
 }
 
+static bool shouldRepost(const std::string& s)
+{
+  return (
+    s == "1"    ||
+    s == "true" ||
+    s == "t"
+  );
+}
+
 using ScheduleEventCallback =
     std::function<void(int32_t, int32_t, const std::vector<std::string>&)>;
 
@@ -713,7 +722,7 @@ bool savePlatformPost(PlatformPost post, const std::string& status = constants::
 
   bool result = (!insert_id.empty());
 
-  if (result && post.repost == "1" && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
+  if (result && shouldRepost(post.repost) && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
     for (const auto& platform_id : fetchRepostIDs(post.pid))
       savePlatformPost(
         PlatformPost{
