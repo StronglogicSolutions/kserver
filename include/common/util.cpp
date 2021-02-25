@@ -684,6 +684,20 @@ std::string sanitizeSingleQuotes(const std::string& s) {
   return o;
 }
 
+std::string SanitizeJSON(std::string s) {
+  std::string o{};
+  o.reserve(s.size());
+  for (const char& c : s)
+  {
+    if (c == '\"')
+      o += '"';
+    else
+      o += c;
+  }
+
+  return o;
+}
+
 std::string generate_uuid_string()
 {
   return uuids::to_string(uuids::uuid_system_generator{}());

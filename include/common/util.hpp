@@ -168,6 +168,7 @@ template <typename T>
 void split(const std::string &s, char delim, T result);
 std::vector<std::string> split(const std::string &s, char delim);
 std::string sanitizeSingleQuotes(const std::string& s);
+std::string SanitizeJSON(std::string s);
 std::string generate_uuid_string();
 } // namespace StringUtils
 
