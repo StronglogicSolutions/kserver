@@ -1,5 +1,4 @@
-#ifndef __CONFIG_PARSER_HPP__
-#define __CONFIG_PARSER_HPP__
+#pragma once
 
 #include <string>
 #include "INIReader.h"
@@ -41,4 +40,3 @@ std::string notification();
 std::string admin();
 } // namespace Admin
 }  // namespace ConfigParser
-#endif  // __CONFIG_PARSER_HPP__
