@@ -1,5 +1,5 @@
-#ifndef __LOGGER_H__
-#define __LOGGER_H__
+#pragma once
+
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
@@ -28,8 +28,5 @@ class KLogger {
   ~KLogger();
 
   static void init(std::string logging_level = "");
-
-  static LogPtr get_logger();
 };
 }  // namespace LOG
-#endif  // __LOGGER_H__
