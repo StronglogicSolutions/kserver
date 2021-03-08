@@ -210,6 +210,8 @@ class RequestHandler {
       std::unique_lock<std::mutex> lock(m_mutex);
       maintenance_loop_condition.wait(lock,
                                       [this]() { return !handling_data; });
+      lock.unlock();
+
       int client_socket_fd = -1;
 
       std::vector<Task> tasks = m_scheduler.fetchTasks();                // Normal tasks
