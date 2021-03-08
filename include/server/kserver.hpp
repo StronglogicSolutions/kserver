@@ -64,132 +64,115 @@ class KServer : public SocketListener {
   void systemEventNotify(int client_socket_fd, int system_event,
                          std::vector<std::string> args) {
     switch (system_event) {
-      case SYSTEM_EVENTS__SCHEDULED_TASKS_READY: {
+      case SYSTEM_EVENTS__SCHEDULED_TASKS_READY:
         if (client_socket_fd == -1) {
           KLOG(
               "Maintenance worker found tasks. Sending system-wide broadcast "
               "to all clients.");
           for (const auto &session : m_sessions) {
-            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
-              sendEvent(session.fd, "Scheduled Tasks Ready", args);
+            sendEvent(session.fd, "Scheduled Tasks Ready", args);
           }
-          break;
         } else {
           KLOG(
-              "Informing client {} about "
-              "scheduled tasks",
-              client_socket_fd);
-          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-            sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
-          break;
+            "Informing client {} about "
+            "scheduled tasks",
+            client_socket_fd);
+          sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
         }
-      }
-      case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE: {
+        break;
+
+      case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE:
         if (client_socket_fd == -1) {
-          KLOG(
-              "Sending system-wide broadcast. There are currently no "
-              "tasks ready for execution.");
-          for (const auto &session : m_sessions) {
-            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
-              sendEvent(session.fd, "No tasks ready", args);
-          }
-          break;
+          KLOG("Sending system-wide broadcast. There are currently no tasks ready for execution.");
+          for (const auto &session : m_sessions)
+            sendEvent(session.fd, "No tasks ready", args);
+
         } else {
           KLOG("Informing client {} about scheduled tasks", client_socket_fd);
-          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-            sendEvent(client_socket_fd, "No tasks ready to run", args);
-          break;
+          sendEvent(client_socket_fd, "No tasks ready to run", args);
         }
+
         break;
-      }
-      case SYSTEM_EVENTS__SCHEDULER_FETCH: {
+
+      case SYSTEM_EVENTS__SCHEDULER_FETCH:
         if (client_socket_fd != -1) {
           KLOG("Sending schedule fetch results to client {}", client_socket_fd);
-          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-            sendEvent(client_socket_fd, "Scheduled Tasks", args);
+          sendEvent(client_socket_fd, "Scheduled Tasks", args);
         }
         break;
-      }
-      case SYSTEM_EVENTS__SCHEDULER_UPDATE: {
+
+      case SYSTEM_EVENTS__SCHEDULER_UPDATE:
         if (client_socket_fd != -1) {
           KLOG("Sending schedule update result to client {}", client_socket_fd);
-          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-            sendEvent(client_socket_fd, "Schedule PUT", args);
+          sendEvent(client_socket_fd, "Schedule PUT", args);
         }
         break;
-      }
-      case SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS: {
+
+      case SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS:
         if (client_socket_fd != -1) {
           KLOG("Sending schedule flag values to client {}", client_socket_fd);
-          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-            sendEvent(client_socket_fd, "Schedule Tokens", args);
+          sendEvent(client_socket_fd, "Schedule Tokens", args);
         }
       break;
-      }
-      case SYSTEM_EVENTS__SCHEDULER_SUCCESS: {
+
+      case SYSTEM_EVENTS__SCHEDULER_SUCCESS:
         KLOG("Task successfully scheduled");
         if (client_socket_fd == -1) {
           for (const auto &session : m_sessions) {
-            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
-              sendEvent(session.fd, "Task Scheduled", args);
+            sendEvent(session.fd, "Task Scheduled", args);
           }
         } else {
-          IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-            sendEvent(client_socket_fd, "Task Scheduled", args);
+          sendEvent(client_socket_fd, "Task Scheduled", args);
         }
         break;
-      }
-      case SYSTEM_EVENTS__PLATFORM_NEW_POST: {
+
+      case SYSTEM_EVENTS__PLATFORM_NEW_POST:
         KLOG("Platform Post event received");
         if (m_request_handler.getScheduler().savePlatformPost(args))
         {
           std::vector<std::string> outgoing_args{};
           outgoing_args.reserve(args.size());
           for (const auto& arg : args) outgoing_args.emplace_back(
-              (arg.size() > 2046) ?
-                arg.substr(0, 2046) :
-                arg
-            );
+            (arg.size() > 2046) ?
+              arg.substr(0, 2046) :
+              arg
+          );
+
           if (client_socket_fd == -1) {
             for (const auto &session : m_sessions) {
-              IF_NOT_HANDLING_PACKETS_FOR_CLIENT(session.fd)
-                sendEvent(session.fd, "Platform Post", args);
+              sendEvent(session.fd, "Platform Post", args);
             }
           } else {
-            IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-              sendEvent(client_socket_fd, "Platform Post", args);
+            sendEvent(client_socket_fd, "Platform Post", args);
           }
-
           // TODO: Find out what platforms have not yet reposted and
           //       send event to the ipc manager
           // m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST)
         }
-      }
-      break;
-      case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED: {
-        auto method = args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
-        if (method == "bot")
+        break;
+
+      case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
+        if (args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
           m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, args);
         else
           KLOG("Platform Post requested: Must implement process execution");
-      }
-      break;
-      case SYSTEM_EVENTS__FILE_UPDATE: {
-        // metadata for a received file
-        auto timestamp = args.at(1);
-        KLOG(
-            "Updating information file information for client "
-            "{}'s file received at {}",
-            client_socket_fd, timestamp);
 
-        auto received_file =
-            std::find_if(m_received_files.begin(), m_received_files.end(),
-                         [client_socket_fd, timestamp](ReceivedFile &file) {
-                           // TODO: We need to change this so we are matching
-                           // by UUID
-                           return (file.client_fd == client_socket_fd &&
-                                   std::to_string(file.timestamp) == timestamp);
-                         });
+        break;
+
+      case SYSTEM_EVENTS__FILE_UPDATE:
+      {
+        auto timestamp = args.at(1);
+        KLOG("Updating information file information for client "
+             "{}'s file received at {}",
+             client_socket_fd, timestamp
+        );
+
+        auto received_file = std::find_if(m_received_files.begin(), m_received_files.end(),
+          [client_socket_fd, timestamp](const ReceivedFile &file) {
+            return (file.client_fd                 == client_socket_fd &&
+                    std::to_string(file.timestamp) == timestamp);
+          }
+        );
 
         if (received_file != m_received_files.end()) {
           // We must assume that these files match, just by virtue of the
@@ -211,21 +194,19 @@ class KServer : public SocketListener {
         }
         break;
       }
-      case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED: {
-        IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-          sendEvent(client_socket_fd, "Process Execution Requested", args);
+
+      case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED:
+        sendEvent(client_socket_fd, "Process Execution Requested", args);
         break;
-      }
-      case SYSTEM_EVENTS__REGISTRAR_SUCCESS: {
-        IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-          sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
+
+      case SYSTEM_EVENTS__REGISTRAR_SUCCESS:
+        sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
         break;
-      }
-      case SYSTEM_EVENTS__REGISTRAR_FAIL: {
-        IF_NOT_HANDLING_PACKETS_FOR_CLIENT(client_socket_fd)
-          sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
+
+      case SYSTEM_EVENTS__REGISTRAR_FAIL:
+        sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
         break;
-      }
+
     }
   }
 
