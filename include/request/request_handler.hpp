@@ -211,7 +211,6 @@ class RequestHandler {
       maintenance_loop_condition.wait(lock,
         [this]() { return !handling_data; }
       );
-      lock.unlock();
 
       int client_socket_fd = -1;
 
