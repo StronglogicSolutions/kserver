@@ -209,65 +209,49 @@ class RequestHandler {
     while (m_active) {
       std::unique_lock<std::mutex> lock(m_mutex);
       maintenance_loop_condition.wait(lock,
-                                      [this]() { return !handling_data; });
+        [this]() { return !handling_data; }
+      );
       lock.unlock();
 
       int client_socket_fd = -1;
 
-      std::vector<Task> tasks = m_scheduler.fetchTasks();                // Normal tasks
-      for (auto&& recurring_task : m_scheduler.fetchRecurringTasks()) {  // Recurring tasks
+      std::vector<Task> tasks = m_scheduler.fetchTasks();
+      for (auto&& recurring_task : m_scheduler.fetchRecurringTasks())
         tasks.emplace_back(recurring_task);
-      }
 
       if (!tasks.empty()) {
         std::string scheduled_times{"Scheduled time(s): "};
-        KLOG("Scheduled tasks found: {}", tasks.size());
+        KLOG("{} tasks found", tasks.size());
         for (const auto &task : tasks) {
           auto formatted_time = TimeUtils::format_timestamp(task.datetime);
-          scheduled_times.append(formatted_time);
-          scheduled_times += " ";
-          KLOG(
-            "Task info: Time: {} - Mask: {}\n Args: {}\n {}\n. Excluded: "
-            "Execution Flags",
+          scheduled_times += formatted_time + " ";
+          KLOG("Task info: Time: {} - Mask: {}\n Args: {}\n {}",
             formatted_time, std::to_string(task.execution_mask),
             task.file ? "hasFile(s)" : "", task.envfile
           );
         }
-        std::string tasks_message = std::to_string(tasks.size());
-        tasks_message += " tasks need to be executed";
-        m_system_callback_fn(client_socket_fd,                      // Client
-                             SYSTEM_EVENTS__SCHEDULED_TASKS_READY,  // Event
-                             {tasks_message, scheduled_times});     // Args
+
+        m_system_callback_fn(
+          client_socket_fd,
+          SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
+          {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times}
+        );
 
         auto it = m_tasks_map.find(client_socket_fd);
-        if (it == m_tasks_map.end()) {
-          m_tasks_map.insert(std::pair<int, std::vector<Task>>(
-              client_socket_fd, tasks));
-        } else {
+        if (it == m_tasks_map.end())
+          m_tasks_map.insert(std::pair<int, std::vector<Task>>(client_socket_fd, tasks));
+        else
           it->second.insert(it->second.end(), tasks.begin(), tasks.end());
-        }
-        KLOG(
-            "KServer has {} {} pending execution",
-            m_tasks_map.at(client_socket_fd).size(),
-            m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
-      } else {
-        KLOG("No tasks ready for execution");
-        m_system_callback_fn(client_socket_fd,                      // Client
-          SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,                      // Events
-          {"There are currently no tasks ready for execution"});    // Args
-      }
-      if (!m_tasks_map.empty()) {
-        if (!handlePendingTasks()) {
-          ELOG("ERROR handling pending tasks");
-        }
+
+        KLOG("KServer has {} {} pending execution",
+          m_tasks_map.at(client_socket_fd).size(),
+          m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
       }
 
+      if (!m_tasks_map.empty() && !handlePendingTasks())
+        ELOG("ERROR handling pending tasks");
+
       m_scheduler.processPlatformPending();
-      // System::Cron<System::SingleJob> cron{};
-      // std::string jobs = cron.listJobs();
-      // if (jobs.empty()) {
-      //   KLOG("Cron - There are currently the following cron jobs: \n {}", jobs);
-      // }
       maintenance_loop_condition.wait_for(lock, std::chrono::milliseconds(20000));
     }
   }
