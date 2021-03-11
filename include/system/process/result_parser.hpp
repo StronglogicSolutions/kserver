@@ -155,12 +155,12 @@ std::string             m_app_name;
  */
 
 struct YTFeedItem {
-std::string              time;
-uint32_t                 pk;
 std::string              id;
-std::string              username;
-std::string              content;
-std::vector<std::string> media_urls;
+std::string              channel_id;
+std::string              datetime;
+std::string              title;
+std::string              description;
+std::vector<std::string> keywords;
 };
 
 class YTFeedResultParser : public ProcessParseInterface {
@@ -178,9 +178,37 @@ virtual bool read(const std::string& s) {
   d.Parse(s.c_str());
   if (!d.IsNull() && d.IsArray())
   {
+
     for (const auto& item : d.GetArray())
     {
       YTFeedItem yt_item{};
+      if (!item.IsObject())
+        continue;
+
+      for (const auto& k : item.GetObject())
+      {
+        if (strcmp(k.name.GetString(), "channel_id") == 0)
+          yt_item.channel_id = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "datetime") == 0)
+          yt_item.datetime = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "id") == 0)
+          yt_item.id = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "description") == 0)
+          yt_item.description = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "keywords") == 0 &&
+          k.value.IsArray())
+        {
+          for (const auto& keyword : k.value.GetArray())
+            yt_item.keywords.emplace_back(keyword.GetString());
+        }
+        else
+        if (strcmp(k.name.GetString(), "title") == 0)
+          yt_item.title = k.value.GetString();
+      }
 
       m_feed_items.emplace_back(std::move(yt_item));
     }
@@ -196,6 +224,21 @@ virtual ProcessParseResult get_result() override {
 
   for (const auto& item : m_feed_items)
   {
+    std::string content = "Subscribe on YouTube and get lots of great content like this: https://youtube.com/watch?v=" + item.id;
+    result.data.emplace_back(
+      ProcessEventData{
+        .event = SYSTEM_EVENTS__PLATFORM_NEW_POST,
+        .payload = std::vector<std::string>{
+          m_app_name,
+          item.id,
+          item.datetime,
+          content,
+          {},
+          constants::SHOULD_REPOST,
+          constants::PLATFORM_PROCESS_METHOD
+        }
+      }
+    );
   }
 
   return result;
@@ -222,7 +265,6 @@ ProcessParseResult process(const std::string& output, KApplication app)
 
   if (app.name == "YT Feed")
   {
-    // TODO: Determine structure and parse accordingly
     YTFeedResultParser yt_parser(app.name);
     yt_parser.read(output);
     return yt_parser.get_result();
