@@ -32,15 +32,6 @@ static std::string url_string(const std::vector<std::string> urls)
   return result;
 }
 
-struct IGFeedItem {
-std::string              time;
-uint32_t                 pk;
-std::string              id;
-std::string              username;
-std::string              content;
-std::vector<std::string> media_urls;
-};
-
 struct ProcessEventData {
 int32_t                  event;
 std::vector<std::string> payload;
@@ -59,6 +50,23 @@ virtual ProcessParseResult get_result() = 0;
 };
 
 
+
+/**
+ *
+ * INSTAGRAM
+ *
+ * @brief Instagram Feed Items
+ *
+ */
+struct IGFeedItem {
+std::string              time;
+uint32_t                 pk;
+std::string              id;
+std::string              username;
+std::string              content;
+std::vector<std::string> media_urls;
+};
+
 class IGFeedResultParser : public ProcessParseInterface {
 public:
 IGFeedResultParser(const std::string& app_name)
@@ -69,7 +77,6 @@ virtual ~IGFeedResultParser() override {}
 
 virtual bool read(const std::string& s) {
   using namespace rapidjson;
-  // const std::string sanitized_string = StringUtils::SanitizeJSON(s);
   Document d{};
   d.Parse(s.c_str());
   if (!d.IsNull() && d.IsArray())
@@ -139,6 +146,66 @@ std::vector<IGFeedItem> m_feed_items;
 std::string             m_app_name;
 };
 
+/**
+ *
+ * YOUTUBE
+ *
+ * @brief YouTube Feed Items
+ *
+ */
+
+struct YTFeedItem {
+std::string              time;
+uint32_t                 pk;
+std::string              id;
+std::string              username;
+std::string              content;
+std::vector<std::string> media_urls;
+};
+
+class YTFeedResultParser : public ProcessParseInterface {
+public:
+YTFeedResultParser(const std::string& app_name)
+: m_app_name{app_name}
+{}
+
+virtual ~YTFeedResultParser() override {}
+
+virtual bool read(const std::string& s) {
+  using namespace rapidjson;
+
+  Document d{};
+  d.Parse(s.c_str());
+  if (!d.IsNull() && d.IsArray())
+  {
+    for (const auto& item : d.GetArray())
+    {
+      YTFeedItem yt_item{};
+
+      m_feed_items.emplace_back(std::move(yt_item));
+    }
+    return true;
+  }
+  return false;
+}
+
+virtual ProcessParseResult get_result() override {
+  ProcessParseResult result{};
+
+  KLOG("Returning {} YT Feed items", m_feed_items.size());
+
+  for (const auto& item : m_feed_items)
+  {
+  }
+
+  return result;
+}
+
+private:
+std::vector<YTFeedItem> m_feed_items;
+std::string             m_app_name;
+};
+
 class ResultProcessor {
 public:
 ResultProcessor()
@@ -151,6 +218,14 @@ ProcessParseResult process(const std::string& output, KApplication app)
     IGFeedResultParser ig_parser{app.name};
     ig_parser.read(output);
     return ig_parser.get_result();
+  }
+
+  if (app.name == "YT Feed")
+  {
+    // TODO: Determine structure and parse accordingly
+    YTFeedResultParser yt_parser(app.name);
+    yt_parser.read(output);
+    return yt_parser.get_result();
   }
 
   return ProcessParseResult{};
