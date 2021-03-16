@@ -194,7 +194,7 @@ virtual bool read(const std::string& s) {
           yt_item.datetime = k.value.GetString();
         else
         if (strcmp(k.name.GetString(), "id") == 0)
-          yt_item.id = k.value.GetString();
+          yt_item.id = std::string{m_app_name + k.value.GetString()};  // Added app_name to make it more unique
         else
         if (strcmp(k.name.GetString(), "description") == 0)
           yt_item.description = k.value.GetString();
