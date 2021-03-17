@@ -41,6 +41,8 @@ using namespace KData;
 using namespace IGData;
 using namespace GenericData;
 
+extern const char ARGUMENT_SEPARATOR;
+
 static const int32_t SESSION_ACTIVE   = 1;
 static const int32_t SESSION_INACTIVE = 2;
 static const int32_t ALL_CLIENTS      = -1;
