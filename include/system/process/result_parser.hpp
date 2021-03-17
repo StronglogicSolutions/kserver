@@ -75,6 +75,15 @@ IGFeedResultParser(const std::string& app_name)
 
 virtual ~IGFeedResultParser() override {}
 
+/**
+ * @brief
+ *
+ * @param s
+ * @return true
+ * @return false
+ *
+ * NOTE: We only take the first media item (the full sized one, from Instagram)
+ */
 virtual bool read(const std::string& s) {
   using namespace rapidjson;
   Document d{};
@@ -103,9 +112,8 @@ virtual bool read(const std::string& s) {
           if (strcmp(k.name.GetString(), "content") == 0)
             ig_item.content = k.value.GetString();
           else
-          if (strcmp(k.name.GetString(), "urls") == 0 && k.value.IsArray())
-          for (const auto& url : k.value.GetArray())
-            ig_item.media_urls.emplace_back(url.GetString());
+          if (strcmp(k.name.GetString(), "urls") == 0 && k.value.IsArray() && !k.value.Empty())
+            ig_item.media_urls.emplace_back(k.value.GetArray()[0].GetString()); // TODO: Confirm we only want first
         }
       }
       m_feed_items.emplace_back(std::move(ig_item));
@@ -194,7 +202,7 @@ virtual bool read(const std::string& s) {
           yt_item.datetime = k.value.GetString();
         else
         if (strcmp(k.name.GetString(), "id") == 0)
-          yt_item.id = std::string{m_app_name + k.value.GetString()};  // Added app_name to make it more unique
+          yt_item.id = k.value.GetString();  // Added app_name to make it more unique
         else
         if (strcmp(k.name.GetString(), "description") == 0)
           yt_item.description = k.value.GetString();
@@ -224,7 +232,17 @@ virtual ProcessParseResult get_result() override {
 
   for (const auto& item : m_feed_items)
   {
-    std::string content = "Subscribe on YouTube and get lots of great content like this: https://youtube.com/watch?v=" + item.id;
+    std::string keywords{};
+    const uint8_t max_keywords = item.keywords.size() > 8 ? 8 : item.keywords.size();
+
+    for (uint8_t i = 0; i < max_keywords; i++)
+    {
+      keywords += '#' + item.keywords.at(i);
+    }
+
+    std::string content = "New video has been uploaded. Hope you find it useful!\n"
+      "https://youtube.com/watch?v=" + item.id + "\n\n" + keywords;
+
     result.data.emplace_back(
       ProcessEventData{
         .event = SYSTEM_EVENTS__PLATFORM_NEW_POST,
