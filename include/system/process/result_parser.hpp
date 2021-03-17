@@ -236,9 +236,8 @@ virtual ProcessParseResult get_result() override {
     const uint8_t max_keywords = item.keywords.size() > 8 ? 8 : item.keywords.size();
 
     for (uint8_t i = 0; i < max_keywords; i++)
-    {
-      keywords += '#' + item.keywords.at(i);
-    }
+      keywords += " #" + item.keywords.at(i);
+
 
     std::string content = "New video has been uploaded. Hope you find it useful!\n"
       "https://youtube.com/watch?v=" + item.id + "\n\n" + keywords;
