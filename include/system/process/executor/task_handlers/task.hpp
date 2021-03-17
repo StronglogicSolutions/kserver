@@ -65,6 +65,9 @@ const std::string PLATFORM_POST_COMPLETE       {"1"};
 
 const std::string SHOULD_REPOST{"true"};
 const std::string PLATFORM_PROCESS_METHOD{"process"};
+
+const std::string VIDEO_TYPE_ARGUMENT{"video\"" + ARGUMENT_SEPARATOR + '\n'};
+const std::string IMAGE_TYPE_ARGUMENT{"image\"" + ARGUMENT_SEPARATOR + '\n'};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States

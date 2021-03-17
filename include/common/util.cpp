@@ -2,6 +2,7 @@
 
 static const std::string_view APP_NAME         = "kserver";
 static       int              APP_NAME_LENGTH  = 7;
+const char                    ARGUMENT_SEPARATOR{'\x1f'};
 
 std::string get_cwd() {
   char *working_dir_path = realpath(".", NULL);
@@ -544,7 +545,7 @@ std::string readRunArgs(const std::string& env_file_path) {
     auto start = env.find(token_key);
     if (start != std::string::npos) {
       auto sub_s = env.substr(start);
-      auto end   = sub_s.find_first_of("|");
+      auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR);
       run_arg_s  = sub_s.substr(token_key.size(), end);
     }
   }
@@ -565,7 +566,7 @@ std::string createEnvFile(std::unordered_map<std::string, std::string>&& key_pai
 
   for (const auto& [key, value] : key_pairs)
   {
-    environment_file += key + "=\"" + value + "\"|\n";
+    environment_file += key + "=\"" + value + '\"' + ARGUMENT_SEPARATOR + '\n';
   }
 
   return environment_file;
@@ -578,7 +579,7 @@ std::string readEnvToken(const std::string& env_file_path, const std::string& to
     auto start = env.find('\n' + token_key);
     if (start != std::string::npos) {
       auto sub_s = env.substr(start + token_key.size() + 2);
-      auto end   = sub_s.find_first_of("|");
+      auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR);
       run_arg_s  = sub_s.substr(0, end);
     }
   }
@@ -592,7 +593,7 @@ bool writeEnvToken(const std::string& env_file_path, const std::string& token_ke
     if (key_index != std::string::npos) {
       auto start_index = key_index + token_key.size() + 1;
       auto rem_s       = env.substr(start_index);
-      auto end_index   = rem_s.find_first_of("|");
+      auto end_index   = rem_s.find_first_of(ARGUMENT_SEPARATOR);
 
       if (end_index != std::string::npos) {
         end_index += start_index;

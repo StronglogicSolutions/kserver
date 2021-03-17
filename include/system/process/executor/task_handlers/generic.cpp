@@ -32,14 +32,14 @@ Task GenericTaskHandler::prepareTask(std::vector<std::string> argv,
   }
 
   std::string                env_file_string   {"#!/usr/bin/env bash\n"};
-  if (!header.empty())       env_file_string += "HEADER=\"" + header + "\"|\n";
-  if (!description.empty())  env_file_string += "DESCRIPTION=\"" + description + "\"|\n";
-  if (!user.empty())         env_file_string += "USER=\"" + user + "\"|\n";
-  if (!runtime_args.empty()) env_file_string += "R_ARGS=\"" + runtime_args + "\"|\n";
+  if (!header.empty())       env_file_string += "HEADER=\"" + header + "\""           + ARGUMENT_SEPARATOR + "\n";
+  if (!description.empty())  env_file_string += "DESCRIPTION=\"" + description + "\"" + ARGUMENT_SEPARATOR + "\n";
+  if (!user.empty())         env_file_string += "USER=\"" + user + "\""               + ARGUMENT_SEPARATOR + "\n";
+  if (!runtime_args.empty()) env_file_string += "R_ARGS=\"" + runtime_args + "\""     + ARGUMENT_SEPARATOR + "\n";
   if (has_files) {
                              env_file_string += "FILE_TYPE=\"" + (is_video) ?
-                                                   "video\"|\n" :
-                                                   "image\"|\n";
+                                                   constants::VIDEO_TYPE_ARGUMENT :
+                                                   constants::IMAGE_TYPE_ARGUMENT ;
   }
 
   std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);

@@ -619,7 +619,7 @@ class RequestHandler {
         payload.emplace_back(task.runtime);
         payload.emplace_back(task.filesToString());
         if (!(++i % TASKS_PER_EVENT)) {
-           m_system_callback_fn(
+          m_system_callback_fn(
             client_fd,
             SYSTEM_EVENTS__SCHEDULER_FETCH,
             payload
