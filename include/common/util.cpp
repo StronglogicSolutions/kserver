@@ -575,9 +575,9 @@ std::string readEnvToken(const std::string& env_file_path, const std::string& to
   std::string run_arg_s{};
   std::string env = readEnvFile(env_file_path);
   if (!env.empty()) {
-    auto start = env.find(token_key);
+    auto start = env.find('\n' + token_key);
     if (start != std::string::npos) {
-      auto sub_s = env.substr(start + token_key.size() + 1);
+      auto sub_s = env.substr(start + token_key.size() + 2);
       auto end   = sub_s.find_first_of("|");
       run_arg_s  = sub_s.substr(0, end);
     }
