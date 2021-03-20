@@ -37,9 +37,14 @@ Task GenericTaskHandler::prepareTask(std::vector<std::string> argv,
   if (!user.empty())         env_file_string += "USER=\"" + user + "\""               + ARGUMENT_SEPARATOR + "\n";
   if (!runtime_args.empty()) env_file_string += "R_ARGS=\"" + runtime_args + "\""     + ARGUMENT_SEPARATOR + "\n";
   if (has_files) {
-                             env_file_string += "FILE_TYPE=\"" + (is_video) ?
-                                                   constants::VIDEO_TYPE_ARGUMENT :
-                                                   constants::IMAGE_TYPE_ARGUMENT ;
+  if (is_video)
+    {
+      env_file_string += "video\"\x1f\n";
+    }
+    else
+    {
+      env_file_string += "image\"\x1f\n";
+    }
   }
 
   std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);
