@@ -36,7 +36,15 @@ Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
   env_file_string += "PROMOTE_SHARE=\"" + promote_share + "\""             + ARGUMENT_SEPARATOR + "\n";
   env_file_string += "LINK_BIO=\"" + link_bio + "\""                       + ARGUMENT_SEPARATOR + "\n";
   env_file_string += "FILE_TYPE=\"";
-  env_file_string += is_video ? constants::VIDEO_TYPE_ARGUMENT : constants::IMAGE_TYPE_ARGUMENT;
+  if (is_video)
+  {
+    env_file_string += "video\"\x1f\n";
+  }
+  else
+  {
+    env_file_string += "image\"\x1f\n";
+  }
+
   env_file_string += "USER=\"" + user + "\""                               + ARGUMENT_SEPARATOR + "\n";
 
   std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);

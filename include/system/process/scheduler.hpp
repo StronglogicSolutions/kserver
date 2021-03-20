@@ -13,11 +13,15 @@
 
 #define NO_COMPLETED_VALUE 99
 
-#define TIMESTAMP_TIME_AS_TODAY \
+const char TIMESTAMP_TIME_AS_TODAY[]{
             "(extract(epoch from (TIMESTAMPTZ 'today')) + "\
             "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
             "60 * extract(minute from(to_timestamp(schedule.time))) + "\
-            "extract(second from (to_timestamp(schedule.time))))"
+            "extract(second from (to_timestamp(schedule.time))))"};
+
+const std::string UNIXTIME_NOW{
+  "extract(epoch from (now()))::int"
+};
 
  /**
   * TODO: This should be moved elsewhere. Perhaps the Registrar
