@@ -201,7 +201,7 @@ QueryValues select(std::string table, Fields fields,
   }
 
   std::string update(std::string table, Fields fields, Values values,
-                     QueryFilter filter, std::string returning) {
+                     QueryFilter filter, std::string returning = "id") {
     try {
       UpdateReturnQuery update_query{
         .table     = table,
