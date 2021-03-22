@@ -125,13 +125,16 @@ bool IsRecurringTask(const Task& task)
 
 
 Scheduler::Scheduler()
-: m_kdb(Database::KDB{}) {}
+: m_kdb(Database::KDB{})
+{}
 
 Scheduler::Scheduler(Database::KDB&& kdb)
-: m_kdb(std::move(kdb)) {}
+: m_kdb(std::move(kdb))
+{}
 
 Scheduler::Scheduler(ScheduleEventCallback fn)
-: m_event_callback(fn), m_kdb(Database::KDB{}) {}
+: m_event_callback(fn), m_kdb(Database::KDB{})
+{}
 
 Scheduler::~Scheduler() {
   KLOG("Scheduler destroyed");
@@ -701,29 +704,36 @@ bool Scheduler::savePlatformPost(PlatformPost post, const std::string& status) {
  * @return true
  * @return false
  */
-  bool Scheduler::savePlatformPost(std::vector<std::string> payload) {
-    if (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
-       return false;
-
-    const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
-    const std::string& id   = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
-    const std::string& time = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
-    const std::string& platform_id = getPlatformID(name);
-
-    if (platform_id.empty())
+bool Scheduler::savePlatformPost(std::vector<std::string> payload) {
+  if (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
       return false;
 
-    return savePlatformPost(PlatformPost{
-      .pid     = platform_id,
-      .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
-      .id      = id  .empty() ? StringUtils::generate_uuid_string()   : id,
-      .time    = time.empty() ? std::to_string(TimeUtils::unixtime()) : time,
-      .content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
-      .urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
-      .repost  = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX),
-      .name    = name
-    });
+  const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
+  const std::string& id   = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+  const std::string& time = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
+  const std::string& platform_id = getPlatformID(name);
+
+  if (platform_id.empty())
+    return false;
+
+  if (isProcessingPlatform())
+  {
+    auto it = m_platform_map.find({platform_id, id});
+    if (it != m_platform_map.end())
+      it->second = PlatformPostState::SUCCESS;
   }
+
+  return savePlatformPost(PlatformPost{
+    .pid     = platform_id,
+    .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
+    .id      = id  .empty() ? StringUtils::generate_uuid_string()   : id,
+    .time    = time.empty() ? std::to_string(TimeUtils::unixtime()) : time,
+    .content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
+    .urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
+    .repost  = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX),
+    .name    = name
+  });
+}
 
 /**
  * @brief Get the Platform I D object
@@ -808,116 +818,165 @@ std::vector<std::string> Scheduler::platformToPayload(PlatformPost& platform)
  *
  */
 void Scheduler::processPlatformPending()
+{
+  for (auto&& platform_post : fetchPendingPlatformPosts())
   {
-    for (auto&& platform_post : fetchPendingPlatformPosts())
+    if (populatePlatformPost(platform_post))
     {
-      if (populatePlatformPost(platform_post))
-        m_event_callback(
-          ALL_CLIENTS,
-          SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
-          platformToPayload(platform_post)
-        );
-      else
-        ELOG("Failed to retrieve values for {} platform post with id {}",
-          platform_post.name,
-          platform_post.id
-        );
-    }
-  }
+      m_platform_map.insert({
+        {platform_post.pid, platform_post.id}, PlatformPostState::PROCESSING
+      });
 
-   /**
-   * update
-   *
-   * @param   [in] {Task}   task  The task to update
-   * @return [out] {bool}         Whether the UPDATE query was successful
-   */
-  bool Scheduler::update(Task task) {
-    if (IsRecurringTask(task))
-      m_kdb.update(
-        "recurring", {"time"},
-        {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
-        {{"sid", std::to_string(task.id)}}
+      m_event_callback(
+        ALL_CLIENTS,
+        SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
+        platformToPayload(platform_post)
       );
 
-    KLOG("Runtime flags cannot be updated. Must be implemented");
-    // TODO: implement writing of R_FLAGS to envfile
-    return !m_kdb.update(                // UPDATE
-      "schedule", {                      // table
-            "mask",
-            "time",
-            "flags",
-            "completed",
-            "recurring",
-            "notify",
-            "runtime"
-      }, {
-        std::to_string(task.execution_mask),
-        task.datetime,
-        task.execution_flags,
-        std::to_string(task.completed),
-        std::to_string(task.recurring),
-        std::to_string(task.notify),
-        task.runtime
-      }, QueryFilter{
-        {"id", std::to_string(task.id)} // filter
-      },
-      "id"                               // returning value
-    )
-    .empty();                            // not empty = success
-  }
-
-  /**
-   * updateRecurring
-   *
-   * update the last time a recurring task was run
-   *
-   * @param   [in] {Task}   task  The task to update
-   * @return [out] {bool}         Whether the UPDATE query was successful
-   */
-  bool Scheduler::updateRecurring(Task* task) {
-    return !m_kdb.update(                // UPDATE
-      "recurring", {                      // table
-        "time"                      // field
-      }, {
-        task->datetime  // value
-      }, QueryFilter{
-        {"sid", std::to_string(task->id)} // filter
-      },
-      "id"                               // returning value
-    )
-    .empty();                            // not empty = success
-  }
-
-  /**
-   * @brief
-   *
-   * @param mask
-   * @return true
-   * @return falses
-   */
-  bool Scheduler::isKIQProcess(uint32_t mask) {
-    return ProcessExecutor::getAppInfo(mask).is_kiq;
-  }
-
-  /**
-   * @brief
-   *
-   * @param output
-   * @param mask
-   * @return true
-   * @return false
-   */
-  bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask) {
-    ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
-
-    if (!result.data.empty())
-    {
-      for (auto&& outgoing_event : result.data)
-        if (outgoing_event.event == SYSTEM_EVENTS__PLATFORM_NEW_POST)
-          m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
-        else
-          ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
-      return true;
     }
-    return false;
+    else
+      ELOG("Failed to retrieve values for {} platform post with id {}",
+        platform_post.name,
+        platform_post.id
+      );
   }
+}
+
+  /**
+ * update
+ *
+ * @param   [in] {Task}   task  The task to update
+ * @return [out] {bool}         Whether the UPDATE query was successful
+ */
+bool Scheduler::update(Task task) {
+  if (IsRecurringTask(task))
+    m_kdb.update(
+      "recurring", {"time"},
+      {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
+      {{"sid", std::to_string(task.id)}}
+    );
+
+  KLOG("Runtime flags cannot be updated. Must be implemented");
+  // TODO: implement writing of R_FLAGS to envfile
+  return !m_kdb.update(                // UPDATE
+    "schedule", {                      // table
+          "mask",
+          "time",
+          "flags",
+          "completed",
+          "recurring",
+          "notify",
+          "runtime"
+    }, {
+      std::to_string(task.execution_mask),
+      task.datetime,
+      task.execution_flags,
+      std::to_string(task.completed),
+      std::to_string(task.recurring),
+      std::to_string(task.notify),
+      task.runtime
+    }, QueryFilter{
+      {"id", std::to_string(task.id)} // filter
+    },
+    "id"                               // returning value
+  )
+  .empty();                            // not empty = success
+}
+
+/**
+ * updateRecurring
+ *
+ * update the last time a recurring task was run
+ *
+ * @param   [in] {Task}   task  The task to update
+ * @return [out] {bool}         Whether the UPDATE query was successful
+ */
+bool Scheduler::updateRecurring(Task* task) {
+  return !m_kdb.update(                // UPDATE
+    "recurring", {                      // table
+      "time"                      // field
+    }, {
+      task->datetime  // value
+    }, QueryFilter{
+      {"sid", std::to_string(task->id)} // filter
+    },
+    "id"                               // returning value
+  )
+  .empty();                            // not empty = success
+}
+
+/**
+ * @brief
+ *
+ * @param mask
+ * @return true
+ * @return falses
+ */
+bool Scheduler::isKIQProcess(uint32_t mask) {
+  return ProcessExecutor::getAppInfo(mask).is_kiq;
+}
+
+/**
+ * @brief
+ *
+ * @param output
+ * @param mask
+ * @return true
+ * @return false
+ */
+bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask) {
+  ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
+
+  if (!result.data.empty())
+  {
+    for (auto&& outgoing_event : result.data)
+      if (outgoing_event.event == SYSTEM_EVENTS__PLATFORM_NEW_POST)
+        m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
+      else
+        ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * @brief isProcessingPlatform
+ *
+ * @return true
+ * @return false
+ */
+bool Scheduler::isProcessingPlatform()
+{
+  for (const auto& platform_request : m_platform_map)
+  {
+    if (platform_request.second == PlatformPostState::PROCESSING)
+      return true;
+  }
+  return false;
+}
+
+/**
+ * @brief onPlatformError
+ *
+ * @param [in] {std::vector<std::string>} payload
+ */
+void Scheduler::onPlatformError(const std::vector<std::string>& payload)
+{
+  const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
+  const std::string& id   = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+  const std::string& platform_id = getPlatformID(name);
+
+  if (isProcessingPlatform())
+  {
+    auto it = m_platform_map.find({platform_id, id});
+    if (it != m_platform_map.end())
+      it->second = PlatformPostState::FAILURE;
+  }
+
+  PlatformPost post{};
+  post.name = name;
+  post.id   = id;
+  post.pid  = platform_id;
+
+  updatePostStatus(post, PLATFORM_STATUS_FAILURE);
+}
