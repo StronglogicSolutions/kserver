@@ -73,22 +73,37 @@ void HandleClientMessages()
 
     while (it != m_incoming_queue.end())
     {
-      if (it->get()->type() == constants::IPC_PLATFORM_TYPE)
+      std::vector<std::string> payload{};
+      const uint8_t            message_type = it->get()->type();
+
+      switch (message_type)
       {
-        platform_message* message = static_cast<platform_message*>(it->get());
+        case (constants::IPC_PLATFORM_TYPE):
+        {
+          platform_message*        message = static_cast<platform_message*>(it->get());
+          payload.resize(6);
+          payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)   = message->name();
+          payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)         = message->id();
+          payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)       = "";
+          payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)    = message->content();
+          payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)        = message->urls();
+          payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)     = std::to_string(message->repost());
+          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
+        }
+        break;
 
-        std::vector<std::string> payload{};
-        payload.resize(6);
-        payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)   = message->name();
-        payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)         = message->id();
-        payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)       = "";
-        payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)    = message->content();
-        payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)        = message->urls();
-        payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)     = std::to_string(message->repost());
+        case (constants::IPC_PLATFORM_ERROR):
+        {
+          platform_error*     error_message = static_cast<platform_error*>(it->get());
+          payload.resize(5);
+          payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = error_message->name();
+          payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = error_message->id();
+          payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX)    = error_message->error();
 
-        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
+          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, payload);
+        }
+        break;
       }
-      // TODO: handle other messages
       it = m_incoming_queue.erase(it);
     }
   }
