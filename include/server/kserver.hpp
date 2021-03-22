@@ -145,9 +145,6 @@ class KServer : public SocketListener {
           } else {
             sendEvent(client_socket_fd, "Platform Post", args);
           }
-          // TODO: Find out what platforms have not yet reposted and
-          //       send event to the ipc manager
-          // m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST)
         }
         break;
 
@@ -156,6 +153,20 @@ class KServer : public SocketListener {
           m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, args);
         else
           KLOG("Platform Post requested: Must implement process execution");
+
+        break;
+
+      case SYSTEM_EVENTS__PLATFORM_ERROR:
+        // m_request_handler.getScheduler().onPlatformError(args);
+        ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
+
+        if (client_socket_fd == -1) {
+          for (const auto &session : m_sessions) {
+            sendEvent(session.fd, "Platform Error", args);
+          }
+        } else {
+          sendEvent(client_socket_fd, "Platform Error", args);
+        }
 
         break;
 
