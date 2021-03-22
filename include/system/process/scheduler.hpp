@@ -119,11 +119,12 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      savePlatformPost(PlatformPost       post,
                                                    const std::string& status = constants::PLATFORM_POST_COMPLETE);
         bool                      savePlatformPost(std::vector<std::string> payload);
+        void                      onPlatformError(const std::vector<std::string>& payload);
         bool                      updatePostStatus(const PlatformPost& post, const std::string& status);
 
         void                      processPlatformPending();
         bool                      handleProcessOutput(const std::string& output, const int32_t mask);
-
+        bool                      isProcessingPlatform();
         bool                      postAlreadyExists(const PlatformPost& post);
         std::vector<std::string>  platformToPayload(PlatformPost& platform);
         static bool               isKIQProcess(uint32_t mask);
@@ -132,4 +133,5 @@ private:
 ScheduleEventCallback   m_event_callback;
 Database::KDB           m_kdb;
 ResultProcessor         m_result_processor;
+PlatformRequestMap      m_platform_map;
 };
