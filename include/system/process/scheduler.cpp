@@ -819,6 +819,9 @@ std::vector<std::string> Scheduler::platformToPayload(PlatformPost& platform)
  */
 void Scheduler::processPlatformPending()
 {
+  if (isProcessingPlatform())
+    KLOG("Platform requests are still being processed");
+
   for (auto&& platform_post : fetchPendingPlatformPosts())
   {
     if (populatePlatformPost(platform_post))
