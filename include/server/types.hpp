@@ -28,6 +28,8 @@ static const int SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 10;
 static const int SYSTEM_EVENTS__REGISTRAR_FAIL              = 11;
 static const int SYSTEM_EVENTS__PLATFORM_NEW_POST           = 12;
 static const int SYSTEM_EVENTS__PLATFORM_POST_REQUESTED     = 13;
+static const int SYSTEM_EVENTS__PLATFORM_ERROR              = 14;
+
 
 /**
  * FILE HANDLING STATES
