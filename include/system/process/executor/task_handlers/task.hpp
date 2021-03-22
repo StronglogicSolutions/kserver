@@ -53,6 +53,7 @@ const uint8_t PAYLOAD_SIZE                     {0x0A};
 const uint8_t PLATFORM_PAYLOAD_PLATFORM_INDEX  {0x00};
 const uint8_t PLATFORM_PAYLOAD_ID_INDEX        {0x01};
 const uint8_t PLATFORM_PAYLOAD_TIME_INDEX      {0x02};
+const uint8_t PLATFORM_PAYLOAD_ERROR_INDEX     {0x02};
 const uint8_t PLATFORM_PAYLOAD_CONTENT_INDEX   {0x03};
 const uint8_t PLATFORM_PAYLOAD_URL_INDEX       {0x04}; // concatenated string
 const uint8_t PLATFORM_PAYLOAD_REPOST_INDEX    {0x05};
@@ -65,9 +66,9 @@ const std::string PLATFORM_POST_COMPLETE       {"1"};
 
 const std::string SHOULD_REPOST{"true"};
 const std::string PLATFORM_PROCESS_METHOD{"process"};
-
-const std::string VIDEO_TYPE_ARGUMENT{"video\"" + ARGUMENT_SEPARATOR + '\n'};
-const std::string IMAGE_TYPE_ARGUMENT{"image\"" + ARGUMENT_SEPARATOR + '\n'};
+const std::string VIDEO_TYPE_ARGUMENT{"video\""};
+const std::string IMAGE_TYPE_ARGUMENT{"image\""};
+const char        LINE_BREAK{'\n'};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States
@@ -196,6 +197,22 @@ class TaskHandler {
   public:
     virtual Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
 };
+
+enum class PlatformPostState{ PROCESSING = 0x00, SUCCESS = 0x01, FAILURE = 0x02};
+
+const std::string PLATFORM_STATUS_PENDING{"0"};
+const std::string PLATFORM_STATUS_SUCCESS{"1"};
+const std::string PLATFORM_STATUS_FAILURE{"2"};
+
+struct platform_pair_hash
+{
+    template <class T1, class T2>
+    std::size_t operator() (const std::pair<T1, T2> &pair) const
+    {
+        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    }
+};
+using PlatformRequestMap = std::unordered_map<std::pair<std::string, std::string>, PlatformPostState, platform_pair_hash>;
 
 struct PlatformPost {
 std::string pid;
