@@ -48,11 +48,11 @@ KApplication parseApplication(std::string message) {
 }
 
 /**
- * RequestHandler
+ * Controller
  *
  * Handles incoming requests coming from the KY_GUI Application
  */
-class RequestHandler {
+class Controller {
 
  using EventCallbackFn  = std::function<void(std::string, int, std::string, int, bool)>;
  using SystemCallbackFn = std::function<void(int, int, std::vector<std::string>)>;
@@ -60,13 +60,13 @@ class RequestHandler {
 
  public:
   /**
-   * RequestHandler()
+   * Controller()
    * @constructor
    *
    * Loads configuration and instantiates a DatabaseConfiguration object
    *
    */
-  RequestHandler()
+  Controller()
   : m_active(true),
     m_executor(nullptr),
     m_scheduler(getScheduler())
@@ -77,7 +77,7 @@ class RequestHandler {
    *
    * The move constructor
    */
-  RequestHandler(RequestHandler &&r)
+  Controller(Controller &&r)
       : m_active(r.m_active),
         m_executor(r.m_executor) {
     r.m_executor = nullptr;
@@ -88,7 +88,7 @@ class RequestHandler {
    *
    * The copy constructor
    */
-  RequestHandler(const RequestHandler &r)
+  Controller(const Controller &r)
       : m_active(r.m_active),
         m_executor(nullptr),  // We do not copy the Executor
         m_scheduler(nullptr) {}
@@ -98,7 +98,7 @@ class RequestHandler {
    *
    * The copy assignment operator
    */
-  RequestHandler &operator=(const RequestHandler &handler) {
+  Controller &operator=(const Controller &handler) {
     this->m_executor  = nullptr;
     return *this;
   }
@@ -108,7 +108,7 @@ class RequestHandler {
    *
    * The move assignment operator
    */
-  RequestHandler &operator=(RequestHandler &&handler) {
+  Controller &operator=(Controller &&handler) {
     if (&handler != this) {
       delete m_executor;
       m_executor          = handler.m_executor;
@@ -124,7 +124,7 @@ class RequestHandler {
    * Deletes the process executor and ensures that the maintenance worker thread
    * completes
    */
-  ~RequestHandler() {
+  ~Controller() {
     if (m_executor != nullptr) {
       delete m_executor;
     }
@@ -138,7 +138,7 @@ class RequestHandler {
   /**
    * initialize
    *
-   * Initializes the RequestHandler with callbacks for sending system events and
+   * Initializes the Controller with callbacks for sending system events and
    * process execution results. Instantiates a ProcessExecutor and provides a
    * callback. Starts a thread to perform work on the maintenance loop
    *
@@ -161,7 +161,7 @@ class RequestHandler {
     setHandlingData(false);
     // Begin maintenance loop to process scheduled tasks as they become ready
     m_maintenance_worker =
-        std::thread(std::bind(&RequestHandler::maintenanceLoop, this));
+        std::thread(std::bind(&Controller::maintenanceLoop, this));
     maintenance_loop_condition.notify_one();
     KLOG("Initialization complete");
   }
@@ -250,7 +250,7 @@ class RequestHandler {
       if (!m_tasks_map.empty() && !handlePendingTasks())
         ELOG("ERROR handling pending tasks");
 
-      m_scheduler.processPlatformPending();
+      m_scheduler.processPlatform();
       maintenance_loop_condition.wait_for(lock, std::chrono::milliseconds(20000));
     }
   }
@@ -534,11 +534,31 @@ class RequestHandler {
   }
 
 
+  void process_system_event(const int32_t event, const std::vector<std::string> payload)
+  {
+    switch (event)
+    {
+      case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
+        m_scheduler.savePlatformPost(payload);
+        break;
+
+      case (SYSTEM_EVENTS__PLATFORM_ERROR):
+        m_scheduler.onPlatformError(payload);
+        break;
+
+      case (SYSTEM_EVENTS__PROCESS_COMPLETE):
+        const std::string output = payload.at(0);
+        const int32_t     mask   = std::stoi(payload.at(1));
+        m_scheduler.handleProcessOutput(output, mask);
+        break;
+
+    }
+  }
+
   /**
    * process
    */
-
-  void process(int client_fd, std::string message) {
+  void process_client_request(int client_fd, std::string message) {
     std::vector<std::string> args = getArgs(message);
     RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
