@@ -122,7 +122,7 @@ virtual std::vector<Task>         fetchTasks() override;
         void                      onPlatformError(const std::vector<std::string>& payload);
         bool                      updatePostStatus(const PlatformPost& post, const std::string& status);
 
-        void                      processPlatformPending();
+        void                      processPlatform();
         bool                      handleProcessOutput(const std::string& output, const int32_t mask);
         bool                      isProcessingPlatform();
         bool                      postAlreadyExists(const PlatformPost& post);
