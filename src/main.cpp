@@ -1,6 +1,6 @@
 #include <iostream>
 #include <log/logger.h>
-#include <request/request_handler.hpp>
+#include <request/controller.hpp>
 #include <server/kserver.hpp>
 
 using namespace KYO;

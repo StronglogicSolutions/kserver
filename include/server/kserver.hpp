@@ -14,7 +14,7 @@
 #include "log/logger.h"
 #include "codec/uuid.h"
 #include "codec/decoder.hpp"
-#include "request/request_handler.hpp"
+#include "request/controller.hpp"
 #include "system/process/ipc/manager/manager.hpp"
 
 #define IF_NOT_HANDLING_PACKETS_FOR_CLIENT(x) if (file_pending_fd != x)
