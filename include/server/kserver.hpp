@@ -47,7 +47,7 @@ class KServer : public SocketListener {
   ~KServer() {
     KLOG("Server shutting down");
     m_file_handlers.clear();
-    m_request_handler.shutdown();
+    m_controller.shutdown();
   }
 
   /**
@@ -127,26 +127,30 @@ class KServer : public SocketListener {
         break;
 
       case SYSTEM_EVENTS__PLATFORM_NEW_POST:
+      {
         KLOG("Platform Post event received");
-        if (m_request_handler.getScheduler().savePlatformPost(args))
-        {
-          std::vector<std::string> outgoing_args{};
-          outgoing_args.reserve(args.size());
-          for (const auto& arg : args) outgoing_args.emplace_back(
-            (arg.size() > 2046) ?
-              arg.substr(0, 2046) :
-              arg
-          );
 
-          if (client_socket_fd == -1) {
-            for (const auto &session : m_sessions) {
-              sendEvent(session.fd, "Platform Post", args);
-            }
-          } else {
-            sendEvent(client_socket_fd, "Platform Post", args);
+        m_controller.process_system_event(
+          SYSTEM_EVENTS__PLATFORM_NEW_POST, args
+        );
+
+        std::vector<std::string> outgoing_args{};
+        outgoing_args.reserve(args.size());
+        for (const auto& arg : args) outgoing_args.emplace_back(
+          (arg.size() > 2046) ?
+            arg.substr(0, 2046) :
+            arg
+        );
+
+        if (client_socket_fd == -1) {
+          for (const auto &session : m_sessions) {
+            sendEvent(session.fd, "Platform Post", args);
           }
+        } else {
+          sendEvent(client_socket_fd, "Platform Post", args);
         }
-        break;
+      }
+      break;
 
       case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
         if (args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
@@ -157,7 +161,8 @@ class KServer : public SocketListener {
         break;
 
       case SYSTEM_EVENTS__PLATFORM_ERROR:
-        // m_request_handler.getScheduler().onPlatformError(args);
+        m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
+
         ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
 
         if (client_socket_fd == -1) {
@@ -224,10 +229,10 @@ class KServer : public SocketListener {
   /**
    * Request Handler
    */
-  void set_handler(const Request::RequestHandler &&handler) {
-    KLOG("Setting RequestHandler");
-    m_request_handler = handler;
-    m_request_handler.initialize(
+  void set_handler(const Request::Controller &&handler) {
+    KLOG("Setting Controller");
+    m_controller = handler;
+    m_controller.initialize(
         [this](std::string result, int mask, std::string request_id,
                int client_socket_fd, bool error) {
           onProcessEvent(result, mask, request_id, client_socket_fd, error);
@@ -294,7 +299,10 @@ class KServer : public SocketListener {
     }
 
     if (Scheduler::isKIQProcess(mask)) {
-      m_request_handler.getScheduler().handleProcessOutput(result, mask);
+      m_controller.process_system_event(
+        SYSTEM_EVENTS__PROCESS_COMPLETE,
+        {result, std::to_string(mask)}
+      );
     }
   }
 
@@ -345,7 +353,7 @@ class KServer : public SocketListener {
                timestamp);
           file_pending_fd = -1;
           file_pending = false;
-          m_request_handler.setHandlingData(false);
+          m_controller.setHandlingData(false);
           sendEvent(socket_fd, "File Transfer Complete",
                     {std::to_string(timestamp)});
 
@@ -392,7 +400,7 @@ class KServer : public SocketListener {
     m_sessions.push_back(
         KSession{.fd = client_socket_fd, .status = 1, .id = new_uuid});
     // Database fetch
-    ServerData server_data = m_request_handler("Start");
+    ServerData server_data = m_controller("Start");
     // Send welcome
     std::string start_message = createMessage("New Session", server_data);
     sendMessage(client_socket_fd, start_message.c_str(), start_message.size());
@@ -416,7 +424,7 @@ class KServer : public SocketListener {
       auto mask = args.at(0);
       auto request_uuid = args.at(1);
       KLOG("Mask: {}  ID: {}", mask, request_uuid);
-      m_request_handler(std::stoi(mask), request_uuid, client_socket_fd);
+      m_controller(std::stoi(mask), request_uuid, client_socket_fd);
     }
   }
 
@@ -426,7 +434,7 @@ class KServer : public SocketListener {
   void handleFileUploadRequest(int client_socket_fd) {
     file_pending = true;
     file_pending_fd = client_socket_fd;
-    m_request_handler.setHandlingData(true);
+    m_controller.setHandlingData(true);
 
     std::string file_ready_message = createMessage("File Ready", "");
     sendMessage(client_socket_fd, file_ready_message.c_str(),
@@ -436,7 +444,7 @@ class KServer : public SocketListener {
   void handleSchedule(std::vector<std::string> task, int client_socket_fd) {
     auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
     sendEvent(client_socket_fd, "Processing Request", {"Schedule Task", uuid});
-    m_request_handler("Schedule", task, client_socket_fd, uuid);
+    m_controller("Schedule", task, client_socket_fd, uuid);
     KLOG("Task delivered to request handler");
   }
 
@@ -491,11 +499,11 @@ class KServer : public SocketListener {
 
 
   void handleAppRequest(int client_fd, std::string message) {
-    m_request_handler.process(client_fd, message);
+    m_controller.process_client_request(client_fd, message);
   }
 
   void handleScheduleRequest(int client_fd, std::string message) {
-    m_request_handler.process(client_fd, message);
+    m_controller.process_client_request(client_fd, message);
   }
 
   /**
@@ -531,19 +539,19 @@ class KServer : public SocketListener {
               if (strcmp(getMessage(decoded_message.c_str()).c_str(),
                          "scheduler") == 0) {
                 KLOG("Testing scheduler");
-                m_request_handler(client_socket_fd, "Test",
+                m_controller(client_socket_fd, "Test",
                                   Request::DevTest::Schedule);
               } else if (strcmp(getMessage(decoded_message.c_str()).c_str(),
                                 "execute") == 0) {
                 KLOG("Testing task execution");
-                m_request_handler(client_socket_fd, "Test",
+                m_controller(client_socket_fd, "Test",
                                   Request::DevTest::ExecuteTask);
               } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "schedule") == 0) {
                 // TODO: temporary. This should be done by the client application
                 std::string fetch_schedule_operation = createOperation(
                   "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
                 );
-                m_request_handler.process(client_socket_fd, fetch_schedule_operation);
+                m_controller.process_client_request(client_socket_fd, fetch_schedule_operation);
               }
               sendEvent(client_socket_fd, "Message Received",
                         {"Message received by KServer",
@@ -630,7 +638,7 @@ class KServer : public SocketListener {
     return false;
   }
 
-  Request::RequestHandler     m_request_handler;
+  Request::Controller     m_controller;
   IPCManager                  m_ipc_manager;
   std::vector<int>            m_client_connections;
   std::vector<FileHandler>    m_file_handlers;
