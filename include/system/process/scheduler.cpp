@@ -118,6 +118,11 @@ Task args_to_task(std::vector<std::string> args) {
   return task;
 }
 
+bool IsRecurringTask(const Task& task)
+{
+  return static_cast<uint8_t>(task.recurring) > Constants::Recurring::NO;
+}
+
 
 Scheduler::Scheduler()
 : m_kdb(Database::KDB{}) {}
@@ -827,6 +832,13 @@ void Scheduler::processPlatformPending()
    * @return [out] {bool}         Whether the UPDATE query was successful
    */
   bool Scheduler::update(Task task) {
+    if (IsRecurringTask(task))
+      m_kdb.update(
+        "recurring", {"time"},
+        {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
+        {{"sid", std::to_string(task.id)}}
+      );
+
     KLOG("Runtime flags cannot be updated. Must be implemented");
     // TODO: implement writing of R_FLAGS to envfile
     return !m_kdb.update(                // UPDATE

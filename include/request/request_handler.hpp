@@ -268,8 +268,7 @@ class RequestHandler {
         [this, is_scheduled_task](std::string result, int mask,
                                   std::string id, int client_socket_fd,
                                   bool error) {
-          onProcessComplete(result, mask, id, client_socket_fd, error,
-                            is_scheduled_task);
+          onProcessComplete(result, mask, id, client_socket_fd, error, is_scheduled_task);
         });
 
       std::vector<std::future<void>> futures{};
