@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     // Instantiate server
     KServer server(argc, argv);
     // Set request handler
-    server.set_handler(std::move(Request::RequestHandler{}));
+    server.set_handler(std::move(Request::Controller{}));
     // Initialize task queue
     server.init();
     // Run service loop
