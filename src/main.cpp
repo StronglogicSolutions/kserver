@@ -1,6 +1,6 @@
 #include <iostream>
 #include <log/logger.h>
-#include <request/request_handler.hpp>
+#include <request/controller.hpp>
 #include <server/kserver.hpp>
 
 using namespace KYO;
@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     // Instantiate server
     KServer server(argc, argv);
     // Set request handler
-    server.set_handler(std::move(Request::RequestHandler{}));
+    server.set_handler(std::move(Request::Controller{}));
     // Initialize task queue
     server.init();
     // Run service loop

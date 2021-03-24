@@ -1,5 +1,4 @@
-#ifndef __KSERVER_TEST_HPP__
-#define __KSERVER_TEST_HPP__
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -43,7 +42,7 @@ void runServer() {
   bool test_mode_enabled = true;
   KServer kserver{argc, std::move(const_cast<char**>(SERVER_TEST_ARGS))};
   g_kserver = &kserver;
-  kserver.set_handler(std::move(Request::RequestHandler{}));
+  kserver.set_handler(std::move(Request::Controller{}));
   std::cout << "KServer set handler" << std::endl;
   kserver.init(test_mode_enabled);
   std::cout << "KServer initialized" << std::endl;
@@ -172,6 +171,3 @@ void runServer() {
 
 //   EXPECT_EQ(started_session, true);
 // }
-
-
-#endif  // __KSERVER_TEST_HPP__
