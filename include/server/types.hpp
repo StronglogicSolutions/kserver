@@ -31,6 +31,10 @@ static const int SYSTEM_EVENTS__PLATFORM_POST_REQUESTED     = 13;
 static const int SYSTEM_EVENTS__PLATFORM_ERROR              = 14;
 static const int SYSTEM_EVENTS__PROCESS_COMPLETE            = 15;
 
+static const uint8_t EVENT_PROCESS_OUTPUT_INDEX{0x00};
+static const uint8_t EVENT_PROCESS_MASK_INDEX  {0x01};
+
+
 
 /**
  * FILE HANDLING STATES

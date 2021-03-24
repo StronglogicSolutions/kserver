@@ -547,11 +547,12 @@ class Controller {
         break;
 
       case (SYSTEM_EVENTS__PROCESS_COMPLETE):
-        const std::string output = payload.at(0);
-        const int32_t     mask   = std::stoi(payload.at(1));
+        const std::string output = payload.at(EVENT_PROCESS_OUTPUT_INDEX);
+        const int32_t     mask   = std::stoi(
+          payload.at(EVENT_PROCESS_MASK_INDEX)
+        );
         m_scheduler.handleProcessOutput(output, mask);
         break;
-
     }
   }
 

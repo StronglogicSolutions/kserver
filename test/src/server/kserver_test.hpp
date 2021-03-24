@@ -1,5 +1,4 @@
-#ifndef __KSERVER_TEST_HPP__
-#define __KSERVER_TEST_HPP__
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -172,6 +171,3 @@ void runServer() {
 
 //   EXPECT_EQ(started_session, true);
 // }
-
-
-#endif  // __KSERVER_TEST_HPP__

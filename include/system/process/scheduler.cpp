@@ -82,8 +82,8 @@ bool populatePlatformPost(PlatformPost& post)
   const std::vector<std::string> post_values = FileUtils::readEnvValues(env_path, PLATFORM_ENV_KEYS);
   if (post_values.size() == 2)
   {
-    post.content = post_values.at(0);
-    post.urls    = post_values.at(1);
+    post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
+    post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
     return true;
   }
 
