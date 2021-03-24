@@ -462,21 +462,16 @@ class Controller {
    *
    */
   std::vector<KApplication> operator()(KOperation op) {
-    std::vector<KApplication> commands{};
+    std::vector<KApplication>      commands{};
+    const std::string              name{"apps"};
+    const std::vector<std::string> fields{"name", "path", "data", "mask"};
+    const QueryFilter              filter{};
 
     if (op.compare("Start") == 0) {
-      Database::KDB kdb{};
-      QueryValues result =
-        kdb.select(
-          "apps",                             // Table
-          {"name", "path", "data", "mask"},   // Fields
-          QueryFilter{}
-        );
-
       uint8_t arg_idx{};
       KApplication command{};
 
-      for (const auto& row : result) {
+      for (const auto& row : m_kdb.select(name, fields, filter)) {
         if (row.first == "name") {
           command.name = row.second;
         } else if (row.first == "mask") {
@@ -512,14 +507,11 @@ class Controller {
    * making the request
    */
   void operator()(uint32_t mask, std::string request_id, int client_socket_fd) {
-    auto kdb = Database::KDB{};
-    QueryValues result = kdb.select(    // Select
-      "apps", {"path"}, QueryFilter{    // Path from apps
-        {"mask", std::to_string(mask)}  // Filter by mask
-      }
-    );
+    const std::string              name{"apps"};
+    const std::vector<std::string> fields{"path"};
+    const QueryFilter              filter{{"mask", std::to_string(mask)}};
 
-    for (const auto &row : result) {
+    for (const auto &row : m_kdb.select(name, fields, filter)) {
       std::string info_string{
           "PROCESS RUNNER - Process execution requested for "
           "applications matching the mask "};
@@ -533,7 +525,12 @@ class Controller {
     }
   }
 
-
+/**
+ * @brief process_system_events
+ *
+ * @param [in] {int32_t}                  event
+ * @param [in] {std::vector<std::string>> payload
+ */
   void process_system_event(const int32_t event, const std::vector<std::string> payload)
   {
     switch (event)
@@ -557,9 +554,12 @@ class Controller {
   }
 
   /**
-   * process
+   * process_client_request
+   *
+   * @param [in] {int32_t}     client_fd The client socket file descriptor
+   * @param [in] {std::string} message
    */
-  void process_client_request(int client_fd, std::string message) {
+  void process_client_request(int32_t client_fd, const std::string& message) {
     std::vector<std::string> args = getArgs(message);
     RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
@@ -855,5 +855,6 @@ class Controller {
   ProcessExecutor*                  m_executor;
   Scheduler                         m_scheduler;
   std::thread                       m_maintenance_worker;
+  Database::KDB                     m_kdb;
 };
 }  // namespace Request
