@@ -370,8 +370,6 @@ std::vector<PlatformPost> Scheduler::parsePlatformPosts(QueryValues&& result) {
  * @return [out] {std::vector<Task>} A vector of Task objects
  */
 std::vector<Task> Scheduler::fetchTasks() {
-  const std::string past_15_minute_timestamp{UNIXTIME_NOW + " - 900"};
-  const std::string current_timestamp{UNIXTIME_NOW};
   std::vector<Task> tasks = parseTasks(
     m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
       "schedule", {                                   // table
@@ -389,10 +387,10 @@ std::vector<Task> Scheduler::fetchTasks() {
           "0",                                        // value for comparison
           "="                                         // comparator
         },
-        CompBetweenFilter{                            // filter
-          "time",                                     // field of comparison
-          past_15_minute_timestamp,                   // min range
-          current_timestamp                           // max range
+        CompFilter{                                   // filter
+          UNIXTIME_NOW,                               // value A
+          Field::TIME,                                // value B
+          ">"                                         // comparison
         },
         MultiOptionFilter{                            // filter
           "completed",                                // field of comparison
