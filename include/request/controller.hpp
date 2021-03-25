@@ -125,10 +125,9 @@ class Controller {
    * completes
    */
   ~Controller() {
-    if (m_executor != nullptr) {
+    if (m_executor != nullptr)
       delete m_executor;
-    }
-    //    if (m_maintenance_worker.valid()) {
+
     if (m_maintenance_worker.joinable()) {
       KLOG("Waiting for maintenance worker to complete");
       m_maintenance_worker.join();
@@ -148,21 +147,25 @@ class Controller {
                   TaskCallbackFn task_callback_fn) {
     m_executor = new ProcessExecutor();
     m_executor->setEventCallback([this](std::string result,
-                                        int mask,
+                                        int         mask,
                                         std::string request_id,
-                                        int client_socket_fd,
-                                        bool error) {
+                                        int         client_socket_fd,
+                                        bool        error)
+    {
       onProcessComplete(result, mask, request_id, client_socket_fd, error);
     });
+
     m_system_callback_fn  = system_callback_fn;
     m_event_callback_fn   = event_callback_fn;
     m_task_callback_fn    = task_callback_fn;
 
     setHandlingData(false);
+
     // Begin maintenance loop to process scheduled tasks as they become ready
     m_maintenance_worker =
         std::thread(std::bind(&Controller::maintenanceLoop, this));
     maintenance_loop_condition.notify_one();
+
     KLOG("Initialization complete");
   }
 
@@ -179,9 +182,9 @@ class Controller {
    */
   void setHandlingData(bool is_handling) {
     handling_data = is_handling;
-    if (!is_handling) {
+
+    if (!is_handling)
       maintenance_loop_condition.notify_one();
-    }
   }
 
   /**
@@ -190,9 +193,11 @@ class Controller {
    * @returns [out] {Scheduler}  New instance of Scheduler
    */
   Scheduler getScheduler() {
-    return Scheduler{[this](int32_t                         client_socket_fd,
-                            int32_t                         event,
-                            const std::vector<std::string>& args) {
+    return Scheduler{
+      [this](int32_t                         client_socket_fd,
+             int32_t                         event,
+             const std::vector<std::string>& args)
+    {
       onSchedulerEvent(client_socket_fd, event, args);
     }};
   }
