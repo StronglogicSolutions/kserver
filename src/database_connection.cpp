@@ -194,11 +194,19 @@ std::string updateStatement(UpdateReturnQuery query, std::string returning,
   return "";
 }
 
+/**
+ * deleteStatement
+ *
+ * TODO: Implement logic to filter on multiple values
+ *
+ * @tparam  [in]     T        filter type
+ * @param   [in] {T} query    filter object
+ * @returns [out] std::string SQL DELETE statement
+ */
 template <typename T>
 std::string deleteStatement(T query) {
-  std::string delim{""};
   std::string filter_string{"WHERE "};
-  std::cout << "PROBLEMATIC DELETE STATEMENT" << std::endl;
+
   if constexpr (std::is_same_v<T, DatabaseQuery>) {
     if (query.filter.empty()) {
       return "";
