@@ -367,10 +367,10 @@ bool isAppOperation(const char* data) { return strcmp(data, "AppRequest") == 0; 
  * @brief Get the Decoded Message object
  *
  * Verifying data:
- * ```
- * // flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
- * // VerifyMessageBuffer(verifier)
- * ```
+ * <code>
+ *   flatbuffers::Verifier verifier{buf, size};
+ *   VerifyMessageBuffer(verifier)
+ * </code>
  *
  * @param   [in]  {shared_ptr<uint8_t*>}                          s_buffer_ptr
  * @returns [out] {Either<std::string, std::vector<std::string>>}
@@ -382,52 +382,47 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
 
   if (msg_type_byte_code == 0xFD)
     return left(std::to_string(msg_type_byte_code));
+
   else
   {
-    auto byte1 = *raw_buffer       << 24;
-    auto byte2 = *(raw_buffer + 1) << 16;
-    auto byte3 = *(raw_buffer + 2) << 8;
-    auto byte4 = *(raw_buffer + 3);
+    uint8_t  byte1 = *raw_buffer       << 24;
+    uint8_t  byte2 = *(raw_buffer + 1) << 16;
+    uint8_t  byte3 = *(raw_buffer + 2) << 8;
+    uint8_t  byte4 = *(raw_buffer + 3);
 
     uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
-    uint8_t decode_buffer[message_byte_size];
+    uint8_t  decode_buffer[message_byte_size];
+
+    std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
 
     if (msg_type_byte_code == 0xFF)
     {
-      flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
-
-      if (VerifyIGTaskBuffer(verifier)) {
-        std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-        const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
-
-        /**
-         * /note The specification for the order of these arguments can be found
-         * in namespace: IGTaskIndex
-         */
+    /**
+     * /note The specification for the order of these arguments can be found
+     * in namespace: IGTaskIndex
+     */
+      const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
         return right(std::move(
           std::vector<std::string>{
-            std::to_string(ig_task->mask()), // Mask always comes first
-            ig_task->file_info()->str(), ig_task->time()->str(),
-            ig_task->description()->str(), ig_task->hashtags()->str(),
-            ig_task->requested_by()->str(), ig_task->requested_by_phrase()->str(),
+            std::to_string(ig_task->mask()),
+            ig_task->file_info()->str(),     ig_task->time()->str(),
+            ig_task->description()->str(),   ig_task->hashtags()->str(),
+            ig_task->requested_by()->str(),  ig_task->requested_by_phrase()->str(),
             ig_task->promote_share()->str(), ig_task->link_bio()->str(),
             std::to_string(ig_task->is_video()),
-            ig_task->header()->str(), ig_task->user()->str()
+            ig_task->header()->str(),        ig_task->user()->str()
           }
         ));
-      }
     }
     else
     if (msg_type_byte_code == 0xFE)
     {
-      const flatbuffers::Vector<uint8_t> *message_bytes = GetMessage(raw_buffer + 5)->data();
+      const flatbuffers::Vector<uint8_t> *message_bytes = GetMessage(&decode_buffer)->data();
       return left(std::string{message_bytes->begin(), message_bytes->end()});
     }
     else
     if (msg_type_byte_code == 0xFC)
     {
-      flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
-      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
       const GenericData::GenericTask *gen_task = GetGenericTask(&decode_buffer);
       /**
        * /note The specification for the order of these arguments can be found
@@ -435,7 +430,7 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
         */
       return right(std::move(
         std::vector<std::string>{
-          std::to_string(gen_task->mask()), // Mask always comes first
+          std::to_string(gen_task->mask()),
           gen_task->file_info()->str(),          gen_task->time()->str(),
           gen_task->description()->str(),        std::to_string(gen_task->is_video()),
           gen_task->header()->str(),             gen_task->user()->str(),
