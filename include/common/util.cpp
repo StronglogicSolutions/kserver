@@ -379,18 +379,18 @@ bool isAppOperation(const char* data) { return strcmp(data, "AppRequest") == 0; 
  */
 DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
 {
-  uint8_t *raw_buffer        = s_buffer_ptr.get();
-  uint8_t msg_type_byte_code = *(raw_buffer + 4);
+  uint8_t* raw_buffer         = s_buffer_ptr.get();
+  uint8_t  msg_type_byte_code = *(raw_buffer + 4);
 
   if (msg_type_byte_code == 0xFD)
     return left(std::to_string(msg_type_byte_code));
 
   else
   {
-    uint8_t  byte1 = *raw_buffer       << 24;
-    uint8_t  byte2 = *(raw_buffer + 1) << 16;
-    uint8_t  byte3 = *(raw_buffer + 2) << 8;
-    uint8_t  byte4 = *(raw_buffer + 3);
+    auto byte1 = *raw_buffer       << 24;
+    auto byte2 = *(raw_buffer + 1) << 16;
+    auto byte3 = *(raw_buffer + 2) << 8;
+    auto byte4 = *(raw_buffer + 3);
 
     uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
     uint8_t  decode_buffer[message_byte_size];
@@ -399,12 +399,13 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
 
     if (msg_type_byte_code == 0xFF)
     {
-    /**
-     * /note The specification for the order of these arguments can be found
-     * in namespace: IGTaskIndex
-     */
       const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
-        return right(std::vector<std::string>{
+      /**
+       * /note The specification for the order of these arguments can be found
+        * in namespace: IGTaskIndex
+        */
+      return right(std::move(
+        std::vector<std::string>{
           std::to_string(ig_task->mask()),
           ig_task->file_info()->str(),     ig_task->time()->str(),
           ig_task->description()->str(),   ig_task->hashtags()->str(),
@@ -412,40 +413,34 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
           ig_task->promote_share()->str(), ig_task->link_bio()->str(),
           std::to_string(ig_task->is_video()),
           ig_task->header()->str(),        ig_task->user()->str()
-        });
+        }
+      ));
     }
     else
     if (msg_type_byte_code == 0xFE)
     {
       const flatbuffers::Vector<uint8_t> *message_bytes = GetMessage(&decode_buffer)->data();
       return left(std::string{message_bytes->begin(), message_bytes->end()});
+
     }
     else
     if (msg_type_byte_code == 0xFC)
     {
-      try {
-        flatbuffers::Verifier verifier{decode_buffer, message_byte_size};
-        if (VerifyMessageBuffer(verifier))
-        {
-            const GenericData::GenericTask* gen_task = GetGenericTask(&decode_buffer);
-            /**
-             * /note The specification for the order of these arguments can be found
-            * in namespace: GenericTaskIndex
-            */
-            return right(std::vector<std::string>{
-              std::to_string(gen_task->mask()),
-              gen_task->file_info()->str(),          gen_task->time()->str(),
-              gen_task->description()->str(),        std::to_string(gen_task->is_video()),
-              gen_task->header()->str(),             gen_task->user()->str(),
-              std::to_string(gen_task->recurring()), std::to_string(gen_task->notify()),
-              gen_task->runtime()->str()
-            });
+      const GenericData::GenericTask *gen_task = GetGenericTask(&decode_buffer);
+      /**
+       * /note The specification for the order of these arguments can be found
+        * in namespace: GenericTaskIndex
+        */
+      return right(std::move(
+        std::vector<std::string>{
+          std::to_string(gen_task->mask()), // Mask always comes first
+          gen_task->file_info()->str(),          gen_task->time()->str(),
+          gen_task->description()->str(),        std::to_string(gen_task->is_video()),
+          gen_task->header()->str(),             gen_task->user()->str(),
+          std::to_string(gen_task->recurring()), std::to_string(gen_task->notify()),
+          gen_task->runtime()->str()
         }
-      }
-      catch (const std::exception& e)
-      {
-        std::cout << "Generic Task buffer not verified.\n Exception: " << e.what() << std::endl;
-      }
+      ));
     }
   }
   return right(std::vector<std::string>{});
