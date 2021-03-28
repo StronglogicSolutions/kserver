@@ -393,13 +393,12 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
     auto byte4 = *(raw_buffer + 3);
 
     uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
-    uint8_t  decode_buffer[message_byte_size];
-
-    std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
 
     if (msg_type_byte_code == 0xFF)
     {
-      const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
+      uint8_t  decode_buffer[message_byte_size];
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      const IGData::IGTask* ig_task = GetIGTask(&decode_buffer);
       /**
        * /note The specification for the order of these arguments can be found
         * in namespace: IGTaskIndex
@@ -419,14 +418,18 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
     else
     if (msg_type_byte_code == 0xFE)
     {
-      const flatbuffers::Vector<uint8_t> *message_bytes = GetMessage(&decode_buffer)->data();
+      uint8_t decode_buffer[message_byte_size];
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      const flatbuffers::Vector<uint8_t>* message_bytes = GetMessage(&decode_buffer)->data();
       return left(std::string{message_bytes->begin(), message_bytes->end()});
 
     }
     else
     if (msg_type_byte_code == 0xFC)
     {
-      const GenericData::GenericTask *gen_task = GetGenericTask(&decode_buffer);
+      uint8_t decode_buffer[message_byte_size];
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      const GenericData::GenericTask* gen_task = GetGenericTask(&decode_buffer);
       /**
        * /note The specification for the order of these arguments can be found
         * in namespace: GenericTaskIndex
