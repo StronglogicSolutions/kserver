@@ -52,20 +52,22 @@ static const uint8_t     PAYLOAD_SIZE                    {0x0A};
 // Platform Posts
 static const uint8_t     PLATFORM_PAYLOAD_PLATFORM_INDEX {0x00};
 static const uint8_t     PLATFORM_PAYLOAD_ID_INDEX       {0x01};
-static const uint8_t     PLATFORM_PAYLOAD_TIME_INDEX     {0x02};
+static const uint8_t     PLATFORM_PAYLOAD_USER_INDEX     {0x02};
+static const uint8_t     PLATFORM_PAYLOAD_TIME_INDEX     {0x03};
 static const uint8_t     PLATFORM_PAYLOAD_ERROR_INDEX    {0x02};
-static const uint8_t     PLATFORM_PAYLOAD_CONTENT_INDEX  {0x03};
-static const uint8_t     PLATFORM_PAYLOAD_URL_INDEX      {0x04}; // concatenated string
-static const uint8_t     PLATFORM_PAYLOAD_REPOST_INDEX   {0x05};
+static const uint8_t     PLATFORM_PAYLOAD_CONTENT_INDEX  {0x04};
+static const uint8_t     PLATFORM_PAYLOAD_URL_INDEX      {0x05}; // concatenated string
+static const uint8_t     PLATFORM_PAYLOAD_REPOST_INDEX   {0x06};
 static const uint8_t     PLATFORM_PAYLOAD_METHOD_INDEX   {0x06};
-static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x06};
+static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
 
        const std::string NO_ORIGIN_PLATFORM_EXISTS       {"2"};
        const std::string PLATFORM_POST_INCOMPLETE        {"0"};
        const std::string PLATFORM_POST_COMPLETE          {"1"};
 
-static const uint8_t     PLATFORM_POST_CONTENT_INDEX     {0x00};
-static const uint8_t     PLATFORM_POST_URL_INDEX         {0x01};
+static const uint8_t     PLATFORM_POST_USER_INDEX        {0x00};
+static const uint8_t     PLATFORM_POST_CONTENT_INDEX     {0x01};
+static const uint8_t     PLATFORM_POST_URL_INDEX         {0x02};
 
        const std::string SHOULD_REPOST                   {"true"};
        const std::string PLATFORM_PROCESS_METHOD         {"process"};
@@ -222,6 +224,7 @@ struct PlatformPost {
 std::string pid;
 std::string o_pid = constants::NO_ORIGIN_PLATFORM_EXISTS;
 std::string id;
+std::string user;
 std::string time;
 std::string content;
 std::string urls;
