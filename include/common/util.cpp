@@ -436,7 +436,7 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
         */
       return right(std::move(
         std::vector<std::string>{
-          std::to_string(gen_task->mask()), // Mask always comes first
+          std::to_string(gen_task->mask()),
           gen_task->file_info()->str(),          gen_task->time()->str(),
           gen_task->description()->str(),        std::to_string(gen_task->is_video()),
           gen_task->header()->str(),             gen_task->user()->str(),
