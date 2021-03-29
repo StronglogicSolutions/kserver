@@ -66,6 +66,7 @@ static const std::vector<std::string> PLATFORM_KEYS{
 };
 
 static const std::vector<std::string> PLATFORM_ENV_KEYS{
+  "username",
   "content",
   "urls"
 };
