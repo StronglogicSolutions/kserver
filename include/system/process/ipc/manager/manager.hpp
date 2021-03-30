@@ -46,6 +46,7 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
     m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<platform_message>(
       args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
+      args.at(constants::PLATFORM_PAYLOAD_USER_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y"
@@ -81,13 +82,14 @@ void HandleClientMessages()
         case (constants::IPC_PLATFORM_TYPE):
         {
           platform_message*        message = static_cast<platform_message*>(it->get());
-          payload.resize(6);
-          payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)   = message->name();
-          payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)         = message->id();
-          payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)       = "";
-          payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)    = message->content();
-          payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)        = message->urls();
-          payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)     = std::to_string(message->repost());
+          payload.reserve(7);
+          payload.emplace_back(message->platform());
+          payload.emplace_back(message->id());
+          payload.emplace_back(message->user());
+          payload.emplace_back("");
+          payload.emplace_back(message->content());
+          payload.emplace_back(message->urls());
+          payload.emplace_back(std::to_string(message->repost()));
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
         }
         break;
