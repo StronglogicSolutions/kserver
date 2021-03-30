@@ -137,8 +137,8 @@ bool isNewSession(const char *data);
 /**
  * General
  */
-
-Either<std::string, std::vector<std::string>> getDecodedMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr);
+using DecodedMessage = Either<std::string, std::vector<std::string>>;
+DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr);
 
 namespace SystemUtils {
   void sendMail(std::string recipient, std::string message, std::string from);

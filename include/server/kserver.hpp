@@ -513,67 +513,59 @@ class KServer : public SocketListener {
                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
                                  ssize_t &size) override {
     if (size > 0 && size != 4294967295) {
-      // Get ptr to data
+      // File Transfer
       std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
       if (file_pending && size != 5) {  // Handle packets for incoming file
         handlePendingFile(s_buffer_ptr, client_socket_fd, size);
         return;
       }
-      // For other cases, handle operations or read messages
-      neither::Either<std::string, std::vector<std::string>> decoded =
-          getDecodedMessage(s_buffer_ptr);  //
-      decoded
-          .leftMap([this, client_socket_fd](auto decoded_message) {
-            if (isPing(decoded_message)) {
-              KLOG("Client {} - keepAlive", client_socket_fd);
-              sendMessage(client_socket_fd, PONG, PONG_SIZE);
-              return decoded_message;
-            }
-            std::string json_message = getJsonString(decoded_message);
-            KLOG("Received message: {}", json_message);
-            // Handle operations
-            if (isOperation(decoded_message.c_str())) {
-              KLOG("Received operation");
-              handleOperation(decoded_message, client_socket_fd);
-            } else if (isMessage(decoded_message.c_str())) {
-              if (strcmp(getMessage(decoded_message.c_str()).c_str(),
-                         "scheduler") == 0) {
-                KLOG("Testing scheduler");
-                m_controller(client_socket_fd, "Test",
-                                  Request::DevTest::Schedule);
-              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(),
-                                "execute") == 0) {
-                KLOG("Testing task execution");
-                m_controller(client_socket_fd, "Test",
-                                  Request::DevTest::ExecuteTask);
-              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "schedule") == 0) {
-                // TODO: temporary. This should be done by the client application
-                std::string fetch_schedule_operation = createOperation(
-                  "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
-                );
-                m_controller.process_client_request(client_socket_fd, fetch_schedule_operation);
-              }
-              sendEvent(client_socket_fd, "Message Received",
-                        {"Message received by KServer",
-                         "The following was your message",
-                         getMessage(decoded_message.c_str())});
-            }
-            return decoded_message;
-          })
-          .rightMap([this, client_socket_fd](auto task_args) {
-            KLOG(
-                "New message schema type "
-                "received");
-            if (!task_args.empty()) {
-              KLOG(
-                  "Scheduling operation "
-                  "received");
-              handleSchedule(task_args, client_socket_fd);
-            } else {
-              KLOG("Empty task");
-            }
-            return task_args;
-          });
+
+      // Message
+      DecodeMessage(s_buffer_ptr).leftMap([this, client_socket_fd](auto decoded_message) {
+        if (isPing(decoded_message)) {
+          KLOG("Client {} - keepAlive", client_socket_fd);
+          sendMessage(client_socket_fd, PONG, PONG_SIZE);
+          return decoded_message;
+        }
+        std::string json_message = getJsonString(decoded_message);
+        KLOG("Received message: {}", json_message);
+        // Handle operations
+        if (isOperation(decoded_message.c_str())) {
+          KLOG("Received operation");
+          handleOperation(decoded_message, client_socket_fd);
+        } else if (isMessage(decoded_message.c_str())) {
+          if (strcmp(getMessage(decoded_message.c_str()).c_str(),
+                      "scheduler") == 0) {
+            KLOG("Testing scheduler");
+            m_controller(client_socket_fd, "Test",
+                              Request::DevTest::Schedule);
+          } else if (strcmp(getMessage(decoded_message.c_str()).c_str(),
+                            "execute") == 0) {
+            KLOG("Testing task execution");
+            m_controller(client_socket_fd, "Test",
+                              Request::DevTest::ExecuteTask);
+          } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "schedule") == 0) {
+            // TODO: temporary. This should be done by the client application
+            std::string fetch_schedule_operation = createOperation(
+              "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
+            );
+            m_controller.process_client_request(client_socket_fd, fetch_schedule_operation);
+          }
+          sendEvent(client_socket_fd, "Message Received",
+                    {"Message received by KServer",
+                      "The following was your message",
+                      getMessage(decoded_message.c_str())});
+        }
+        return decoded_message;
+      })
+      .rightMap([this, client_socket_fd](auto task_args) {
+        if (!task_args.empty()) {
+          KLOG("Receive buffer contained schedule request");
+          handleSchedule(task_args, client_socket_fd);
+        }
+
+        return task_args;
+      });
     }
   }
 

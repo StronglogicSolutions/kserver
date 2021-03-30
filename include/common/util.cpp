@@ -324,19 +324,21 @@ std::string createMessage(const char *data,
  * Operations
  */
 bool isMessage(const char *data) {
-  if (*data != '\0') {
+  if (data != nullptr) {
     Document d;
     d.Parse(data);
-    return d.HasMember("message");
+    if (!d.IsNull())
+      return d.HasMember("message");
   }
   return false;
 }
 
 bool isOperation(const char *data) {
-  if (*data != '\0') {
+  if (data != nullptr) {
     Document d;
     d.Parse(data);
-    return strcmp(d["type"].GetString(), "operation") == 0;
+    if (!d.IsNull())
+      return strcmp(d["type"].GetString(), "operation") == 0;
   }
   return false;
 }
@@ -364,92 +366,87 @@ bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
 bool isAppOperation(const char* data) { return strcmp(data, "AppRequest") == 0; }
 
 /**
- * General
+ * @brief Get the Decoded Message object
+ *
+ * Verifying data:
+ * <code>
+ *   flatbuffers::Verifier verifier{buf, size};
+ *   VerifyMessageBuffer(verifier)
+ * </code>
+ *
+ * @param   [in]  {shared_ptr<uint8_t*>}                          s_buffer_ptr
+ * @returns [out] {Either<std::string, std::vector<std::string>>}
  */
+DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
+{
+  uint8_t* raw_buffer         = s_buffer_ptr.get();
+  uint8_t  msg_type_byte_code = *(raw_buffer + 4);
 
-Either<std::string, std::vector<std::string>> getDecodedMessage(
-    std::shared_ptr<uint8_t[]> s_buffer_ptr) {
-  // Obtain the raw buffer so we can read the header
-  uint8_t *raw_buffer = s_buffer_ptr.get();
-
-  uint8_t msg_type_byte_code = *(raw_buffer + 4);
-
-  if (msg_type_byte_code == 0xFD) {
+  if (msg_type_byte_code == 0xFD)
     return left(std::to_string(msg_type_byte_code));
-  } else{
-    auto byte1 = *raw_buffer << 24;
+
+  else
+  {
+    auto byte1 = *raw_buffer       << 24;
     auto byte2 = *(raw_buffer + 1) << 16;
     auto byte3 = *(raw_buffer + 2) << 8;
     auto byte4 = *(raw_buffer + 3);
 
     uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
-    uint8_t decode_buffer[message_byte_size];
 
-    if (msg_type_byte_code == 0xFF) {
-      flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
+    if (msg_type_byte_code == 0xFF)
+    {
+      uint8_t  decode_buffer[message_byte_size];
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      const IGData::IGTask* ig_task = GetIGTask(&decode_buffer);
+      /**
+       * /note The specification for the order of these arguments can be found
+        * in namespace: IGTaskIndex
+        */
+      return right(std::move(
+        std::vector<std::string>{
+          std::to_string(ig_task->mask()),
+          ig_task->file_info()->str(),     ig_task->time()->str(),
+          ig_task->description()->str(),   ig_task->hashtags()->str(),
+          ig_task->requested_by()->str(),  ig_task->requested_by_phrase()->str(),
+          ig_task->promote_share()->str(), ig_task->link_bio()->str(),
+          std::to_string(ig_task->is_video()),
+          ig_task->header()->str(),        ig_task->user()->str()
+        }
+      ));
+    }
+    else
+    if (msg_type_byte_code == 0xFE)
+    {
+      uint8_t decode_buffer[message_byte_size];
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      const flatbuffers::Vector<uint8_t>* message_bytes = GetMessage(&decode_buffer)->data();
+      return left(std::string{message_bytes->begin(), message_bytes->end()});
 
-      if (VerifyIGTaskBuffer(verifier)) {
-        std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-        const IGData::IGTask *ig_task = GetIGTask(&decode_buffer);
-
-        /**
-         * /note The specification for the order of these arguments can be found
-         * in namespace: IGTaskIndex
-         */
-        return right(std::move(
-          std::vector<std::string>{
-            std::to_string(ig_task->mask()), // Mask always comes first
-            ig_task->file_info()->str(), ig_task->time()->str(),
-            ig_task->description()->str(), ig_task->hashtags()->str(),
-            ig_task->requested_by()->str(), ig_task->requested_by_phrase()->str(),
-            ig_task->promote_share()->str(), ig_task->link_bio()->str(),
-            std::to_string(ig_task->is_video()),
-            ig_task->header()->str(), ig_task->user()->str()
-          }
-        ));
-      }
-      return right(std::vector<std::string>{});
-    } else if (msg_type_byte_code == 0xFE) {
-      // TODO: Copying into a new buffer for readability - switch to using the
-      // original buffer
-      flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
-      if (VerifyMessageBuffer(verifier)) {
-        std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-        // Parse the bytes into an encoded message structure
-        auto k_message = GetMessage(&decode_buffer);
-        // Get the message bytes and create a string
-        const flatbuffers::Vector<uint8_t> *message_bytes = k_message->data();
-        return left(std::string{message_bytes->begin(), message_bytes->end()});
-      } else {
-        return left(std::string(""));
-      }
-    } else if (msg_type_byte_code == 0xFC) {
-      flatbuffers::Verifier verifier(&raw_buffer[0 + 5], message_byte_size);
-
-      if (VerifyGenericTaskBuffer(verifier)) {
-        std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-        const GenericData::GenericTask *gen_task = GetGenericTask(&decode_buffer);
-
-        /**
-         * /note The specification for the order of these arguments can be found
-         * in namespace: GenericTaskIndex
-         */
-        return right(std::move(
-          std::vector<std::string>{
-            std::to_string(gen_task->mask()), // Mask always comes first
-            gen_task->file_info()->str(),          gen_task->time()->str(),
-            gen_task->description()->str(),        std::to_string(gen_task->is_video()),
-            gen_task->header()->str(),             gen_task->user()->str(),
-            std::to_string(gen_task->recurring()), std::to_string(gen_task->notify()),
-            gen_task->runtime()->str()
-          }
-        ));
-      }
-      return right(std::vector<std::string>{});
-    } else {
-      return left(std::string(""));
+    }
+    else
+    if (msg_type_byte_code == 0xFC)
+    {
+      uint8_t decode_buffer[message_byte_size];
+      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      const GenericData::GenericTask* gen_task = GetGenericTask(&decode_buffer);
+      /**
+       * /note The specification for the order of these arguments can be found
+        * in namespace: GenericTaskIndex
+        */
+      return right(std::move(
+        std::vector<std::string>{
+          std::to_string(gen_task->mask()),
+          gen_task->file_info()->str(),          gen_task->time()->str(),
+          gen_task->description()->str(),        std::to_string(gen_task->is_video()),
+          gen_task->header()->str(),             gen_task->user()->str(),
+          std::to_string(gen_task->recurring()), std::to_string(gen_task->notify()),
+          gen_task->runtime()->str()
+        }
+      ));
     }
   }
+  return right(std::vector<std::string>{});
 }
 
 bool isNewSession(const char *data) {
