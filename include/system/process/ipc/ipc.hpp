@@ -37,7 +37,7 @@ const uint8_t ERROR    = 0x04;
 class ipc_message
 {
 public:
-using byte_buffer = std::vector<uint8_t>;
+using byte_buffer   = std::vector<uint8_t>;
 using u_ipc_msg_ptr = std::unique_ptr<ipc_message>;
 virtual ~ipc_message() {}
 
