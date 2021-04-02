@@ -231,4 +231,13 @@ std::string urls;
 std::string repost;
 std::string name;
 std::string method;
+
+const bool is_valid() const
+{
+  return (
+    !pid.empty() &&
+    !content.empty()
+  );
+}
+
 };

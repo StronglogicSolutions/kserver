@@ -656,6 +656,76 @@ bool Scheduler::updatePostStatus(const PlatformPost& post, const std::string& st
     "id"
   ).empty());
 }
+
+PlatformPost createAffiliatePost(const std::string name, const std::string type, const PlatformPost& post)
+{
+  const auto createAffiliateContent = [&name, &type, &post]() {
+    const auto& original_content = post.content;
+    (void)(original_content);
+    return "Placeholder content";
+  };
+
+  PlatformPost affiliate_post{};
+  if (type == "placeholder")
+  {
+    affiliate_post.pid     = post.pid;
+    affiliate_post.content = createAffiliateContent();
+  }
+
+  return affiliate_post;
+}
+
+const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post)
+{
+  std::vector<PlatformPost> affiliate_posts{};
+
+  Database::KDB kdb{};
+
+  QueryValues result = kdb.selectSimpleJoin(
+    "platform_user pu",
+    {
+      "pau.a_uid",
+      "pu.type"
+    },
+    QueryFilter{
+      {"pu.name", post.user},
+      {"pu.pid", post.pid}
+    },
+    Join{
+      .table = "platform_affiliate_user pau",
+      .field      = "id",
+      .join_table = "pu",
+      .join_field = "pid",
+      .type       =  JoinType::INNER
+    }
+  );
+
+  std::string name{};
+  std::string type{};
+
+  for (const auto& value : result)
+  {
+    if (value.first == "pau.a_uid")
+      for (const auto& af_value : kdb.select("platform_user", {"name"}, QueryFilter{{"id", value.second}}))
+      {
+        if (af_value.first == "name")
+          name = af_value.second;
+      }
+    else
+    if (value.first == "pu.type")
+      type = value.second;
+
+    if (!name.empty() && !type.empty())
+    {
+      const PlatformPost affiliate_post = createAffiliatePost(name, type, post);
+      if (affiliate_post.is_valid())
+        affiliate_posts.emplace_back(affiliate_post);
+    }
+  }
+
+  return affiliate_posts;
+}
+
 /**
  * savePlatformPost
  *
@@ -683,19 +753,22 @@ bool Scheduler::savePlatformPost(PlatformPost post, const std::string& status) {
   // TODO: Otherwise, we should use a [ user : user ] mapping between platforms.
   if (result && shouldRepost(post.repost) && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
     for (const auto& platform_id : fetchRepostIDs(post.pid))
-      savePlatformPost(
-        PlatformPost{
-          .pid     = platform_id,
-          .o_pid   = post.pid,
-          .id      = post.id,
-          .user    = post.user,
-          .time    = post.time,
-          .content = post.content,
-          .urls    = post.urls,
-          .repost  = post.repost
-        },
-        constants::PLATFORM_POST_INCOMPLETE
-     );
+    {
+      PlatformPost post{
+        .pid     = platform_id,
+        .o_pid   = post.pid,
+        .id      = post.id,
+        .user    = post.user,
+        .time    = post.time,
+        .content = post.content,
+        .urls    = post.urls,
+        .repost  = post.repost
+      };
+      savePlatformPost(post, constants::PLATFORM_POST_INCOMPLETE);
+
+      for (const auto& affiliate_post : createAffiliatePosts(post))
+        savePlatformPost(affiliate_post, constants::PLATFORM_POST_INCOMPLETE);
+    }
 
   return result;
 }
