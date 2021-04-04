@@ -156,7 +156,10 @@ class KServer : public SocketListener {
         if (args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
           m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, args);
         else
-          KLOG("Platform Post requested: Must implement process execution");
+          {
+            m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
+            KLOG("Platform Post requested: Must implement process execution");
+          }
 
         break;
 
