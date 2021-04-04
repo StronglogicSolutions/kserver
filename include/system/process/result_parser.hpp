@@ -134,6 +134,7 @@ virtual ProcessParseResult get_result() override {
         .payload = std::vector<std::string>{
           m_app_name,
           item.id,
+          item.username,
           item.time,
           item.content,
           url_string(item.media_urls),
