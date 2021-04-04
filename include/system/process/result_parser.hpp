@@ -12,9 +12,7 @@
 #include "codec/rapidjson/stringbuffer.h"
 #include "codec/rapidjson/writer.h"
 
-#include "executor/executor.hpp"
 #include "server/types.hpp"
-
 #include "log/logger.h"
 
 
