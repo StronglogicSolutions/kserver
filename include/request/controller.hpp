@@ -78,8 +78,10 @@ class Controller {
    * The move constructor
    */
   Controller(Controller &&r)
-      : m_active(r.m_active),
-        m_executor(r.m_executor) {
+  : m_active(r.m_active),
+    m_executor(r.m_executor),
+    m_scheduler(nullptr)
+  {
     r.m_executor = nullptr;
   }
 
@@ -89,9 +91,10 @@ class Controller {
    * The copy constructor
    */
   Controller(const Controller &r)
-      : m_active(r.m_active),
-        m_executor(nullptr),  // We do not copy the Executor
-        m_scheduler(nullptr) {}
+  : m_active(r.m_active),
+    m_executor(nullptr),
+    m_scheduler(nullptr)
+  {}
 
   /**
    * @operator
