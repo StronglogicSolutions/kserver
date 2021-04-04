@@ -770,7 +770,7 @@ int unixtime() {
   ).count();
 }
 
-std::string_view format_timestamp(int unixtime) {
+std::string format_timestamp(int unixtime) {
   char       buf[80];
   const std::time_t time = static_cast<std::time_t>(unixtime);
   struct tm ts = *localtime(&time);
