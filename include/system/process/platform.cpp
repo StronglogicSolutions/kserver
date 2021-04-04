@@ -168,6 +168,17 @@ const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post)
 /**
  * savePlatformPost
  *
+ * Notes:
+ * 1. If post already exists, update it
+ * 2. If new post, save particulars to a unique environment file
+ * 3. If repostable, save the post for assigned platforms
+ * 4. If reposting platforms have affiliate users, save posts for them too
+ * 5. If original platform has affiliate users, save posts for them too.
+ *
+ * TODO: Affiliate User Concerns:
+ *  - What do we do about differing usernames? In most cases we could use the DEFAULT_USER
+ *  - Otherwise, we should use a [ user : user ] mapping between platforms.
+ *
  * @param   [in]  {PlatformPost} post
  * @param   [in]  {std::string}  status
  * @returns [out] {bool}
@@ -188,12 +199,11 @@ bool Platform::savePlatformPost(PlatformPost post, const std::string& status) {
 
   bool result = (!insert_id.empty());
 
-  // TODO: What do we do about differing usernames? In most cases we could use the DEFAULT_USER
-  // TODO: Otherwise, we should use a [ user : user ] mapping between platforms.
   if (result && shouldRepost(post.repost) && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
+  {
     for (const auto& platform_id : fetchRepostIDs(post.pid))
     {
-      PlatformPost post{
+      PlatformPost repost{
         .pid     = platform_id,
         .o_pid   = post.pid,
         .id      = post.id,
@@ -203,10 +213,14 @@ bool Platform::savePlatformPost(PlatformPost post, const std::string& status) {
         .urls    = post.urls,
         .repost  = post.repost
       };
-      savePlatformPost(post, constants::PLATFORM_POST_INCOMPLETE);
+      savePlatformPost(repost, constants::PLATFORM_POST_INCOMPLETE);
 
-      for (const auto& affiliate_post : createAffiliatePosts(post))
+      for (const auto& affiliate_post : createAffiliatePosts(repost))
         savePlatformPost(affiliate_post, constants::PLATFORM_POST_INCOMPLETE);
+    }
+
+    for (const auto& affiliate_post : createAffiliatePosts(post))
+      savePlatformPost(affiliate_post, constants::PLATFORM_POST_INCOMPLETE);
     }
 
   return result;
