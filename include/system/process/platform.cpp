@@ -110,6 +110,12 @@ PlatformPost createAffiliatePost(const std::string name, const std::string type,
     affiliate_post.pid     = post.pid;
     affiliate_post.content = createAffiliateContent();
   }
+  else
+  if (type == "official")
+  {
+    std::string official_repost_statement{}; // TODO: get file path from config and then load with file utils
+    affiliate_post.content = official_repost_statement + '\n' + createAffiliateContent();
+  }
 
   return affiliate_post;
 }
@@ -121,20 +127,20 @@ const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post)
   Database::KDB kdb{};
 
   QueryValues result = kdb.selectSimpleJoin(
-    "platform_user pu",
+    "platform_user",
     {
-      "pau.a_uid",
-      "pu.type"
+      "platform_affiliate_user.a_uid",
+      "platform_user.type"
     },
     QueryFilter{
-      {"pu.name", post.user},
-      {"pu.pid", post.pid}
+      {"platform_user.name", post.user},
+      {"platform_user.pid",  post.pid}
     },
     Join{
-      .table = "platform_affiliate_user pau",
-      .field      = "id",
-      .join_table = "pu",
-      .join_field = "pid",
+      .table = "platform_affiliate_user",
+      .field      = "uid",
+      .join_table = "platform_user",
+      .join_field = "id",
       .type       =  JoinType::INNER
     }
   );
@@ -144,14 +150,14 @@ const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post)
 
   for (const auto& value : result)
   {
-    if (value.first == "pau.a_uid")
+    if (value.first == "platform_affiliate_user.a_uid")
       for (const auto& af_value : kdb.select("platform_user", {"name"}, QueryFilter{{"id", value.second}}))
       {
         if (af_value.first == "name")
           name = af_value.second;
       }
     else
-    if (value.first == "pu.type")
+    if (value.first == "platform_user.type")
       type = value.second;
 
     if (!name.empty() && !type.empty())
