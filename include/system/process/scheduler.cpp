@@ -70,6 +70,7 @@ std::string savePlatformEnvFile(const PlatformPost& post)
   return FileUtils::saveEnvFile(
     FileUtils::createEnvFile(
     std::unordered_map<std::string, std::string>{
+      {"username", post.user},
       {"content", post.content},
       {"urls",    post.urls}
     }
@@ -80,8 +81,9 @@ bool populatePlatformPost(PlatformPost& post)
 {
   const std::string env_path{"data/" + post.time + post.id + post.pid + "/v.env"};
   const std::vector<std::string> post_values = FileUtils::readEnvValues(env_path, PLATFORM_ENV_KEYS);
-  if (post_values.size() == 2)
+  if (post_values.size() == 3)
   {
+    post.user    = post_values.at(constants::PLATFORM_POST_USER_INDEX);
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
     post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
     return true;
@@ -677,6 +679,8 @@ bool Scheduler::savePlatformPost(PlatformPost post, const std::string& status) {
 
   bool result = (!insert_id.empty());
 
+  // TODO: What do we do about differing usernames? In most cases we could use the DEFAULT_USER
+  // TODO: Otherwise, we should use a [ user : user ] mapping between platforms.
   if (result && shouldRepost(post.repost) && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
     for (const auto& platform_id : fetchRepostIDs(post.pid))
       savePlatformPost(
@@ -684,6 +688,7 @@ bool Scheduler::savePlatformPost(PlatformPost post, const std::string& status) {
           .pid     = platform_id,
           .o_pid   = post.pid,
           .id      = post.id,
+          .user    = post.user,
           .time    = post.time,
           .content = post.content,
           .urls    = post.urls,
@@ -708,6 +713,7 @@ bool Scheduler::savePlatformPost(std::vector<std::string> payload) {
 
   const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
   const std::string& id   = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+  const std::string& user = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
   const std::string& time = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
   const std::string& platform_id = getPlatformID(name);
 
@@ -725,6 +731,7 @@ bool Scheduler::savePlatformPost(std::vector<std::string> payload) {
     .pid     = platform_id,
     .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
     .id      = id  .empty() ? StringUtils::generate_uuid_string()   : id,
+    .user    = user,
     .time    = time.empty() ? std::to_string(TimeUtils::unixtime()) : time,
     .content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
     .urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
@@ -803,6 +810,7 @@ std::vector<std::string> Scheduler::platformToPayload(PlatformPost& platform)
   payload.resize(8);
   payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = platform.name;
   payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = platform.id;
+  payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = platform.user;
   payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)     = platform.time;
   payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)  = platform.content;
   payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)      = platform.urls; // concatenated string

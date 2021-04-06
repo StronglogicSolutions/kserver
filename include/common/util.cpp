@@ -365,6 +365,12 @@ bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
 
 bool isAppOperation(const char* data) { return strcmp(data, "AppRequest") == 0; }
 
+static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
+{
+  flatbuffers::Verifier verifier{buffer, size};
+  return VerifyMessageBuffer(verifier);
+}
+
 /**
  * @brief Get the Decoded Message object
  *
@@ -398,52 +404,60 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
     {
       uint8_t  decode_buffer[message_byte_size];
       std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-      const IGData::IGTask* ig_task = GetIGTask(&decode_buffer);
-      /**
-       * /note The specification for the order of these arguments can be found
-        * in namespace: IGTaskIndex
-        */
-      return right(std::move(
-        std::vector<std::string>{
-          std::to_string(ig_task->mask()),
-          ig_task->file_info()->str(),     ig_task->time()->str(),
-          ig_task->description()->str(),   ig_task->hashtags()->str(),
-          ig_task->requested_by()->str(),  ig_task->requested_by_phrase()->str(),
-          ig_task->promote_share()->str(), ig_task->link_bio()->str(),
-          std::to_string(ig_task->is_video()),
-          ig_task->header()->str(),        ig_task->user()->str()
-        }
-      ));
+      if (VerifyFlatbuffer(decode_buffer, message_byte_size))
+      {
+        const IGData::IGTask* ig_task = GetIGTask(&decode_buffer);
+        /**
+         * /note The specification for the order of these arguments can be found
+          * in namespace: IGTaskIndex
+          */
+        return right(std::move(
+          std::vector<std::string>{
+            std::to_string(ig_task->mask()),
+            ig_task->file_info()->str(),     ig_task->time()->str(),
+            ig_task->description()->str(),   ig_task->hashtags()->str(),
+            ig_task->requested_by()->str(),  ig_task->requested_by_phrase()->str(),
+            ig_task->promote_share()->str(), ig_task->link_bio()->str(),
+            std::to_string(ig_task->is_video()),
+            ig_task->header()->str(),        ig_task->user()->str()
+          }
+        ));
+      }
     }
     else
     if (msg_type_byte_code == 0xFE)
     {
       uint8_t decode_buffer[message_byte_size];
       std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-      const flatbuffers::Vector<uint8_t>* message_bytes = GetMessage(&decode_buffer)->data();
-      return left(std::string{message_bytes->begin(), message_bytes->end()});
-
+      if (VerifyFlatbuffer(decode_buffer, message_byte_size))
+      {
+        const flatbuffers::Vector<uint8_t>* message_bytes = GetMessage(&decode_buffer)->data();
+        return left(std::string{message_bytes->begin(), message_bytes->end()});
+      }
     }
     else
     if (msg_type_byte_code == 0xFC)
     {
       uint8_t decode_buffer[message_byte_size];
       std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
-      const GenericData::GenericTask* gen_task = GetGenericTask(&decode_buffer);
-      /**
-       * /note The specification for the order of these arguments can be found
-        * in namespace: GenericTaskIndex
-        */
-      return right(std::move(
-        std::vector<std::string>{
-          std::to_string(gen_task->mask()),
-          gen_task->file_info()->str(),          gen_task->time()->str(),
-          gen_task->description()->str(),        std::to_string(gen_task->is_video()),
-          gen_task->header()->str(),             gen_task->user()->str(),
-          std::to_string(gen_task->recurring()), std::to_string(gen_task->notify()),
-          gen_task->runtime()->str()
-        }
-      ));
+      if (VerifyFlatbuffer(decode_buffer, message_byte_size))
+      {
+        const GenericData::GenericTask* gen_task = GetGenericTask(&decode_buffer);
+        /**
+         * /note The specification for the order of these arguments can be found
+          * in namespace: GenericTaskIndex
+          */
+        return right(std::move(
+          std::vector<std::string>{
+            std::to_string(gen_task->mask()),
+            gen_task->file_info()->str(),          gen_task->time()->str(),
+            gen_task->description()->str(),        std::to_string(gen_task->is_video()),
+            gen_task->header()->str(),             gen_task->user()->str(),
+            std::to_string(gen_task->recurring()), std::to_string(gen_task->notify()),
+            gen_task->runtime()->str()
+          }
+        ));
+      }
     }
   }
   return right(std::vector<std::string>{});
