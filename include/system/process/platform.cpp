@@ -1,9 +1,20 @@
 #include "platform.hpp"
 
+/**
+ * @brief Construct a new Platform:: Platform object
+ *
+ * @param fn
+ */
 Platform::Platform(SystemEventcallback fn)
 : m_event_callback(fn)
 {}
 
+/**
+ * @brief
+ *
+ * @param post
+ * @return std::string
+ */
 std::string savePlatformEnvFile(const PlatformPost& post)
 {
   const std::string directory_name{post.time + post.id + post.pid};
@@ -21,6 +32,13 @@ std::string savePlatformEnvFile(const PlatformPost& post)
   ), filename);
 }
 
+/**
+ * @brief
+ *
+ * @param post
+ * @return true
+ * @return false
+ */
 bool populatePlatformPost(PlatformPost& post)
 {
   const std::string env_path{"data/" + post.time + post.id + post.pid + "/v.env"};
@@ -55,7 +73,7 @@ std::vector<std::string> Platform::fetchRepostIDs(const std::string& pid)
 {
   std::vector<std::string> pids{};
 
-  auto result = m_kdb.select(
+  auto result = m_db.select(
     "platform_repost",
     {
       "r_pid"
@@ -74,19 +92,43 @@ std::vector<std::string> Platform::fetchRepostIDs(const std::string& pid)
   return pids;
 }
 
+/**
+ * @brief
+ *
+ * @param post
+ * @return true
+ * @return false
+ */
 bool Platform::postAlreadyExists(const PlatformPost& post)
 {
-  return !(m_kdb.select(
+  return !(m_db.selectSimpleJoin(
     "platform_post",
-    {"id"},
-    QueryFilter{{"pid", post.pid},
-    {"unique_id", post.id}}
+    {"platform_post.id"},
+    QueryFilter{
+      {"platform_post.pid",       post.pid},
+      {"platform_user.name",      post.name},
+      {"unique_id", post.id}},
+      Join{
+        .table = "platform_user",
+        .field = "pid",
+        .join_table = "platform_post",
+        .join_field = "pid",
+        .type = JoinType::INNER
+      }
   ).empty());
 }
 
+/**
+ * @brief
+ *
+ * @param post
+ * @param status
+ * @return true
+ * @return false
+ */
 bool Platform::updatePostStatus(const PlatformPost& post, const std::string& status)
 {
-  return (!m_kdb.update(
+  return (!m_db.update(
     "platform_post",
     {"status"},
     {status},
@@ -96,15 +138,32 @@ bool Platform::updatePostStatus(const PlatformPost& post, const std::string& sta
   ).empty());
 }
 
-PlatformPost createAffiliatePost(const std::string name, const std::string type, const PlatformPost& post)
+/**
+ * @brief Create a Affiliate Post object
+ *
+ * @param name
+ * @param type
+ * @param post
+ * @return PlatformPost
+ */
+PlatformPost createAffiliatePost(const std::string user, const std::string type, const PlatformPost& post)
 {
-  const auto createAffiliateContent = [&name, &type, &post]() {
-    const auto& original_content = post.content;
-    (void)(original_content);
-    return "Placeholder content";
+  static const char DO_NOT_REPOST[] = {"false"};
+  const auto createAffiliateContent = [&user, &type, &post]() {
+    const std::string affiliate_content = FileUtils::readFile(ConfigParser::Platform::affiliate_content(type));
+    return affiliate_content + '\n' + post.content;
   };
 
   PlatformPost affiliate_post{};
+  affiliate_post.id     = post.id;
+  affiliate_post.pid    = post.pid;
+  affiliate_post.o_pid  = post.pid;
+  affiliate_post.user   = user;
+  affiliate_post.time   = post.time;
+  affiliate_post.urls   = post.urls;
+  affiliate_post.method = post.method;
+  affiliate_post.repost = DO_NOT_REPOST;
+
   if (type == "placeholder")
   {
     affiliate_post.pid     = post.pid;
@@ -113,13 +172,18 @@ PlatformPost createAffiliatePost(const std::string name, const std::string type,
   else
   if (type == "official")
   {
-    std::string official_repost_statement{}; // TODO: get file path from config and then load with file utils
-    affiliate_post.content = official_repost_statement + '\n' + createAffiliateContent();
+    affiliate_post.content = createAffiliateContent();
   }
 
   return affiliate_post;
 }
 
+/**
+ * @brief Create a Affiliate Posts object
+ *
+ * @param post
+ * @return const std::vector<PlatformPost>
+ */
 const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post)
 {
   std::vector<PlatformPost> affiliate_posts{};
@@ -194,10 +258,17 @@ bool Platform::savePlatformPost(PlatformPost post, const std::string& status) {
   if (postAlreadyExists(post))
     return updatePostStatus(post, status);
 
-  auto insert_id = m_kdb.insert(
+  std::string uid{};
+
+  if (!userExists(post.pid, post.user))
+    uid = addUser(post.pid, post.user);
+  else
+    uid = getUserID(post.pid, post.user);
+
+  auto insert_id = m_db.insert(
     "platform_post",
-    {"pid", "unique_id", "time", "o_pid", "status", "repost"},
-    {post.pid, post.id, post.time, post.o_pid, status, post.repost},
+    {"pid", "unique_id", "time", "o_pid", "uid", "status", "repost"},
+    {post.pid, post.id, post.time, post.o_pid, uid, status, post.repost},
     "id"
   );
 
@@ -281,7 +352,7 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
 std::string Platform::getPlatformID(uint32_t mask) {
   auto app_info = ProcessExecutor::getAppInfo(mask);
   if (!app_info.name.empty()) {
-    auto result = m_kdb.select(
+    auto result = m_db.select(
       "platform",
       {
         "id"
@@ -297,16 +368,18 @@ std::string Platform::getPlatformID(uint32_t mask) {
   return "";
 }
 
+/**
+ * @brief
+ *
+ * @param name
+ * @return std::string
+ */
 std::string Platform::getPlatformID(const std::string& name) {
   if (!name.empty()) {
-    auto result = m_kdb.select(
+    auto result = m_db.select(
       "platform",
-      {
-        "id"
-      },
-      QueryFilter{
-      {"name", name}
-      }
+      {"id"},
+      QueryFilter{{"name", name}}
     );
     for (const auto& value : result)
       if (value.first == "id")
@@ -360,10 +433,15 @@ std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
   return posts;
 }
 
+/**
+ * @brief
+ *
+ * @return std::vector<PlatformPost>
+ */
 std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
 {
   return parsePlatformPosts(
-    m_kdb.selectSimpleJoin(
+    m_db.selectSimpleJoin(
       "platform_post",
       {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method"},
       QueryFilter{
@@ -381,6 +459,12 @@ std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
   );
 }
 
+/**
+ * @brief
+ *
+ * @param platform
+ * @return std::vector<std::string>
+ */
 std::vector<std::string> Platform::platformToPayload(PlatformPost& platform)
 {
   std::vector<std::string> payload{};
@@ -472,4 +556,45 @@ void Platform::processPlatform()
         platform_post.id
       );
   }
+}
+
+/**
+ * @brief
+ *
+ * @param pid
+ * @param username
+ * @return true
+ * @return false
+ */
+bool Platform::userExists(const std::string& pid, const std::string& name)
+{
+  return !m_db.select("platform_user", {"id"}, QueryFilter{{"pid", pid}, {"name", name}}).empty();
+}
+
+/**
+ * @brief
+ *
+ * @param pid
+ * @param username
+ * @param type
+ * @return std::string
+ */
+std::string Platform::addUser(const std::string& pid, const std::string& name, const std::string& type)
+{
+  return m_db.insert("platform_user", {"pid", "name", "type"}, {pid, name, type}, "id");
+}
+
+/**
+ * @brief
+ *
+ * @param pid
+ * @param username
+ * @return std::string
+ */
+std::string Platform::getUserID(const std::string& pid, const std::string& name)
+{
+  for (const auto& v : m_db.select("platform_user", {"id"}, {{"pid", pid}, {"name", name}}))
+    if (v.first == "id")
+      return v.second;
+  return "";
 }
