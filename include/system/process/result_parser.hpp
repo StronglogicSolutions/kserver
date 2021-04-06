@@ -12,9 +12,7 @@
 #include "codec/rapidjson/stringbuffer.h"
 #include "codec/rapidjson/writer.h"
 
-#include "executor/executor.hpp"
 #include "server/types.hpp"
-
 #include "log/logger.h"
 
 
@@ -136,6 +134,7 @@ virtual ProcessParseResult get_result() override {
         .payload = std::vector<std::string>{
           m_app_name,
           item.id,
+          item.username,
           item.time,
           item.content,
           url_string(item.media_urls),

@@ -2,10 +2,14 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 
 #include "common/util.hpp"
 
 #define TIMESTAMP_LENGTH 10
+
+using SystemEventcallback =
+    std::function<void(int32_t, int32_t, const std::vector<std::string>&)>;
 
 const uint32_t NO_APP_MASK = std::numeric_limits<uint32_t>::max();
 namespace TaskIndexes {
@@ -231,4 +235,13 @@ std::string urls;
 std::string repost;
 std::string name;
 std::string method;
+
+const bool is_valid() const
+{
+  return (
+    !pid.empty() &&
+    !content.empty()
+  );
+}
+
 };

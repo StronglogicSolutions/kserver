@@ -39,4 +39,8 @@ namespace Email {
 std::string notification();
 std::string admin();
 } // namespace Admin
-}  // namespace ConfigParser
+
+namespace Platform {
+std::string affiliate_content(const std::string& type);
+} // namespace Platform
+} // namespace ConfigParser

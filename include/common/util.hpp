@@ -188,9 +188,7 @@ bool isdigits(const std::string &s);
 namespace TimeUtils {
 int unixtime();
 
-std::string_view format_timestamp(int unixtime);
-
+std::string format_timestamp(int unixtime);
 std::string format_timestamp(std::string unixtime);
-
 std::string time_as_today(std::string unixtime);
 }  // namespace TimeUtils
