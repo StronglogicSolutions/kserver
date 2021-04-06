@@ -44,9 +44,13 @@ bool                      savePlatformPost(PlatformPost       post,
 bool                      updatePostStatus(const PlatformPost& post, const std::string& status);
 bool                      postAlreadyExists(const PlatformPost& post);
 bool                      isProcessingPlatform();
+bool                      userExists(const std::string& pid, const std::string& name);
+std::string               addUser(const std::string& pid, const std::string& name, const std::string& type
+= "default");
+std::string               getUserID(const std::string& pid, const std::string& name);
 
 // Members
-Database::KDB       m_kdb;
+Database::KDB       m_db;
 PlatformRequestMap  m_platform_map;
 SystemEventcallback m_event_callback;
 };
