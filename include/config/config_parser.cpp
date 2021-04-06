@@ -64,4 +64,15 @@ std::string admin() {
   return reader.Get("email", "admin", requiredConfig("[email] admin"));
 }
 } // namespace Admin
-}  // namespace ConfigParser
+
+namespace Platform {
+std::string affiliate_content(const std::string& type)
+{
+  std::string section{"affiliate"};
+  section  += '_';
+  section  += type;
+  std::string value = reader.Get("platform", section, requiredConfig("[platform] " + section));
+  return value;
+}
+} // namespace Platform
+} // namespace ConfigParser
