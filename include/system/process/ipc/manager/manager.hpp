@@ -86,7 +86,7 @@ void HandleClientMessages()
           payload.emplace_back(message->platform());
           payload.emplace_back(message->id());
           payload.emplace_back(message->user());
-          payload.emplace_back("");
+          payload.emplace_back(""); // time?
           payload.emplace_back(message->content());
           payload.emplace_back(message->urls());
           payload.emplace_back(std::to_string(message->repost()));
