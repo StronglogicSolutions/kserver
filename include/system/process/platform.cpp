@@ -106,8 +106,8 @@ bool Platform::postAlreadyExists(const PlatformPost& post)
     {"platform_post.id"},
     QueryFilter{
       {"platform_post.pid",       post.pid},
-      {"platform_user.name",      post.name},
-      {"unique_id", post.id}},
+      {"platform_user.name",      post.user},
+      {"platform_post.unique_id", post.id}},
       Join{
         .table = "platform_user",
         .field = "pid",

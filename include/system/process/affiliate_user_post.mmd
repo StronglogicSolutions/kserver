@@ -1,0 +1,11 @@
+sequenceDiagram
+System-->>Scheduler:Platform Post;
+activate Scheduler;
+Scheduler-->>Platform: find affiliate (ipc);
+activate Platform;
+note over Platform: Create posts for affiliate
+Platform-->>Scheduler:SavePlatformPost
+deactivate Platform
+Scheduler-->>System: Platform Post Created;
+deactivate Scheduler;
+note over System: send events
