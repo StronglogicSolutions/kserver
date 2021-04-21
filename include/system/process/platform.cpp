@@ -43,9 +43,8 @@ bool populatePlatformPost(PlatformPost& post)
 {
   const std::string env_path{"data/" + post.time + post.id + post.pid + "/v.env"};
   const std::vector<std::string> post_values = FileUtils::readEnvValues(env_path, PLATFORM_ENV_KEYS);
-  if (post_values.size() == 3)
+  if (post_values.size() == 2)
   {
-    post.user    = post_values.at(constants::PLATFORM_POST_USER_INDEX);
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
     post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
     return true;
@@ -387,7 +386,7 @@ std::string Platform::getPlatformID(const std::string& name) {
 std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
   std::vector<PlatformPost> posts{};
   posts.reserve(result.size() / 5);
-  std::string pid, o_pid, id, time, repost, name, method;
+  std::string pid, o_pid, id, time, repost, name, method, uid;
 
   for (const auto& v : result) {
          if (v.first == "platform_post.pid"  ) { pid = v.second; }
@@ -397,13 +396,15 @@ std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
     else if (v.first == "platform_post.repost" ) { repost = v.second; }
     else if (v.first == "platform.name" ) { name = v.second; }
     else if (v.first == "platform.method" ) { method = v.second; }
+    else if (v.first == "platform.uid" )    { uid = v.second; }
 
-    if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() && !repost.empty() && !name.empty() && !method.empty()) {
+    if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() && !repost.empty() && !name.empty() && !method.empty() && !uid.empty()) {
       PlatformPost post{};
-      post.pid = pid;
+      post.pid   = pid;
       post.o_pid = o_pid;
-      post.id = id;
-      post.time = time;
+      post.id    = id;
+      post.user  = getUser(uid);
+      post.time  = time;
       post.repost = repost;
       post.name = name;
       post.method = method;
@@ -417,6 +418,7 @@ std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
       repost.clear();
       name  .clear();
       method.clear();
+      uid   .clear();
     }
   }
 
@@ -433,7 +435,7 @@ std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
   return parsePlatformPosts(
     m_db.selectSimpleJoin(
       "platform_post",
-      {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method"},
+      {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method", "platform.uid"},
       QueryFilter{
         {"platform_post.status", constants::PLATFORM_POST_INCOMPLETE},
         {"platform_post.repost", constants::SHOULD_REPOST}
@@ -585,6 +587,22 @@ std::string Platform::getUserID(const std::string& pid, const std::string& name)
 {
   for (const auto& v : m_db.select("platform_user", {"id"}, {{"pid", pid}, {"name", name}}))
     if (v.first == "id")
+      return v.second;
+  return "";
+}
+
+
+/**
+ * @brief
+ *
+ * @param pid
+ * @param uid
+ * @return std::string
+ */
+std::string Platform::getUser(const std::string& uid)
+{
+  for (const auto& v : m_db.select("platform_user", {"name"}, {{"id", uid}}))
+    if (v.first == "name")
       return v.second;
   return "";
 }

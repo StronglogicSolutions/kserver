@@ -19,7 +19,6 @@ static const std::vector<std::string> PLATFORM_KEYS{
 };
 
 static const std::vector<std::string> PLATFORM_ENV_KEYS{
-  "username",
   "content",
   "urls"
 };
@@ -48,6 +47,7 @@ bool                      userExists(const std::string& pid, const std::string& 
 std::string               addUser(const std::string& pid, const std::string& name, const std::string& type
 = "default");
 std::string               getUserID(const std::string& pid, const std::string& name);
+std::string               getUser  (const std::string& uid);
 
 // Members
 Database::KDB       m_db;
