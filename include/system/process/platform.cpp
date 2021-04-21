@@ -107,13 +107,12 @@ bool Platform::postAlreadyExists(const PlatformPost& post)
     QueryFilter{
       {"platform_post.pid",       post.pid},
       {"platform_user.name",      post.user},
-      {"platform_post.unique_id", post.id},
-      {"platform_post.uid",       "platform_user.id"}},
+      {"platform_post.unique_id", post.id}},
       Join{
         .table = "platform_user",
-        .field = "pid",
+        .field = "id",
         .join_table = "platform_post",
-        .join_field = "pid",
+        .join_field = "uid",
         .type = JoinType::INNER
       }
   ).empty());
@@ -156,25 +155,15 @@ PlatformPost createAffiliatePost(const std::string user, const std::string type,
   };
 
   PlatformPost affiliate_post{};
-  affiliate_post.id     = post.id;
-  affiliate_post.pid    = post.pid;
-  affiliate_post.o_pid  = post.pid;
-  affiliate_post.user   = user;
-  affiliate_post.time   = post.time;
-  affiliate_post.urls   = post.urls;
-  affiliate_post.method = post.method;
-  affiliate_post.repost = DO_NOT_REPOST;
-
-  if (type == "placeholder")
-  {
-    affiliate_post.pid     = post.pid;
-    affiliate_post.content = createAffiliateContent();
-  }
-  else
-  if (type == "official")
-  {
-    affiliate_post.content = createAffiliateContent();
-  }
+  affiliate_post.id      = post.id;
+  affiliate_post.pid     = post.pid;
+  affiliate_post.o_pid   = post.pid;
+  affiliate_post.user    = user;
+  affiliate_post.time    = post.time;
+  affiliate_post.urls    = post.urls;
+  affiliate_post.method  = post.method;
+  affiliate_post.repost  = DO_NOT_REPOST;
+  affiliate_post.content = createAffiliateContent();
 
   return affiliate_post;
 }
