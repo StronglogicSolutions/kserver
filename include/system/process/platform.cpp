@@ -25,7 +25,6 @@ std::string savePlatformEnvFile(const PlatformPost& post)
   return FileUtils::saveEnvFile(
     FileUtils::createEnvFile(
     std::unordered_map<std::string, std::string>{
-      {"username", post.user},
       {"content", post.content},
       {"urls",    post.urls}
     }

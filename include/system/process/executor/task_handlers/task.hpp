@@ -69,9 +69,8 @@ static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
        const std::string PLATFORM_POST_INCOMPLETE        {"0"};
        const std::string PLATFORM_POST_COMPLETE          {"1"};
 
-static const uint8_t     PLATFORM_POST_USER_INDEX        {0x00};
-static const uint8_t     PLATFORM_POST_CONTENT_INDEX     {0x01};
-static const uint8_t     PLATFORM_POST_URL_INDEX         {0x02};
+static const uint8_t     PLATFORM_POST_CONTENT_INDEX     {0x00};
+static const uint8_t     PLATFORM_POST_URL_INDEX         {0x01};
 
        const std::string SHOULD_REPOST                   {"true"};
        const std::string PLATFORM_PROCESS_METHOD         {"process"};
