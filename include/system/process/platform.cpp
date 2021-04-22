@@ -396,7 +396,7 @@ std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
     else if (v.first == "platform_post.repost" ) { repost = v.second; }
     else if (v.first == "platform.name" ) { name = v.second; }
     else if (v.first == "platform.method" ) { method = v.second; }
-    else if (v.first == "platform.uid" )    { uid = v.second; }
+    else if (v.first == "platform_post.uid" )    { uid = v.second; }
 
     if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() && !repost.empty() && !name.empty() && !method.empty() && !uid.empty()) {
       PlatformPost post{};
@@ -435,7 +435,7 @@ std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
   return parsePlatformPosts(
     m_db.selectSimpleJoin(
       "platform_post",
-      {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method", "platform.uid"},
+      {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method", "platform_post.uid"},
       QueryFilter{
         {"platform_post.status", constants::PLATFORM_POST_INCOMPLETE},
         {"platform_post.repost", constants::SHOULD_REPOST}
