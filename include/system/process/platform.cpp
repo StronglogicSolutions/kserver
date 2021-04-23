@@ -130,8 +130,11 @@ bool Platform::updatePostStatus(const PlatformPost& post, const std::string& sta
     "platform_post",
     {"status"},
     {status},
-    QueryFilter{{"pid", post.pid},
-    {"unique_id", post.id}},
+    QueryFilter{
+      {"pid", post.pid},
+      {"unique_id", post.id},
+      {"uid", getUserID(post.pid, post.user)}
+    },
     "id"
   ).empty());
 }
