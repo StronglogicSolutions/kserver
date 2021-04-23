@@ -436,8 +436,7 @@ std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
       "platform_post",
       {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method", "platform_post.uid"},
       QueryFilter{
-        {"platform_post.status", constants::PLATFORM_POST_INCOMPLETE},
-        {"platform_post.repost", constants::SHOULD_REPOST}
+        {"platform_post.status", constants::PLATFORM_POST_INCOMPLETE}
       },
       Join{
         .table      = "platform",
