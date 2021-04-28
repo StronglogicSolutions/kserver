@@ -156,7 +156,7 @@ PlatformPost createAffiliatePost(const std::string user, const std::string type,
   };
 
   PlatformPost affiliate_post{};
-  affiliate_post.id      = post.id;
+  affiliate_post.id      = StringUtils::generate_uuid_string();
   affiliate_post.pid     = post.pid;
   affiliate_post.o_pid   = post.pid;
   affiliate_post.user    = user;
@@ -251,10 +251,10 @@ bool Platform::savePlatformPost(PlatformPost post, const std::string& status) {
 
   std::string uid{};
 
-  if (!userExists(post.pid, post.user))
+  if (!userExists(post.pid, post.user)) // This is redundant
     uid = addUser(post.pid, post.user);
   else
-    uid = getUserID(post.pid, post.user);
+    uid = getUserID(post.pid, post.user); // TODO: just use this
 
   auto insert_id = m_db.insert(
     "platform_post",
