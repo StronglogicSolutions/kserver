@@ -497,8 +497,9 @@ bool Platform::isProcessingPlatform()
  */
 void Platform::onPlatformError(const std::vector<std::string>& payload)
 {
-  const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
-  const std::string& id   = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+  const std::string& name        = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
+  const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+  const std::string& user        = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
   const std::string& platform_id = getPlatformID(name);
 
   if (isProcessingPlatform())
@@ -512,6 +513,7 @@ void Platform::onPlatformError(const std::vector<std::string>& payload)
   post.name = name;
   post.id   = id;
   post.pid  = platform_id;
+  post.user = user;
 
   updatePostStatus(post, PLATFORM_STATUS_FAILURE);
 }
