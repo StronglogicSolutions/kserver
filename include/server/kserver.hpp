@@ -225,7 +225,6 @@ class KServer : public SocketListener {
       case SYSTEM_EVENTS__REGISTRAR_FAIL:
         sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
         break;
-
     }
   }
 

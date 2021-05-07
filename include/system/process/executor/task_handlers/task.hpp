@@ -77,6 +77,20 @@ static const uint8_t     PLATFORM_POST_URL_INDEX         {0x01};
        const std::string VIDEO_TYPE_ARGUMENT             {"video\""};
        const std::string IMAGE_TYPE_ARGUMENT             {"image\""};
        const char        LINE_BREAK                      {'\n'};
+
+static const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
+  {"DESCRIPTION", "--description"},
+  {"FILE_TYPE", "--media"},
+  {"HEADER", "--header"},
+  {"USER", "--user"},
+  {"HASHTAGS", "--hashtags"},
+  {"LINK_BIO", "--link_bio"},
+  {"REQUESTED_BY", "--requested_by"},
+  {"REQUESTED_BY_PHRASE", "--requested_by_phrase"},
+  {"REQUESTED_BY", "--requested_by"},
+  {"PROMOTE_SHARE", "--promote_share"},
+  {"DIRECT_MESSAGE", "--direct_message"}
+};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States
@@ -118,6 +132,7 @@ namespace Field {
 
 using TaskArguments = std::vector<std::string>;
 
+static const uint8_t TASK_PAYLOAD_SIZE{12};
 struct Task {
   int                      execution_mask;
   std::string              datetime;
@@ -131,6 +146,19 @@ struct Task {
   bool                     notify;
   std::string              runtime;
   std::vector<std::string> filenames;
+
+  static Task clone_basic(const Task& task, bool recurring = false)
+  {
+    Task new_task{};
+    new_task.execution_mask  = task.execution_mask;
+    new_task.file            = task.file;
+    new_task.files           = task.files;
+    new_task.execution_flags = task.execution_flags;
+    new_task.runtime         = task.runtime;
+    new_task.filenames       = task.filenames;
+
+    return new_task;
+  }
 
   bool validate() {
     return !datetime.empty() && !envfile.empty() &&

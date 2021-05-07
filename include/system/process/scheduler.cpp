@@ -646,3 +646,36 @@ void Scheduler::processPlatform()
 {
   m_platform.processPlatform();
 }
+
+bool Scheduler::processTriggers(Task* task)
+{
+  const auto get_application = [](int mask) {
+    return get_app_info(mask);
+  };
+
+  Task              new_task = Task::clone_basic(*task);
+  const std::string uuid = StringUtils::generate_uuid_string();
+  std::string       environment_file{};
+
+  for (const auto& token : FileUtils::extractFlagTokens(task->execution_flags))
+  {
+    environment_file +=
+      constants::PARAM_KEY_MAP.at(token)            + "=\"" +
+      FileUtils::readEnvToken(task->envfile, token) + '\"'  + ARGUMENT_SEPARATOR + '\n';
+  }
+
+  KApplication application = get_application(task->execution_mask);
+
+  if (application.name == "ig_dm")
+  {
+    new_task.execution_flags += " --direct_message=$DIRECT_MESSAGE";
+    environment_file +=
+      "DIRECT_MESSAGE=\"" + FileUtils::readEnvToken(task->envfile, "REQUESTED_BY_PHRASE") +
+      '\"' + ARGUMENT_SEPARATOR + '\n';
+  }
+
+  new_task.envfile = FileUtils::saveEnvFile(environment_file, uuid);
+  const std::string new_task_id = schedule(new_task);
+
+  return !(new_task_id.empty());
+}
