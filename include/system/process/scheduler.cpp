@@ -656,9 +656,7 @@ void Scheduler::processPlatform()
  * @return true
  * @return false
  */
-bool Scheduler::processTriggers(Task*              task,
-                                const std::string& field_value,
-                                const std::string& field_name)
+bool Scheduler::processTriggers(Task* task)
 {
   /**
    * get_trigger
@@ -666,18 +664,32 @@ bool Scheduler::processTriggers(Task*              task,
    * @returns [out] KApplication
    */
   const auto get_trigger = [&]() {
+    std::string mask, token_name, token_value;
     const auto& query = this->m_kdb.select(
       "triggers",
-      {"trigger_mask"},
+      {"trigger_mask", "field_name", "field_value"},
       QueryFilter{
         {"mask",        std::to_string(task->execution_mask)},
-        {"field_name",  field_name},
-        {"field_value", field_value}});
+        });
 
     for (const auto& value : query)
-      if (value.first == "mask")
-        return get_app_info(std::stoi(value.second));
+      if (value.first == "trigger_mask")
+        mask = value.second;
+      else
+      if (value.first == "field_name")
+        token_name = value.second;
+      else
+      if (value.first == "field_value")
+        token_value = value.second;
+
+    if (
+      !mask.empty() && !token_name.empty() && !token_value.empty() &&
+      FileUtils::readEnvToken(task->envfile, token_name) == token_value
+    )
+      return get_app_info(task->execution_mask);
   };
+
+
 
   KApplication application = get_trigger();
   if (!application.is_valid())

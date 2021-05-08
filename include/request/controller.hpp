@@ -742,21 +742,19 @@ class Controller {
       error
     );
 
-    if (scheduled_task) { // If it was a scheduled task, we need to update task map held in memory
+    if (scheduled_task) // If it was a scheduled task, we need to update task map held in memory
+    {
       TaskVector::iterator task_it;
 
       KLOG("Task complete notification for client {}'s task {}{}",
         client_socket_fd, id, error ? "\nERROR WAS RETURNED" : ""
       );
 
-      TaskVectorMap::iterator it = m_tasks_map.find(client_socket_fd); // Find iterator to vector
+      TaskVectorMap::iterator it = m_tasks_map.find(client_socket_fd); // Find client's tasks
 
-      if (it != m_tasks_map.end()) {
-        task_it = std::find_if(                                        // Find specific task
-          it->second.begin(), it->second.end(),
-          [id](Task task) {
-            return task.id == std::stoi(id);
-          }
+      if (it != m_tasks_map.end()) {                                   // Find task
+        task_it = std::find_if(it->second.begin(), it->second.end(),
+          [id](Task task) { return task.id == std::stoi(id); }
         );
 
         if (task_it != it->second.end()) {
@@ -781,6 +779,8 @@ class Controller {
             status = task_it->recurring ?
               Completed::SCHEDULED :
               Completed::SUCCESS;
+            if (m_scheduler.processTriggers(&*task_it))
+              KLOG("Process triggers found for task {} with mask {}", task_it->id, task_it->execution_mask);
           }
 
           task_it->completed = status;                            // Update status
