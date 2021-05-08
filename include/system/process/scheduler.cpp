@@ -570,16 +570,16 @@ bool Scheduler::update(Task task) {
  */
 bool Scheduler::updateRecurring(Task* task) {
   return !m_kdb.update(                // UPDATE
-    "recurring", {                      // table
-      "time"                      // field
+    "recurring", {                     // table
+      "time"                           // field
     }, {
       task->datetime  // value
     }, QueryFilter{
-      {"sid", std::to_string(task->id)} // filter
+      {"sid", std::to_string(task->id)}// filter
     },
     "id"                               // returning value
   )
-  .empty();                            // not empty = success
+  .empty();                            // Row created
 }
 
 /**
@@ -639,7 +639,7 @@ void Scheduler::onPlatformError(const std::vector<std::string>& payload)
 }
 
 /**
- * @brief
+ * @brief processPlatform
  *
  */
 void Scheduler::processPlatform()
@@ -647,15 +647,45 @@ void Scheduler::processPlatform()
   m_platform.processPlatform();
 }
 
-bool Scheduler::processTriggers(Task* task)
+/**
+ * @brief processTriggers
+ *
+ * @param task
+ * @param field_value
+ * @param field_name
+ * @return true
+ * @return false
+ */
+bool Scheduler::processTriggers(Task*              task,
+                                const std::string& field_value,
+                                const std::string& field_name)
 {
-  const auto get_application = [](int mask) {
-    return get_app_info(mask);
+  /**
+   * get_trigger
+   * @lambda function
+   * @returns [out] KApplication
+   */
+  const auto get_trigger = [&]() {
+    const auto& query = this->m_kdb.select(
+      "triggers",
+      {"trigger_mask"},
+      QueryFilter{
+        {"mask",        std::to_string(task->execution_mask)},
+        {"field_name",  field_name},
+        {"field_value", field_value}});
+
+    for (const auto& value : query)
+      if (value.first == "mask")
+        return get_app_info(std::stoi(value.second));
   };
 
+  KApplication application = get_trigger();
+  if (!application.is_valid())
+    return false; // No Trigger
+
   Task              new_task = Task::clone_basic(*task);
-  const std::string uuid = StringUtils::generate_uuid_string();
-  std::string       environment_file{};
+  const std::string uuid     = StringUtils::generate_uuid_string();
+        std::string environment_file{};
 
   for (const auto& token : FileUtils::extractFlagTokens(task->execution_flags))
   {
@@ -664,18 +694,22 @@ bool Scheduler::processTriggers(Task* task)
       FileUtils::readEnvToken(task->envfile, token) + '\"'  + ARGUMENT_SEPARATOR + '\n';
   }
 
-  KApplication application = get_application(task->execution_mask);
-
-  if (application.name == "ig_dm")
+  // Add trigger's unique execution flags
+  if (application.name == constants::INSTAGRAM_DIRECT_MESSAGE)
   {
-    new_task.execution_flags += " --direct_message=$DIRECT_MESSAGE";
-    environment_file +=
-      "DIRECT_MESSAGE=\"" + FileUtils::readEnvToken(task->envfile, "REQUESTED_BY_PHRASE") +
-      '\"' + ARGUMENT_SEPARATOR + '\n';
+    new_task.execution_flags += constants::IG_DIRECT_MESSAGE_FLAG;
+    environment_file += "DIRECT_MESSAGE=\"" +
+                        FileUtils::readEnvToken(task->envfile, constants::REQUEST_BY_PHRASE_TOKEN) +
+                        '\"' + ARGUMENT_SEPARATOR + '\n';
+  }
+  else
+  {
+    // TODO: Other triggers
   }
 
-  new_task.envfile = FileUtils::saveEnvFile(environment_file, uuid);
-  const std::string new_task_id = schedule(new_task);
+                    new_task.envfile = FileUtils::saveEnvFile(environment_file, uuid);
+  const std::string new_task_id      = schedule(new_task);
+  const bool        task_scheduled   = !(new_task_id.empty());
 
-  return !(new_task_id.empty());
+  return task_scheduled;
 }
