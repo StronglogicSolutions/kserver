@@ -91,6 +91,10 @@ static const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
   {"PROMOTE_SHARE", "--promote_share"},
   {"DIRECT_MESSAGE", "--direct_message"}
 };
+
+static const char INSTAGRAM_DIRECT_MESSAGE[]{"ig_dm"};
+static const char IG_DIRECT_MESSAGE_FLAG[]{" --direct_message=$DIRECT_MESSAGE"};
+static const char REQUEST_BY_PHRASE_TOKEN[]{"REQUESTED_BY_PHRASE"};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States
