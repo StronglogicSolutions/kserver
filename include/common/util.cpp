@@ -594,7 +594,7 @@ std::string readEnvToken(const std::string& env_file_path, const std::string& to
       run_arg_s  = sub_s.substr(0, end);
     }
   }
-  return run_arg_s;
+  return stripDQuotes(run_arg_s);
 }
 
 bool writeEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
@@ -749,6 +749,14 @@ bool hasNthBitSet(int value, int n) {
 std::string stripSQuotes(std::string s) {
   s.erase(
     std::remove(s.begin(), s.end(),'\''),
+    s.end()
+  );
+  return s;
+}
+
+std::string stripDQuotes(std::string s) {
+  s.erase(
+    std::remove(s.begin(), s.end(),'\"'),
     s.end()
   );
   return s;
