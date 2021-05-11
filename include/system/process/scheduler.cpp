@@ -682,9 +682,13 @@ bool Scheduler::processTriggers(Task* task)
       if (value.first == "token_value")
         token_value = value.second;
 
-    if (!mask.empty() && !token_name.empty() && !token_value.empty() &&
-        FileUtils::readEnvToken(task->envfile, token_name) == token_value)
-      application = get_app_info(task->execution_mask);
+    if (!mask.empty() && !token_name.empty() && !token_value.empty())
+    {
+      auto tok_v = FileUtils::readEnvToken(task->envfile, token_name);
+      bool match = tok_v == token_value;
+      if (match)
+        application = get_app_info(std::stoi(mask));
+    }
 
     return application;
   };
@@ -695,24 +699,23 @@ bool Scheduler::processTriggers(Task* task)
   if (!application.is_valid())
     return false; // No Trigger
 
-  Task              new_task = Task::clone_basic(*task);
+  std::string       environment_file{};
+  Task              new_task = Task::clone_basic(*task, std::stoi(application.mask));
   const std::string uuid     = StringUtils::generate_uuid_string();
-        std::string environment_file{};
-
+  // TODO: better to clone envfile and change?
   for (const auto& token : FileUtils::extractFlagTokens(task->execution_flags))
   {
     environment_file +=
-      constants::PARAM_KEY_MAP.at(token)            + "=\"" +
-      FileUtils::readEnvToken(task->envfile, token) + '\"'  + ARGUMENT_SEPARATOR + '\n';
+      token + "=\"" + FileUtils::readEnvToken(task->envfile, token) +
+      '\"'  + ARGUMENT_SEPARATOR + '\n';
   }
 
   // Add trigger's unique execution flags
   if (application.name == constants::INSTAGRAM_DIRECT_MESSAGE)
   {
     new_task.execution_flags += constants::IG_DIRECT_MESSAGE_FLAG;
-    environment_file += "DIRECT_MESSAGE=\"" +
-                        FileUtils::readEnvToken(task->envfile, constants::REQUEST_BY_PHRASE_TOKEN) +
-                        '\"' + ARGUMENT_SEPARATOR + '\n';
+    environment_file += "DIRECT_MESSAGE=\"" + StringUtils::AlphaNumericOnly(
+      FileUtils::readEnvToken(task->envfile, constants::REQUEST_BY_TOKEN)) + '\"' + ARGUMENT_SEPARATOR + '\n';
   }
   else
   {
