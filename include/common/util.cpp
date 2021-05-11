@@ -518,8 +518,12 @@ void saveFile(uint8_t *bytes, int size, const std::string& filename) {
 }
 
 std::string saveEnvFile(const std::string& env_file_string, const std::string& unique_id) {
-  std::string relative_path{"data/" + unique_id + "/v.env"};
-  std::string filename{get_executable_cwd() + "/" + relative_path};
+  const std::string relative_directory{"data/" + unique_id};
+  const std::string relative_path{relative_directory + "/v.env"};
+  const std::string task_directory{get_executable_cwd() + "/" + relative_directory};
+  if (!std::filesystem::exists(task_directory))
+    createDirectory(task_directory.c_str());
+  const std::string filename{task_directory + "/v.env"};
   std::ofstream out{filename.c_str()};
   out << env_file_string;
   return relative_path;
@@ -713,6 +717,20 @@ std::string SanitizeJSON(std::string s) {
 std::string generate_uuid_string()
 {
   return uuids::to_string(uuids::uuid_system_generator{}());
+}
+
+std::string AlphaNumericOnly(std::string s)
+{
+  s.erase(std::remove_if(
+    s.begin(), s.end(),
+    [](char c)
+    {
+      return !isalnum(c);
+    }),
+    s.end()
+  );
+
+  return s;
 }
 
 } // namespace StringUtils
