@@ -96,6 +96,7 @@ static const char INSTAGRAM_DIRECT_MESSAGE[]{"IG DM"};
 static const char INSTAGRAM_FEED[]{"IG Feed"};
 static const char YOUTUBE_FEED[]{"YT Feed"};
 static const char IG_DIRECT_MESSAGE_FLAG[]{" --direct_message=$DIRECT_MESSAGE"};
+static const char REQUEST_BY_TOKEN[]{"REQUESTED_BY"};
 static const char REQUEST_BY_PHRASE_TOKEN[]{"REQUESTED_BY_PHRASE"};
 } // namespace constants
 /**
@@ -153,10 +154,11 @@ struct Task {
   std::string              runtime;
   std::vector<std::string> filenames;
 
-  static Task clone_basic(const Task& task, bool recurring = false)
+  static Task clone_basic(const Task& task, int new_mask = -1, bool recurring = false)
   {
     Task new_task{};
-    new_task.execution_mask  = task.execution_mask;
+    new_task.datetime        = task.datetime;
+    new_task.execution_mask  = (new_mask >= 0) ? new_mask : task.execution_mask;
     new_task.file            = task.file;
     new_task.files           = task.files;
     new_task.execution_flags = task.execution_flags;
