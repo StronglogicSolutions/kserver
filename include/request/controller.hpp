@@ -290,7 +290,7 @@ class Controller {
           }
         }
       }
-      for (auto &future : futures) {
+      for (auto& future : futures) {
         future.get();
       }
     }
