@@ -13,7 +13,7 @@ struct KApplication {
 
   bool is_valid()
   {
-    return !mask.empty();
+    return (!name.empty());
   }
 
   friend std::ostream &operator<<(std::ostream &out, const KApplication &app) {
