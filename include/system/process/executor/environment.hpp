@@ -5,7 +5,8 @@
 #include "database/kdb.hpp"
 
 inline KApplication get_app_info(int mask) {
-  Database::KDB kdb{}; KApplication k_app{};
+  Database::KDB     kdb{}; KApplication k_app{};
+  const std::string mask_s = std::to_string(mask);
 
   QueryValues values = kdb.select(
     "apps",                           // table
@@ -13,7 +14,7 @@ inline KApplication get_app_info(int mask) {
       "path", "data", "name"          // fields
     },
     {
-      {"mask", std::to_string(mask)}  // filter
+      {"mask", mask_s}  // filter
     }
   );
 
@@ -27,6 +28,8 @@ inline KApplication get_app_info(int mask) {
     if (value_pair.first == "name")
       k_app.name = value_pair.second;
   }
+
+  k_app.mask = mask_s;
   return k_app;
 }
 
