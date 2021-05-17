@@ -656,6 +656,15 @@ void Scheduler::processPlatform()
  * @return true
  * @return false
  */
+using TriggerPair = std::pair<std::string, std::string>;
+using TriggerMap = std::unordered_map<std::string, std::string>;
+struct TriggerConfig
+{
+  KApplication application;
+  TriggerMap   map;
+  bool         ready;
+};
+
 bool Scheduler::processTriggers(Task* task)
 {
   /**
@@ -663,16 +672,19 @@ bool Scheduler::processTriggers(Task* task)
    * @lambda function
    * @returns [out] KApplication
    */
-  const auto get_trigger = [&]() -> KApplication {
-    KApplication application{};
-    std::string mask, token_name, token_value;
-    const auto& query = this->m_kdb.select(
+  const auto get_trigger = [&]() -> TriggerConfig {
+    TriggerConfig config{};
+    std::string id, mask, token_name, token_value;
+    auto query = this->m_kdb.select(
       "triggers",
-      {"trigger_mask", "token_name", "token_value"},
+      {"id", "trigger_mask", "token_name", "token_value"},
       QueryFilter{{"mask", std::to_string(task->execution_mask)}}
     );
 
     for (const auto& value : query)
+      if (value.first == "id")
+        id = value.second;
+      else
       if (value.first == "trigger_mask")
         mask = value.second;
       else
@@ -687,41 +699,53 @@ bool Scheduler::processTriggers(Task* task)
       auto tok_v = FileUtils::readEnvToken(task->envfile, token_name);
       bool match = tok_v == token_value;
       if (match)
-        application = get_app_info(std::stoi(mask));
+        config.application = get_app_info(std::stoi(mask));
     }
 
-    return application;
+    if (config.application.is_valid())
+    {
+      TriggerPair pair{};
+      query = this->m_kdb.select(
+        "trigger_map",
+        {"old", "new"},
+        QueryFilter{{"tid", id}}
+      );
+      for (const auto& value : query)
+      {
+        if (value.first == "old")
+          pair.first = value.second;
+        else
+        if (value.first == "new")
+          pair.second = value.second;
+        if (!pair.first.empty() && !pair.second.empty())
+          config.map.insert(pair.first, pair.second);
+      }
+    }
+
+    config.ready = !(config.map.empty());
+    return config;
   };
 
 
-
-  KApplication application = get_trigger();
-  if (!application.is_valid())
+  TriggerConfig config = get_trigger();
+  if (!config.ready)
     return false; // No Trigger
 
   std::string       environment_file{};
-  Task              new_task = Task::clone_basic(*task, std::stoi(application.mask));
+  Task              new_task = Task::clone_basic(*task, std::stoi(config.application.mask));
   const std::string uuid     = StringUtils::generate_uuid_string();
   // TODO: better to clone envfile and change?
   for (const auto& token : FileUtils::extractFlagTokens(task->execution_flags))
   {
-    environment_file +=
-      token + "=\"" + FileUtils::readEnvToken(task->envfile, token) +
+    auto map_it = config.map.find(token);
+    if (map_it != config.map.end())
+    {
+      auto token_name = map_it->second;
+      environment_file +=
+      token_name + "=\"" + FileUtils::readEnvToken(task->envfile, token) +
       '\"'  + ARGUMENT_SEPARATOR + '\n';
+    }
   }
-
-  // Add trigger's unique execution flags
-  if (application.name == constants::INSTAGRAM_DIRECT_MESSAGE)
-  {
-    new_task.execution_flags += constants::IG_DIRECT_MESSAGE_FLAG;
-    environment_file += "DIRECT_MESSAGE=\"" + StringUtils::AlphaNumericOnly(
-      FileUtils::readEnvToken(task->envfile, constants::REQUEST_BY_TOKEN)) + '\"' + ARGUMENT_SEPARATOR + '\n';
-  }
-  else
-  {
-    // TODO: Other triggers
-  }
-
                     new_task.envfile = FileUtils::saveEnvFile(environment_file, uuid);
   const std::string new_task_id      = schedule(new_task);
   const bool        task_scheduled   = !(new_task_id.empty());
