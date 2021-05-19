@@ -674,9 +674,9 @@ bool Scheduler::processTriggers(Task* task)
    */
   const auto get_trigger = [&]() -> TriggerConfig {
     TriggerConfig config{};
-    std::string id, mask, token_name, token_value;
-    auto query = this->m_kdb.select(
-      "triggers",
+    std::string   id, mask, token_name, token_value;
+
+    auto query = this->m_kdb.select("triggers",
       {"id", "trigger_mask", "token_name", "token_value"},
       QueryFilter{{"mask", std::to_string(task->execution_mask)}}
     );
@@ -704,12 +704,13 @@ bool Scheduler::processTriggers(Task* task)
 
     if (config.application.is_valid())
     {
+      config.map["id"] = id;
       TriggerPair pair{};
-      query = this->m_kdb.select(
-        "trigger_map",
+      query = this->m_kdb.select("trigger_map",
         {"old", "new"},
         QueryFilter{{"tid", id}}
       );
+
       for (const auto& value : query)
       {
         if (value.first == "old")
@@ -718,7 +719,7 @@ bool Scheduler::processTriggers(Task* task)
         if (value.first == "new")
           pair.second = value.second;
         if (!pair.first.empty() && !pair.second.empty())
-          config.map.insert(pair.first, pair.second);
+          config.map[pair.first] = pair.second;
       }
     }
 
@@ -732,6 +733,7 @@ bool Scheduler::processTriggers(Task* task)
     return false; // No Trigger
 
   std::string       environment_file{};
+  std::string       execution_flags {};
   Task              new_task = Task::clone_basic(*task, std::stoi(config.application.mask));
   const std::string uuid     = StringUtils::generate_uuid_string();
   // TODO: better to clone envfile and change?
@@ -742,10 +744,42 @@ bool Scheduler::processTriggers(Task* task)
     {
       auto token_name = map_it->second;
       environment_file +=
-      token_name + "=\"" + FileUtils::readEnvToken(task->envfile, token) +
+      token_name + "=\"" +
+      StringUtils::AlphaNumericOnly(FileUtils::readEnvToken(task->envfile, token)) +
       '\"'  + ARGUMENT_SEPARATOR + '\n';
+      execution_flags += AsExecutionFlag(token_name);
     }
   }
+
+  const auto& query = this->m_kdb.select("trigger_config",
+    {"token_name", "section", "name"},
+    QueryFilter{{"tid", config.map["id"]}}
+  );
+
+  std::string token_name, section, name, config_value;
+      for (const auto& value : query)
+      {
+        if (value.first == "token_name")
+          token_name = value.second;
+        else
+        if (value.first == "section")
+          section = value.second;
+        else
+        if (value.first == "name")
+          name = value.second;
+        if (!token_name.empty() && !section.empty() && !name.empty())
+          config_value = ConfigParser::query(section, name);
+
+        if (!config_value.empty())
+        {
+          environment_file +=
+          token_name + "=\"" + FileUtils::readFile(config_value) +
+          '\"'  + ARGUMENT_SEPARATOR + '\n';
+          execution_flags += AsExecutionFlag(token_name);
+        }
+      }
+
+  new_task.execution_flags           = execution_flags;
                     new_task.envfile = FileUtils::saveEnvFile(environment_file, uuid);
   const std::string new_task_id      = schedule(new_task);
   const bool        task_scheduled   = !(new_task_id.empty());
