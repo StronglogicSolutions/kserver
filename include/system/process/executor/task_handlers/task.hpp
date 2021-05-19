@@ -226,6 +226,9 @@ struct Task {
   }
 };
 
+std::string AppendExecutionFlag(std::string flag_s, const std::string& flag);
+std::string AsExecutionFlag(const std::string& flag, const std::string& prefix = " ");
+
   /**
  * parseFileInfo
  *
