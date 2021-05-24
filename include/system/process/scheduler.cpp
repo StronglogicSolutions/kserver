@@ -745,7 +745,7 @@ bool Scheduler::processTriggers(Task* task)
       auto token_name = map_it->second;
       environment_file +=
       token_name + "=\"" +
-      StringUtils::AlphaNumericOnly(FileUtils::readEnvToken(task->envfile, token)) +
+      FileUtils::readEnvToken(task->envfile, token) +
       '\"'  + ARGUMENT_SEPARATOR + '\n';
       execution_flags += AsExecutionFlag(token_name);
     }
