@@ -571,7 +571,10 @@ std::string readFile(const std::string& env_file_path) {
     std::ifstream file_stream{env_file_path};
     std::stringstream env_file_stream{};
     env_file_stream << file_stream.rdbuf();
-    return env_file_stream.str();
+    std::string return_s = env_file_stream.str();
+    if (return_s.back() == '\n')
+      return return_s.substr(0, return_s.size() - 1);
+    return return_s;
 }
 
 std::string createEnvFile(std::unordered_map<std::string, std::string>&& key_pairs)
