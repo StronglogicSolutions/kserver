@@ -518,8 +518,12 @@ void saveFile(uint8_t *bytes, int size, const std::string& filename) {
 }
 
 std::string saveEnvFile(const std::string& env_file_string, const std::string& unique_id) {
-  std::string relative_path{"data/" + unique_id + "/v.env"};
-  std::string filename{get_executable_cwd() + "/" + relative_path};
+  const std::string relative_directory{"data/" + unique_id};
+  const std::string relative_path{relative_directory + "/v.env"};
+  const std::string task_directory{get_executable_cwd() + "/" + relative_directory};
+  if (!std::filesystem::exists(task_directory))
+    createDirectory(task_directory.c_str());
+  const std::string filename{task_directory + "/v.env"};
   std::ofstream out{filename.c_str()};
   out << env_file_string;
   return relative_path;
@@ -567,7 +571,10 @@ std::string readFile(const std::string& env_file_path) {
     std::ifstream file_stream{env_file_path};
     std::stringstream env_file_stream{};
     env_file_stream << file_stream.rdbuf();
-    return env_file_stream.str();
+    std::string return_s = env_file_stream.str();
+    if (return_s.back() == '\n')
+      return return_s.substr(0, return_s.size() - 1);
+    return return_s;
 }
 
 std::string createEnvFile(std::unordered_map<std::string, std::string>&& key_pairs)
@@ -594,7 +601,7 @@ std::string readEnvToken(const std::string& env_file_path, const std::string& to
       run_arg_s  = sub_s.substr(0, end);
     }
   }
-  return run_arg_s;
+  return stripDQuotes(run_arg_s);
 }
 
 bool writeEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
@@ -715,6 +722,20 @@ std::string generate_uuid_string()
   return uuids::to_string(uuids::uuid_system_generator{}());
 }
 
+std::string AlphaNumericOnly(std::string s)
+{
+  s.erase(std::remove_if(
+    s.begin(), s.end(),
+    [](char c)
+    {
+      return !isalnum(c);
+    }),
+    s.end()
+  );
+
+  return s;
+}
+
 } // namespace StringUtils
 
 // Bit helpers
@@ -749,6 +770,14 @@ bool hasNthBitSet(int value, int n) {
 std::string stripSQuotes(std::string s) {
   s.erase(
     std::remove(s.begin(), s.end(),'\''),
+    s.end()
+  );
+  return s;
+}
+
+std::string stripDQuotes(std::string s) {
+  s.erase(
+    std::remove(s.begin(), s.end(),'\"'),
     s.end()
   );
   return s;

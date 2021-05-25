@@ -5,7 +5,8 @@
 #include "database/kdb.hpp"
 
 inline KApplication get_app_info(int mask) {
-  Database::KDB kdb{}; KApplication k_app{};
+  Database::KDB     kdb{}; KApplication k_app{};
+  const std::string mask_s = std::to_string(mask);
 
   QueryValues values = kdb.select(
     "apps",                           // table
@@ -13,7 +14,7 @@ inline KApplication get_app_info(int mask) {
       "path", "data", "name"          // fields
     },
     {
-      {"mask", std::to_string(mask)}  // filter
+      {"mask", mask_s}  // filter
     }
   );
 
@@ -27,25 +28,14 @@ inline KApplication get_app_info(int mask) {
     if (value_pair.first == "name")
       k_app.name = value_pair.second;
   }
+
+  k_app.mask = mask_s;
   return k_app;
 }
 
 struct ExecutionState{
   std::string              path;
   std::vector<std::string> argv;
-};
-
-const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
-  {"DESCRIPTION", "--description"},
-  {"FILE_TYPE", "--media"},
-  {"HEADER", "--header"},
-  {"USER", "--user"},
-  {"HASHTAGS", "--hashtags"},
-  {"LINK_BIO", "--link_bio"},
-  {"REQUESTED_BY", "--requested_by"},
-  {"REQUESTED_BY_PHRASE", "--requested_by_phrase"},
-  {"REQUESTED_BY", "--requested_by"},
-  {"PROMOTE_SHARE", "--promote_share"},
 };
 
 static const std::string RUNTIME_FLAG{"R_ARGS"};
@@ -133,7 +123,10 @@ virtual bool prepareRuntime() override {
 virtual ExecutionState get() override { return m_state; }
 
 private:
-std::string parseNamedArgument(std::string flag, const std::string& env) {
+std::string parseNamedArgument(std::string flag, const std::string& env)
+{
+  using namespace constants;
+
   std::string            argument{};
   std::string::size_type index       = env.find(flag);
 

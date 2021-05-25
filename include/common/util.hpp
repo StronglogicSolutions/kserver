@@ -172,6 +172,7 @@ std::vector<std::string> split(const std::string &s, char delim);
 std::string sanitizeSingleQuotes(const std::string& s);
 std::string SanitizeJSON(std::string s);
 std::string generate_uuid_string();
+std::string AlphaNumericOnly(std::string s);
 } // namespace StringUtils
 
 // Bit helpers
@@ -182,8 +183,9 @@ template <typename T>
 static std::string toBinaryString(const T &x);
 
 bool hasNthBitSet(int value, int n);
-std::string stripSQuotes(std::string s);
 bool isdigits(const std::string &s);
+std::string stripSQuotes(std::string s);
+std::string stripDQuotes(std::string s);
 
 namespace TimeUtils {
 int unixtime();

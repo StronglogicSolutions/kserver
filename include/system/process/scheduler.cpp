@@ -570,16 +570,16 @@ bool Scheduler::update(Task task) {
  */
 bool Scheduler::updateRecurring(Task* task) {
   return !m_kdb.update(                // UPDATE
-    "recurring", {                      // table
-      "time"                      // field
+    "recurring", {                     // table
+      "time"                           // field
     }, {
       task->datetime  // value
     }, QueryFilter{
-      {"sid", std::to_string(task->id)} // filter
+      {"sid", std::to_string(task->id)}// filter
     },
     "id"                               // returning value
   )
-  .empty();                            // not empty = success
+  .empty();                            // Row created
 }
 
 /**
@@ -639,10 +639,150 @@ void Scheduler::onPlatformError(const std::vector<std::string>& payload)
 }
 
 /**
- * @brief
+ * @brief processPlatform
  *
  */
 void Scheduler::processPlatform()
 {
   m_platform.processPlatform();
+}
+
+/**
+ * @brief processTriggers
+ *
+ * @param task
+ * @param field_value
+ * @param field_name
+ * @return true
+ * @return false
+ */
+using TriggerPair = std::pair<std::string, std::string>;
+using TriggerMap = std::unordered_map<std::string, std::string>;
+struct TriggerConfig
+{
+  KApplication application;
+  TriggerMap   map;
+  bool         ready;
+};
+
+bool Scheduler::processTriggers(Task* task)
+{
+  /**
+   * get_trigger
+   * @lambda function
+   * @returns [out] KApplication
+   */
+  const auto get_trigger = [&]() -> TriggerConfig {
+    TriggerConfig config{};
+    std::string   id, mask, token_name, token_value;
+
+    auto query = this->m_kdb.select("triggers",
+      {"id", "trigger_mask", "token_name", "token_value"},
+      QueryFilter{{"mask", std::to_string(task->execution_mask)}}
+    );
+
+    for (const auto& value : query)
+      if (value.first == "id")
+        id = value.second;
+      else
+      if (value.first == "trigger_mask")
+        mask = value.second;
+      else
+      if (value.first == "token_name")
+        token_name = value.second;
+      else
+      if (value.first == "token_value")
+        token_value = value.second;
+
+    if (!mask.empty() && !token_name.empty() && !token_value.empty())
+    {
+      auto tok_v = FileUtils::readEnvToken(task->envfile, token_name);
+      bool match = tok_v == token_value;
+      if (match)
+        config.application = get_app_info(std::stoi(mask));
+    }
+
+    if (config.application.is_valid())
+    {
+      config.map["id"] = id;
+      TriggerPair pair{};
+      query = this->m_kdb.select("trigger_map",
+        {"old", "new"},
+        QueryFilter{{"tid", id}}
+      );
+
+      for (const auto& value : query)
+      {
+        if (value.first == "old")
+          pair.first = value.second;
+        else
+        if (value.first == "new")
+          pair.second = value.second;
+        if (!pair.first.empty() && !pair.second.empty())
+          config.map[pair.first] = pair.second;
+      }
+    }
+
+    config.ready = !(config.map.empty());
+    return config;
+  };
+
+
+  TriggerConfig config = get_trigger();
+  if (!config.ready)
+    return false; // No Trigger
+
+  std::string       environment_file{};
+  std::string       execution_flags {};
+  Task              new_task = Task::clone_basic(*task, std::stoi(config.application.mask));
+  const std::string uuid     = StringUtils::generate_uuid_string();
+  // TODO: better to clone envfile and change?
+  for (const auto& token : FileUtils::extractFlagTokens(task->execution_flags))
+  {
+    auto map_it = config.map.find(token);
+    if (map_it != config.map.end())
+    {
+      auto token_name = map_it->second;
+      environment_file +=
+      token_name + "=\"" +
+      FileUtils::readEnvToken(task->envfile, token) +
+      '\"'  + ARGUMENT_SEPARATOR + '\n';
+      execution_flags += AsExecutionFlag(token_name);
+    }
+  }
+
+  const auto& query = this->m_kdb.select("trigger_config",
+    {"token_name", "section", "name"},
+    QueryFilter{{"tid", config.map["id"]}}
+  );
+
+  std::string token_name, section, name, config_value;
+      for (const auto& value : query)
+      {
+        if (value.first == "token_name")
+          token_name = value.second;
+        else
+        if (value.first == "section")
+          section = value.second;
+        else
+        if (value.first == "name")
+          name = value.second;
+        if (!token_name.empty() && !section.empty() && !name.empty())
+          config_value = ConfigParser::query(section, name);
+
+        if (!config_value.empty())
+        {
+          environment_file +=
+          token_name + "=\"" + FileUtils::readFile(config_value) +
+          '\"'  + ARGUMENT_SEPARATOR + '\n';
+          execution_flags += AsExecutionFlag(token_name);
+        }
+      }
+
+  new_task.execution_flags           = execution_flags;
+                    new_task.envfile = FileUtils::saveEnvFile(environment_file, uuid);
+  const std::string new_task_id      = schedule(new_task);
+  const bool        task_scheduled   = !(new_task_id.empty());
+
+  return task_scheduled;
 }

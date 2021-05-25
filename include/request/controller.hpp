@@ -290,7 +290,7 @@ class Controller {
           }
         }
       }
-      for (auto &future : futures) {
+      for (auto& future : futures) {
         future.get();
       }
     }
@@ -552,19 +552,19 @@ class Controller {
         break;
 
       case (SYSTEM_EVENTS__PROCESS_COMPLETE):
-        const std::string output = payload.at(EVENT_PROCESS_OUTPUT_INDEX);
-        const int32_t     mask   = std::stoi(
-          payload.at(EVENT_PROCESS_MASK_INDEX)
-        );
+      {
+        const std::string output =           payload.at(EVENT_PROCESS_OUTPUT_INDEX);
+        const int32_t     mask   = std::stoi(payload.at(EVENT_PROCESS_MASK_INDEX));
         m_scheduler.handleProcessOutput(output, mask);
-        break;
+      }
+      break;
     }
   }
 
   /**
    * process_client_request
    *
-   * @param [in] {int32_t}     client_fd The client socket file descriptor
+   * @param [in] {int32_t}     client_fd The client socket file descripqqqQQQr
    * @param [in] {std::string} message
    */
   void process_client_request(int32_t client_fd, const std::string& message) {
@@ -713,22 +713,27 @@ class Controller {
    * process
    *
    * @param[in] <std::string> `value`      The stdout from value from the
-   * executed process
+   *                                       executed process
    * @param[in] <int> `mask`               The bitmask associated with the
-   * process
+   *                                       process
    * @param[in] <std::string> `id`         The request ID for the process
    * @param[in] <int> `client_socket_fd`   The file descriptor for the client
    * who made the request
    *
    */
-  void onProcessComplete(std::string value, int mask, std::string id,
-                         int client_socket_fd, bool error,
-                         bool scheduled_task = false) {
+  void onProcessComplete(std::string value,
+                         int         mask,
+                         std::string id,
+                         int         client_socket_fd,
+                         bool        error,
+                         bool        scheduled_task = false)
+  {
     using TaskVectorMap = std::map<int, std::vector<Task>>;
     using TaskVector    = std::vector<Task>;
 
     KLOG("Process complete notification for client {}'s request {}",
-        client_socket_fd, id);
+      client_socket_fd, id);
+
     m_event_callback_fn( // Inform system of process result
       value,
       mask,
@@ -736,28 +741,27 @@ class Controller {
       client_socket_fd,
       error
     );
-    if (scheduled_task) { // If it was a scheduled task, we need to update task map held in memory
+
+    if (scheduled_task) // If it was a scheduled task, we need to update task map held in memory
+    {
       TaskVector::iterator task_it;
 
       KLOG("Task complete notification for client {}'s task {}{}",
         client_socket_fd, id, error ? "\nERROR WAS RETURNED" : ""
       );
 
-      TaskVectorMap::iterator it = m_tasks_map.find(client_socket_fd); // Find iterator to vector
+      TaskVectorMap::iterator it = m_tasks_map.find(client_socket_fd); // Find client's tasks
 
-      if (it != m_tasks_map.end()) {
-        task_it = std::find_if(                                        // Find specific task
-          it->second.begin(), it->second.end(),
-          [id](Task task) {
-            return task.id == std::stoi(id);
-          }
+      if (it != m_tasks_map.end()) {                                   // Find task
+        task_it = std::find_if(it->second.begin(), it->second.end(),
+          [id](Task task) { return task.id == std::stoi(id); }
         );
 
         if (task_it != it->second.end()) {
           uint8_t status{};
 
           if (error) {
-            status = task_it->completed == Completed::FAILED ?
+            status = (task_it->completed == Completed::FAILED) ?
               Completed::RETRY_FAIL :                           // No retry
               Completed::FAILED;                                // Retry
 
@@ -775,6 +779,8 @@ class Controller {
             status = task_it->recurring ?
               Completed::SCHEDULED :
               Completed::SUCCESS;
+            if (m_scheduler.processTriggers(&*task_it))
+              KLOG("Process triggers found for task {} with mask {}", task_it->id, task_it->execution_mask);
           }
 
           task_it->completed = status;                            // Update status

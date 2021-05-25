@@ -27,6 +27,12 @@ bool is_initialized() {
   return reader_ptr != nullptr;
 }
 
+std::string query(const std::string& section, const std::string& name)
+{
+  const std::string value = reader.Get(section, name, "");
+  return value;
+}
+
 namespace Logging {
   std::string level() {
     return reader.Get("logging", "level", "info");

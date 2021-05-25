@@ -18,6 +18,8 @@ bool init();
 
 bool is_initialized();
 
+std::string query(const std::string& section, const std::string& name);
+
 namespace Logging {
   std::string level();
   std::string path();

@@ -77,6 +77,27 @@ static const uint8_t     PLATFORM_POST_URL_INDEX         {0x01};
        const std::string VIDEO_TYPE_ARGUMENT             {"video\""};
        const std::string IMAGE_TYPE_ARGUMENT             {"image\""};
        const char        LINE_BREAK                      {'\n'};
+
+static const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
+  {"DESCRIPTION", "--description"},
+  {"FILE_TYPE", "--media"},
+  {"HEADER", "--header"},
+  {"USER", "--user"},
+  {"HASHTAGS", "--hashtags"},
+  {"LINK_BIO", "--link_bio"},
+  {"REQUESTED_BY", "--requested_by"},
+  {"REQUESTED_BY_PHRASE", "--requested_by_phrase"},
+  {"REQUESTED_BY", "--requested_by"},
+  {"PROMOTE_SHARE", "--promote_share"},
+  {"DIRECT_MESSAGE", "--direct_message"}
+};
+
+static const char INSTAGRAM_DIRECT_MESSAGE[]{"IG DM"};
+static const char INSTAGRAM_FEED[]{"IG Feed"};
+static const char YOUTUBE_FEED[]{"YT Feed"};
+static const char IG_DIRECT_MESSAGE_FLAG[]{" --direct_message=$DIRECT_MESSAGE"};
+static const char REQUEST_BY_TOKEN[]{"REQUESTED_BY"};
+static const char REQUEST_BY_PHRASE_TOKEN[]{"REQUESTED_BY_PHRASE"};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States
@@ -118,6 +139,7 @@ namespace Field {
 
 using TaskArguments = std::vector<std::string>;
 
+static const uint8_t TASK_PAYLOAD_SIZE{12};
 struct Task {
   int                      execution_mask;
   std::string              datetime;
@@ -131,6 +153,20 @@ struct Task {
   bool                     notify;
   std::string              runtime;
   std::vector<std::string> filenames;
+
+  static Task clone_basic(const Task& task, int new_mask = -1, bool recurring = false)
+  {
+    Task new_task{};
+    new_task.datetime        = task.datetime;
+    new_task.execution_mask  = (new_mask >= 0) ? new_mask : task.execution_mask;
+    new_task.file            = task.file;
+    new_task.files           = task.files;
+    new_task.execution_flags = task.execution_flags;
+    new_task.runtime         = task.runtime;
+    new_task.filenames       = task.filenames;
+
+    return new_task;
+  }
 
   bool validate() {
     return !datetime.empty() && !envfile.empty() &&
@@ -189,6 +225,9 @@ struct Task {
     return !(t1 == t2);
   }
 };
+
+std::string AppendExecutionFlag(std::string flag_s, const std::string& flag);
+std::string AsExecutionFlag(const std::string& flag, const std::string& prefix = " ");
 
   /**
  * parseFileInfo

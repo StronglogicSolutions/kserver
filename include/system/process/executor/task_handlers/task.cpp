@@ -3,6 +3,22 @@
 
 #define TIMESTAMP_LENGTH 10
 
+std::string AppendExecutionFlag(std::string flag_s, const std::string& flag)
+{
+  const std::string exec_flag = constants::PARAM_KEY_MAP.at(flag);
+  if (!exec_flag.empty())
+    flag_s += ' ' + exec_flag + "=$" + flag;
+
+  return flag_s;
+}
+
+std::string AsExecutionFlag(const std::string& flag, const std::string& prefix)
+{
+  const std::string exec_flag = constants::PARAM_KEY_MAP.at(flag);
+  if (!exec_flag.empty())
+    return prefix + exec_flag + "=$" + flag;
+  return "";
+}
 
   /**
  * parseFileInfo
