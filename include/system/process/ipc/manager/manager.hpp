@@ -100,6 +100,7 @@ void HandleClientMessages()
           payload.resize(5);
           payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = error_message->name();
           payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = error_message->id();
+          payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = error_message->user();
           payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX)    = error_message->error();
 
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, payload);

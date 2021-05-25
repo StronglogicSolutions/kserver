@@ -30,7 +30,7 @@ const uint8_t DATA     = 0x05;
 const uint8_t URLS     = 0x06;
 const uint8_t REPOST   = 0x07;
 const uint8_t KIQ_DATA = 0x02;
-const uint8_t ERROR    = 0x04;
+const uint8_t ERROR    = 0x05;
 } // namespace index
 } // namespace constants
 
@@ -56,13 +56,14 @@ std::vector<byte_buffer> m_frames;
 class platform_error : public ipc_message
 {
 public:
-platform_error(const std::string& name, const std::string& id, const std::string& error)
+platform_error(const std::string& name, const std::string& id, const std::string& user, const std::string& error)
 {
   m_frames = {
     byte_buffer{},
     byte_buffer{constants::IPC_PLATFORM_ERROR},
     byte_buffer{name.data(), name.data() + name.size()},
     byte_buffer{id.data(), id.data() + id.size()},
+    byte_buffer{user.data(), user.data() + user.size()},
     byte_buffer{error.data(), error.data() + error.size()}
   };
 }
@@ -74,6 +75,7 @@ platform_error(const std::vector<byte_buffer>& data)
     byte_buffer{data.at(constants::index::TYPE)},
     byte_buffer{data.at(constants::index::PLATFORM)},
     byte_buffer{data.at(constants::index::ID)},
+    byte_buffer{data.at(constants::index::USER)},
     byte_buffer{data.at(constants::index::ERROR)}
   };
 }
@@ -83,6 +85,14 @@ const std::string name() const
   return std::string{
     reinterpret_cast<const char*>(m_frames.at(constants::index::PLATFORM).data()),
     m_frames.at(constants::index::PLATFORM).size()
+  };
+}
+
+const std::string user() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::USER).data()),
+    m_frames.at(constants::index::USER).size()
   };
 }
 
