@@ -26,6 +26,7 @@ std::vector<Task> Trigger::process(Task* task)
       QueryFilter{{"mask", std::to_string(task->execution_mask)}}
     );
 
+    // TODO: Assumes only one possible trigger. Amend to support multiple
     for (const auto& value : query)
       if (value.first == "id")
         id = value.second;
@@ -99,8 +100,8 @@ std::vector<Task> Trigger::process(Task* task)
     return config;
   };
 
-  Tasks         tasks{};
-  TriggerConfig config = get_trigger();
+  std::vector<Task> tasks{};
+  TriggerConfig     config = get_trigger();
 
   if (config.ready)
   {
