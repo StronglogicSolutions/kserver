@@ -10,6 +10,7 @@
 #include "executor/task_handlers/task.hpp"
 #include "result_parser.hpp"
 #include "platform.hpp"
+#include "trigger.hpp"
 
 #define NO_COMPLETED_VALUE 99
 
@@ -101,10 +102,12 @@ virtual std::vector<Task>         fetchTasks() override;
         void                      onPlatformError(const std::vector<std::string>& payload);
         bool                      processTriggers(Task*              task);
 
+
 private:
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;
 Platform            m_platform;
+Trigger             m_trigger;
 
 };
