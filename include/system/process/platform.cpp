@@ -175,13 +175,11 @@ PlatformPost createAffiliatePost(const std::string user, const std::string type,
  * @param post
  * @return const std::vector<PlatformPost>
  */
-const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post)
+const std::vector<PlatformPost> Platform::createAffiliatePosts(const PlatformPost& post)
 {
   std::vector<PlatformPost> affiliate_posts{};
 
-  Database::KDB kdb{};
-
-  QueryValues result = kdb.selectSimpleJoin(
+  QueryValues result = m_db.selectSimpleJoin(
     "platform_user",
     {
       "platform_affiliate_user.a_uid",
@@ -206,7 +204,7 @@ const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post)
   for (const auto& value : result)
   {
     if (value.first == "platform_affiliate_user.a_uid")
-      for (const auto& af_value : kdb.select("platform_user", {"name"}, QueryFilter{{"id", value.second}}))
+      for (const auto& af_value : m_db.select("platform_user", {"name"}, QueryFilter{{"id", value.second}}))
       {
         if (af_value.first == "name")
           name = af_value.second;
