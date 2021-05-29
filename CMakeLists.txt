@@ -42,6 +42,7 @@ set(SOURCE_FILES
   "include/config/config_parser.cpp"
   "include/system/process/scheduler.cpp"
   "include/system/process/platform.cpp"
+  "include/system/process/trigger.cpp"
   "include/system/process/executor/executor.cpp"
   "include/system/process/executor/task_handlers/task.cpp"
   "include/system/process/executor/task_handlers/generic.cpp"
