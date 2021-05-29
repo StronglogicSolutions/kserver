@@ -1,5 +1,15 @@
 #include "instagram.hpp"
 
+/**
+ * @brief
+ *
+ * TODO: Task ptr should be first parameter
+ *
+ * @param argv
+ * @param uuid
+ * @param task_ptr
+ * @return Task
+ */
 Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
                                      std::string uuid, Task* task_ptr) {
   if (!FileUtils::createTaskDirectory(uuid)) {

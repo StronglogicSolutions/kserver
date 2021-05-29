@@ -56,9 +56,9 @@ const uint32_t getIntervalSeconds(uint32_t interval) {
  * @param args
  * @return Task
  */
-Task args_to_task(std::vector<std::string> args) {
-  Task task{};
-
+TaskWrapper args_to_task(std::vector<std::string> args) {
+  TaskWrapper wrapper{};
+  Task        task;
   if (args.size() == constants::PAYLOAD_SIZE) {
     auto mask = getAppMask(args.at(constants::PAYLOAD_NAME_INDEX));
 
@@ -67,15 +67,17 @@ Task args_to_task(std::vector<std::string> args) {
       task.execution_mask  = mask;
       task.datetime        = args.at(constants::PAYLOAD_TIME_INDEX);
       task.execution_flags = args.at(constants::PAYLOAD_FLAGS_INDEX);
-      task.completed       = args.at(constants::PAYLOAD_COMPLETED_INDEX).compare("1") == 0;
+      task.completed       = std::stoi(args.at(constants::PAYLOAD_COMPLETED_INDEX));
       task.recurring       = std::stoi(args.at(constants::PAYLOAD_RECURRING_INDEX));
       task.notify          = args.at(constants::PAYLOAD_NOTIFY_INDEX).compare("1") == 0;
       task.runtime         = stripSQuotes(args.at(constants::PAYLOAD_RUNTIME_INDEX));
       // task.filenames = args.at(constants::PAYLOAD_ID_INDEX;
+      wrapper.envfile      = args.at(constants::PAYLOAD_ENVFILE_INDEX);
       KLOG("Can't parse files from schedule payload. Must be implemented");
     }
   }
-  return task;
+  wrapper.task = task;
+  return wrapper;
 }
 
 bool IsRecurringTask(const Task& task)
@@ -582,6 +584,32 @@ bool Scheduler::updateRecurring(Task* task) {
     "id"                               // returning value
   )
   .empty();                            // Row created
+}
+
+/**
+ * @brief
+ *
+ * @param id
+ * @param env
+ * @return [out] {bool}
+ */
+bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
+{
+  bool       updated{false};
+  const auto rows = m_kdb.select(
+    "schedule",
+    {"envfile"},
+    {{"id", id}}
+  );
+
+  for (const auto& value : rows)
+    if (value.first == "envfile")
+    {
+      FileUtils::saveFile(env, value.second);
+      updated = true;
+    }
+
+  return updated;
 }
 
 /**

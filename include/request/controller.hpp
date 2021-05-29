@@ -672,14 +672,21 @@ class Controller {
     }
     else
     if (type == RequestType::UPDATE_SCHEDULE) {
-      Task task = args_to_task(args); // TODO: Not getting completed/status value
-      bool save_success = m_scheduler.update(task);
+      // TODO: Not getting completed/status value
+      TaskWrapper        task_wrapper = args_to_task(args);
+      const std::string& task_id      = std::to_string(task_wrapper.task.id);
+      bool               save_success = m_scheduler.update(task_wrapper.task);
+      bool               env_updated  = m_scheduler.updateEnvfile(task_id, task_wrapper.envfile);
 
       m_system_callback_fn(
         client_fd,
         SYSTEM_EVENTS__SCHEDULER_UPDATE,
-        {std::to_string(task.id), (save_success) ? "Success" : "Failure"}
+        {task_id, (save_success) ? "Success" : "Failure"}
       );
+
+      if (!env_updated)
+        KLOG("Failed to update envfile while handling update for task {}", task_id);
+      // TODO: Consolidate update event to include information about saving environment file
     }
     else
     if (type == RequestType::FETCH_SCHEDULE_TOKENS) {

@@ -9,7 +9,6 @@
  * @return true
  * @return false
  */
-
 std::vector<Task> Trigger::process(Task* task)
 {
   /**

@@ -51,7 +51,8 @@ static const uint8_t     PAYLOAD_RECURRING_INDEX         {0x06};
 static const uint8_t     PAYLOAD_NOTIFY_INDEX            {0x07};
 static const uint8_t     PAYLOAD_RUNTIME_INDEX           {0x08};
 static const uint8_t     PAYLOAD_FILES_INDEX             {0x09};
-static const uint8_t     PAYLOAD_SIZE                    {0x0A};
+static const uint8_t     PAYLOAD_ENVFILE_INDEX           {0x0A};
+static const uint8_t     PAYLOAD_SIZE                    {0x0B};
 
 // Platform Posts
 static const uint8_t     PLATFORM_PAYLOAD_PLATFORM_INDEX {0x00};
@@ -224,6 +225,12 @@ struct Task {
   friend bool operator!=(const Task& t1,const Task& t2) {
     return !(t1 == t2);
   }
+};
+
+struct TaskWrapper
+{
+Task        task;
+std::string envfile;
 };
 
 std::string AppendExecutionFlag(std::string flag_s, const std::string& flag);
