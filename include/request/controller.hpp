@@ -779,8 +779,8 @@ class Controller {
             status = task_it->recurring ?
               Completed::SCHEDULED :
               Completed::SUCCESS;
-            if (m_scheduler.processTriggers(&*task_it))
-              KLOG("Process triggers found for task {} with mask {}", task_it->id, task_it->execution_mask);
+            if (!m_scheduler.processTriggers(&*task_it))
+              KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id, task_it->execution_mask);
           }
 
           task_it->completed = status;                            // Update status

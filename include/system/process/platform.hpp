@@ -40,6 +40,7 @@ std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result);
 std::vector<std::string>  platformToPayload(PlatformPost& platform);
 bool                      savePlatformPost(PlatformPost       post,
                                            const std::string& status = constants::PLATFORM_POST_COMPLETE);
+const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post);
 bool                      updatePostStatus(const PlatformPost& post, const std::string& status);
 bool                      postAlreadyExists(const PlatformPost& post);
 bool                      isProcessingPlatform();
