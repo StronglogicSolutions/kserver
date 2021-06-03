@@ -115,7 +115,9 @@ std::vector<Task> Trigger::process(Task* task)
       if (map_it != config.info.map.end())
       {
         auto token_name = map_it->second;
-        environment_file += token_name + "=\"" + FileUtils::readEnvToken(task->envfile, token) + '\"' + ARGUMENT_SEPARATOR + '\n';
+        environment_file +=
+          '\n' + token_name + "=\"" + FileUtils::readEnvToken(task->envfile, token) +
+          '\"' + ARGUMENT_SEPARATOR;
         execution_flags += AsExecutionFlag(token_name);
       }
     }
@@ -125,8 +127,9 @@ std::vector<Task> Trigger::process(Task* task)
       const std::string config_value = ConfigParser::query(param_info.config_section, param_info.config_name);
       if (!config_value.empty())
       {
-        environment_file += param_info.token_name + "=\"" + FileUtils::readFile(config_value) +
-        '\"'  + ARGUMENT_SEPARATOR + '\n';
+        environment_file +=
+          '\n' + param_info.token_name + "=\"" + FileUtils::readFile(config_value) + '\"'  +
+          ARGUMENT_SEPARATOR;
         execution_flags += AsExecutionFlag(param_info.token_name);
       }
     }
