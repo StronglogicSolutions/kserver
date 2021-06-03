@@ -529,8 +529,7 @@ class KServer : public SocketListener {
           sendMessage(client_socket_fd, PONG, PONG_SIZE);
           return decoded_message;
         }
-        std::string json_message = getJsonString(decoded_message);
-        KLOG("Received message: {}", json_message);
+        KLOG("Received message: {}", decoded_message);
         // Handle operations
         if (isOperation(decoded_message.c_str())) {
           KLOG("Received operation");
