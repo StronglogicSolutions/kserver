@@ -10,7 +10,6 @@
 #include <utility>
 
 #include "interface/socket_listener.hpp"
-
 #include "log/logger.h"
 #include "codec/uuid.h"
 #include "codec/decoder.hpp"
@@ -521,52 +520,7 @@ class KServer : public SocketListener {
         handlePendingFile(s_buffer_ptr, client_socket_fd, size);
         return;
       }
-
-      // Message
-      DecodeMessage(s_buffer_ptr).leftMap([this, client_socket_fd](auto decoded_message) {
-        if (isPing(decoded_message)) {
-          KLOG("Client {} - keepAlive", client_socket_fd);
-          sendMessage(client_socket_fd, PONG, PONG_SIZE);
-          return decoded_message;
-        }
-        KLOG("Received message: {}", decoded_message);
-        // Handle operations
-        if (isOperation(decoded_message.c_str())) {
-          KLOG("Received operation");
-          handleOperation(decoded_message, client_socket_fd);
-        } else if (isMessage(decoded_message.c_str())) {
-          if (strcmp(getMessage(decoded_message.c_str()).c_str(),
-                      "scheduler") == 0) {
-            KLOG("Testing scheduler");
-            m_controller(client_socket_fd, "Test",
-                              Request::DevTest::Schedule);
-          } else if (strcmp(getMessage(decoded_message.c_str()).c_str(),
-                            "execute") == 0) {
-            KLOG("Testing task execution");
-            m_controller(client_socket_fd, "Test",
-                              Request::DevTest::ExecuteTask);
-          } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "schedule") == 0) {
-            // TODO: temporary. This should be done by the client application
-            std::string fetch_schedule_operation = createOperation(
-              "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
-            );
-            m_controller.process_client_request(client_socket_fd, fetch_schedule_operation);
-          }
-          sendEvent(client_socket_fd, "Message Received",
-                    {"Message received by KServer",
-                      "The following was your message",
-                      getMessage(decoded_message.c_str())});
-        }
-        return decoded_message;
-      })
-      .rightMap([this, client_socket_fd](auto task_args) {
-        if (!task_args.empty()) {
-          KLOG("Receive buffer contained schedule request");
-          handleSchedule(task_args, client_socket_fd);
-        }
-
-        return task_args;
-      });
+      receiveMessage(s_buffer_ptr, size, client_socket_fd);
     }
   }
 
@@ -616,6 +570,70 @@ class KServer : public SocketListener {
     if (!m_file_handlers.empty()) eraseFileHandler(client_socket_fd);
   }
 
+  void receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd)
+  {
+    auto handler =
+        std::find_if(m_message_handlers.begin(), m_message_handlers.end(),
+                     [client_socket_fd](FileHandler &handler) {
+                       return handler.isHandlingSocket(client_socket_fd);
+                     });
+    if (handler != m_message_handlers.end()) {
+      handler->processPacket(s_buffer_ptr.get(), size);
+    } else {
+      KLOG("creating message handler for {}", client_socket_fd);
+      FileHandler message_handler{client_socket_fd, "", s_buffer_ptr.get(), size,
+        [this, client_socket_fd](int socket_fd, int result, uint8_t* m_ptr, size_t buffer_size)
+        {
+          DecodeMessage(m_ptr).leftMap([this, client_socket_fd](auto decoded_message) {
+            if (isPing(decoded_message)) {
+              KLOG("Client {} - keepAlive", client_socket_fd);
+              sendMessage(client_socket_fd, PONG, PONG_SIZE);
+              return decoded_message;
+            }
+            KLOG("Received message: {}", decoded_message);
+            // Handle operations
+            if (isOperation(decoded_message.c_str())) {
+              KLOG("Received operation");
+              handleOperation(decoded_message, client_socket_fd);
+            } else if (isMessage(decoded_message.c_str())) {
+              if (strcmp(getMessage(decoded_message.c_str()).c_str(),
+                          "scheduler") == 0) {
+                KLOG("Testing scheduler");
+                m_controller(client_socket_fd, "Test",
+                                  Request::DevTest::Schedule);
+              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(),
+                                "execute") == 0) {
+                KLOG("Testing task execution");
+                m_controller(client_socket_fd, "Test",
+                                  Request::DevTest::ExecuteTask);
+              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "schedule") == 0) {
+                // TODO: temporary. This should be done by the client application
+                std::string fetch_schedule_operation = createOperation(
+                  "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
+                );
+                m_controller.process_client_request(client_socket_fd, fetch_schedule_operation);
+              }
+              sendEvent(client_socket_fd, "Message Received",
+                        {"Message received by KServer",
+                          "The following was your message",
+                          getMessage(decoded_message.c_str())});
+            }
+            return decoded_message;
+          })
+          .rightMap([this, client_socket_fd](auto task_args) {
+            if (!task_args.empty()) {
+              KLOG("Receive buffer contained schedule request");
+              handleSchedule(task_args, client_socket_fd);
+            }
+            return task_args;
+          });
+        }
+      };
+      message_handler.processPacket(s_buffer_ptr.get(), size);
+      m_message_handlers.emplace_back(std::move(message_handler));
+    }
+  }
+
   bool eraseFileHandler(int client_socket_fd) {
     KLOG("eraserFileHandler called with {}", client_socket_fd);
     if (!m_file_handlers.empty()) {
@@ -631,13 +649,16 @@ class KServer : public SocketListener {
     return false;
   }
 
-  Request::Controller     m_controller;
-  IPCManager                  m_ipc_manager;
-  std::vector<int>            m_client_connections;
-  std::vector<FileHandler>    m_file_handlers;
-  std::vector<KSession>       m_sessions;
-  std::vector<ReceivedFile>   m_received_files;
-  bool                        file_pending;
-  int                         file_pending_fd;
+  Request::Controller       m_controller;
+  IPCManager                m_ipc_manager;
+  std::vector<int>          m_client_connections;
+  std::vector<FileHandler>  m_file_handlers;
+  std::vector<FileHandler>  m_message_handlers;
+  std::vector<KSession>     m_sessions;
+  std::vector<ReceivedFile> m_received_files;
+  bool                      file_pending;
+  int                       file_pending_fd;
+  bool                      m_message_pending;
+  int32_t                   m_message_pending_fd;
 };
 };     // namespace KYO

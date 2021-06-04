@@ -383,27 +383,26 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
  * @param   [in]  {shared_ptr<uint8_t*>}                          s_buffer_ptr
  * @returns [out] {Either<std::string, std::vector<std::string>>}
  */
-DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
+DecodedMessage DecodeMessage(uint8_t* buffer)
 {
-  uint8_t* raw_buffer         = s_buffer_ptr.get();
-  uint8_t  msg_type_byte_code = *(raw_buffer + 4);
+  uint8_t  msg_type_byte_code = *(buffer + 4);
 
   if (msg_type_byte_code == 0xFD)
     return left(std::to_string(msg_type_byte_code));
 
   else
   {
-    auto byte1 = *raw_buffer       << 24;
-    auto byte2 = *(raw_buffer + 1) << 16;
-    auto byte3 = *(raw_buffer + 2) << 8;
-    auto byte4 = *(raw_buffer + 3);
+    auto byte1 = *buffer       << 24;
+    auto byte2 = *(buffer + 1) << 16;
+    auto byte3 = *(buffer + 2) << 8;
+    auto byte4 = *(buffer + 3);
 
     uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
 
     if (msg_type_byte_code == 0xFF)
     {
       uint8_t  decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
       if (VerifyFlatbuffer(decode_buffer, message_byte_size))
       {
         const IGData::IGTask* ig_task = GetIGTask(&decode_buffer);
@@ -428,7 +427,7 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
     if (msg_type_byte_code == 0xFE)
     {
       uint8_t decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
       if (VerifyFlatbuffer(decode_buffer, message_byte_size))
       {
         const flatbuffers::Vector<uint8_t>* message_bytes = GetMessage(&decode_buffer)->data();
@@ -439,7 +438,7 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
     if (msg_type_byte_code == 0xFC)
     {
       uint8_t decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
       if (VerifyFlatbuffer(decode_buffer, message_byte_size))
       {
         const GenericData::GenericTask* gen_task = GetGenericTask(&decode_buffer);
