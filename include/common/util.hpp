@@ -134,6 +134,8 @@ bool isAppOperation(const char* data);
 
 bool isNewSession(const char *data);
 
+bool isPing(uint8_t* buffer, ssize_t size);
+
 /**
  * General
  */

@@ -510,17 +510,24 @@ class KServer : public SocketListener {
   /**
    * Override
    */
-  virtual void onMessageReceived(int client_socket_fd,
+  virtual void onMessageReceived(int                      client_socket_fd,
                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
-                                 ssize_t &size) override {
-    if (size > 0 && size != 4294967295) {
-      // File Transfer
+                                 ssize_t&                 size) override
+  {
+    if (size) {
       std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
-      if (file_pending && size != 5) {  // Handle packets for incoming file
+      if (file_pending && size != 5)                            // File packets
+      {
         handlePendingFile(s_buffer_ptr, client_socket_fd, size);
         return;
       }
-      receiveMessage(s_buffer_ptr, size, client_socket_fd);
+      if (isPing(s_buffer_ptr.get(), size))                     // Ping
+      {
+        KLOG("Client {} - keepAlive", client_socket_fd);
+        sendMessage(client_socket_fd, PONG, PONG_SIZE);
+      }
+      else
+        receiveMessage(s_buffer_ptr, size, client_socket_fd);     // Message packets
     }
   }
 
@@ -572,6 +579,7 @@ class KServer : public SocketListener {
 
   void receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd)
   {
+    const bool KEEP_HEADER{true};
     auto handler =
         std::find_if(m_message_handlers.begin(), m_message_handlers.end(),
                      [client_socket_fd](FileHandler &handler) {
@@ -585,11 +593,6 @@ class KServer : public SocketListener {
         [this, client_socket_fd](int socket_fd, int result, uint8_t* m_ptr, size_t buffer_size)
         {
           DecodeMessage(m_ptr).leftMap([this, client_socket_fd](auto decoded_message) {
-            if (isPing(decoded_message)) {
-              KLOG("Client {} - keepAlive", client_socket_fd);
-              sendMessage(client_socket_fd, PONG, PONG_SIZE);
-              return decoded_message;
-            }
             KLOG("Received message: {}", decoded_message);
             // Handle operations
             if (isOperation(decoded_message.c_str())) {
@@ -627,7 +630,8 @@ class KServer : public SocketListener {
             }
             return task_args;
           });
-        }
+        },
+        KEEP_HEADER
       };
       message_handler.processPacket(s_buffer_ptr.get(), size);
       m_message_handlers.emplace_back(std::move(message_handler));

@@ -371,6 +371,11 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
   return VerifyMessageBuffer(verifier);
 }
 
+bool isPing(uint8_t* buffer, ssize_t size)
+{
+  return (size == 5) && (*(buffer + 4) == 0xFD);
+}
+
 /**
  * @brief Get the Decoded Message object
  *

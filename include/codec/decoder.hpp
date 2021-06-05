@@ -36,7 +36,8 @@ class FileHandler {
     * @constructor
     */
     Decoder(int fd, std::string name,
-            std::function<void(uint8_t *, int, std::string)> file_callback)
+            std::function<void(uint8_t *, int, std::string)> file_callback,
+            bool keep_header = false)
         : file_buffer(nullptr),
           packet_buffer(nullptr),
           index(0),
@@ -46,9 +47,12 @@ class FileHandler {
           file_size(0),
           filename(name),
           m_fd(fd),
-          m_file_cb(file_callback) {
+          m_file_cb(file_callback),
+          m_keep_header(keep_header)
+          {
             KLOG("Decoder instantiated");
           }
+
   /**
    * @destructor
    */
@@ -103,8 +107,8 @@ class FileHandler {
       bool is_last_packet = index == (total_packets); // if the current packet is the last packet of the file
       if (index == 0 && packet_buffer_offset == 0 && file_size > (MAX_PACKET_SIZE - HEADER_SIZE)) {
         // This is the first chunk of data for the first packet
-        bytes_to_finish = MAX_PACKET_SIZE - HEADER_SIZE;
-        packet_size = 4092;
+        bytes_to_finish = (m_keep_header) ? MAX_PACKET_SIZE : MAX_PACKET_SIZE - HEADER_SIZE;
+        packet_size     = (m_keep_header) ? 4096 : 4092;
       } else if (is_last_packet) {
         // We are currently iterating to complete the last packet
         packet_size = file_size - file_buffer_offset;
@@ -156,9 +160,9 @@ class FileHandler {
         if (is_first_packet && packet_buffer_offset == 0 && file_buffer_offset == 0) {
           KLOG("processing first packet");
           // Compute file size from the first packet's 4 byte header
-          file_size =
-              int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) -
-              HEADER_SIZE;
+          file_size = (m_keep_header) ?
+              int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) + HEADER_SIZE + 1 :
+              int(data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]) - HEADER_SIZE;
           // Compute total number of packets expected to decode this file
           total_packets = static_cast<uint32_t>(ceil(
               static_cast<double>(file_size / MAX_PACKET_SIZE)));
@@ -169,7 +173,9 @@ class FileHandler {
             packet_buffer = new uint8_t[MAX_PACKET_SIZE];
           }
           file_buffer_offset = 0; // begin file buffer offset at 0
-          processPacketBuffer(data + HEADER_SIZE, size_to_read - HEADER_SIZE); // process
+          uint8_t* start_buffer = (m_keep_header) ? data : data + HEADER_SIZE;
+          uint32_t start_size   = (m_keep_header) ? size_to_read : size_to_read - HEADER_SIZE;
+          processPacketBuffer(start_buffer, start_size); // process
         } else {
           processPacketBuffer((data + process_index), size_to_read); // process other chunks
         }
@@ -190,6 +196,7 @@ class FileHandler {
     int                                                         m_fd;
     std::function<void(int)>                                    m_cb;
     std::function<void(uint8_t *data, int size, std::string)>   m_file_cb;
+    bool                                                        m_keep_header;
   };
 
   /**
@@ -199,7 +206,8 @@ class FileHandler {
               std::string name,
               uint8_t *first_packet,
               uint32_t size,
-              std::function<void(int, int, uint8_t *, size_t)> callback_fn
+              std::function<void(int, int, uint8_t *, size_t)> callback_fn,
+              bool keep_header = false
               )
     : socket_fd(client_fd) {
       KLOG("Creating new Decoder");
@@ -217,7 +225,8 @@ class FileHandler {
               );
             }
           }
-        }
+        },
+        keep_header
       );
     m_decoder->processPacket(first_packet, size);
   }
