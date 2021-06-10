@@ -389,16 +389,18 @@ std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
   std::string pid, o_pid, id, time, repost, name, method, uid;
 
   for (const auto& v : result) {
-         if (v.first == "platform_post.pid"  ) { pid = v.second; }
-    else if (v.first == "platform_post.o_pid"  ) { o_pid = v.second; }
-    else if (v.first == "platform_post.unique_id" ) { id = v.second; }
-    else if (v.first == "platform_post.time" ) { time = v.second; }
-    else if (v.first == "platform_post.repost" ) { repost = v.second; }
-    else if (v.first == "platform.name" ) { name = v.second; }
-    else if (v.first == "platform.method" ) { method = v.second; }
-    else if (v.first == "platform_post.uid" )    { uid = v.second; }
+         if (v.first == "platform_post.pid")       { pid    = v.second;  }
+    else if (v.first == "platform_post.o_pid")     { o_pid  = v.second;  }
+    else if (v.first == "platform_post.unique_id") { id     = v.second;  }
+    else if (v.first == "platform_post.time")      { time   = v.second;  }
+    else if (v.first == "platform_post.repost")    { repost = v.second;  }
+    else if (v.first == "platform.name")           { name   = v.second;  }
+    else if (v.first == "platform.method")         { method = v.second;  }
+    else if (v.first == "platform_post.uid")       { uid    = v.second;  }
 
-    if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() && !repost.empty() && !name.empty() && !method.empty() && !uid.empty()) {
+    if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() &&
+        !repost.empty() && !name.empty() && !method.empty() && !uid.empty())
+    {
       PlatformPost post{};
       post.pid   = pid;
       post.o_pid = o_pid;
