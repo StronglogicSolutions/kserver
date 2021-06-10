@@ -15,6 +15,8 @@ std::vector<Task> Trigger::process(Task* task)
    * get_trigger
    * @lambda function
    * @returns [out] KApplication
+   *
+   * TODO: add logging
    */
   const auto get_trigger = [&]() -> TriggerConfig {
     TriggerConfig config{};
