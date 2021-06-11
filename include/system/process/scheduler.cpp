@@ -262,7 +262,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
           .completed        = completed,
           .recurring        = recurring,
           .notify           = (notify == 1),
-          .runtime          = FileUtils::readRunArgs(envfile),                      // ⬅ set in environment.hpp
+          .runtime          = FileUtils::readRunArgs(envfile), // ⬅ set from DB?
           .filenames        = StringUtils::split(filenames, ' ')
         });
         id                  = 0;
