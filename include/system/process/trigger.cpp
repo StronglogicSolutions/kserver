@@ -50,7 +50,7 @@ std::vector<Task> Trigger::process(Task* task)
     if (config.application.is_valid())
     {
       TriggerParamInfo& param_info = config.info;
-      param_info.map["id"] = id;
+      param_info.map["id"] = id; // TODO: Possibly best to remove this line
       TriggerPair pair{};
       query.clear();
       query = this->m_db->select("trigger_map",
