@@ -18,7 +18,7 @@ std::vector<Task> Trigger::process(Task* task)
    */
   const auto get_triggers = [&]() -> std::vector<TriggerConfig> {
     std::vector<TriggerConfig> configs{};
-    std::string   id, mask, token_name, token_value;
+    std::string                id, trigger_mask, token_name, token_value;
 
     auto query = this->m_db->select("triggers",
       {"id", "trigger_mask", "token_name", "token_value"},
@@ -31,7 +31,7 @@ std::vector<Task> Trigger::process(Task* task)
         id = value.second;
       else
       if (value.first == "trigger_mask")
-        mask = value.second;
+        trigger_mask = value.second;
       else
       if (value.first == "token_name")
         token_name = value.second;
@@ -39,14 +39,14 @@ std::vector<Task> Trigger::process(Task* task)
       if (value.first == "token_value")
         token_value = value.second;
 
-      if (!mask.empty() && !token_name.empty() && !token_value.empty())
+      if (!trigger_mask.empty() && !token_name.empty() && !token_value.empty())
       {
         TriggerConfig config{};
         auto tok_v = FileUtils::readEnvToken(task->envfile, token_name);
         bool match = tok_v == token_value;
         if (match)
         {
-          config.application = get_app_info(std::stoi(mask));
+          config.application = get_app_info(std::stoi(trigger_mask));
 
           if (config.application.is_valid())
           {
@@ -96,9 +96,10 @@ std::vector<Task> Trigger::process(Task* task)
             }
           }
 
-          config.ready = !(config.info.map.empty()) || !(config.info.config_info_v.empty());
           configs.emplace_back(std::move(config));
         }
+
+        trigger_mask.clear(); token_name.clear(); token_value.clear();
       }
     }
 
@@ -109,7 +110,7 @@ std::vector<Task> Trigger::process(Task* task)
 
   for (TriggerConfig& config : get_triggers())
   {
-    if (config.ready)
+    if (config.ready())
     {
       std::string       environment_file{};
       std::string       execution_flags {};
