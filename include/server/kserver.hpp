@@ -265,39 +265,31 @@ class KServer : public SocketListener {
    */
   void onProcessEvent(std::string result, int mask, std::string request_id,
                       int client_socket_fd, bool error) {
-    std::string process_executor_result_str{};
+    std::string              process_executor_result_str{};
     std::vector<std::string> event_args{};
 
-    if (error) {
+    if (error)
       event_args.reserve(4);
-    } else {
+     else
       event_args.reserve(3);
-    }
 
-    KLOG("Received result {}", result);
-    if (result.size() <=
-        2046) {  // if process' stdout is small enough to send in one packet
+    KLOG("Received result:\n{}", result);
+    if (result.size() <= 2046)
+      event_args.insert(event_args.end(), {std::to_string(mask), request_id, result});
+     else
       event_args.insert(event_args.end(),
-                        {std::to_string(mask), request_id, result});
-    } else {
-      KLOG(
-          "result too big to send in one message. Returning back the bottom "
-          "2000 bytes of: \n{}",
-          result);
-      event_args.insert(event_args.end(),
-                        {std::to_string(mask), request_id,
-                         std::string{result.end() - 2000, result.end()}});
-    }
-    if (error) {
+        {std::to_string(mask), request_id,
+        std::string{result.end() - 2000, result.end()}}
+      );
+
+    if (error)
       event_args.push_back("Executed process returned an ERROR");
-    }
-    if (client_socket_fd == -1) {  // Send response to all active sessions
-      for (const auto &session : m_sessions) {
+
+    if (client_socket_fd == -1)  // Send response to all active sessions
+      for (const auto &session : m_sessions)
         sendEvent(session.fd, "Process Result", event_args);
-      }
-    } else {  // Send response to specifically indicated session
+     else   // Send response to specifically indicated session
       sendEvent(client_socket_fd, "Process Result", event_args);
-    }
 
     if (Scheduler::isKIQProcess(mask)) {
       m_controller.process_system_event(

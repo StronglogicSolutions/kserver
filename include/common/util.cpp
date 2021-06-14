@@ -568,7 +568,7 @@ std::string readRunArgs(const std::string& env_file_path) {
       run_arg_s  = sub_s.substr(token_key.size(), end);
     }
   }
-  return run_arg_s;
+  return stripDQuotes(run_arg_s);
 }
 
 std::string readFile(const std::string& env_file_path) {
