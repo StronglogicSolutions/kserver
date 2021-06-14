@@ -26,7 +26,11 @@ struct TriggerConfig
 {
   KApplication     application;
   TriggerParamInfo info;
-  bool             ready;
+
+  bool ready()
+  {
+    return (!(info.map.empty()) || !(info.config_info_v.empty())) && !(application.path.empty());
+  }
 };
 
 class Trigger
