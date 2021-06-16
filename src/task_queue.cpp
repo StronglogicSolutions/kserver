@@ -46,24 +46,28 @@ void TaskQueue::pushToQueue(std::function<void()> fn)
  */
 void TaskQueue::workerLoop()
 {
+  std::function<void()> fn;
   while (m_active)
   {
-    std::unique_lock<std::mutex> lock(m_mutex_lock);
-    pool_condition.wait(lock,
-      [this]() { return !accepting_tasks || !m_task_queue.empty() || !m_active; });
-
-    if (!m_active)
-      break;                                           // Destructor called, exit
-
-    if (m_task_queue.empty())
-      accepting_tasks.store(true);                     // Queue empty ∴ safe accept tasks
-    else
     {
-      std::function<void()> fn = m_task_queue.front(); // Take work
+      std::unique_lock<std::mutex> lock(m_mutex_lock);
+      pool_condition.wait(lock,
+        [this]() { return !accepting_tasks || !m_task_queue.empty() || !m_active; });
+
+      if (!m_active)
+        break;                                           // Destructor called, exit
+
+      if (!accepting_tasks && m_task_queue.empty())
+      {
+        accepting_tasks.store(true);                     // Queue empty ∴ safe accept tasks
+        continue;
+      }
+
+      fn = m_task_queue.front(); // Take work
       m_task_queue.pop();
       accepting_tasks.store(true);
-      fn();                                            // Work
     }
+    fn();                                            // Work
   }
 }
 
