@@ -16,7 +16,7 @@
 #include "request/controller.hpp"
 #include "system/process/ipc/manager/manager.hpp"
 
-#define IF_NOT_HANDLING_PACKETS_FOR_CLIENT(x) if (file_pending_fd != x)
+#define IF_NOT_HANDLING_PACKETS_FOR_CLIENT(x) if (m_file_pending_fd != x)
 
 namespace KYO {
 using namespace Decoder;
@@ -37,8 +37,8 @@ class KServer : public SocketListener {
           systemEventNotify(ALL_CLIENTS, event, payload);
         }
     }),
-    file_pending(false),
-    file_pending_fd(-1) {
+    m_file_pending(false),
+    m_file_pending_fd(-1) {
       KLOG("Starting IPC manager");
       m_ipc_manager.start();
     }
@@ -332,7 +332,7 @@ class KServer : public SocketListener {
    */
   void onFileHandled(int socket_fd, int result, uint8_t *&&f_ptr = NULL,
                      size_t size = 0) {
-    if (file_pending_fd == socket_fd) {
+    if (m_file_pending_fd == socket_fd) {
       if (result == FILE_HANDLE__SUCCESS) {
         // Push to received files immediately so that we ensure it's ready to be
         // used in subsequent client requests
@@ -344,8 +344,8 @@ class KServer : public SocketListener {
                                                   .size = size});
           KLOG("Finished handling file for client {} at {}", socket_fd,
                timestamp);
-          file_pending_fd = -1;
-          file_pending = false;
+          m_file_pending_fd = -1;
+          m_file_pending = false;
           m_controller.setHandlingData(false);
           sendEvent(socket_fd, "File Transfer Complete",
                     {std::to_string(timestamp)});
@@ -425,8 +425,7 @@ class KServer : public SocketListener {
    * File Upload Operation
    */
   void handleFileUploadRequest(int client_socket_fd) {
-    file_pending = true;
-    file_pending_fd = client_socket_fd;
+    SetFilePending(client_socket_fd);
     m_controller.setHandlingData(true);
 
     std::string file_ready_message = createMessage("File Ready", "");
@@ -508,7 +507,7 @@ class KServer : public SocketListener {
   {
     if (size) {
       std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
-      if (file_pending && size != 5)                            // File packets
+      if (m_file_pending && size != 5)                            // File
       {
         handlePendingFile(s_buffer_ptr, client_socket_fd, size);
         return;
@@ -519,37 +518,30 @@ class KServer : public SocketListener {
         sendMessage(client_socket_fd, PONG, PONG_SIZE);
       }
       else
-        receiveMessage(s_buffer_ptr, size, client_socket_fd);     // Message packets
+        receiveMessage(s_buffer_ptr, size, client_socket_fd);     // Message
     }
   }
 
   void handleStop(int client_socket_fd) {
-    sendEvent(
-      client_socket_fd,
-      "Close Session",
-      {"KServer is shutting down the socket connection"}
-    );
+    sendEvent(client_socket_fd, "Close Session",
+    {"KServer is shutting down the socket connection"});
 
-    shutdown(client_socket_fd, SHUT_RD);
+    if (shutdown(client_socket_fd, SHUT_RD) != 0)
+      KLOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
 
-    if (file_pending && file_pending_fd == client_socket_fd) {
-      file_pending = false;
-      file_pending_fd = -1;
-    }
+    if (HandlingFile(client_socket_fd))
+      SetFileNotPending();
 
     auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
-                                   [client_socket_fd](KSession session) {
-                                     return session.fd == client_socket_fd;
-                                   });
-    if (it_session != m_sessions.end()) {
+      [client_socket_fd](KSession session) { return session.fd == client_socket_fd;});
+
+    if (it_session != m_sessions.end())
       m_sessions.erase(it_session);
-    }
   }
 
   void closeConnections() {
-    for (const int& fd : m_client_connections) {
+    for (const int& fd : m_client_connections)
       handleStop(fd);
-    }
   }
 
   uint8_t getNumConnections() {
@@ -557,16 +549,17 @@ class KServer : public SocketListener {
   }
 
  private:
-  virtual void onConnectionClose(int client_socket_fd) {
+  virtual void onConnectionClose(int client_socket_fd)
+  {
     KLOG("Connection closed for {}", client_socket_fd);
     auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
                                    [client_socket_fd](KSession session) {
                                      return session.fd == client_socket_fd;
                                    });
-    if (it_session != m_sessions.end()) {
+    if (it_session != m_sessions.end())
       m_sessions.erase(it_session);
-    }
-    if (!m_file_handlers.empty()) eraseFileHandler(client_socket_fd);
+
+    eraseFileHandler(client_socket_fd);
   }
 
   void receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd)
@@ -577,9 +570,10 @@ class KServer : public SocketListener {
                      [client_socket_fd](FileHandler &handler) {
                        return handler.isHandlingSocket(client_socket_fd);
                      });
-    if (handler != m_message_handlers.end()) {
+    if (handler != m_message_handlers.end())
       handler->processPacket(s_buffer_ptr.get(), size);
-    } else {
+    else
+    {
       KLOG("creating message handler for {}", client_socket_fd);
       FileHandler message_handler{client_socket_fd, "", s_buffer_ptr.get(), size,
         [this, client_socket_fd](int socket_fd, int result, uint8_t* m_ptr, size_t buffer_size)
@@ -591,17 +585,16 @@ class KServer : public SocketListener {
               KLOG("Received operation");
               handleOperation(decoded_message, client_socket_fd);
             } else if (isMessage(decoded_message.c_str())) {
-              if (strcmp(getMessage(decoded_message.c_str()).c_str(),
-                          "scheduler") == 0) {
+              const auto message = getMessage(decoded_message);
+              if (message == "scheduler") {
                 KLOG("Testing scheduler");
                 m_controller(client_socket_fd, "Test",
                                   Request::DevTest::Schedule);
-              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(),
-                                "execute") == 0) {
+              } else if (message == "execute") {
                 KLOG("Testing task execution");
                 m_controller(client_socket_fd, "Test",
                                   Request::DevTest::ExecuteTask);
-              } else if (strcmp(getMessage(decoded_message.c_str()).c_str(), "schedule") == 0) {
+              } else if (message == "schedule") {
                 // TODO: temporary. This should be done by the client application
                 std::string fetch_schedule_operation = createOperation(
                   "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
@@ -611,7 +604,7 @@ class KServer : public SocketListener {
               sendEvent(client_socket_fd, "Message Received",
                         {"Message received by KServer",
                           "The following was your message",
-                          getMessage(decoded_message.c_str())});
+                          message});
             }
             return decoded_message;
           })
@@ -645,6 +638,23 @@ class KServer : public SocketListener {
     return false;
   }
 
+  void SetFileNotPending()
+  {
+    m_file_pending    = false;
+    m_file_pending_fd = -1;
+  }
+
+  void SetFilePending(int32_t fd)
+  {
+    m_file_pending = true;
+    m_file_pending_fd = fd;
+  }
+
+  bool HandlingFile(int32_t fd)
+  {
+    return (m_file_pending && m_file_pending_fd == fd);
+  }
+
   Request::Controller       m_controller;
   IPCManager                m_ipc_manager;
   std::vector<int>          m_client_connections;
@@ -652,8 +662,8 @@ class KServer : public SocketListener {
   std::vector<FileHandler>  m_message_handlers;
   std::vector<KSession>     m_sessions;
   std::vector<ReceivedFile> m_received_files;
-  bool                      file_pending;
-  int                       file_pending_fd;
+  bool                      m_file_pending;
+  int                       m_file_pending_fd;
   bool                      m_message_pending;
   int32_t                   m_message_pending_fd;
 };
