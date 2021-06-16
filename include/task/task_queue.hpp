@@ -15,13 +15,10 @@ class TaskQueue {
  public:
  /**
  * @constructor
- * Nothing fancy
  */
   TaskQueue();
 /**
  * @destructor
- * Make sure all worker threads detach or join before destroying TaskQueue
- * instance
  */
   ~TaskQueue();
 
@@ -31,9 +28,9 @@ class TaskQueue {
  * initialize
  *
  * To be called after an instance of TaskQueue is created.
- * @method
  */
   void initialize();
+
 /**
  * pushToQueue
  *
@@ -70,32 +67,13 @@ class TaskQueue {
  * @method
  * @cleanup
  */
-  void detachThreads();
+  void joinThreads();
 
-/** PRIVATE MEMBERS **/
-
-  /**
-   * FIFO queue of templated function pointers
-   */
   std::queue<std::function<void()>> m_task_queue;
-
-  /**
-   * vector of worker threads
-   */
-  std::vector<std::thread> m_thread_pool;
-
-  /**
-   * mutex for locking resources
-   */
-  std::mutex m_mutex_lock;
-  /**
-   * condition variable for controlling work execution
-   */
-  std::condition_variable pool_condition;
-  /**
-   * atomic boolean to ensure queue is handled in a thread-safe manner
-   */
-  std::atomic<bool> accepting_tasks;
-
-  bool m_active;
+  std::vector<std::thread>          m_thread_pool;
+  std::mutex                        m_mutex_lock;
+  std::condition_variable           pool_condition;
+  std::atomic<bool>                 accepting_tasks;
+  bool                              m_active;
+  int32_t                           m_num_threads;
 };
