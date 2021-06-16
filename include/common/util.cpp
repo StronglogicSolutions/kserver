@@ -134,14 +134,24 @@ std::string getOperation(const char *data) {
   return "";
 }
 
-std::string getMessage(const char *data) {
+template<typename T>
+std::string getMessage(T data) {
   Document d;
-  d.Parse(data);
-  if (d.HasMember("message")) {
+  if constexpr (std::is_same_v<T, std::string>)
+    d.Parse(data.c_str());
+  else
+  if constexpr (std::is_same_v<T, const char*>)
+    d.Parse(data);
+  else
+    return "";
+  if (d.HasMember("message"))
     return d["message"].GetString();
-  }
   return "";
 }
+
+template std::string getMessage(std::string);
+
+template std::string getMessage(const char*);
 
 std::string getEvent(std::string data) {
   if (!data.empty()) {

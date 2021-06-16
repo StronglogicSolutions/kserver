@@ -86,7 +86,8 @@ std::string createOperation(const char *op, std::vector<std::string> args);
 
 std::string getOperation(const char *data);
 
-std::string getMessage(const char *data);
+template<typename T>
+std::string getMessage(T data);
 
 std::string getEvent(std::string data);
 
