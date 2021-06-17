@@ -623,19 +623,36 @@ class KServer : public SocketListener {
     }
   }
 
-  bool eraseFileHandler(int client_socket_fd) {
-    KLOG("eraserFileHandler called with {}", client_socket_fd);
-    if (!m_file_handlers.empty()) {
-      for (auto it = m_file_handlers.begin(); it != m_file_handlers.end();
-           it++) {
+  bool eraseFileHandler(int client_socket_fd)
+  {
+    bool found{false};
+    KLOG("Erase buffers for {}", client_socket_fd);
+
+    if (!m_file_handlers.empty())
+    {
+      for (auto it = m_file_handlers.begin(); it != m_file_handlers.end(); it++) {
         if (it->isHandlingSocket(client_socket_fd)) {
           m_file_handlers.erase(it);
           KLOG("file handler removed");
-          return true;
+          found = true;
+          break;
         }
       }
     }
-    return false;
+    if (!m_message_handlers.empty())
+    {
+      for (auto it = m_message_handlers.begin(); it != m_file_handlers.end(); it++)
+      {
+        if (it->isHandlingSocket(client_socket_fd))
+        {
+          m_message_handlers.erase(it);
+          KLOG("Message handler removed");
+          found = true;
+          break;
+        }
+      }
+    }
+    return found;
   }
 
   void SetFileNotPending()
