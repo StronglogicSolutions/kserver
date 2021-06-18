@@ -37,15 +37,8 @@ enum DevTest {
 
 using namespace KData;
 
-flatbuffers::FlatBufferBuilder builder(1024);
+static flatbuffers::FlatBufferBuilder builder(1024);
 
-KApplication parseApplication(std::string message) {
-  KApplication application{};
-
-
-
-  return application;
-}
 
 /**
  * Controller
