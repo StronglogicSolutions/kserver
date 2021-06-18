@@ -39,6 +39,7 @@ endif()
 set(SOURCE_FILES
   "src/main.cpp"
   "src/database_connection.cpp"
+  "include/server/kserver.cpp"
   "include/config/config_parser.cpp"
   "include/system/process/scheduler.cpp"
   "include/system/process/platform.cpp"
