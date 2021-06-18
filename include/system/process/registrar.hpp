@@ -1,5 +1,4 @@
-#ifndef __REGISTRAR_HPP__
-#define __REGISTRAR_HPP__
+#pragma once
 
 #include <common/util.hpp>
 #include <database/kdb.hpp>
@@ -13,7 +12,7 @@ const uint8_t REGISTER_DATA_INDEX = 0x03;
 const uint8_t REGISTER_MASK_INDEX = 0x04;
 } // namespace constants
 
-KApplication args_to_application(std::vector<std::string> args) {
+static KApplication args_to_application(std::vector<std::string> args) {
   KApplication application{};
   if (!args.empty()) {
     application.name = args.at(constants::REGISTER_NAME_INDEX);
@@ -109,5 +108,3 @@ Database::KDB m_kdb;
 };
 
 } // namespace Registrar
-
-#endif  // __REGISTRAR_HPP__
