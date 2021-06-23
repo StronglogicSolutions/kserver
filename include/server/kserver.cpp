@@ -506,20 +506,27 @@ void KServer::onMessageReceived(int                      client_socket_fd,
                                 std::weak_ptr<uint8_t[]> w_buffer_ptr,
                                 ssize_t&                 size)
 {
-  if (size) {
-    std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
-    if (m_file_pending && size != 5)                            // File
-    {
-      handlePendingFile(s_buffer_ptr, client_socket_fd, size);
-      return;
+  try
+  {
+    if (size) {
+      std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
+      if (m_file_pending && size != 5)                            // File
+      {
+        handlePendingFile(s_buffer_ptr, client_socket_fd, size);
+        return;
+      }
+      if (isPing(s_buffer_ptr.get(), size))                     // Ping
+      {
+        KLOG("Client {} - keepAlive", client_socket_fd);
+        sendMessage(client_socket_fd, PONG, PONG_SIZE);
+      }
+      else
+        receiveMessage(s_buffer_ptr, size, client_socket_fd);     // Message
     }
-    if (isPing(s_buffer_ptr.get(), size))                     // Ping
-    {
-      KLOG("Client {} - keepAlive", client_socket_fd);
-      sendMessage(client_socket_fd, PONG, PONG_SIZE);
-    }
-    else
-      receiveMessage(s_buffer_ptr, size, client_socket_fd);     // Message
+  }
+  catch(const std::exception& e)
+  {
+    ELOG("Exception thrown while handling message.\n{}", e.what());
   }
 }
 
