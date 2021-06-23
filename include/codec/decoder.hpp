@@ -169,9 +169,9 @@ class FileHandler {
           // Reserve memory for file buffer
           file_buffer = new uint8_t[file_size];
           // Reserve memory for packet buffer
-          if (packet_buffer == nullptr) {
+          if (packet_buffer == nullptr)
             packet_buffer = new uint8_t[MAX_PACKET_SIZE];
-          }
+
           file_buffer_offset = 0; // begin file buffer offset at 0
           uint8_t* start_buffer = (m_keep_header) ? data : data + HEADER_SIZE;
           uint32_t start_size   = (m_keep_header) ? size_to_read : size_to_read - HEADER_SIZE;
