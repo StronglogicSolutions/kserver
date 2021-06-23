@@ -1,7 +1,7 @@
 #include "trigger.hpp"
 
 template <typename ...Args>
-static void ClearArgs(Args ...args)
+static void ClearArgs(Args&& ...args)
 {
   (args.clear(), ...);
 }
