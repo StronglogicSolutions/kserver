@@ -383,7 +383,7 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
 
 bool isPing(uint8_t* buffer, ssize_t size)
 {
-  return (size == 5) && (*(buffer + 4) == 0xFD);
+  return (size > 4) && (*(buffer + 4) == 0xFD);
 }
 
 /**
