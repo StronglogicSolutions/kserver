@@ -558,6 +558,18 @@ void saveFile(const std::string& env_file_string, const std::string& env_file_pa
   out << env_file_string;
 }
 
+static std::string sanitize_token(std::string& s) {
+  s.erase(
+    std::remove(s.begin(), s.end(),'\"'),
+    s.end()
+  );
+  if (s.front() == ' ')
+    s.erase(s.begin());
+  if (s.back() == ' ')
+    s.pop_back();
+  return s;
+}
+
 std::string readEnvFile(const std::string& env_file_path, bool relative_path) {
   std::string full_path = (relative_path) ? get_cwd() + "/" + env_file_path : env_file_path;
   std::ifstream file_stream{full_path};
@@ -578,7 +590,7 @@ std::string readRunArgs(const std::string& env_file_path) {
       run_arg_s  = sub_s.substr(token_key.size(), end);
     }
   }
-  return stripDQuotes(run_arg_s);
+  return sanitize_token(run_arg_s);
 }
 
 std::string readFile(const std::string& env_file_path) {
@@ -615,7 +627,7 @@ std::string readEnvToken(const std::string& env_file_path, const std::string& to
       run_arg_s  = sub_s.substr(0, end);
     }
   }
-  return stripDQuotes(run_arg_s);
+  return sanitize_token(run_arg_s);
 }
 
 bool writeEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
@@ -784,14 +796,6 @@ bool hasNthBitSet(int value, int n) {
 std::string stripSQuotes(std::string s) {
   s.erase(
     std::remove(s.begin(), s.end(),'\''),
-    s.end()
-  );
-  return s;
-}
-
-std::string stripDQuotes(std::string s) {
-  s.erase(
-    std::remove(s.begin(), s.end(),'\"'),
     s.end()
   );
   return s;

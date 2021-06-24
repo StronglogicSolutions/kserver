@@ -188,7 +188,7 @@ static std::string toBinaryString(const T &x);
 bool hasNthBitSet(int value, int n);
 bool isdigits(const std::string &s);
 std::string stripSQuotes(std::string s);
-std::string stripDQuotes(std::string s);
+// std::string stripDQuotes(std::string s);
 
 namespace TimeUtils {
 int unixtime();
