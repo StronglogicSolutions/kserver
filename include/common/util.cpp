@@ -558,17 +558,30 @@ void saveFile(const std::string& env_file_string, const std::string& env_file_pa
   out << env_file_string;
 }
 
-static std::string sanitize_token(std::string& s) {
+static void remove_double_quotes(std::string& s)
+{
   s.erase(
     std::remove(s.begin(), s.end(),'\"'),
     s.end()
   );
-  if (s.front() == ' ')
-    s.erase(s.begin());
-  if (s.back() == ' ')
-    s.pop_back();
+}
+
+
+static void trim_outer_whitespace(std::string& s)
+{
+  s.erase(
+    std::remove(s.begin(), s.end(),'\"'),
+    s.end()
+  );
+}
+
+static std::string sanitize_token(std::string& s)
+{
+  remove_double_quotes(s);
+  trim_outer_whitespace(s);
   return s;
 }
+
 
 std::string readEnvFile(const std::string& env_file_path, bool relative_path) {
   std::string full_path = (relative_path) ? get_cwd() + "/" + env_file_path : env_file_path;
