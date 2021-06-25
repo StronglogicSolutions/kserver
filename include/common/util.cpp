@@ -569,10 +569,8 @@ static void remove_double_quotes(std::string& s)
 
 static void trim_outer_whitespace(std::string& s)
 {
-  s.erase(
-    std::remove(s.begin(), s.end(),'\"'),
-    s.end()
-  );
+  if (s.front() == ' ') s.erase(s.begin());
+  if (s.back()  == ' ') s.pop_back();
 }
 
 static std::string sanitize_token(std::string& s)
