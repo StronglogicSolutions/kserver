@@ -137,7 +137,7 @@ std::vector<Task> Trigger::process(Task* task)
           environment_file +=
             '\n' + token_name + "=\"" + FileUtils::readEnvToken(task->envfile, token) +
             '\"' + ARGUMENT_SEPARATOR;
-          execution_flags += AsExecutionFlag(token_name);
+          execution_flags += AsExecutionFlag(token_name, execution_flags.empty() ? "" : " ");
         }
       }
 
@@ -149,9 +149,10 @@ std::vector<Task> Trigger::process(Task* task)
           environment_file +=
             '\n' + param_info.token_name + "=\"" + FileUtils::readFile(config_value) + '\"'  +
             ARGUMENT_SEPARATOR;
-          execution_flags += AsExecutionFlag(param_info.token_name);
+          execution_flags += AsExecutionFlag(param_info.token_name, execution_flags.empty() ? "" : " ");
         }
       }
+
       new_task.execution_flags = execution_flags;
       new_task.envfile         = FileUtils::saveEnvFile(environment_file, uuid);
       tasks.emplace_back(std::move(new_task));
