@@ -39,11 +39,11 @@ Task GenericTaskHandler::prepareTask(std::vector<std::string> argv,
   if (has_files) {
   if (is_video)
     {
-      env_file_string += "video\"\x1f\n";
+      env_file_string += "FILE_TYPE=\"video\"\x1f\n";
     }
     else
     {
-      env_file_string += "image\"\x1f\n";
+      env_file_string += "FILE_TYPE=\"image\"\x1f\n";
     }
   }
 

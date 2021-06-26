@@ -134,14 +134,24 @@ std::string getOperation(const char *data) {
   return "";
 }
 
-std::string getMessage(const char *data) {
+template<typename T>
+std::string getMessage(T data) {
   Document d;
-  d.Parse(data);
-  if (d.HasMember("message")) {
+  if constexpr (std::is_same_v<T, std::string>)
+    d.Parse(data.c_str());
+  else
+  if constexpr (std::is_same_v<T, const char*>)
+    d.Parse(data);
+  else
+    return "";
+  if (d.HasMember("message"))
     return d["message"].GetString();
-  }
   return "";
 }
+
+template std::string getMessage(std::string);
+
+template std::string getMessage(const char*);
 
 std::string getEvent(std::string data) {
   if (!data.empty()) {
@@ -371,6 +381,11 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
   return VerifyMessageBuffer(verifier);
 }
 
+bool isPing(uint8_t* buffer, ssize_t size)
+{
+  return (size > 4) && (*(buffer + 4) == 0xFD);
+}
+
 /**
  * @brief Get the Decoded Message object
  *
@@ -383,27 +398,26 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
  * @param   [in]  {shared_ptr<uint8_t*>}                          s_buffer_ptr
  * @returns [out] {Either<std::string, std::vector<std::string>>}
  */
-DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
+DecodedMessage DecodeMessage(uint8_t* buffer)
 {
-  uint8_t* raw_buffer         = s_buffer_ptr.get();
-  uint8_t  msg_type_byte_code = *(raw_buffer + 4);
+  uint8_t  msg_type_byte_code = *(buffer + 4);
 
   if (msg_type_byte_code == 0xFD)
     return left(std::to_string(msg_type_byte_code));
 
   else
   {
-    auto byte1 = *raw_buffer       << 24;
-    auto byte2 = *(raw_buffer + 1) << 16;
-    auto byte3 = *(raw_buffer + 2) << 8;
-    auto byte4 = *(raw_buffer + 3);
+    auto byte1 = *buffer       << 24;
+    auto byte2 = *(buffer + 1) << 16;
+    auto byte3 = *(buffer + 2) << 8;
+    auto byte4 = *(buffer + 3);
 
     uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
 
     if (msg_type_byte_code == 0xFF)
     {
       uint8_t  decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
       if (VerifyFlatbuffer(decode_buffer, message_byte_size))
       {
         const IGData::IGTask* ig_task = GetIGTask(&decode_buffer);
@@ -428,7 +442,7 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
     if (msg_type_byte_code == 0xFE)
     {
       uint8_t decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
       if (VerifyFlatbuffer(decode_buffer, message_byte_size))
       {
         const flatbuffers::Vector<uint8_t>* message_bytes = GetMessage(&decode_buffer)->data();
@@ -439,7 +453,7 @@ DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
     if (msg_type_byte_code == 0xFC)
     {
       uint8_t decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, raw_buffer + 5, message_byte_size);
+      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
       if (VerifyFlatbuffer(decode_buffer, message_byte_size))
       {
         const GenericData::GenericTask* gen_task = GetGenericTask(&decode_buffer);
@@ -544,6 +558,29 @@ void saveFile(const std::string& env_file_string, const std::string& env_file_pa
   out << env_file_string;
 }
 
+static void remove_double_quotes(std::string& s)
+{
+  s.erase(
+    std::remove(s.begin(), s.end(),'\"'),
+    s.end()
+  );
+}
+
+
+static void trim_outer_whitespace(std::string& s)
+{
+  if (s.front() == ' ') s.erase(s.begin());
+  if (s.back()  == ' ') s.pop_back();
+}
+
+static std::string sanitize_token(std::string& s)
+{
+  remove_double_quotes(s);
+  trim_outer_whitespace(s);
+  return s;
+}
+
+
 std::string readEnvFile(const std::string& env_file_path, bool relative_path) {
   std::string full_path = (relative_path) ? get_cwd() + "/" + env_file_path : env_file_path;
   std::ifstream file_stream{full_path};
@@ -564,7 +601,7 @@ std::string readRunArgs(const std::string& env_file_path) {
       run_arg_s  = sub_s.substr(token_key.size(), end);
     }
   }
-  return stripDQuotes(run_arg_s);
+  return sanitize_token(run_arg_s);
 }
 
 std::string readFile(const std::string& env_file_path) {
@@ -601,7 +638,7 @@ std::string readEnvToken(const std::string& env_file_path, const std::string& to
       run_arg_s  = sub_s.substr(0, end);
     }
   }
-  return stripDQuotes(run_arg_s);
+  return sanitize_token(run_arg_s);
 }
 
 bool writeEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
@@ -770,14 +807,6 @@ bool hasNthBitSet(int value, int n) {
 std::string stripSQuotes(std::string s) {
   s.erase(
     std::remove(s.begin(), s.end(),'\''),
-    s.end()
-  );
-  return s;
-}
-
-std::string stripDQuotes(std::string s) {
-  s.erase(
-    std::remove(s.begin(), s.end(),'\"'),
     s.end()
   );
   return s;

@@ -86,7 +86,8 @@ std::string createOperation(const char *op, std::vector<std::string> args);
 
 std::string getOperation(const char *data);
 
-std::string getMessage(const char *data);
+template<typename T>
+std::string getMessage(T data);
 
 std::string getEvent(std::string data);
 
@@ -134,11 +135,13 @@ bool isAppOperation(const char* data);
 
 bool isNewSession(const char *data);
 
+bool isPing(uint8_t* buffer, ssize_t size);
+
 /**
  * General
  */
 using DecodedMessage = Either<std::string, std::vector<std::string>>;
-DecodedMessage DecodeMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr);
+DecodedMessage DecodeMessage(uint8_t* buffer);
 
 namespace SystemUtils {
   void sendMail(std::string recipient, std::string message, std::string from);
@@ -185,7 +188,7 @@ static std::string toBinaryString(const T &x);
 bool hasNthBitSet(int value, int n);
 bool isdigits(const std::string &s);
 std::string stripSQuotes(std::string s);
-std::string stripDQuotes(std::string s);
+std::string sanitize_token(std::string s);
 
 namespace TimeUtils {
 int unixtime();

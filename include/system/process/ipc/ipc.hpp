@@ -237,7 +237,7 @@ const bool repost() const
 }
 };
 
-ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message::byte_buffer>&& data)
+static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message::byte_buffer>&& data)
 {
    uint8_t message_type = *(data.at(constants::index::TYPE).data());
 

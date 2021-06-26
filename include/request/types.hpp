@@ -1,5 +1,4 @@
-#ifndef __REQUEST_TYPES_HPP__
-#define __REQUEST_TYPES_HPP__
+#pragma once
 
 #include <string>
 #include <cstring>
@@ -24,7 +23,7 @@ enum RequestType {
  *
  * @param [in] {int} Signed integer should represent a byte value
  */
-RequestType int_to_request_type(int byte) {
+static RequestType int_to_request_type(int byte) {
   if (byte == REGISTER_APPLICATION) {
     return REGISTER_APPLICATION;
   }
@@ -58,4 +57,3 @@ RequestType int_to_request_type(int byte) {
   return UNKNOWN;
 }
 } // namespace Request
-#endif  // __REQUEST_TYPES_HPP__

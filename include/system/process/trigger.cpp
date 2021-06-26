@@ -1,5 +1,10 @@
 #include "trigger.hpp"
 
+template <typename ...Args>
+static void ClearArgs(Args&& ...args)
+{
+  (args.clear(), ...);
+}
 /**
  * @brief processTriggers
  *
@@ -67,7 +72,10 @@ std::vector<Task> Trigger::process(Task* task)
               if (value.first == "new")
                 pair.second = value.second;
               if (!pair.first.empty() && !pair.second.empty())
+              {
                 param_info.map[pair.first] = pair.second;
+                ClearArgs(pair.first, pair.second);
+              }
             }
 
             query.clear();
@@ -88,18 +96,21 @@ std::vector<Task> Trigger::process(Task* task)
               if (value.first == "name")
                 name = value.second;
               if (!token_name.empty() && !section.empty() && !name.empty())
+              {
                 param_info.config_info_v.emplace_back(ParamConfigInfo{
                   .token_name     = token_name,
                   .config_section = section,
                   .config_name    = name
                 });
+                ClearArgs(token_name, section, name);
+              }
             }
           }
 
           configs.emplace_back(std::move(config));
         }
 
-        trigger_mask.clear(); token_name.clear(); token_value.clear();
+        ClearArgs(trigger_mask, token_name, token_value);
       }
     }
 
@@ -126,7 +137,7 @@ std::vector<Task> Trigger::process(Task* task)
           environment_file +=
             '\n' + token_name + "=\"" + FileUtils::readEnvToken(task->envfile, token) +
             '\"' + ARGUMENT_SEPARATOR;
-          execution_flags += AsExecutionFlag(token_name);
+          execution_flags += AsExecutionFlag(token_name, execution_flags.empty() ? "" : " ");
         }
       }
 
@@ -138,9 +149,10 @@ std::vector<Task> Trigger::process(Task* task)
           environment_file +=
             '\n' + param_info.token_name + "=\"" + FileUtils::readFile(config_value) + '\"'  +
             ARGUMENT_SEPARATOR;
-          execution_flags += AsExecutionFlag(param_info.token_name);
+          execution_flags += AsExecutionFlag(param_info.token_name, execution_flags.empty() ? "" : " ");
         }
       }
+
       new_task.execution_flags = execution_flags;
       new_task.envfile         = FileUtils::saveEnvFile(environment_file, uuid);
       tasks.emplace_back(std::move(new_task));
