@@ -56,9 +56,9 @@ const uint32_t getIntervalSeconds(uint32_t interval);
  * @brief
  *
  * @param args
- * @return Task
+ * @return TaskWrapper
  */
-Task args_to_task(std::vector<std::string> args);
+TaskWrapper args_to_task(std::vector<std::string> args);
 
 /**
  * Scheduler
@@ -93,6 +93,7 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      update(Task task);
         bool                      updateStatus(Task* task, const std::string& output = "");
         bool                      updateRecurring(Task* task);
+        bool                      updateEnvfile(const std::string& id, const std::string& env);
 
         bool                      handleProcessOutput(const std::string& output, const int32_t mask);
         static bool               isKIQProcess(uint32_t mask);

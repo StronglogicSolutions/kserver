@@ -1,5 +1,15 @@
 #include "instagram.hpp"
 
+/**
+ * @brief
+ *
+ * TODO: Task ptr should be first parameter
+ *
+ * @param argv
+ * @param uuid
+ * @param task_ptr
+ * @return Task
+ */
 Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
                                      std::string uuid, Task* task_ptr) {
   if (!FileUtils::createTaskDirectory(uuid)) {
@@ -55,7 +65,7 @@ Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
       .file = (!task_files.empty()),
       .files = task_files,
       .envfile = env_filename,
-      .execution_flags =
+      .execution_flags = // TODO: this should come from the database
           "--description=$DESCRIPTION --hashtags=$HASHTAGS "
           "--requested_by=$REQUESTED_BY --media=$FILE_TYPE "
           "--requested_by_phrase=$REQUESTED_BY_PHRASE "
