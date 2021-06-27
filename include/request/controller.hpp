@@ -564,143 +564,175 @@ class Controller {
     std::vector<std::string> args = getArgs(message);
     RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
-    if (type == RequestType::GET_APPLICATION) {
-      KApplication application = Registrar::args_to_application(args);
+    switch (type)
+    {
 
-      (m_registrar.find(Registrar::args_to_application(args))) ?
-        m_system_callback_fn(
-          client_fd,
-          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-          {"Application was found", application.name, application.path, application.data, application.mask}
-        ) :
-        m_system_callback_fn(
-          client_fd,
-          SYSTEM_EVENTS__REGISTRAR_FAIL,
-          {"Application was not found", application.name, application.path, application.data, application.mask}
-        );
-    }
-    else
-    if (type == RequestType::REGISTER_APPLICATION) {
-      KApplication application = Registrar::args_to_application(args);
+      case(RequestType::GET_APPLICATION):
+      {
+        KApplication application = Registrar::args_to_application(args);
 
-      auto id = m_registrar.add(application);
-      (!id.empty()) ?
-        m_system_callback_fn(
-          client_fd,
-          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-          {"Application was registered", application.name, application.path, application.data, application.mask, id}
-        ) :
-        m_system_callback_fn(
-          client_fd,
-          SYSTEM_EVENTS__REGISTRAR_FAIL,
-          {"Failed to register application", application.name, application.path, application.data, application.mask}
-        );
-    }
-    else
-    if (type == RequestType::REMOVE_APPLICATION) {
-      KApplication application = Registrar::args_to_application(args);
-
-      auto name = m_registrar.remove(application);
-      (!name.empty()) ?
-        m_system_callback_fn(
-          client_fd,
-          SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-          {"Application was deleted", application.name, application.path, application.data, application.mask}
-        ) :
-        m_system_callback_fn(
-          client_fd,
-          SYSTEM_EVENTS__REGISTRAR_FAIL,
-          {"Failed to delete application", application.name, application.path, application.data, application.mask}
-        );
-    }
-    else
-    if (type == RequestType::UPDATE_APPLICATION) {
-
-    }
-    else
-    if (type == RequestType::FETCH_SCHEDULE) {
-      KLOG("Processing schedule fetch request");
-      const uint8_t AVERAGE_TASK_SIZE = 9;
-      uint8_t       i{0};
-      uint8_t       TASKS_PER_EVENT{4};
-      std::vector<Task> tasks = m_scheduler.fetchAllTasks();
-      std::vector<std::string> payload{};
-      payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
-      payload.emplace_back("Schedule");
-
-      for (const auto& task : tasks) { // TODO: This needs to handle < 4 items
-        KApplication app = m_executor->getAppInfo(task.execution_mask);
-        payload.emplace_back(std::to_string(task.id));
-        payload.emplace_back(app.name);
-        payload.emplace_back(task.datetime);
-        payload.emplace_back(task.execution_flags);
-        payload.emplace_back(std::to_string(task.completed));
-        payload.emplace_back(std::to_string(task.recurring));
-        payload.emplace_back(std::to_string(task.notify));
-        payload.emplace_back(task.runtime);
-        payload.emplace_back(task.filesToString());
-        if (!(++i % TASKS_PER_EVENT)) {
+        (m_registrar.find(Registrar::args_to_application(args))) ?
           m_system_callback_fn(
             client_fd,
-            SYSTEM_EVENTS__SCHEDULER_FETCH,
-            payload
+            SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+            {"Application was found", application.name, application.path, application.data, application.mask}
+          ) :
+          m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__REGISTRAR_FAIL,
+            {"Application was not found", application.name, application.path, application.data, application.mask}
           );
-          payload.clear();
-          payload.emplace_back("Schedule more");
+        break;
+      }
+
+      case (RequestType::REGISTER_APPLICATION):
+      {
+        KApplication application = Registrar::args_to_application(args);
+
+        auto id = m_registrar.add(application);
+        (!id.empty()) ?
+          m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+            {"Application was registered", application.name, application.path, application.data, application.mask, id}
+          ) :
+          m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__REGISTRAR_FAIL,
+            {"Failed to register application", application.name, application.path, application.data, application.mask}
+          );
+
+        break;
+      }
+      case (RequestType::REMOVE_APPLICATION):
+      {
+        KApplication application = Registrar::args_to_application(args);
+
+        auto name = m_registrar.remove(application);
+        (!name.empty()) ?
+          m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+            {"Application was deleted", application.name, application.path, application.data, application.mask}
+          ) :
+          m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__REGISTRAR_FAIL,
+            {"Failed to delete application", application.name, application.path, application.data, application.mask}
+          );
+        break;
+      }
+
+      case (RequestType::UPDATE_APPLICATION):
+      {
+        break;
+      }
+
+      case(RequestType::FETCH_SCHEDULE):
+      {
+        KLOG("Processing schedule fetch request");
+        const uint8_t AVERAGE_TASK_SIZE = 9;
+        uint8_t       i{0};
+        uint8_t       TASKS_PER_EVENT{4};
+        std::vector<Task> tasks = m_scheduler.fetchAllTasks();
+        std::vector<std::string> payload{};
+        payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
+        payload.emplace_back("Schedule");
+
+        for (const auto& task : tasks) { // TODO: This needs to handle < 4 items
+          KApplication app = m_executor->getAppInfo(task.execution_mask);
+          payload.emplace_back(std::to_string(task.id));
+          payload.emplace_back(app.name);
+          payload.emplace_back(task.datetime);
+          payload.emplace_back(task.execution_flags);
+          payload.emplace_back(std::to_string(task.completed));
+          payload.emplace_back(std::to_string(task.recurring));
+          payload.emplace_back(std::to_string(task.notify));
+          payload.emplace_back(task.runtime);
+          payload.emplace_back(task.filesToString());
+          if (!(++i % TASKS_PER_EVENT)) {
+            m_system_callback_fn(
+              client_fd,
+              SYSTEM_EVENTS__SCHEDULER_FETCH,
+              payload
+            );
+            payload.clear();
+            payload.emplace_back("Schedule more");
+          }
         }
+        if (!payload.empty()) {
+          m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
+        }
+
+        auto size = tasks.size();
+        KLOG("Fetched {} scheduled tasks for client", size);
+
+        usleep(100000); // TODO: Get rid of this once we implement proper protocol
+        m_system_callback_fn( // Demarcate end of fetch
+          client_fd,
+          SYSTEM_EVENTS__SCHEDULER_FETCH,
+          {"Schedule end", std::to_string(size)}
+        );
+
+        break;
       }
-      if (!payload.empty()) {
-        m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
-      }
 
-      auto size = tasks.size();
-      KLOG("Fetched {} scheduled tasks for client", size);
+      case (RequestType::UPDATE_SCHEDULE):
+      {
+        // TODO: Not getting completed/status value
+        TaskWrapper        task_wrapper = args_to_task(args);
+        const std::string& task_id      = std::to_string(task_wrapper.task.id);
+        bool               save_success = m_scheduler.update(task_wrapper.task);
+        bool               env_updated  = m_scheduler.updateEnvfile(task_id, task_wrapper.envfile);
 
-      usleep(100000); // TODO: Get rid of this once we implement proper protocol
-      m_system_callback_fn( // Demarcate end of fetch
-        client_fd,
-        SYSTEM_EVENTS__SCHEDULER_FETCH,
-        {"Schedule end", std::to_string(size)}
-      );
-    }
-    else
-    if (type == RequestType::UPDATE_SCHEDULE) {
-      // TODO: Not getting completed/status value
-      TaskWrapper        task_wrapper = args_to_task(args);
-      const std::string& task_id      = std::to_string(task_wrapper.task.id);
-      bool               save_success = m_scheduler.update(task_wrapper.task);
-      bool               env_updated  = m_scheduler.updateEnvfile(task_id, task_wrapper.envfile);
-
-      m_system_callback_fn(
-        client_fd,
-        SYSTEM_EVENTS__SCHEDULER_UPDATE,
-        {task_id, (save_success) ? "Success" : "Failure"}
-      );
-
-      if (!env_updated)
-        KLOG("Failed to update envfile while handling update for task {}", task_id);
-      // TODO: Consolidate update event to include information about saving environment file
-    }
-    else
-    if (type == RequestType::FETCH_SCHEDULE_TOKENS) {
-      auto id = args.at(constants::PAYLOAD_ID_INDEX);
-      Task task = m_scheduler.getTask(id);
-      if (task.validate()) {
-        std::vector<std::string> flag_values = FileUtils::readFlagTokens(task.envfile, task.execution_flags);
-        std::vector<std::string> event_args{};
-        event_args.reserve(flag_values.size() + 1);
-        event_args.emplace_back(id);
-        event_args.insert(event_args.end(), flag_values.begin(), flag_values.end());
         m_system_callback_fn(
           client_fd,
-          SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
-          event_args
+          SYSTEM_EVENTS__SCHEDULER_UPDATE,
+          {task_id, (save_success) ? "Success" : "Failure"}
         );
+
+        if (!env_updated)
+          KLOG("Failed to update envfile while handling update for task {}", task_id);
+        // TODO: Consolidate update event to include information about saving environment file
+
+        break;
       }
-    }
-    else
-    if (type == RequestType::UNKNOWN) {
-      // TODO: handle
+
+      case (RequestType::FETCH_SCHEDULE_TOKENS):
+      {
+        auto id = args.at(constants::PAYLOAD_ID_INDEX);
+        Task task = m_scheduler.getTask(id);
+        if (task.validate()) {
+          std::vector<std::string> flag_values = FileUtils::readFlagTokens(task.envfile, task.execution_flags);
+          std::vector<std::string> event_args{};
+          event_args.reserve(flag_values.size() + 1);
+          event_args.emplace_back(id);
+          event_args.insert(event_args.end(), flag_values.begin(), flag_values.end());
+          m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
+            event_args
+          );
+        }
+
+        break;
+      }
+
+      case(RequestType::TRIGGER_CREATE):
+      {
+        auto result = m_scheduler.addTrigger(args);
+        if (result)
+        {
+          // TODO: send event to client
+        }
+        break;
+      }
+
+      case(RequestType::UNKNOWN):
+      {
+        ELOG("Controller could not process unknown client request: {}", type);
+        break;
+      }
     }
   }
 

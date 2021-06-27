@@ -15,7 +15,8 @@ enum RequestType {
   FETCH_SCHEDULE        = 0x04,
   UPDATE_SCHEDULE       = 0x05,
   FETCH_SCHEDULE_TOKENS = 0x06,
-  UNKNOWN               = 0x07
+  TRIGGER_CREATE        = 0x07,
+  UNKNOWN               = 0x08
 };
 
 /**
