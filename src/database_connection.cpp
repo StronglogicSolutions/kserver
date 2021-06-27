@@ -322,7 +322,6 @@ std::string selectStatement(T query) {
       std::string join_string = getJoinStatement({query.join});
       return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + " " + filter_string;
     }
-
   }
   return std::string{
     "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table};
@@ -348,9 +347,9 @@ pqxx::result DatabaseConnection::performInsert(InsertReturnQuery query,
   std::string table = query.table;
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
-  #ifndef NDEBUG
-    std::cout << "Insert query:\n" << insertStatement(query, returning) << std::endl;
-  #endif
+  // #ifndef NDEBUG
+  //   std::cout << "Insert query:\n" << insertStatement(query, returning) << std::endl;
+  // #endif
   pqxx::result pqxx_result = worker.exec(insertStatement(query, returning));
   worker.commit();
 
@@ -362,9 +361,9 @@ pqxx::result DatabaseConnection::performUpdate(UpdateReturnQuery query,
   std::string table = query.table;
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
-  #ifndef NDEBUG
-    std::cout << "Update query:\n" << updateStatement(query, returning) << std::endl;
-  #endif
+  // #ifndef NDEBUG
+  //   std::cout << "Update query:\n" << updateStatement(query, returning) << std::endl;
+  // #endif
   pqxx::result pqxx_result = worker.exec(updateStatement(query, returning));
   worker.commit();
 
@@ -375,9 +374,9 @@ template <typename T>
 pqxx::result DatabaseConnection::performSelect(T query) {
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
-  #ifndef NDEBUG
-    std::cout << "Select query: \n" << selectStatement(query) << std::endl;
-  #endif
+  // #ifndef NDEBUG
+  //   std::cout << "Select query: \n" << selectStatement(query) << std::endl;
+  // #endif
   pqxx::result pqxx_result = worker.exec(selectStatement(query));
   worker.commit();
 
