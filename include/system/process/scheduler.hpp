@@ -102,7 +102,7 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      savePlatformPost(std::vector<std::string> payload);
         void                      onPlatformError(const std::vector<std::string>& payload);
         bool                      processTriggers(Task*              task);
-
+        bool                      addTrigger(const std::vector<std::string>& payload);
 
 private:
 SystemEventcallback m_event_callback;
