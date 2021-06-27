@@ -11,7 +11,7 @@ struct KApplication {
   std::string mask;
   bool        is_kiq;
 
-  bool is_valid()
+  bool is_valid() const
   {
     return (!name.empty());
   }
