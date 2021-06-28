@@ -29,8 +29,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
    "."
 )
 
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS -Wno-maybe-uninitialized)
-
 add_subdirectory(googletest)
 
 target_link_libraries(
