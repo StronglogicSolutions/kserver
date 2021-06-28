@@ -721,10 +721,18 @@ class Controller {
       case(RequestType::TRIGGER_CREATE):
       {
         auto result = m_scheduler.addTrigger(args);
+        std::vector<std::string> event_args{}; int32_t event_type{};
         if (result)
         {
-          // TODO: send event to client
+          event_args.insert(event_args.end(), {"Trigger Created", args.at(1), args.at(2)});
+          event_type = SYSTEM_EVENTS__TRIGGER_ADD_SUCCESS;
         }
+        else
+        {
+          event_args.emplace_back("Failed to create trigger");
+          event_type = SYSTEM_EVENTS__TRIGGER_ADD_FAIL;
+        }
+        m_system_callback_fn(client_fd, event_type, event_args);
         break;
       }
 
