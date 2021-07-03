@@ -858,6 +858,8 @@ class Controller {
 
           KLOG("removing completed task from memory");
           it->second.erase(task_it);
+          if (it->second.empty())
+            m_tasks_map.erase(it);
         }
       }
     }
