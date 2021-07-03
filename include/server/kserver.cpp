@@ -357,24 +357,19 @@ void KServer::onFileHandled(int socket_fd, int result, uint8_t*&& f_ptr,
 void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
                         int client_socket_fd, uint32_t size)
 {
-  auto handler =
-      std::find_if(m_file_handlers.begin(), m_file_handlers.end(),
-                    [client_socket_fd](FileHandler &handler) {
-                      return handler.isHandlingSocket(client_socket_fd);
-                    });
+  auto handler = m_file_handlers.find(client_socket_fd);
+
   if (handler != m_file_handlers.end()) {
-    handler->processPacket(s_buffer_ptr.get(), size);
+    handler->second.processPacket(s_buffer_ptr.get(), size);
   } else {
     KLOG("creating FileHandler for {}", client_socket_fd);
-    FileHandler file_handler{client_socket_fd, "", s_buffer_ptr.get(), size,
-                              [this](int socket_fd, int result, uint8_t *f_ptr,
-                                    size_t buffer_size) {
-                                onFileHandled(socket_fd, result,
-                                              std::move(f_ptr), buffer_size);
-                              }};
-    m_file_handlers.push_back(std::forward<FileHandler>(file_handler));
+    m_file_handlers.insert({client_socket_fd, FileHandler{client_socket_fd, "", s_buffer_ptr.get(), size,
+      [this](int socket_fd, int result, uint8_t *f_ptr, size_t buffer_size)
+      {
+        onFileHandled(socket_fd, result, std::move(f_ptr), buffer_size);
+      }
+    }});
   }
-  return;
 }
 
 /**
@@ -575,17 +570,13 @@ void KServer::onConnectionClose(int client_socket_fd)
 void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd)
 {
   const bool KEEP_HEADER{true};
-  auto handler =
-      std::find_if(m_message_handlers.begin(), m_message_handlers.end(),
-                    [client_socket_fd](FileHandler &handler) {
-                      return handler.isHandlingSocket(client_socket_fd);
-                    });
+  auto handler = m_message_handlers.find(client_socket_fd);
   if (handler != m_message_handlers.end())
-    handler->processPacket(s_buffer_ptr.get(), size);
+    handler->second.processPacket(s_buffer_ptr.get(), size);
   else
   {
     KLOG("creating message handler for {}", client_socket_fd);
-    FileHandler message_handler{client_socket_fd, "", s_buffer_ptr.get(), size,
+    m_message_handlers.insert({client_socket_fd, FileHandler{client_socket_fd, "", s_buffer_ptr.get(), size,
       [this, client_socket_fd](int socket_fd, int result, uint8_t* m_ptr, size_t buffer_size)
       {
         DecodeMessage(m_ptr).leftMap([this, client_socket_fd](auto decoded_message) {
@@ -627,45 +618,31 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
         });
       },
       KEEP_HEADER
-    };
-    message_handler.processPacket(s_buffer_ptr.get(), size);
-    m_message_handlers.emplace_back(std::move(message_handler));
+    }});
   }
 }
 
 bool KServer::eraseMessageHandler(int32_t client_socket_fd)
 {
-  if (!m_message_handlers.empty())
+  auto it = m_message_handlers.find(client_socket_fd);
+  if (it != m_message_handlers.end())
   {
-    for (auto it = m_message_handlers.begin(); it != m_file_handlers.end(); it++)
-    {
-      if (it->isHandlingSocket(client_socket_fd))
-      {
-        m_message_handlers.erase(it);
-        KLOG("Message handler removed");
-        return true;
-      }
-    }
+    m_message_handlers.erase(it);
+    KLOG("Message handler removed");
+    return true;
   }
-
   return false;
 }
 
 bool KServer::eraseFileHandler(int client_socket_fd)
 {
-  KLOG("Erase buffers for {}", client_socket_fd);
-
-  if (!m_file_handlers.empty())
+  auto it = m_file_handlers.find(client_socket_fd);
+  if (it != m_file_handlers.end())
   {
-    for (auto it = m_file_handlers.begin(); it != m_file_handlers.end(); it++) {
-      if (it->isHandlingSocket(client_socket_fd)) {
-        m_file_handlers.erase(it);
-        KLOG("file handler removed");
-        return true;
-      }
-    }
+    m_file_handlers.erase(it);
+    KLOG("File handler removed");
+    return true;
   }
-
   return false;
 }
 

@@ -115,7 +115,7 @@ void SocketListener::handleClientSocket(int32_t                           client
                                         SocketListener::MessageHandler    message_handler,
                                         const std::shared_ptr<uint8_t[]>& s_buffer_ptr)
 {
-  for (;;)
+  for (; s_buffer_ptr.get() != nullptr;)
   {
     memset(s_buffer_ptr.get(), 0, MAX_BUFFER_SIZE);
     ssize_t size = recv(client_socket_fd, s_buffer_ptr.get(), MAX_BUFFER_SIZE, 0);

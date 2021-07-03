@@ -70,11 +70,13 @@ private:
   void SetFilePending           (int32_t fd);
   bool HandlingFile             (int32_t fd);
 
+  using FileHandlers = std::unordered_map<int32_t, FileHandler>;
+
   Request::Controller       m_controller;
   IPCManager                m_ipc_manager;
   std::vector<int>          m_client_connections;
-  std::vector<FileHandler>  m_file_handlers;
-  std::vector<FileHandler>  m_message_handlers;
+  FileHandlers              m_file_handlers;
+  FileHandlers              m_message_handlers;
   std::vector<KSession>     m_sessions;
   std::vector<ReceivedFile> m_received_files;
   bool                      m_file_pending;
