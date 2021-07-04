@@ -591,16 +591,9 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
           }
           else
           if (isMessage(decoded_message.c_str()))
-          {
-            const auto message = getMessage(decoded_message);
-            if (message == "schedule")
-              m_controller.process_client_request(
-                client_socket_fd, createOperation(
-                "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)})
-              );
-
-            sendEvent(client_socket_fd, "Message Received", {"Received by KServer", "Message: ", message});
-          }
+            sendEvent(client_socket_fd,
+                      "Message Received",
+                      {"Received by KServer", "Message", getMessage(decoded_message)});
 
           return decoded_message;
         })
