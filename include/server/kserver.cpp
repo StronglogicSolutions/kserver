@@ -203,13 +203,24 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
       sendEvent(client_socket_fd, "Process Execution Requested", args);
       break;
 
+    case SYSTEM_EVENTS__APPLICATION_FETCH_SUCCESS:
+      sendEvent(client_socket_fd, "Application was found", args);
+      break;
+
+    case SYSTEM_EVENTS__APPLICATION_FETCH_FAIL:
+      sendEvent(client_socket_fd, "Application was not found", args);
+      break;
+
     case SYSTEM_EVENTS__REGISTRAR_SUCCESS:
-      sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
+      sendEvent(client_socket_fd, "Application was registered", args);
       break;
 
     case SYSTEM_EVENTS__REGISTRAR_FAIL:
-      sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
+      sendEvent(client_socket_fd, "Failed to register application", args);
       break;
+
+    case SYSTEM_EVENTS__TASK_FETCH_FLAGS:
+      sendEvent(client_socket_fd, "Application Flags were found", args);
   }
 }
 

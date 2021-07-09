@@ -452,6 +452,8 @@ Task Scheduler::getTask(std::string id) {
   return task;
 }
 
+
+
 /**
  * @brief Get the Files object
  *
@@ -497,6 +499,27 @@ Task Scheduler::getTask(int id) {
   task.filenames = getFiles(std::to_string(id));        // files
 
   return task;
+}
+
+template std::vector<std::string>  Scheduler::getFlags(const std::string& mask);
+template std::vector<std::string>  Scheduler::getFlags(const uint32_t& mask);
+
+template <typename T>
+std::vector<std::string> Scheduler::getFlags(const T& mask)
+{
+  std::string filter_mask;
+  if constexpr (std::is_same_v<std::string, T>)
+    filter_mask = mask;
+  else
+  if constexpr (std::is_integral<T>::value)
+    filter_mask =  std::to_string(mask);
+
+  for (const auto& row : m_kdb.select("schedule", {Field::FLAGS}, QueryFilter{{"mask", filter_mask}}, 1))
+    if (row.first == Field::FLAGS)
+      return StringUtils::split(row.second, ' ');
+
+  ELOG("No task exists with that mask");
+  return {};
 }
 /**
  * updateStatus
