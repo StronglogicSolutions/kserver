@@ -220,7 +220,7 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
       break;
 
     case SYSTEM_EVENTS__TASK_FETCH_FLAGS:
-      sendEvent(client_socket_fd, "Application Flags were found", args);
+      sendEvent(client_socket_fd, "Application Flags", args);
   }
 }
 
@@ -487,6 +487,8 @@ void KServer::handleOperation(std::string decoded_message, int client_socket_fd)
     KLOG("Fetch schedule request");
     handleScheduleRequest(client_socket_fd, decoded_message);
   }
+  else
+    m_controller.process_client_request(client_socket_fd, decoded_message);
 }
 
 void KServer::handleIPC(std::string message, int32_t client_socket_fd)

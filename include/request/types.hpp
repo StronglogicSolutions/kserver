@@ -56,6 +56,8 @@ static RequestType int_to_request_type(int byte) {
   {
     return FETCH_SCHEDULE_TOKENS;
   }
+  if (byte == TASK_FLAGS)
+    return TASK_FLAGS;
   return UNKNOWN;
 }
 } // namespace Request
