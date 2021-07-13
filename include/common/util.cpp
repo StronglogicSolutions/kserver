@@ -493,7 +493,7 @@ void sendMail(std::string recipient, std::string message, std::string from) {
   std::string sanitized = StringUtils::sanitizeSingleQuotes(message);
   std::system(
     std::string{
-      "echo '" + sanitized + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
+      "echo \"" + sanitized + "\" | mail -s \"KServer notification\nContent-Type: text/html\" -a FROM:" + from + ' ' + recipient
     }.c_str()
   );
 }
