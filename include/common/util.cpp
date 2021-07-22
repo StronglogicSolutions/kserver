@@ -856,3 +856,18 @@ std::string time_as_today(std::string unixtime) {
   return std::to_string(mktime(&ts));
 }
 }  // namespace TimeUtils
+
+namespace DataUtils {
+template const std::vector<std::string> vector_absorb(std::vector<std::string>&& v, std::string&& u);
+template <typename T>
+const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u)
+{
+  std::vector<T> c_v{};
+  c_v.reserve(v.size() + 1);
+  c_v.emplace_back(std::move(u));
+  c_v.insert(c_v.begin() + 1,
+             std::make_move_iterator(v.begin()),
+             std::make_move_iterator(v.end()));
+  return c_v;
+}
+} // namespace DataUtils

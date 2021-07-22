@@ -197,3 +197,9 @@ std::string format_timestamp(int unixtime);
 std::string format_timestamp(std::string unixtime);
 std::string time_as_today(std::string unixtime);
 }  // namespace TimeUtils
+
+namespace DataUtils
+{
+template <typename T>
+const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u);
+} // namespace DataUtils

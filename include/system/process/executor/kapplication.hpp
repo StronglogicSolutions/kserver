@@ -21,4 +21,9 @@ struct KApplication {
         << "\nData: " << app.data <<  "\nIs KIQ App: " << static_cast<const char*>((app.is_kiq) ? "Yes" : "No") << std::endl;
     return out;
   }
+
+  std::vector<std::string> vector()
+  {
+    return std::vector<std::string>{name, path, data, mask};
+  }
 };

@@ -104,6 +104,9 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      processTriggers(Task*              task);
         bool                      addTrigger(const std::vector<std::string>& payload);
 
+        template <typename T>
+        std::vector<std::string>  getFlags(const T& mask);
+
 private:
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
