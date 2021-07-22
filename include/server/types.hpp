@@ -15,22 +15,24 @@ void MessageHandler(MessageProcessor processor, int client_socket_fd,
 /**
  * SYSTEM EVENTS
  */
-static const int SYSTEM_EVENTS__FILE_UPDATE                 = 1;
-static const int SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 2;
-static const int SYSTEM_EVENTS__SCHEDULED_TASKS_READY       = 3;
-static const int SYSTEM_EVENTS__SCHEDULED_TASKS_NONE        = 4;
-static const int SYSTEM_EVENTS__SCHEDULER_FETCH             = 5;
-static const int SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS      = 6;
-static const int SYSTEM_EVENTS__SCHEDULER_UPDATE            = 7;
-static const int SYSTEM_EVENTS__SCHEDULER_SUCCESS           = 8;
-static const int SYSTEM_EVENTS__SCHEDULER_FAIL              = 9;
-static const int SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 10;
-static const int SYSTEM_EVENTS__REGISTRAR_FAIL              = 11;
-static const int SYSTEM_EVENTS__PLATFORM_NEW_POST           = 12;
-static const int SYSTEM_EVENTS__PLATFORM_POST_REQUESTED     = 13;
-static const int SYSTEM_EVENTS__PLATFORM_ERROR              = 14;
-static const int SYSTEM_EVENTS__PROCESS_COMPLETE            = 15;
-static const int SYSTEM_EVENTS__SCHEDULER_REQUEST           = 16;
+static const int32_t SYSTEM_EVENTS__FILE_UPDATE                 = 1;
+static const int32_t SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED = 2;
+static const int32_t SYSTEM_EVENTS__SCHEDULED_TASKS_READY       = 3;
+static const int32_t SYSTEM_EVENTS__SCHEDULED_TASKS_NONE        = 4;
+static const int32_t SYSTEM_EVENTS__SCHEDULER_FETCH             = 5;
+static const int32_t SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS      = 6;
+static const int32_t SYSTEM_EVENTS__SCHEDULER_UPDATE            = 7;
+static const int32_t SYSTEM_EVENTS__SCHEDULER_SUCCESS           = 8;
+static const int32_t SYSTEM_EVENTS__SCHEDULER_FAIL              = 9;
+static const int32_t SYSTEM_EVENTS__REGISTRAR_SUCCESS           = 10;
+static const int32_t SYSTEM_EVENTS__REGISTRAR_FAIL              = 11;
+static const int32_t SYSTEM_EVENTS__PLATFORM_NEW_POST           = 12;
+static const int32_t SYSTEM_EVENTS__PLATFORM_POST_REQUESTED     = 13;
+static const int32_t SYSTEM_EVENTS__PLATFORM_ERROR              = 14;
+static const int32_t SYSTEM_EVENTS__PROCESS_COMPLETE            = 15;
+static const int32_t SYSTEM_EVENTS__SCHEDULER_REQUEST           = 16;
+static const int32_t SYSTEM_EVENTS__TRIGGER_ADD_SUCCESS         = 17;
+static const int32_t SYSTEM_EVENTS__TRIGGER_ADD_FAIL            = 18;
 
 static const uint8_t EVENT_PROCESS_OUTPUT_INDEX{0x00};
 static const uint8_t EVENT_PROCESS_MASK_INDEX  {0x01};

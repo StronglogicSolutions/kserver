@@ -26,6 +26,9 @@ struct TriggerConfig
 {
   KApplication     application;
   TriggerParamInfo info;
+  std::string      token_name;
+  std::string      token_value;
+  int32_t          mask;
 
   bool ready()
   {
@@ -40,8 +43,8 @@ Trigger(Database::KDB* db_ptr)
 : m_db(db_ptr) {}
 
 std::vector<Task> process(Task* task);
-bool add(const std::string& id, TriggerConfig config);
-bool remove(const std::string& tid);
+bool              add(TriggerConfig config);
+bool              remove(const std::string& tid);
 
 private:
 Database::KDB*      m_db;

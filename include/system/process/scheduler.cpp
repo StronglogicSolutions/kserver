@@ -689,7 +689,55 @@ bool Scheduler::processTriggers(Task* task_ptr)
       processed_triggers = false;
     else
       KLOG("Task {} triggered scheduling of new task with ID {}", task_ptr->id, task.id);
+
   }
 
   return processed_triggers;
+}
+
+/**
+ * @brief
+ *
+ * @param payload
+ * @return true
+ * @return false
+ */
+bool Scheduler::addTrigger(const std::vector<std::string>& payload)
+{
+  if (!payload.empty())
+  {
+    TriggerConfig       config{};
+    const int32_t       TRIGGER_MAP_NUM_INDEX = 5;
+    const int32_t       mask                  = std::stoi(payload.at(1));
+    const int32_t       trigger_mask          = std::stoi(payload.at(2));
+    const int32_t       map_num               = std::stoi(payload.at(5));
+    const int32_t       config_num            = std::stoi(payload.at(6));
+    const KApplication  app                   = ProcessExecutor::getAppInfo(mask);
+    const KApplication  trigger_app           = ProcessExecutor::getAppInfo(trigger_mask);
+
+    if (app.is_valid() && trigger_app.is_valid())
+    {
+      config.token_name  = payload.at(3);
+      config.token_value = payload.at(4);
+
+      for (int i = 0; i < map_num; i++)
+        config.info.map.insert({
+          payload.at((TRIGGER_MAP_NUM_INDEX + i + 1)),
+          payload.at((TRIGGER_MAP_NUM_INDEX + i + 2))
+        });
+
+      for (int i = 0; i < config_num; i++)
+        config.info.config_info_v.emplace_back(
+          ParamConfigInfo{
+            .token_name     = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 1)),
+            .config_section = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 2)),
+            .config_name    = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 3))
+          }
+        );
+
+      return m_trigger.add(config);
+    }
+  }
+
+  return false;
 }

@@ -161,3 +161,65 @@ std::vector<Task> Trigger::process(Task* task)
 
   return tasks;
 }
+
+/**
+ * @brief
+ *
+ * @param config
+ * @return true
+ * @return false
+ */
+bool Trigger::add(TriggerConfig config)
+{
+  bool error{false};
+
+  if (config.ready())
+  {
+    auto id = m_db->insert(
+      "triggers",
+      {"mask", "trigger_mask", "token_name", "token_value"},
+      {std::to_string(config.mask), config.application.mask, config.token_name, config.token_value}, "id");
+
+    error = id.empty();
+
+    if (error)
+    {
+      ELOG("Error inserting trigger into trigger table");
+      return false;
+    }
+
+    for (const auto& config_mapping : config.info.map)
+    {
+      const auto& old_token = config_mapping.first;
+      const auto& new_token = config_mapping.second;
+
+      error = m_db->insert(
+        "trigger_map",
+        {"tid", "old", "new"},
+        {id, old_token, new_token}
+      );
+    }
+
+    if (error)
+    {
+      ELOG("Error inserting trigger map");
+      return false;
+    }
+
+    for (const auto& info : config.info.config_info_v)
+    {
+      error = m_db->insert(
+        "trigger_config",
+        {"token_name", "section", "name"},
+        {info.token_name, info.config_section, info.config_name}
+      );
+    }
+
+    if (error)
+    {
+      ELOG("Error inserting trigger config");
+    }
+  }
+
+  return !(error);
+}
