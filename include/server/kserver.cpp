@@ -312,9 +312,6 @@ void KServer::sendEvent(int client_socket_fd, std::string event,
                 std::vector<std::string> argv)
 {
   KLOG("Sending {} event to {}", event, client_socket_fd);
-  for (const auto &arg : argv) {
-    KLOG("Event arg - {}", arg);
-  }
   std::string event_string = createEvent(event.c_str(), argv);
   sendMessage(client_socket_fd, event_string.c_str(), event_string.size());
 }
@@ -370,9 +367,10 @@ void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
 {
   auto handler = m_file_handlers.find(client_socket_fd);
 
-  if (handler != m_file_handlers.end()) {
+  if (handler != m_file_handlers.end())
     handler->second.processPacket(s_buffer_ptr.get(), size);
-  } else {
+  else
+  {
     KLOG("creating FileHandler for {}", client_socket_fd);
     m_file_handlers.insert({client_socket_fd, FileHandler{client_socket_fd, "", s_buffer_ptr.get(), size,
       [this](int socket_fd, int result, uint8_t *f_ptr, size_t buffer_size)

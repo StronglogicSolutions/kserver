@@ -43,20 +43,20 @@ public:
   Decoder(int32_t            id,
           const std::string& file_name,
           ReceiveFn          file_callback_fn_ptr,
-          int8_t             header_size,
-          bool               keep_header = false)
-      : file_buffer(nullptr),
-        packet_buffer(nullptr),
-        index(0),
-        packet_buffer_offset(0),
-        total_packets(0),
-        file_buffer_offset(0),
-        file_size(0),
-        filename(file_name),
-        m_id(id),
-        m_file_cb_ptr(file_callback_fn_ptr),
-        m_header_size(header_size),
-        m_keep_header(keep_header) {}
+          bool               keep_header)
+  : file_buffer         (nullptr),
+    packet_buffer       (nullptr),
+    index               (0),
+    packet_buffer_offset(0),
+    total_packets       (0),
+    file_buffer_offset  (0),
+    file_size           (0),
+    filename            (file_name),
+    m_id                (id),
+    m_file_cb_ptr       (file_callback_fn_ptr),
+    m_keep_header       (keep_header),
+    m_header_size       (HEADER_SIZE)
+    {}
 
 /**
  * @destructor
@@ -107,15 +107,16 @@ public:
 
   void processPacketBuffer(uint8_t* data, uint32_t size)
   {
-    uint32_t bytes_to_finish        {}; // to complete the current packet
-    uint32_t remaining              {}; // to complete after this function completes
-    uint32_t bytes_to_copy          {}; // into the packet buffer
+    uint32_t bytes_to_finish        {}; // for current packet
+    uint32_t remaining              {}; // after this function completes
+    uint32_t bytes_to_copy          {}; // into packet buffer
     uint32_t packet_size            {};
     bool     packet_received        {};
     bool     is_last_packet = index == (total_packets);
 
-    if (!index && !packet_buffer_offset && file_size > (MAX_PACKET_SIZE - m_header_size)) // chunk 1 of packet 1
-      bytes_to_finish = (m_keep_header) ? packet_size = MAX_PACKET_SIZE : MAX_PACKET_SIZE - m_header_size;
+    if (!index && !packet_buffer_offset && file_size > (MAX_PACKET_SIZE - m_header_size)) // 1st chunk
+      bytes_to_finish = packet_size = (m_keep_header) ?
+        MAX_PACKET_SIZE : MAX_PACKET_SIZE - m_header_size;
     else
     if (is_last_packet)
     {
@@ -136,7 +137,7 @@ public:
 
     KLOG("Packet buffer offset is {}", packet_buffer_offset);
 
-    assert((packet_buffer_offset < MAX_PACKET_SIZE));
+    assert((packet_buffer_offset <= MAX_PACKET_SIZE));
 
     if (packet_received)
     {
@@ -209,8 +210,8 @@ public:
     std::string filename;
     int32_t     m_id;
     ReceiveFn   m_file_cb_ptr;
-    uint8_t     m_header_size;
     bool        m_keep_header;
+    uint8_t     m_header_size;
   };
 
   /**
@@ -221,34 +222,28 @@ public:
               uint8_t*       first_packet,
               uint32_t       size,
               FileCallbackFn callback_fn,
-              uint32_t       header_size = HEADER_SIZE,
               bool           keep_header = false)
-  : m_id(id),
-    m_decoder(new Decoder(id, name,
-      [this, callback_fn](uint8_t*&& data, int size, const std::string& filename)
-      {
-        if (size)
-        {
-          if (!filename.empty())
-            FileUtils::saveFile(data, size, filename);
-          else
-            callback_fn(m_id, FILE_HANDLE__SUCCESS, std::move(data), size);
-        }
-      },
-      header_size,
-      keep_header
-    ))
+  : m_decoder(new Decoder(id, name,
+    [this, id, callback_fn](uint8_t*&& data, int size, std::string filename)
     {
-      m_decoder->processPacket(first_packet, size);
-    }
+      if (size > 0) {
+        if (!filename.empty())
+          FileUtils::saveFile(data, size, filename);
+        else
+          callback_fn(id, FILE_HANDLE__SUCCESS, std::move(data), size);
+      }
+    },
+    keep_header))
+  {
+    m_decoder->processPacket(first_packet, size);
+  }
 
   /**
    * Move constructor
    * @constructor
    */
   FileHandler(FileHandler&& f)
-  : m_id(f.m_id),
-    m_decoder(f.m_decoder)
+  : m_decoder(f.m_decoder)
   {
     f.m_decoder = nullptr;
   }
@@ -259,8 +254,7 @@ public:
    */
 
   FileHandler(const FileHandler& f)
-  : m_id(f.m_id),
-    m_decoder(new Decoder{*(f.m_decoder)})
+  : m_decoder(new Decoder{*(f.m_decoder)})
   {}
 
   FileHandler &operator=(const FileHandler& f)
@@ -310,19 +304,7 @@ public:
     m_decoder->processPacket(data, size);
   }
 
-/**
- * hasID
- *
- * @param   [in]  {int32_t} id
- * @returns [out] {bool}
- */
-  bool hasID(int32_t id)
-  {
-    return id == m_id;
-  }
-
  private:
-  int      m_id;
   Decoder* m_decoder;
 };
 } // namespace Decoder
