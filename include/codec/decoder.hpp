@@ -169,7 +169,7 @@ public:
     bool     is_first_packet = (index == 0);
     uint32_t process_index{0};
 
-    while (size > 0)
+    while (size)
     {
       uint32_t size_to_read = size <= MAX_PACKET_SIZE ? size : MAX_PACKET_SIZE;
 
