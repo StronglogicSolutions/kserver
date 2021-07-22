@@ -141,15 +141,18 @@ class Controller {
   void initialize(EventCallbackFn event_callback_fn,
                   SystemCallbackFn system_callback_fn,
                   TaskCallbackFn task_callback_fn) {
+    const bool scheduled_task{true};
     m_executor = new ProcessExecutor();
-    m_executor->setEventCallback([this](std::string result,
-                                        int         mask,
-                                        std::string request_id,
-                                        int         client_socket_fd,
-                                        bool        error)
-    {
-      onProcessComplete(result, mask, request_id, client_socket_fd, error);
-    });
+    m_executor->setEventCallback(
+      [this, scheduled_task](const std::string& result,
+                             const int          mask,
+                             const std::string& id,
+                             const int          client_socket_fd,
+                             const bool         error)
+      {
+        onProcessComplete(result, mask, id, client_socket_fd, error, scheduled_task);
+      }
+    );
 
     m_system_callback_fn  = system_callback_fn;
     m_event_callback_fn   = event_callback_fn;
@@ -248,8 +251,8 @@ class Controller {
           m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
       }
 
-      if (!m_tasks_map.empty() && !handlePendingTasks())
-        ELOG("ERROR handling pending tasks");
+      if (!m_tasks_map.empty())
+        handlePendingTasks();
 
       m_scheduler.processPlatform();
       maintenance_loop_condition.wait_for(lock, std::chrono::milliseconds(20000));
@@ -261,33 +264,21 @@ class Controller {
    *
    * Iterates pending tasks and requests their execution
    */
-  bool handlePendingTasks() {
+  void handlePendingTasks() {
     if (!m_tasks_map.empty()) {
-      ProcessExecutor executor{};
-      const bool is_scheduled_task = true;
-      executor.setEventCallback(
-        [this, is_scheduled_task](std::string result, int mask,
-                                  std::string id, int client_socket_fd,
-                                  bool error) {
-          onProcessComplete(result, mask, id, client_socket_fd, error, is_scheduled_task);
-        });
-
       std::vector<std::future<void>> futures{};
       futures.reserve(m_tasks_map.size() * m_tasks_map.begin()->second.size());
-      for (const auto &client_tasks : m_tasks_map) {
-        if (!client_tasks.second.empty()) {
-          for (const auto &task : client_tasks.second) {
+
+      for (const auto &client_tasks : m_tasks_map)
+        if (!client_tasks.second.empty())
+          for (const auto &task : client_tasks.second)
             futures.push_back(std::async(
               std::launch::deferred, &ProcessExecutor::executeTask,
-              std::ref(executor), client_tasks.first, task));
-          }
-        }
-      }
-      for (auto& future : futures) {
+              std::ref(*(m_executor)), client_tasks.first, task));
+
+      for (auto& future : futures)
         future.get();
-      }
     }
-    return true;
   }
 
   /**
@@ -388,68 +379,6 @@ class Controller {
   }
 
   /**
-   * \b EXECUTE \b SCHEDULED \b TASK
-   *
-   * \overload
-   *
-   * @request
-   * @development
-   *
-   * Calls the scheduler to fetch tasks which need to be executed soon and
-   * returns them to the KServer. These tasks can be performed iteratively on a
-   * message loop, to ensure each execution completes before another one begins.
-   *
-   *
-   * @param[in] {int} `client_socket_fd` The client socket file descriptor
-   * @param[in] {KOperation} `op` The operation requested
-   * @param[in] {DevTest} `test` An enum value representing the type of
-   * operation to perform
-   *
-   */
-  void operator()(int client_socket_fd, KOperation op, DevTest test) {
-    if (strcmp(op.c_str(), "Test") == 0 && test == DevTest::Schedule) {
-      std::vector<Task> tasks = m_scheduler.fetchTasks();                // Normal tasks
-      for (auto&& recurring_task : m_scheduler.fetchRecurringTasks()) {  // Recurring tasks
-        tasks.emplace_back(recurring_task);
-      }
-
-      if (!tasks.empty()) {
-        KLOG("There are tasks to be reviewed");
-        for (const auto &task : tasks) {
-          KLOG("Task info: {} - Mask: {}\n "
-              "Args: {}\n {}\n. Excluded: Execution "
-              "Flags",
-              task.datetime, std::to_string(task.execution_mask),
-              task.file ? "hasFile(s)" : "", task.envfile);
-        }
-        std::string tasks_message = std::to_string(tasks.size());
-        tasks_message += " tasks scheduled to run in the next 24 hours";
-        m_system_callback_fn(client_socket_fd,
-                             SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
-                             {tasks_message});
-        // We need to inform the client of available tasks, and let them decide
-        // if a task should be executed.
-        m_executor->executeTask(client_socket_fd, tasks.at(0));
-        auto it = m_tasks_map.find(client_socket_fd);
-        if (it == m_tasks_map.end()) {
-          m_tasks_map.insert(std::pair<int, std::vector<Task>>(
-              client_socket_fd, tasks));
-        } else {
-          it->second.insert(it->second.end(), tasks.begin(), tasks.end());
-        }
-        KLOG("{} currently has {} tasks pending execution",
-            client_socket_fd, m_tasks_map.at(client_socket_fd).size());
-      } else {
-        KLOG("There are currently no tasks ready for execution");
-
-        m_system_callback_fn(
-            client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
-            {"There are currently no tasks ready for execution"});
-      }
-    }
-  }
-
-  /**
    * \b FETCH \b PROCESSES
    *
    * \overload
@@ -512,6 +441,16 @@ class Controller {
     const std::vector<std::string> fields{"path"};
     const QueryFilter              filter{{"mask", std::to_string(mask)}};
 
+    ProcessExecutor executor{};
+    executor.setEventCallback([this](std::string result,
+                                     int         mask,
+                                     std::string request_id,
+                                     int         client_socket_fd,
+                                     bool        error)
+    {
+      onProcessComplete(result, mask, request_id, client_socket_fd, error);
+    });
+
     for (const auto &row : m_kdb.select(name, fields, filter)) {
       std::string info_string{
           "PROCESS RUNNER - Process execution requested for "
@@ -521,7 +460,7 @@ class Controller {
                            SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
                            {info_string, request_id});
 
-      m_executor->request(row.second, mask, client_socket_fd, request_id, {},
+      executor.request(row.second, mask, client_socket_fd, request_id, {},
                           constants::IMMEDIATE_REQUEST);
     }
   }
@@ -761,12 +700,12 @@ class Controller {
    * who made the request
    *
    */
-  void onProcessComplete(std::string value,
-                         int         mask,
-                         std::string id,
-                         int         client_socket_fd,
-                         bool        error,
-                         bool        scheduled_task = false)
+  void onProcessComplete(const std::string& value,
+                         const int          mask,
+                         const std::string& id,
+                         const int          client_socket_fd,
+                         const bool         error,
+                         const bool         scheduled_task = false)
   {
     using TaskVectorMap = std::map<int, std::vector<Task>>;
     using TaskVector    = std::vector<Task>;
@@ -792,15 +731,18 @@ class Controller {
 
       TaskVectorMap::iterator it = m_tasks_map.find(client_socket_fd); // Find client's tasks
 
-      if (it != m_tasks_map.end()) {                                   // Find task
+      if (it != m_tasks_map.end())
+      {                                   // Find task
         task_it = std::find_if(it->second.begin(), it->second.end(),
           [id](Task task) { return task.id == std::stoi(id); }
         );
 
-        if (task_it != it->second.end()) {
+        if (task_it != it->second.end())
+        {
           uint8_t status{};
 
-          if (error) {
+          if (error)
+          {
             status = (task_it->completed == Completed::FAILED) ?
               Completed::RETRY_FAIL :                           // No retry
               Completed::FAILED;                                // Retry
@@ -814,8 +756,9 @@ class Controller {
               std::string{Messages::TASK_ERROR_EMAIL + value},
               ConfigParser::Email::admin()
             );
-
-          } else {
+          }
+          else
+          {
             status = task_it->recurring ?
               Completed::SCHEDULED :
               Completed::SUCCESS;
@@ -827,21 +770,18 @@ class Controller {
           m_scheduler.updateStatus(&*task_it, value);             // Failed tasks will re-run once more
           m_executor->saveResult(mask, 1, TimeUtils::unixtime()); // Save execution result
 
-          if (!error && task_it->recurring) {                     // If no error, update last execution time
-            KLOG(
-              "Task {} will be scheduled for {}",
-              task_it->id,
-              TimeUtils::format_timestamp(task_it->datetime)
-            );
+          if (!error && task_it->recurring)                       // If no error, update last execution time
+          {
+            KLOG("Task {} will be scheduled for {}",
+              task_it->id, TimeUtils::format_timestamp(task_it->datetime));
 
             m_scheduler.updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
-              task_it->id,
-              Constants::Recurring::names[task_it->recurring]
-            );
+              task_it->id, Constants::Recurring::names[task_it->recurring]);
           }
 
-          if (task_it->notify) {                                           // Send email notification
+          if (task_it->notify)                                             // Send email notification
+          {
             KLOG("Task notification enabled - emailing result to administrator");
             std::string email_string{};
             email_string.reserve(value.size() + 84);
@@ -892,7 +832,8 @@ class Controller {
 
   void onSchedulerEvent(int32_t client_socket_fd,
                         int32_t event,
-                        const std::vector<std::string>& args = {}) {
+                        const std::vector<std::string>& args = {})
+  {
     m_system_callback_fn(client_socket_fd, event, args);
   }
 

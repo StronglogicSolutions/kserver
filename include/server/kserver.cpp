@@ -569,7 +569,8 @@ void KServer::onConnectionClose(int client_socket_fd)
 
 void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd)
 {
-  const bool KEEP_HEADER{true};
+  static const bool KEEP_HEADER{true};
+
   auto handler = m_message_handlers.find(client_socket_fd);
   if (handler != m_message_handlers.end())
     handler->second.processPacket(s_buffer_ptr.get(), size);
@@ -579,41 +580,30 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
     m_message_handlers.insert({client_socket_fd, FileHandler{client_socket_fd, "", s_buffer_ptr.get(), size,
       [this, client_socket_fd](int socket_fd, int result, uint8_t* m_ptr, size_t buffer_size)
       {
-        DecodeMessage(m_ptr).leftMap([this, client_socket_fd](auto decoded_message) {
+        DecodeMessage(m_ptr).leftMap([this, client_socket_fd](auto decoded_message)
+        {
           KLOG("Received message: {}", decoded_message);
           // Handle operations
-          if (isOperation(decoded_message.c_str())) {
+          if (isOperation(decoded_message.c_str()))
+          {
             KLOG("Received operation");
             handleOperation(decoded_message, client_socket_fd);
-          } else if (isMessage(decoded_message.c_str())) {
-            const auto message = getMessage(decoded_message);
-            if (message == "scheduler") {
-              KLOG("Testing scheduler");
-              m_controller(client_socket_fd, "Test",
-                                Request::DevTest::Schedule);
-            } else if (message == "execute") {
-              KLOG("Testing task execution");
-              m_controller(client_socket_fd, "Test",
-                                Request::DevTest::ExecuteTask);
-            } else if (message == "schedule") {
-              // TODO: temporary. This should be done by the client application
-              std::string fetch_schedule_operation = createOperation(
-                "Schedule", {std::to_string(Request::RequestType::FETCH_SCHEDULE)}
-              );
-              m_controller.process_client_request(client_socket_fd, fetch_schedule_operation);
-            }
-            sendEvent(client_socket_fd, "Message Received",
-                      {"Message received by KServer",
-                        "The following was your message",
-                        message});
           }
+          else
+          if (isMessage(decoded_message.c_str()))
+            sendEvent(client_socket_fd,
+                      "Message Received",
+                      {"Received by KServer", "Message", getMessage(decoded_message)});
+
           return decoded_message;
         })
         .rightMap([this, client_socket_fd](auto task_args) {
-          if (!task_args.empty()) {
+          if (!task_args.empty())
+          {
             KLOG("Receive buffer contained schedule request");
             handleSchedule(task_args, client_socket_fd);
           }
+
           return task_args;
         });
       },
@@ -663,5 +653,4 @@ bool KServer::HandlingFile(int32_t fd)
   return (m_file_pending && m_file_pending_fd == fd);
 }
 
-
-};     // namespace KYO
+} // namespace KYO
