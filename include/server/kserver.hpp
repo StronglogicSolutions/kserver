@@ -69,6 +69,7 @@ private:
   void SetFileNotPending        ();
   void SetFilePending           (int32_t fd);
   bool HandlingFile             (int32_t fd);
+  void SendFile                 (int32_t client_socket_fd, const std::string& filename);
 
   using FileHandlers = std::unordered_map<int32_t, FileHandler>;
 
