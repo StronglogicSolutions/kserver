@@ -167,13 +167,20 @@ std::string              readFile( const std::string& env_file_path);
 std::vector<uint8_t>     readFileAsBytes(const std::string& file_path);
 void                     clearFile(const std::string& file_path);
 bool                     createTaskDirectory(const std::string& unique_id);
-
+static const uint32_t PACKET_SIZE{4096};
 class FileIterator
 {
 public:
 FileIterator(const std::string& path)
-: m_buffer(readFileAsBytes(path))
-{}
+: m_buffer(readFileAsBytes(path)),
+  data_ptr(nullptr)
+{
+  if (!m_buffer.empty())
+  {
+    data_ptr = m_buffer.data();
+    m_size   = m_buffer.size();
+  }
+}
 
 struct PacketWrapper
 {
@@ -186,21 +193,24 @@ struct PacketWrapper
   uint8_t* data() { return ptr; }
 };
 
-bool has_data() { return data_ptr != nullptr; }
+bool has_data()
+{
+  return data_ptr != nullptr;
+}
 
 PacketWrapper next() {
   uint8_t* ptr = data_ptr;
   uint32_t bytes_remaining = m_size - m_bytes_read;
   uint32_t size{};
-  if (bytes_remaining < 4096)
+  if (bytes_remaining < PACKET_SIZE)
   {
     size = bytes_remaining;
     data_ptr = nullptr;
   }
   else
   {
-    size = 4096;
-    data_ptr += 4096;
+    size      = PACKET_SIZE;
+    data_ptr += PACKET_SIZE;
   }
     return PacketWrapper{ptr, size};
 }
@@ -247,5 +257,5 @@ std::string time_as_today(std::string unixtime);
 namespace DataUtils
 {
 template <typename T>
-const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u);
+const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front = false);
 } // namespace DataUtils

@@ -199,6 +199,13 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
       break;
     }
 
+    case SYSTEM_EVENTS__FILES_SEND:
+    {
+      auto files = args;
+      handleFileSend(client_socket_fd, files);
+      sendEvent(client_socket_fd, "File Upload", {std::to_string(files.size())});
+    }
+
     case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED:
       sendEvent(client_socket_fd, "Process Execution Requested", args);
       break;
@@ -299,12 +306,16 @@ void KServer::onProcessEvent(std::string result, int mask, std::string request_i
   }
 }
 
-void KServer::SendFile(int32_t client_socket_fd, const std::string& filename)
+void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
 {
-  FileUtils::FileIterator iterator{filename};
+  using F_Iterator = FileUtils::FileIterator;
+  using P_Wrapper  = FileUtils::FileIterator::PacketWrapper;
+
+  F_Iterator iterator{filename};
+
   while (iterator.has_data())
   {
-    auto packet = iterator.next();
+    P_Wrapper packet = iterator.next();
     SocketListener::sendMessage(client_socket_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 }
@@ -390,7 +401,11 @@ void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
     }});
   }
 }
-
+void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& files)
+{
+  for (const auto file : files)
+    m_outbound_files.emplace_back(OutboundFile{.fd = client_fd, .path = file});
+}
 /**
  * Start Operation
  */

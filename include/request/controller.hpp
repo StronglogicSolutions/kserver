@@ -665,6 +665,16 @@ class Controller {
             std::move(args.at(1))));
       break;
 
+      case (FETCH_FILE):
+        auto files = m_scheduler.getFiles(args.at(1));
+        if (!files.empty())
+        {
+          m_system_callback_fn(
+            client_fd,
+            SYSTEM_EVENTS__FILES_SEND,
+            files);
+        }
+
       case (RequestType::UNKNOWN):
       {
         ELOG("Controller could not process unknown client request: {}", type);

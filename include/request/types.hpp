@@ -17,7 +17,8 @@ enum RequestType {
   FETCH_SCHEDULE_TOKENS = 0x06,
   TRIGGER_CREATE        = 0x07,
   TASK_FLAGS            = 0x08,
-  UNKNOWN               = 0x09
+  FETCH_FILE            = 0x09,
+  UNKNOWN               = 0x0A
 };
 
 /**
@@ -58,6 +59,8 @@ static RequestType int_to_request_type(int byte) {
   }
   if (byte == TASK_FLAGS)
     return TASK_FLAGS;
+  if (byte == FETCH_FILE)
+    return FETCH_FILE;
   return UNKNOWN;
 }
 } // namespace Request

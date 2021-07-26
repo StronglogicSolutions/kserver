@@ -471,8 +471,10 @@ std::vector<std::string> Scheduler::getFiles(std::string sid) {
       }
   );
 
-  for (const auto& v : result) if (v.first == "name")
-                                  file_names.push_back(v.second);
+  for (const auto& v : result)
+    if (v.first == "name")
+      file_names.push_back(v.second);
+
   return file_names;
 }
 /**
