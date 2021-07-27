@@ -126,6 +126,9 @@ bool Platform::postAlreadyExists(const PlatformPost& post)
  */
 bool Platform::updatePostStatus(const PlatformPost& post, const std::string& status)
 {
+  if (post.id.empty() || post.user.empty())
+    return false;
+
   return (!m_db.update(
     "platform_post",
     {"status"},
@@ -501,21 +504,30 @@ void Platform::onPlatformError(const std::vector<std::string>& payload)
   const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
   const std::string& user        = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
   const std::string& platform_id = getPlatformID(name);
+  const std::string& error       = payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX);
 
-  if (isProcessingPlatform())
+  ELOG("Platform error received.\nError message: {}", error);
+  SystemUtils::sendMail(ConfigParser::Email::admin(), error, ConfigParser::Email::admin());
+
+  if (!id.empty())
   {
-    auto it = m_platform_map.find({platform_id, id});
-    if (it != m_platform_map.end())
-      it->second = PlatformPostState::FAILURE;
+    if (isProcessingPlatform())
+    {
+      auto it = m_platform_map.find({platform_id, id});
+      if (it != m_platform_map.end())
+        it->second = PlatformPostState::FAILURE;
+    }
+
+    PlatformPost post{};
+    post.name = name;
+    post.id   = id;
+    post.pid  = platform_id;
+    post.user = user;
+
+    updatePostStatus(post, PLATFORM_STATUS_FAILURE);
   }
-
-  PlatformPost post{};
-  post.name = name;
-  post.id   = id;
-  post.pid  = platform_id;
-  post.user = user;
-
-  updatePostStatus(post, PLATFORM_STATUS_FAILURE);
+  else
+    ELOG("Platform error had no associated post", error);
 }
 
 /**
