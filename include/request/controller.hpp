@@ -663,9 +663,10 @@ class Controller {
           DataUtils::vector_absorb(
             std::move(m_scheduler.getFlags(args.at(1))),
             std::move(args.at(1))));
-      break;
+        break;
 
       case (FETCH_FILE):
+      {
         auto files = m_scheduler.getFiles(args.at(1));
         if (!files.empty())
         {
@@ -674,12 +675,13 @@ class Controller {
             SYSTEM_EVENTS__FILES_SEND,
             files);
         }
-
-      case (RequestType::UNKNOWN):
-      {
-        ELOG("Controller could not process unknown client request: {}", type);
         break;
       }
+
+      case (RequestType::UNKNOWN):
+      default:
+        ELOG("Controller could not process unknown client request: {}", type);
+        break;
     }
   }
 

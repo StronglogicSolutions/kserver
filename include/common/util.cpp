@@ -871,9 +871,9 @@ std::string time_as_today(std::string unixtime) {
 }  // namespace TimeUtils
 
 namespace DataUtils {
-template const std::vector<std::string> vector_absorb(std::vector<std::string>&& v, std::string&& u, bool to_front = false);
+template const std::vector<std::string> vector_absorb(std::vector<std::string>&& v, std::string&& u, bool to_front);
 template <typename T>
-const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front = false)
+const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front)
 {
   std::vector<T> c_v{};
   c_v.reserve(v.size() + 1);
