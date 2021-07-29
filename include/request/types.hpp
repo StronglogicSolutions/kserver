@@ -18,7 +18,8 @@ enum RequestType {
   TRIGGER_CREATE        = 0x07,
   TASK_FLAGS            = 0x08,
   FETCH_FILE            = 0x09,
-  UNKNOWN               = 0x0A
+  FETCH_FILE_ACK        = 0x0A,
+  UNKNOWN               = 0x0B
 };
 
 /**
@@ -27,40 +28,38 @@ enum RequestType {
  * @param [in] {int} Signed integer should represent a byte value
  */
 static RequestType int_to_request_type(int byte) {
-  if (byte == REGISTER_APPLICATION) {
-    return REGISTER_APPLICATION;
-  }
-  else
-  if (byte == UPDATE_APPLICATION)
+  switch (byte)
   {
-    return UPDATE_APPLICATION;
+    case(REGISTER_APPLICATION):
+      return REGISTER_APPLICATION;
+
+    case (UPDATE_APPLICATION):
+      return UPDATE_APPLICATION;
+
+    case (REMOVE_APPLICATION):
+      return REMOVE_APPLICATION;
+
+    case (GET_APPLICATION):
+      return GET_APPLICATION;
+
+    case (FETCH_SCHEDULE):
+      return FETCH_SCHEDULE;
+
+    case (UPDATE_SCHEDULE):
+      return UPDATE_SCHEDULE;
+
+    case (FETCH_SCHEDULE_TOKENS):
+      return FETCH_SCHEDULE_TOKENS;
+
+    case (TASK_FLAGS):
+      return TASK_FLAGS;
+
+    case (FETCH_FILE):
+      return FETCH_FILE;
+
+    case (FETCH_FILE_ACK):
+      return FETCH_FILE_ACK;
   }
-  else
-  if (byte == REMOVE_APPLICATION)
-  {
-    return REMOVE_APPLICATION;
-  }
-  else
-  if (byte == GET_APPLICATION)
-  {
-    return GET_APPLICATION;
-  }
-  if (byte == FETCH_SCHEDULE)
-  {
-    return FETCH_SCHEDULE;
-  }
-  if (byte == UPDATE_SCHEDULE)
-  {
-    return UPDATE_SCHEDULE;
-  }
-  if (byte == FETCH_SCHEDULE_TOKENS)
-  {
-    return FETCH_SCHEDULE_TOKENS;
-  }
-  if (byte == TASK_FLAGS)
-    return TASK_FLAGS;
-  if (byte == FETCH_FILE)
-    return FETCH_FILE;
   return UNKNOWN;
 }
 } // namespace Request

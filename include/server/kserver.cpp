@@ -203,7 +203,16 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
     {
       auto files = args;
       handleFileSend(client_socket_fd, files);
-      sendEvent(client_socket_fd, "File Upload", {std::to_string(files.size())});
+      sendEvent(client_socket_fd, "File Upload", DataUtils::vector_absorb(std::move(files), std::move(std::to_string(files.size())), true));
+    }
+
+    case SYSTEM_EVENTS__FILES_SEND_ACK:
+    {
+      if (m_file_sending_fd == client_socket_fd)
+      {
+        sendFile(client_socket_fd, m_outbound_files.front().path);
+        m_outbound_files.pop_front();
+      }
     }
 
     case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED:
@@ -627,9 +636,15 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
           }
           else
           if (isMessage(decoded_message.c_str()))
-            sendEvent(client_socket_fd,
-                      "Message Received",
-                      {"Received by KServer", "Message", getMessage(decoded_message)});
+            {
+              auto message = getMessage(decoded_message);
+              if (message == "send file")
+                m_controller.process_client_request(client_socket_fd, {"9", "509"});
+              sendEvent(client_socket_fd,
+                        "Message Received",
+                        {"Received by KServer", "Message", });
+
+            }
 
           return decoded_message;
         })

@@ -88,9 +88,11 @@ private:
   FileHandlers              m_message_handlers;
   std::vector<KSession>     m_sessions;
   std::vector<ReceivedFile> m_received_files;
-  std::vector<OutboundFile> m_outbound_files;
+  std::deque <OutboundFile> m_outbound_files;
   bool                      m_file_pending;
-  int                       m_file_pending_fd;
+  int32_t                   m_file_pending_fd;
+  bool                      m_file_sending;
+  int32_t                   m_file_sending_fd;
   bool                      m_message_pending;
   int32_t                   m_message_pending_fd;
 };
