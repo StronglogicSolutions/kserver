@@ -44,9 +44,11 @@ class KDB {
     // delete m_connection;
   }
 
-QueryValues select(std::string table, Fields fields,
-                     QueryFilter filter = {}, uint32_t limit = 0) {
-    try {
+QueryValues select(std::string table,       Fields   fields,
+                   QueryFilter filter = {}, uint32_t limit = 0)
+{
+  try
+  {
       QueryResult result = m_connection->query(
         DatabaseQuery{
           .table = table,
@@ -56,15 +58,18 @@ QueryValues select(std::string table, Fields fields,
           .filter = filter
         });
       return result.values;
-
-    } catch (const pqxx::sql_error &e) {
-      KLOG("Select error: {}", e.what());
-      throw e;
-    } catch (const std::exception &e) {
-      KLOG("Select error: {}", e.what());
-      throw e;
-    }
   }
+  catch (const pqxx::sql_error& e)
+  {
+    KLOG("Select error: {}", e.what());
+    throw e;
+  }
+  catch (const std::exception& e)
+  {
+    KLOG("Select error: {}", e.what());
+    throw e;
+  }
+}
 
   QueryValues select(std::string table, Fields fields,
                      QueryComparisonFilter filter = {}) {

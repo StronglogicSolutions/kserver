@@ -258,4 +258,14 @@ namespace DataUtils
 {
 template <typename T>
 const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front = false);
+template <typename ...Args>
+void ClearArgs(Args&& ...args);
+
+template void ClearArgs(std::string&&);
+template <typename ...Args>
+void ClearArgs(Args&& ...args)
+{
+  (args.clear(), ...);
+}
+
 } // namespace DataUtils

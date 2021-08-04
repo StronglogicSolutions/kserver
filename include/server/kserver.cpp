@@ -201,16 +201,18 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
 
     case SYSTEM_EVENTS__FILES_SEND:
     {
-      auto files = args;
+      const bool TO_FRONT{true};
+      auto       files = args;
       handleFileSend(client_socket_fd, files);
-      sendEvent(client_socket_fd, "File Upload", DataUtils::vector_absorb(std::move(files), std::move(std::to_string(files.size())), true));
+      sendEvent(client_socket_fd, "File Upload", DataUtils::vector_absorb(std::move(files), std::move(std::to_string(files.size())), TO_FRONT));
     }
 
     case SYSTEM_EVENTS__FILES_SEND_ACK:
     {
       if (m_file_sending_fd == client_socket_fd)
       {
-        sendFile(client_socket_fd, m_outbound_files.front().path);
+        sendEvent(client_socket_fd, "File Upload Meta", m_outbound_files.front().file.to_string_v());
+        sendFile (client_socket_fd, m_outbound_files.front().file.name);
         m_outbound_files.pop_front();
       }
     }
@@ -412,8 +414,8 @@ void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
 }
 void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& files)
 {
-  for (const auto file : files)
-    m_outbound_files.emplace_back(OutboundFile{.fd = client_fd, .path = file});
+  for (const auto file : FileMetaData::PayloadToMetaData(files))
+    m_outbound_files.emplace_back(OutboundFile{.fd = client_fd, .file = file});
 }
 /**
  * Start Operation

@@ -23,8 +23,8 @@ using namespace Decoder;
 
 struct OutboundFile
 {
-  int32_t     fd;
-  std::string path;
+  int32_t      fd;
+  FileMetaData file;
 };
 
 /**

@@ -322,9 +322,9 @@ std::vector<Task> Scheduler::fetchTasks() {
     )
   );
   // TODO: Convert above to a JOIN query, and remove this code below
-  for (auto& task : tasks) {
-    task.filenames = getFiles(std::to_string(task.id));
-  }
+  for (auto& task : tasks)
+    for (const auto& file : getFiles(std::to_string(task.id)))
+      task.filenames.emplace_back(file.name);
 
   return tasks;
 }
@@ -447,7 +447,8 @@ Task Scheduler::getTask(std::string id) {
       }
   ));
 
-  task.filenames = getFiles(id);
+  for (const auto& file : getFiles(id))
+    task.filenames.push_back(file.name);
 
   return task;
 }
@@ -460,22 +461,35 @@ Task Scheduler::getTask(std::string id) {
  * @param sid
  * @return std::vector<std::string>
  */
-std::vector<std::string> Scheduler::getFiles(std::string sid) {
-  std::vector<std::string> file_names{};
+std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std::string& type) {
+  std::vector<FileMetaData> files{};
+  const QueryFilter         filter = (type.empty()) ?
+                                      QueryFilter{{"sid", sid}} :
+                                      QueryFilter{{"sid", sid}, {"type", type}};
 
-  QueryValues result = m_kdb.select(
-    "file", {        // table
-      "name",        // fields
-      }, {
-        {"sid", sid} // filter
-      }
-  );
+  QueryValues result = m_kdb.select("file", {"id", "name", "type"}, filter);
+
+  FileMetaData file{};
 
   for (const auto& v : result)
+  {
+    if (v.first == "id")
+      file.id = v.second;
+    else
     if (v.first == "name")
-      file_names.push_back(v.second);
+      file.name = v.second;
+    else
+    if (v.first == "type")
+      file.type = v.second;
+    else
+    if (file.complete())
+    {
+      files.push_back(file);
+      file.clear();
+    }
+  }
 
-  return file_names;
+  return files;
 }
 /**
  * getTask
@@ -488,17 +502,15 @@ std::vector<std::string> Scheduler::getFiles(std::string sid) {
  * @return [out] {Task}     A task
  */
 Task Scheduler::getTask(int id) {
-  Task task =  parseTask(m_kdb.select(                  // SELECT
-    "schedule", {                                       // table
-      Field::MASK,    Field::FLAGS, // fields
-      Field::ENVFILE, Field::TIME,
-      Field::COMPLETED
-    }, QueryFilter{
-      {"id", std::to_string(id)}                        // filter
-    }
-  ));
+  Task task =  parseTask(m_kdb.select("schedule", {
+                          Field::MASK,    Field::FLAGS,
+                          Field::ENVFILE, Field::TIME,
+                          Field::COMPLETED},
+                          QueryFilter{
+                            {"id", std::to_string(id)}}));
 
-  task.filenames = getFiles(std::to_string(id));        // files
+  for (const auto& file : getFiles(std::to_string(id)))                 // files
+    task.filenames.push_back(file.name);
 
   return task;
 }

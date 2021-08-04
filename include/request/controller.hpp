@@ -668,12 +668,13 @@ class Controller {
       case (FETCH_FILE):
       {
         auto files = m_scheduler.getFiles(args.at(1));
+
         if (!files.empty())
         {
           m_system_callback_fn(
             client_fd,
             SYSTEM_EVENTS__FILES_SEND,
-            files);
+            FileMetaData::MetaDataToPayload(files));
         }
         break;
       }

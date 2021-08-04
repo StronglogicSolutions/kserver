@@ -233,6 +233,59 @@ Task        task;
 std::string envfile;
 };
 
+struct FileMetaData
+{
+std::string id;
+std::string name;
+std::string type;
+
+bool complete() const
+{
+  return (!id.empty() && !name.empty() && !type.empty());
+}
+
+void clear()
+{
+  DataUtils::ClearArgs(id, name, type);
+}
+
+std::vector<std::string> to_string_v() const
+{
+  return std::vector<std::string>{
+    id, name, type
+  };
+}
+
+static std::vector<std::string> MetaDataToPayload(const std::vector<FileMetaData>& files)
+{
+  std::vector<std::string> payload{};
+  payload.reserve((files.size() * 3) + 1);
+  payload.emplace_back(std::to_string(files.size()));
+  for (const auto& file : files)
+  {
+    auto data = file.to_string_v();
+    payload.insert(payload.end(), std::make_move_iterator(data.begin()), std::make_move_iterator(data.end()));
+  }
+
+  return payload;
+}
+
+static std::vector<FileMetaData> PayloadToMetaData(const std::vector<std::string>& data)
+{
+  const int32_t             file_num = std::stoi(data.front());
+  std::vector<FileMetaData> files{};
+  files.reserve(file_num);
+
+  for (auto i = 0; i <= file_num; i++)
+    files.emplace_back(FileMetaData{
+      .id   = data[1 + (3 * i)],
+      .name = data[2 + (3 * i)],
+      .type = data[3 + (3 * i)]});
+
+  return files;
+}
+};
+
 std::string AppendExecutionFlag(std::string flag_s, const std::string& flag);
 std::string AsExecutionFlag(const std::string& flag, const std::string& prefix = " ");
 
@@ -260,12 +313,13 @@ const std::string PLATFORM_STATUS_FAILURE{"2"};
 
 struct platform_pair_hash
 {
-    template <class T1, class T2>
-    std::size_t operator() (const std::pair<T1, T2> &pair) const
-    {
-        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
-    }
+  template <class T1, class T2>
+  std::size_t operator() (const std::pair<T1, T2> &pair) const
+  {
+    return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+  }
 };
+
 using PlatformRequestMap =
 std::unordered_map<std::pair<std::string, std::string>, PlatformPostState, platform_pair_hash>;
 
