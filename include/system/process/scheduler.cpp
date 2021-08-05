@@ -16,7 +16,7 @@ uint32_t getAppMask(std::string name) {
   );
 
   for (const auto &pair : values) {
-    auto key = pair.first;
+    auto key   = pair.first;
     auto value = pair.second;
 
     if (key == value_field)
@@ -288,6 +288,31 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
  *
  * @return [out] {std::vector<Task>} A vector of Task objects
  */
+std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::string& date_range_s, const std::string& count, const std::string& limit, const std::string& order)
+{
+  using DateRange = std::pair<std::string, std::string>;
+  static const std::string MAX_INT = std::to_string(std::numeric_limits<int32_t>::max());
+  const auto GetDateRange = [](const std::string& date_range_s) -> DateRange
+  {
+    if (date_range_s.front() != '0')
+      return {"0", MAX_INT};
+
+    auto split_idx = date_range_s.find_first_of("TO");
+    std::pair<std::string, std::string> dates{
+      date_range_s.substr(0, date_range_s.size() - split_idx),
+      date_range_s.substr(split_idx)
+    };
+
+    return dates;
+  };
+
+  const DateRange date_range = GetDateRange(date_range_s);
+  const auto      limit = (limit == "0") ? MAX_INT : limit;
+  const auto      row_order = order;
+
+
+
+}
 std::vector<Task> Scheduler::fetchTasks() {
   std::vector<Task> tasks = parseTasks(
     m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(

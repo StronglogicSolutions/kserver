@@ -73,6 +73,15 @@ static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
 static const uint8_t     PLATFORM_POST_CONTENT_INDEX     {0x00};
 static const uint8_t     PLATFORM_POST_URL_INDEX         {0x01};
 
+static const uint8_t     FETCH_TASK_MASK_INDEX           {0x01};
+static const uint8_t     FETCH_TASK_DATE_RANGE_INDEX     {0x02};
+static const uint8_t     FETCH_TASK_ROW_COUNT_INDEX      {0x03};
+static const uint8_t     FETCH_TASK_MAX_ID_INDEX         {0x04};
+static const uint8_t     FETCH_TASK_ORDER_INDEX          {0x05};
+
+
+
+
        const std::string SHOULD_REPOST                   {"true"};
        const std::string PLATFORM_PROCESS_METHOD         {"process"};
        const std::string VIDEO_TYPE_ARGUMENT             {"video\""};

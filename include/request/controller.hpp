@@ -568,7 +568,8 @@ class Controller {
         payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
         payload.emplace_back("Schedule");
 
-        for (const auto& task : tasks) { // TODO: This needs to handle < 4 items
+        for (const auto& task : tasks)
+        {
           KApplication app = m_executor->getAppInfo(task.execution_mask);
           payload.emplace_back(std::to_string(task.id));
           payload.emplace_back(               app.name);
@@ -579,7 +580,8 @@ class Controller {
           payload.emplace_back(std::to_string(task.notify));
           payload.emplace_back(               task.runtime);
           payload.emplace_back(               task.filesToString());
-          if (!(++i % TASKS_PER_EVENT)) {
+          if (!(++i % TASKS_PER_EVENT))
+          {
             m_system_callback_fn(
               client_fd,
               SYSTEM_EVENTS__SCHEDULER_FETCH,
@@ -636,6 +638,17 @@ class Controller {
             SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
             DataUtils::vector_absorb(std::move(FileUtils::readFlagTokens(task.envfile, task.execution_flags)), std::move(id)));
         break;
+      }
+
+      case (RequestType::FETCH_TASK_DATA):
+      {
+        const auto mask       = args.at(constants::FETCH_TASK_MASK_INDEX);
+        const auto date_range = args.at(constants::FETCH_TASK_DATE_RANGE_INDEX);
+        const auto count      = args.at(constants::FETCH_TASK_ROW_COUNT_INDEX);
+        const auto limit_id   = args.at(constants::FETCH_TASK_MAX_ID_INDEX);
+        const auto order      = args.at(constants::FETCH_TASK_ORDER_INDEX);
+
+        m_scheduler.fetchTasks(mask, date_range, count, limit_id, order);
       }
 
       case (RequestType::TRIGGER_CREATE):

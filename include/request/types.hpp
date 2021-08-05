@@ -19,7 +19,8 @@ enum RequestType {
   TASK_FLAGS            = 0x08,
   FETCH_FILE            = 0x09,
   FETCH_FILE_ACK        = 0x0A,
-  UNKNOWN               = 0x0B
+  FETCH_TASK_DATA       = 0x0B,
+  UNKNOWN               = 0x0C
 };
 
 /**
@@ -59,6 +60,9 @@ static RequestType int_to_request_type(int byte) {
 
     case (FETCH_FILE_ACK):
       return FETCH_FILE_ACK;
+
+    case (FETCH_TASK_DATA):
+      return FETCH_TASK_DATA;
   }
   return UNKNOWN;
 }
