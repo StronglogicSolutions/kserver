@@ -1,0 +1,27 @@
+sequenceDiagram
+Title: Document Creation
+participant Document
+participant Client
+participant Server
+loop For each section
+note over Document: Add table section
+note over Document: Row count and/or date range
+Document-->>Client: RequestData()
+note over Client: Send request
+Client-->>Server: Fetch Tasks
+note over Server: Search tasks by type / date
+note over Server: Return result
+Server-->>Client: (Send event: task data)
+Client-->>Document: ReceiveData()
+note over Document: Task data in memory
+Client-->>Server: Fetch Files for Tasks (by ID)
+Server-->>Client: (File data)
+note over Client: download complete
+Client-->>Document: ReceiveFiles();
+note over Document: Add files to task data
+note over Document: Render section to document
+end
+note over Document: All sections added
+note over Document: Render to PDF
+note over Document: Save file
+
