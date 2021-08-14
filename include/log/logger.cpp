@@ -22,22 +22,25 @@ const std::unordered_map<spdlog::level::level_enum, std::string> LogLevelStrings
 {spdlog::level::off,      "off"}
 };
 
-KLogger::KLogger(std::string logging_level) {
-  try {
-    // TODO: Not an appropriate responsibility
+KLogger::KLogger(const std::string& logging_level, bool add_timestamp)
+{
+  add_timestamp = (ConfigParser::Logging::timestamp() == "true");
+
+  try
+  {
     if (!ConfigParser::is_initialized()) {
       ConfigParser::init();
     }
 
+    auto                      console_sink       = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     spdlog::level::level_enum log_level{};
-    const std::string         log_format_pattern{"KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v"};
-    auto                      console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    const std::string         log_format_pattern = (add_timestamp) ?
+                                "KLOG [%^%l%$] - %T.%e - %3!#:%-20!s%-20!!%v" :
+                                "KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v";
 
-    console_sink->set_level(
-      (logging_level.empty()) ?
-      LogLevel.at(ConfigParser::Logging::level()) :
-      LogLevel.at(logging_level)
-    );
+    console_sink->set_level((logging_level.empty()) ?
+                              LogLevel.at(ConfigParser::Logging::level()) :
+                              LogLevel.at(logging_level));
 
     console_sink->set_pattern(log_format_pattern);
     spdlog::      set_pattern(log_format_pattern);
@@ -49,7 +52,9 @@ KLogger::KLogger(std::string logging_level) {
     g_instance = this;
 
     KLOG("Initialized logger with level {}", LogLevelStrings.at(console_sink->level()));
-  } catch (const spdlog::spdlog_ex& ex) {
+  }
+  catch (const spdlog::spdlog_ex& ex)
+  {
     std::cout << "Exception caught during logger initialization: " << ex.what() << std::endl;
   }
 }

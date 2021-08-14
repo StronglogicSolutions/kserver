@@ -24,7 +24,7 @@ extern const LogLevelMap LogLevel;
 
 class KLogger {
  public:
-  KLogger(std::string logging_level);
+  KLogger(const std::string& logging_level, bool timestamp = true);
   ~KLogger();
 
   static void init(std::string logging_level = "");
