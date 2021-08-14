@@ -165,6 +165,7 @@ QueryValues select(std::string table,       Fields   fields,
     } catch (const pqxx::sql_error &e) {
       throw e;
     } catch (const std::exception &e) {
+      std::string error{e.what()};
       throw e;
     }
   }

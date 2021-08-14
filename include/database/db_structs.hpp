@@ -64,6 +64,17 @@ struct MultiOptionFilter {
   std::vector<std::string> options;
 };
 
+struct OrderFilter
+{
+std::string field;
+std::string order;
+};
+
+struct LimitFilter
+{
+std::string limit;
+};
+
 struct Query {
   std::string table;
   std::vector<std::string> fields;
