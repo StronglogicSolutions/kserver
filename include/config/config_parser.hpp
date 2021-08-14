@@ -21,20 +21,21 @@ bool is_initialized();
 std::string query(const std::string& section, const std::string& name);
 
 namespace Logging {
-  std::string level();
-  std::string path();
+const std::string level();
+const std::string path();
+const std::string timestamp();
 } // namespace Logging
 
 namespace Database {
-std::string pass();
-std::string name();
-std::string user();
-std::string port();
-std::string host();
+const std::string pass();
+const std::string name();
+const std::string user();
+const std::string port();
+const std::string host();
 } // namespace Database
 
 namespace Process {
-std::string executor();
+const std::string executor();
 } // namespace Process
 
 namespace Email {

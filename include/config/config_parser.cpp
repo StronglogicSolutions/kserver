@@ -34,41 +34,26 @@ std::string query(const std::string& section, const std::string& name)
 }
 
 namespace Logging {
-  std::string level() {
-    return reader.Get("logging", "level", "info");
-  }
-  std::string path() {
-    return reader.Get("logging", "path", requiredConfig("[logging] path"));
-  }
+const std::string level()     { return reader.Get("logging", "level",      "info"); }
+const std::string path()      { return reader.Get("logging", "path",       requiredConfig("[logging] path")); }
+const std::string timestamp() { return reader.Get("logging", "timestamp",  "true"); }
 } // namespace Logging
 
 namespace Database {
-std::string pass() {
-  return reader.Get("database", "password", requiredConfig("[database] password"));;
-}
-
-std::string name() { return reader.Get("database", "name", requiredConfig("[database] name")); }
-
-std::string user() { return reader.Get("database", "user", requiredConfig("[database] user")); }
-
-std::string port() { return reader.Get("database", "port", requiredConfig("[database] port")); }
-
-std::string host() { return reader.Get("database", "host", requiredConfig("[database] host")); }
+const std::string pass()      { return reader.Get("database", "password",  requiredConfig("[database] password")); }
+const std::string name()      { return reader.Get("database", "name",      requiredConfig("[database] name")); }
+const std::string user()      { return reader.Get("database", "user",      requiredConfig("[database] user")); }
+const std::string port()      { return reader.Get("database", "port",      requiredConfig("[database] port")); }
+const std::string host()      { return reader.Get("database", "host",      requiredConfig("[database] host")); }
 } // namespace Database
 
 namespace Process {
-std::string executor() {
-  return reader.Get("process", "executor", requiredConfig("[process] executor"));
-}
+const std::string executor()  { return reader.Get("process", "executor",   requiredConfig("[process] executor")); }
 } // namespace Process
 
 namespace Email {
-std::string notification() {
-  return reader.Get("email", "notification", requiredConfig("[email] notification"));
-}
-std::string admin() {
-  return reader.Get("email", "admin", requiredConfig("[email] admin"));
-}
+std::string notification()    { return reader.Get("email", "notification", requiredConfig("[email] notification")); }
+std::string admin()           { return reader.Get("email", "admin",        requiredConfig("[email] admin")); }
 } // namespace Admin
 
 namespace Platform {
