@@ -452,13 +452,10 @@ class Controller {
     });
 
     for (const auto &row : m_kdb.select(name, fields, filter)) {
-      std::string info_string{
-          "PROCESS RUNNER - Process execution requested for "
-          "applications matching the mask "};
-      info_string += std::to_string(mask);
       m_system_callback_fn(client_socket_fd,
                            SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
-                           {info_string, request_id});
+                           {"PROCESS RUNNER - Process execution requested for applications with mask " + std::to_string(mask),
+                           request_id});
 
       executor.request(row.second, mask, client_socket_fd, request_id, {},
                           constants::IMMEDIATE_REQUEST);
