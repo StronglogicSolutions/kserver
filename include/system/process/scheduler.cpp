@@ -294,16 +294,13 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
   static const std::string MAX_INT = std::to_string(std::numeric_limits<int32_t>::max());
   const auto GetDateRange = [](const std::string& date_range_s) -> DateRange
   {
-    if (date_range_s.front() != '0')
-      return {"0", MAX_INT};
+    if (date_range_s.front() == '0')
+      return DateRange{"0", MAX_INT};
 
-    auto split_idx = date_range_s.find_first_of("TO");
-    std::pair<std::string, std::string> dates{
-      date_range_s.substr(0, date_range_s.size() - split_idx),
-      date_range_s.substr(split_idx)
-    };
+    const auto split_idx = date_range_s.find_first_of("TO");
+    return DateRange{date_range_s.substr(0, (date_range_s.size() - split_idx - 2)),
+                     date_range_s.substr(split_idx + 2)};
 
-    return dates;
   };
 
   const DateRange date_range   = GetDateRange(date_range_s);
@@ -311,7 +308,7 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
   const auto      row_order    = order;
 
   return parseTasks(
-    m_kdb.selectMultiFilter<CompBetweenFilter, OrderFilter, LimitFilter>(
+    m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>(
       "schedule", {                                   // table
         Field::ID,
         Field::TIME,
@@ -321,20 +318,21 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
         Field::COMPLETED,
         Field::NOTIFY,
         Field::RECURRING
-      }, std::vector<std::variant<CompBetweenFilter, OrderFilter, LimitFilter>>{
+      }, std::vector<std::variant<CompBetweenFilter, QueryFilter>>{
         CompBetweenFilter{                                   // filter
           .field = Field::TIME,
           .a     = date_range.first,
           .b     = date_range.second
         },
+        QueryFilter{{Field::MASK, mask}}},
         OrderFilter{
           .field = Field::ID,
           .order = row_order
         },
         LimitFilter{
-          .limit = result_limit
+          .count = result_limit
         }
-      }
+
     )
   );
 }
