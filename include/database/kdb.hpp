@@ -170,6 +170,32 @@ QueryValues select(std::string table,       Fields   fields,
     }
   }
 
+  template <typename FilterA, typename FilterB>
+  QueryValues selectMultiFilter(const std::string&                          table,
+                                const Fields&                               fields,
+                                std::vector<std::variant<FilterA, FilterB>> filters,
+                                const OrderFilter&                          order,
+                                const LimitFilter&                          limit)
+  {
+    try
+    {
+      MultiVariantFilterSelect<std::vector<std::variant<FilterA, FilterB>>> select_query{
+        .table  = table,
+        .fields = fields,
+        .filter = filters,
+        .order  = order,
+        .limit  = limit
+      };
+      QueryResult result = m_connection->query(select_query);
+      return result.values;
+    } catch (const pqxx::sql_error &e) {
+      throw e;
+    } catch (const std::exception &e) {
+      std::string error{e.what()};
+      throw e;
+    }
+  }
+
   template <typename T>
   QueryValues selectJoin(std::string table, Fields fields, T filters, Joins joins) {
     try {

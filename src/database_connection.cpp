@@ -38,14 +38,14 @@ std::string valuesAsString(StringVec values, size_t number_of_fields) {
   return value_string;
 }
 
-static std::string getOrderStatement(const std::string& field, const std::string& order)
+static std::string orderStatement(const OrderFilter& filter)
 {
-  return "ORDER BY " + field + ' ' + order;
+  return " ORDER BY " + filter.field + ' ' + filter.order;
 }
 
-static std::string getLimitStatement(const std::string& number)
+static std::string limitStatement(const std::string& number)
 {
-  return "LIMIT " + number;
+  return " LIMIT " + number;
 }
 
 template <typename T>
@@ -66,12 +66,6 @@ std::string filterStatement(T filter) {
   else
   if constexpr (std::is_same_v<T, CompFilter>)
     filter_string += filter.a + filter.sign + filter.b;
-  else
-  if constexpr (std::is_same_v<T, LimitFilter>)
-    filter_string += getLimitStatement(filter.limit);
-  else
-  if constexpr (std::is_same_v<T, OrderFilter>)
-    filter_string += getOrderStatement(filter.field, filter.order);
 
   return filter_string;
 }
@@ -349,10 +343,15 @@ std::string selectStatement(T query)
     }
     else
     if constexpr (
-      std::is_same_v<T, MultiVariantFilterSelect<std::vector<std::variant<CompBetweenFilter, OrderFilter, LimitFilter>>>>)
+      std::is_same_v<T, MultiVariantFilterSelect<std::vector<std::variant<CompBetweenFilter, QueryFilter>>>>)
     {
-      filter_string += getVariantFilterStatement<CompBetweenFilter, OrderFilter, LimitFilter>(query.filter);
-      return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + filter_string};
+      filter_string += getVariantFilterStatement<CompBetweenFilter, QueryFilter>(query.filter);
+      std::string stmt{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table};
+      if (query.order.has_value())
+        stmt += orderStatement(query.order);
+      if (query.limit.has_value())
+        stmt += limitStatement(query.limit.count);
+      return stmt;
     }
     else
     if constexpr (std::is_same_v<T, JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>>)
@@ -524,7 +523,7 @@ template QueryResult DatabaseConnection::query(
   MultiVariantFilterSelect<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>);
 
 template QueryResult DatabaseConnection::query(
-  MultiVariantFilterSelect<std::vector<std::variant<CompBetweenFilter, OrderFilter, LimitFilter>>>);
+  MultiVariantFilterSelect<std::vector<std::variant<CompBetweenFilter, QueryFilter>>>);
 
 template QueryResult DatabaseConnection::query(
   JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter>>>);
