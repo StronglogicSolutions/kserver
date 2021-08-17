@@ -183,6 +183,21 @@ struct Task {
           !execution_flags.empty();
   }
 
+  std::vector<std::string> payload()
+  {
+    std::vector<std::string> payload{};
+    payload.reserve(8);
+    payload.emplace_back(std::to_string(id));
+    payload.emplace_back(datetime);
+    payload.emplace_back(execution_flags);
+    payload.emplace_back(std::to_string(completed));
+    payload.emplace_back(std::to_string(recurring));
+    payload.emplace_back(std::to_string(notify));
+    payload.emplace_back(runtime);
+    payload.emplace_back(filesToString());
+    return payload;
+  }
+
   std::string toString() const {
     std::string return_string{};
     return_string.reserve(100);
