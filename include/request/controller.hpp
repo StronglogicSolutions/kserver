@@ -613,13 +613,19 @@ class Controller {
 
       case (RequestType::FETCH_TASK_DATA):
       {
-        const auto mask       = args.at(constants::FETCH_TASK_MASK_INDEX);
-        const auto date_range = args.at(constants::FETCH_TASK_DATE_RANGE_INDEX);
-        const auto count      = args.at(constants::FETCH_TASK_ROW_COUNT_INDEX);
-        const auto limit_id   = args.at(constants::FETCH_TASK_MAX_ID_INDEX);
-        const auto order      = args.at(constants::FETCH_TASK_ORDER_INDEX);
-
-        m_scheduler.fetchTasks(mask, date_range, count, limit_id, order);
+        std::vector<std::string> payload{};
+        for (auto&& task : m_scheduler.fetchTasks(
+          args.at(constants::FETCH_TASK_MASK_INDEX),
+          args.at(constants::FETCH_TASK_DATE_RANGE_INDEX),
+          args.at(constants::FETCH_TASK_ROW_COUNT_INDEX),
+          args.at(constants::FETCH_TASK_MAX_ID_INDEX),
+          args.at(constants::FETCH_TASK_ORDER_INDEX)))
+          {
+            auto data = task.payload();
+            payload.insert(payload.end(), std::make_move_iterator(data.begin()), std::make_move_iterator(data.end()));
+          }
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_DATA, payload);
+        break;
       }
 
       case (RequestType::TRIGGER_CREATE):
