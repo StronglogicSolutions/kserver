@@ -304,11 +304,10 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
   };
 
   const DateRange date_range   = GetDateRange(date_range_s);
-  const auto      result_limit = (limit == "0") ? MAX_INT : limit;
+  const auto      result_limit = (limit == "0") ? MAX_INT : limit; // TODO: ID limit - needs to be < or >
   const auto      row_order    = order;
 
-  return parseTasks(
-    m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>(
+  auto tasks = m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>(
       "schedule", {                                   // table
         Field::ID,
         Field::TIME,
@@ -319,7 +318,7 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
         Field::NOTIFY,
         Field::RECURRING
       }, std::vector<std::variant<CompBetweenFilter, QueryFilter>>{
-        CompBetweenFilter{                                   // filter
+        CompBetweenFilter{                                   // filter TODO: add id < or > result_limit
           .field = Field::TIME,
           .a     = date_range.first,
           .b     = date_range.second
@@ -330,11 +329,10 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
           .order = row_order
         },
         LimitFilter{
-          .count = result_limit
+          .count = count
         }
-
-    )
-  );
+    );
+  return parseTasks(std::move(tasks));
 }
 
 std::vector<Task> Scheduler::fetchTasks() {
