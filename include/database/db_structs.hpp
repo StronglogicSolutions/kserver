@@ -70,7 +70,7 @@ std::string field;
 std::string order;
 bool has_value()
 {
-  return (field.empty());
+  return (!field.empty());
 }
 };
 
@@ -79,7 +79,7 @@ struct LimitFilter
 std::string count;
 bool has_value()
 {
-  return (count.empty());
+  return (!count.empty());
 }
 };
 
