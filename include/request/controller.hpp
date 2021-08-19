@@ -614,17 +614,27 @@ class Controller {
       case (RequestType::FETCH_TASK_DATA):
       {
         std::vector<std::string> payload{};
-        for (auto&& task : m_scheduler.fetchTasks(
-          args.at(constants::FETCH_TASK_MASK_INDEX),
-          args.at(constants::FETCH_TASK_DATE_RANGE_INDEX),
-          args.at(constants::FETCH_TASK_ROW_COUNT_INDEX),
-          args.at(constants::FETCH_TASK_MAX_ID_INDEX),
-          args.at(constants::FETCH_TASK_ORDER_INDEX)))
+        const std::vector<Task>  tasks =
+          m_scheduler.fetchTasks(args.at(constants::FETCH_TASK_MASK_INDEX),
+                                 args.at(constants::FETCH_TASK_DATE_RANGE_INDEX),
+                                 args.at(constants::FETCH_TASK_ROW_COUNT_INDEX),
+                                 args.at(constants::FETCH_TASK_MAX_ID_INDEX),
+                                 args.at(constants::FETCH_TASK_ORDER_INDEX));
+
+        payload.emplace_back(std::to_string(tasks.size()));
+
+        for (auto&& task : tasks)
+        {
+          payload.emplace_back(std::to_string(task.id));
+          for (const auto& flag : FileUtils::extractFlagTokens(task.execution_flags))
           {
-            auto data = task.payload();
-            payload.insert(payload.end(), std::make_move_iterator(data.begin()), std::make_move_iterator(data.end()));
+            payload.emplace_back(flag);
+            payload.emplace_back(FileUtils::readEnvToken(task.envfile, flag));
           }
-        m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_DATA, payload);
+        }
+
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_DATA,       payload);
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_DATA_FINAL, {});
         break;
       }
 
@@ -662,7 +672,7 @@ class Controller {
 
       case (FETCH_FILE_ACK):
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND_ACK, {});
-
+        break;
       case (RequestType::UNKNOWN):
       default:
         ELOG("Controller could not process unknown client request: {}", type);
