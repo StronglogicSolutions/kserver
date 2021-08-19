@@ -170,10 +170,12 @@ bool                     createTaskDirectory(const std::string& unique_id);
 static const uint32_t PACKET_SIZE{4096};
 class FileIterator
 {
+static const uint32_t HEADER_SIZE{4};
 public:
 FileIterator(const std::string& path)
-: m_buffer(readFileAsBytes(path)),
-  data_ptr(nullptr)
+: m_buffer(PrepareBuffer(readFileAsBytes(path))),
+  data_ptr(nullptr),
+  m_bytes_read(0)
 {
   if (!m_buffer.empty())
   {
@@ -182,15 +184,28 @@ FileIterator(const std::string& path)
   }
 }
 
+static std::vector<uint8_t> PrepareBuffer (std::vector<uint8_t>&& data)
+{
+  const uint32_t bytes = data.size();
+  std::vector<uint8_t> buffer{};
+  buffer.reserve(bytes + HEADER_SIZE);
+  buffer.emplace_back((bytes >> 24) & 0xFF);
+  buffer.emplace_back((bytes >> 16) & 0xFF);
+  buffer.emplace_back((bytes >> 8 ) & 0xFF);
+  buffer.emplace_back((bytes      ) & 0xFF);
+  buffer.insert(buffer.end(), std::make_move_iterator(data.begin()), std::make_move_iterator(data.end()));
+  return buffer;
+};
 struct PacketWrapper
 {
-  PacketWrapper(uint8_t* ptr_, uint32_t size_)
-  : ptr(ptr_),
-    size(size_) {}
-  uint8_t* ptr;
-  uint32_t size;
+PacketWrapper(uint8_t* ptr_, uint32_t size_)
+: ptr(ptr_),
+  size(size_) {}
 
-  uint8_t* data() { return ptr; }
+uint8_t* data() { return ptr; }
+
+uint8_t* ptr;
+uint32_t size;
 };
 
 bool has_data()
@@ -212,7 +227,10 @@ PacketWrapper next() {
     size      = PACKET_SIZE;
     data_ptr += PACKET_SIZE;
   }
-    return PacketWrapper{ptr, size};
+
+  m_bytes_read += size;
+
+  return PacketWrapper{ptr, size};
 }
 
 private:
@@ -258,6 +276,8 @@ namespace DataUtils
 {
 template <typename T>
 const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front = false);
+template <typename T>
+std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2);
 template <typename ...Args>
 void ClearArgs(Args&& ...args);
 
