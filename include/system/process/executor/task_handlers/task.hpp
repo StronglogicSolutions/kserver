@@ -300,7 +300,7 @@ static std::vector<FileMetaData> PayloadToMetaData(const std::vector<std::string
   std::vector<FileMetaData> files{};
   files.reserve(file_num);
 
-  for (auto i = 0; i <= file_num; i++)
+  for (auto i = 0; i < file_num; i++)
     files.emplace_back(FileMetaData{
       .id   = data[1 + (3 * i)],
       .name = data[2 + (3 * i)],
