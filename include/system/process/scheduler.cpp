@@ -528,7 +528,7 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std:
     else
     if (v.first == "type")
       file.type = v.second;
-    else
+
     if (file.complete())
     {
       files.push_back(file);
