@@ -201,20 +201,21 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
 
     case SYSTEM_EVENTS__FILES_SEND:
     {
-      const bool TO_FRONT{true};
+
       auto       files = args;
       handleFileSend(client_socket_fd, files);
-      sendEvent(client_socket_fd, "File Upload", DataUtils::vector_absorb(std::move(files), std::move(std::to_string(files.size())), TO_FRONT));
+      sendEvent(client_socket_fd, "File Upload", files);
     }
 
     case SYSTEM_EVENTS__FILES_SEND_ACK:
     {
       if (m_file_sending_fd == client_socket_fd)
       {
-        sendEvent(client_socket_fd, "File Upload Meta", m_outbound_files.front().file.to_string_v());
+        // sendEvent(client_socket_fd, "File Upload Meta", m_outbound_files.front().file.to_string_v());
         sendFile (client_socket_fd, m_outbound_files.front().file.name);
-        m_outbound_files.pop_front();
+        m_outbound_files.pop_front(); // TODO: Exception here
       }
+      break;
     }
 
     case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED:
@@ -243,6 +244,9 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
     case SYSTEM_EVENTS__TASK_DATA:
       sendEvent(client_socket_fd, "Task Data", args);
       break;
+    case SYSTEM_EVENTS__TASK_DATA_FINAL:
+      sendEvent(client_socket_fd, "Task Data Final", args);
+      break;
   }
 }
 
@@ -254,17 +258,19 @@ void KServer::set_handler(const Request::Controller &&handler)
   KLOG("Setting Controller");
   m_controller = handler;
   m_controller.initialize(
-      [this](std::string result, int mask, std::string request_id,
-              int client_socket_fd, bool error) {
-        onProcessEvent(result, mask, request_id, client_socket_fd, error);
-      },
-      [this](int client_socket_fd, int system_event,
-              std::vector<std::string> args) {
-        systemEventNotify(client_socket_fd, system_event, args);
-      },
-      [this](int client_socket_fd, std::vector<Task> tasks) {
-        onTasksReady(client_socket_fd, tasks);
-      });
+    [this](std::string result, int mask, std::string request_id, int client_socket_fd, bool error)
+    {
+      onProcessEvent(result, mask, request_id, client_socket_fd, error);
+    },
+    [this](int client_socket_fd, int system_event, std::vector<std::string> args)
+    {
+      systemEventNotify(client_socket_fd, system_event, args);
+    },
+    [this](int client_socket_fd, std::vector<Task> tasks)
+    {
+      onTasksReady(client_socket_fd, tasks);
+    }
+  );
 }
 
 void KServer::onTasksReady(int client_socket_fd, std::vector<Task> tasks)
@@ -418,6 +424,7 @@ void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
 }
 void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& files)
 {
+  m_file_sending_fd = client_fd;
   for (const auto file : FileMetaData::PayloadToMetaData(files))
     m_outbound_files.emplace_back(OutboundFile{.fd = client_fd, .file = file});
 }
