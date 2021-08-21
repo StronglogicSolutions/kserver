@@ -38,8 +38,9 @@ static const int32_t SYSTEM_EVENTS__TRIGGER_ADD_SUCCESS         = 20;
 static const int32_t SYSTEM_EVENTS__TRIGGER_ADD_FAIL            = 21;
 static const int32_t SYSTEM_EVENTS__FILES_SEND                  = 22;
 static const int32_t SYSTEM_EVENTS__FILES_SEND_ACK              = 23;
-static const int32_t SYSTEM_EVENTS__TASK_DATA                   = 24;
-static const int32_t SYSTEM_EVENTS__TASK_DATA_FINAL             = 25;
+static const int32_t SYSTEM_EVENTS__FILES_SEND_READY            = 24;
+static const int32_t SYSTEM_EVENTS__TASK_DATA                   = 25;
+static const int32_t SYSTEM_EVENTS__TASK_DATA_FINAL             = 26;
 
 
 static const uint8_t EVENT_PROCESS_OUTPUT_INDEX{0x00};
