@@ -173,7 +173,7 @@ class FileIterator
 static const uint32_t HEADER_SIZE{4};
 public:
 FileIterator(const std::string& path)
-: m_buffer(PrepareBuffer(readFileAsBytes(path))),
+: m_buffer(PrepareBuffer(std::move(readFileAsBytes(path)))),
   data_ptr(nullptr),
   m_bytes_read(0)
 {
