@@ -531,6 +531,7 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std:
 
     if (file.complete())
     {
+      file.task_id = sid;
       files.push_back(file);
       file.clear();
     }
