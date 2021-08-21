@@ -186,9 +186,9 @@ FileIterator(const std::string& path)
 
 static std::vector<uint8_t> PrepareBuffer (std::vector<uint8_t>&& data)
 {
-  const uint32_t bytes = data.size();
+  const uint32_t bytes = (data.size() + HEADER_SIZE);
   std::vector<uint8_t> buffer{};
-  buffer.reserve(bytes + HEADER_SIZE);
+  buffer.reserve(bytes);
   buffer.emplace_back((bytes >> 24) & 0xFF);
   buffer.emplace_back((bytes >> 16) & 0xFF);
   buffer.emplace_back((bytes >> 8 ) & 0xFF);
