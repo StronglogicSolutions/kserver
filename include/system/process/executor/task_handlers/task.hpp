@@ -259,13 +259,14 @@ std::string envfile;
 
 struct FileMetaData
 {
+std::string task_id;
 std::string id;
 std::string name;
 std::string type;
 
 bool complete() const
 {
-  return (!id.empty() && !name.empty() && !type.empty());
+  return (!id.empty() && !name.empty() && !type.empty()); // TODO: task_id ?
 }
 
 void clear()
@@ -276,14 +277,14 @@ void clear()
 std::vector<std::string> to_string_v() const
 {
   return std::vector<std::string>{
-    id, name, type
+    task_id, id, name, type
   };
 }
 
 static std::vector<std::string> MetaDataToPayload(const std::vector<FileMetaData>& files)
 {
   std::vector<std::string> payload{};
-  payload.reserve((files.size() * 3) + 1);
+  payload.reserve((files.size() * 4) + 1);
   payload.emplace_back(std::to_string(files.size()));
   for (const auto& file : files)
   {
@@ -302,9 +303,10 @@ static std::vector<FileMetaData> PayloadToMetaData(const std::vector<std::string
 
   for (auto i = 0; i < file_num; i++)
     files.emplace_back(FileMetaData{
-      .id   = data[1 + (3 * i)],
-      .name = data[2 + (3 * i)],
-      .type = data[3 + (3 * i)]});
+      .task_id = data[1 + (4 * i)],
+      .id      = data[2 + (4 * i)],
+      .name    = data[3 + (4 * i)],
+      .type    = data[4 + (4 * i)]});
 
   return files;
 }
