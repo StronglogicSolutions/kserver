@@ -673,6 +673,10 @@ class Controller {
       case (FETCH_FILE_ACK):
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND_ACK, {});
         break;
+
+      case (FETCH_FILE_READY):
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND_READY, {});
+        break;
       case (RequestType::UNKNOWN):
       default:
         ELOG("Controller could not process unknown client request: {}", type);
