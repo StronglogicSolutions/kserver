@@ -203,13 +203,24 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
       sendEvent(client_socket_fd, "Process Execution Requested", args);
       break;
 
+    case SYSTEM_EVENTS__APPLICATION_FETCH_SUCCESS:
+      sendEvent(client_socket_fd, "Application was found", args);
+      break;
+
+    case SYSTEM_EVENTS__APPLICATION_FETCH_FAIL:
+      sendEvent(client_socket_fd, "Application was not found", args);
+      break;
+
     case SYSTEM_EVENTS__REGISTRAR_SUCCESS:
-      sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
+      sendEvent(client_socket_fd, "Application was registered", args);
       break;
 
     case SYSTEM_EVENTS__REGISTRAR_FAIL:
-      sendEvent(client_socket_fd, args.front(), {args.begin() + 1, args.end()});
+      sendEvent(client_socket_fd, "Failed to register application", args);
       break;
+
+    case SYSTEM_EVENTS__TASK_FETCH_FLAGS:
+      sendEvent(client_socket_fd, "Application Flags", args);
   }
 }
 
@@ -301,9 +312,6 @@ void KServer::sendEvent(int client_socket_fd, std::string event,
                 std::vector<std::string> argv)
 {
   KLOG("Sending {} event to {}", event, client_socket_fd);
-  for (const auto &arg : argv) {
-    KLOG("Event arg - {}", arg);
-  }
   std::string event_string = createEvent(event.c_str(), argv);
   sendMessage(client_socket_fd, event_string.c_str(), event_string.size());
 }
@@ -359,9 +367,10 @@ void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
 {
   auto handler = m_file_handlers.find(client_socket_fd);
 
-  if (handler != m_file_handlers.end()) {
+  if (handler != m_file_handlers.end())
     handler->second.processPacket(s_buffer_ptr.get(), size);
-  } else {
+  else
+  {
     KLOG("creating FileHandler for {}", client_socket_fd);
     m_file_handlers.insert({client_socket_fd, FileHandler{client_socket_fd, "", s_buffer_ptr.get(), size,
       [this](int socket_fd, int result, uint8_t *f_ptr, size_t buffer_size)
@@ -476,6 +485,8 @@ void KServer::handleOperation(std::string decoded_message, int client_socket_fd)
     KLOG("Fetch schedule request");
     handleScheduleRequest(client_socket_fd, decoded_message);
   }
+  else
+    m_controller.process_client_request(client_socket_fd, decoded_message);
 }
 
 void KServer::handleIPC(std::string message, int32_t client_socket_fd)
