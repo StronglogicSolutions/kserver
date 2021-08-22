@@ -167,42 +167,70 @@ std::string              readFile( const std::string& env_file_path);
 std::vector<uint8_t>     readFileAsBytes(const std::string& file_path);
 void                     clearFile(const std::string& file_path);
 bool                     createTaskDirectory(const std::string& unique_id);
-
+static const uint32_t PACKET_SIZE{4096};
 class FileIterator
 {
+static const uint32_t HEADER_SIZE{4};
 public:
 FileIterator(const std::string& path)
-: m_buffer(readFileAsBytes(path))
-{}
+: m_buffer(PrepareBuffer(std::move(readFileAsBytes(path)))),
+  data_ptr(nullptr),
+  m_bytes_read(0)
+{
+  if (!m_buffer.empty())
+  {
+    data_ptr = m_buffer.data();
+    m_size   = m_buffer.size();
+  }
+}
 
+static std::vector<uint8_t> PrepareBuffer (std::vector<uint8_t>&& data)
+{
+  const uint32_t bytes = (data.size() + HEADER_SIZE);
+  std::vector<uint8_t> buffer{};
+  buffer.reserve(bytes);
+  buffer.emplace_back((bytes >> 24) & 0xFF);
+  buffer.emplace_back((bytes >> 16) & 0xFF);
+  buffer.emplace_back((bytes >> 8 ) & 0xFF);
+  buffer.emplace_back((bytes      ) & 0xFF);
+  buffer.insert(buffer.end(), std::make_move_iterator(data.begin()), std::make_move_iterator(data.end()));
+  return buffer;
+};
 struct PacketWrapper
 {
-  PacketWrapper(uint8_t* ptr_, uint32_t size_)
-  : ptr(ptr_),
-    size(size_) {}
-  uint8_t* ptr;
-  uint32_t size;
+PacketWrapper(uint8_t* ptr_, uint32_t size_)
+: ptr(ptr_),
+  size(size_) {}
 
-  uint8_t* data() { return ptr; }
+uint8_t* data() { return ptr; }
+
+uint8_t* ptr;
+uint32_t size;
 };
 
-bool has_data() { return data_ptr != nullptr; }
+bool has_data()
+{
+  return data_ptr != nullptr;
+}
 
 PacketWrapper next() {
   uint8_t* ptr = data_ptr;
   uint32_t bytes_remaining = m_size - m_bytes_read;
   uint32_t size{};
-  if (bytes_remaining < 4096)
+  if (bytes_remaining < PACKET_SIZE)
   {
     size = bytes_remaining;
     data_ptr = nullptr;
   }
   else
   {
-    size = 4096;
-    data_ptr += 4096;
+    size      = PACKET_SIZE;
+    data_ptr += PACKET_SIZE;
   }
-    return PacketWrapper{ptr, size};
+
+  m_bytes_read += size;
+
+  return PacketWrapper{ptr, size};
 }
 
 private:
@@ -247,5 +275,17 @@ std::string time_as_today(std::string unixtime);
 namespace DataUtils
 {
 template <typename T>
-const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u);
+const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front = false);
+template <typename T>
+std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2);
+template <typename ...Args>
+void ClearArgs(Args&& ...args);
+
+template void ClearArgs(std::string&&);
+template <typename ...Args>
+void ClearArgs(Args&& ...args)
+{
+  (args.clear(), ...);
+}
+
 } // namespace DataUtils

@@ -871,16 +871,37 @@ std::string time_as_today(std::string unixtime) {
 }  // namespace TimeUtils
 
 namespace DataUtils {
-template const std::vector<std::string> vector_absorb(std::vector<std::string>&& v, std::string&& u);
 template <typename T>
-const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u)
+const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front)
 {
   std::vector<T> c_v{};
   c_v.reserve(v.size() + 1);
-  c_v.emplace_back(std::move(u));
-  c_v.insert(c_v.begin() + 1,
-             std::make_move_iterator(v.begin()),
-             std::make_move_iterator(v.end()));
+  if (to_front)
+  {
+    c_v.insert(c_v.begin(),
+              std::make_move_iterator(v.begin()),
+              std::make_move_iterator(v.end()));
+    c_v.emplace_back(std::move(u));
+  }
+  else
+  {
+    c_v.emplace_back(std::move(u));
+    c_v.insert(c_v.begin() + 1,
+              std::make_move_iterator(v.begin()),
+              std::make_move_iterator(v.end()));
+  }
   return c_v;
 }
+
+template const std::vector<std::string> vector_absorb(std::vector<std::string>&& v, std::string&& u, bool to_front);
+
+template <typename T>
+std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2)
+{
+ v1.insert(v1.end(), std::make_move_iterator(v2.begin()), std::make_move_iterator(v2.end()));
+ return std::move(v1);
+}
+
+template std::vector<std::string>&& vector_merge(std::vector<std::string>&& v1, std::vector<std::string>&& v2);
+
 } // namespace DataUtils

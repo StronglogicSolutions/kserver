@@ -16,7 +16,7 @@ uint32_t getAppMask(std::string name) {
   );
 
   for (const auto &pair : values) {
-    auto key = pair.first;
+    auto key   = pair.first;
     auto value = pair.second;
 
     if (key == value_field)
@@ -288,6 +288,53 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
  *
  * @return [out] {std::vector<Task>} A vector of Task objects
  */
+std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::string& date_range_s, const std::string& count, const std::string& limit, const std::string& order)
+{
+  using DateRange = std::pair<std::string, std::string>;
+  static const std::string MAX_INT = std::to_string(std::numeric_limits<int32_t>::max());
+  const auto GetDateRange = [](const std::string& date_range_s) -> DateRange
+  {
+    if (date_range_s.front() == '0')
+      return DateRange{"0", MAX_INT};
+
+    const auto split_idx = date_range_s.find_first_of("TO");
+    return DateRange{date_range_s.substr(0, (date_range_s.size() - split_idx - 2)),
+                     date_range_s.substr(split_idx + 2)};
+
+  };
+
+  const DateRange date_range   = GetDateRange(date_range_s);
+  const auto      result_limit = (limit == "0") ? MAX_INT : limit; // TODO: ID limit - needs to be < or >
+  const auto      row_order    = order;
+
+  auto tasks = m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>(
+      "schedule", {                                   // table
+        Field::ID,
+        Field::TIME,
+        Field::MASK,
+        Field::FLAGS,
+        Field::ENVFILE,
+        Field::COMPLETED,
+        Field::NOTIFY,
+        Field::RECURRING
+      }, std::vector<std::variant<CompBetweenFilter, QueryFilter>>{
+        CompBetweenFilter{                                   // filter TODO: add id < or > result_limit
+          .field = Field::TIME,
+          .a     = date_range.first,
+          .b     = date_range.second
+        },
+        QueryFilter{{Field::MASK, mask}}},
+        OrderFilter{
+          .field = Field::ID,
+          .order = row_order
+        },
+        LimitFilter{
+          .count = count
+        }
+    );
+  return parseTasks(std::move(tasks));
+}
+
 std::vector<Task> Scheduler::fetchTasks() {
   std::vector<Task> tasks = parseTasks(
     m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
@@ -322,9 +369,9 @@ std::vector<Task> Scheduler::fetchTasks() {
     )
   );
   // TODO: Convert above to a JOIN query, and remove this code below
-  for (auto& task : tasks) {
-    task.filenames = getFiles(std::to_string(task.id));
-  }
+  for (auto& task : tasks)
+    for (const auto& file : getFiles(std::to_string(task.id)))
+      task.filenames.emplace_back(file.name);
 
   return tasks;
 }
@@ -447,7 +494,8 @@ Task Scheduler::getTask(std::string id) {
       }
   ));
 
-  task.filenames = getFiles(id);
+  for (const auto& file : getFiles(id))
+    task.filenames.push_back(file.name);
 
   return task;
 }
@@ -460,20 +508,36 @@ Task Scheduler::getTask(std::string id) {
  * @param sid
  * @return std::vector<std::string>
  */
-std::vector<std::string> Scheduler::getFiles(std::string sid) {
-  std::vector<std::string> file_names{};
+std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std::string& type) {
+  std::vector<FileMetaData> files{};
+  const QueryFilter         filter = (type.empty()) ?
+                                      QueryFilter{{"sid", sid}} :
+                                      QueryFilter{{"sid", sid}, {"type", type}};
 
-  QueryValues result = m_kdb.select(
-    "file", {        // table
-      "name",        // fields
-      }, {
-        {"sid", sid} // filter
-      }
-  );
+  QueryValues result = m_kdb.select("file", {"id", "name", "type"}, filter);
 
-  for (const auto& v : result) if (v.first == "name")
-                                  file_names.push_back(v.second);
-  return file_names;
+  FileMetaData file{};
+
+  for (const auto& v : result)
+  {
+    if (v.first == "id")
+      file.id = v.second;
+    else
+    if (v.first == "name")
+      file.name = v.second;
+    else
+    if (v.first == "type")
+      file.type = v.second;
+
+    if (file.complete())
+    {
+      file.task_id = sid;
+      files.push_back(file);
+      file.clear();
+    }
+  }
+
+  return files;
 }
 /**
  * getTask
@@ -486,17 +550,15 @@ std::vector<std::string> Scheduler::getFiles(std::string sid) {
  * @return [out] {Task}     A task
  */
 Task Scheduler::getTask(int id) {
-  Task task =  parseTask(m_kdb.select(                  // SELECT
-    "schedule", {                                       // table
-      Field::MASK,    Field::FLAGS, // fields
-      Field::ENVFILE, Field::TIME,
-      Field::COMPLETED
-    }, QueryFilter{
-      {"id", std::to_string(id)}                        // filter
-    }
-  ));
+  Task task =  parseTask(m_kdb.select("schedule", {
+                          Field::MASK,    Field::FLAGS,
+                          Field::ENVFILE, Field::TIME,
+                          Field::COMPLETED},
+                          QueryFilter{
+                            {"id", std::to_string(id)}}));
 
-  task.filenames = getFiles(std::to_string(id));        // files
+  for (const auto& file : getFiles(std::to_string(id)))                 // files
+    task.filenames.push_back(file.name);
 
   return task;
 }

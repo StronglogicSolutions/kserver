@@ -20,6 +20,13 @@
 
 namespace KYO {
 using namespace Decoder;
+
+struct OutboundFile
+{
+  int32_t      fd;
+  FileMetaData file;
+};
+
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
  * service to KStyleYo
@@ -53,6 +60,7 @@ private:
   void handleStart              (std::string decoded_message, int client_socket_fd);
   void handleExecute            (std::string decoded_message, int client_socket_fd);
   void handleFileUploadRequest  (int client_socket_fd);
+  void handleFileSend           (int32_t client_fd, const std::vector<std::string>& files);
   void handleSchedule           (std::vector<std::string> task, int client_socket_fd);
   void handleOperation          (std::string decoded_message, int client_socket_fd);
   void handleIPC                (std::string message, int32_t client_socket_fd);
@@ -69,7 +77,7 @@ private:
   void SetFileNotPending        ();
   void SetFilePending           (int32_t fd);
   bool HandlingFile             (int32_t fd);
-  void SendFile                 (int32_t client_socket_fd, const std::string& filename);
+  void sendFile                 (int32_t client_socket_fd, const std::string& filename);
 
   using FileHandlers = std::unordered_map<int32_t, FileHandler>;
 
@@ -80,8 +88,11 @@ private:
   FileHandlers              m_message_handlers;
   std::vector<KSession>     m_sessions;
   std::vector<ReceivedFile> m_received_files;
+  std::deque <OutboundFile> m_outbound_files;
   bool                      m_file_pending;
-  int                       m_file_pending_fd;
+  int32_t                   m_file_pending_fd;
+  bool                      m_file_sending;
+  int32_t                   m_file_sending_fd;
   bool                      m_message_pending;
   int32_t                   m_message_pending_fd;
 };

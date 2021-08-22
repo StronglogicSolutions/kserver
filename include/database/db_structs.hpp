@@ -64,6 +64,25 @@ struct MultiOptionFilter {
   std::vector<std::string> options;
 };
 
+struct OrderFilter
+{
+std::string field;
+std::string order;
+bool has_value()
+{
+  return (!field.empty());
+}
+};
+
+struct LimitFilter
+{
+std::string count;
+bool has_value()
+{
+  return (!count.empty());
+}
+};
+
 struct Query {
   std::string table;
   std::vector<std::string> fields;
@@ -78,6 +97,13 @@ struct DatabaseQuery : Query {
   QueryFilter filter;
 };
 
+struct FullQuery : Query {
+  std::string              table;
+  std::vector<std::string> fields;
+  QueryType                type;
+  std::vector<std::string> values;
+  QueryFilter              filter;
+};
 
 struct MultiFilterSelect {
   std::string table;
@@ -87,9 +113,11 @@ struct MultiFilterSelect {
 
 template <typename T>
 struct MultiVariantFilterSelect {
-  std::string table;
+  std::string              table;
   std::vector<std::string> fields;
-  T filter;
+  T                        filter;
+  OrderFilter              order;
+  LimitFilter              limit;
 };
 
 struct InsertReturnQuery : Query {

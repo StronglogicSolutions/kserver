@@ -73,6 +73,15 @@ static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
 static const uint8_t     PLATFORM_POST_CONTENT_INDEX     {0x00};
 static const uint8_t     PLATFORM_POST_URL_INDEX         {0x01};
 
+static const uint8_t     FETCH_TASK_MASK_INDEX           {0x01};
+static const uint8_t     FETCH_TASK_DATE_RANGE_INDEX     {0x02};
+static const uint8_t     FETCH_TASK_ROW_COUNT_INDEX      {0x03};
+static const uint8_t     FETCH_TASK_MAX_ID_INDEX         {0x04};
+static const uint8_t     FETCH_TASK_ORDER_INDEX          {0x05};
+
+
+
+
        const std::string SHOULD_REPOST                   {"true"};
        const std::string PLATFORM_PROCESS_METHOD         {"process"};
        const std::string VIDEO_TYPE_ARGUMENT             {"video\""};
@@ -174,6 +183,21 @@ struct Task {
           !execution_flags.empty();
   }
 
+  std::vector<std::string> payload()
+  {
+    std::vector<std::string> payload{};
+    payload.reserve(8);
+    payload.emplace_back(std::to_string(id));
+    payload.emplace_back(datetime);
+    payload.emplace_back(execution_flags);
+    payload.emplace_back(std::to_string(completed));
+    payload.emplace_back(std::to_string(recurring));
+    payload.emplace_back(std::to_string(notify));
+    payload.emplace_back(runtime);
+    payload.emplace_back(filesToString());
+    return payload;
+  }
+
   std::string toString() const {
     std::string return_string{};
     return_string.reserve(100);
@@ -233,6 +257,61 @@ Task        task;
 std::string envfile;
 };
 
+struct FileMetaData
+{
+std::string task_id;
+std::string id;
+std::string name;
+std::string type;
+
+bool complete() const
+{
+  return (!id.empty() && !name.empty() && !type.empty()); // TODO: task_id ?
+}
+
+void clear()
+{
+  DataUtils::ClearArgs(id, name, type);
+}
+
+std::vector<std::string> to_string_v() const
+{
+  return std::vector<std::string>{
+    task_id, id, name, type
+  };
+}
+
+static std::vector<std::string> MetaDataToPayload(const std::vector<FileMetaData>& files)
+{
+  std::vector<std::string> payload{};
+  payload.reserve((files.size() * 4) + 1);
+  payload.emplace_back(std::to_string(files.size()));
+  for (const auto& file : files)
+  {
+    auto data = file.to_string_v();
+    payload.insert(payload.end(), std::make_move_iterator(data.begin()), std::make_move_iterator(data.end()));
+  }
+
+  return payload;
+}
+
+static std::vector<FileMetaData> PayloadToMetaData(const std::vector<std::string>& data)
+{
+  const int32_t             file_num = std::stoi(data.front());
+  std::vector<FileMetaData> files{};
+  files.reserve(file_num);
+
+  for (auto i = 0; i < file_num; i++)
+    files.emplace_back(FileMetaData{
+      .task_id = data[1 + (4 * i)],
+      .id      = data[2 + (4 * i)],
+      .name    = data[3 + (4 * i)],
+      .type    = data[4 + (4 * i)]});
+
+  return files;
+}
+};
+
 std::string AppendExecutionFlag(std::string flag_s, const std::string& flag);
 std::string AsExecutionFlag(const std::string& flag, const std::string& prefix = " ");
 
@@ -260,12 +339,13 @@ const std::string PLATFORM_STATUS_FAILURE{"2"};
 
 struct platform_pair_hash
 {
-    template <class T1, class T2>
-    std::size_t operator() (const std::pair<T1, T2> &pair) const
-    {
-        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
-    }
+  template <class T1, class T2>
+  std::size_t operator() (const std::pair<T1, T2> &pair) const
+  {
+    return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+  }
 };
+
 using PlatformRequestMap =
 std::unordered_map<std::pair<std::string, std::string>, PlatformPostState, platform_pair_hash>;
 

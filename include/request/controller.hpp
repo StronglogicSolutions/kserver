@@ -452,13 +452,10 @@ class Controller {
     });
 
     for (const auto &row : m_kdb.select(name, fields, filter)) {
-      std::string info_string{
-          "PROCESS RUNNER - Process execution requested for "
-          "applications matching the mask "};
-      info_string += std::to_string(mask);
       m_system_callback_fn(client_socket_fd,
                            SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
-                           {info_string, request_id});
+                           {"PROCESS RUNNER - Process execution requested for applications with mask " + std::to_string(mask),
+                           request_id});
 
       executor.request(row.second, mask, client_socket_fd, request_id, {},
                           constants::IMMEDIATE_REQUEST);
@@ -508,12 +505,11 @@ class Controller {
       case(RequestType::GET_APPLICATION):
       {
         KApplication application = Registrar::args_to_application(args);
-          m_system_callback_fn(
-            client_fd,
+          m_system_callback_fn(client_fd,
             (m_registrar.find(Registrar::args_to_application(args))) ?
-              SYSTEM_EVENTS__REGISTRAR_SUCCESS : SYSTEM_EVENTS__REGISTRAR_FAIL,
-            application.vector()
-          );
+              SYSTEM_EVENTS__REGISTRAR_SUCCESS :
+              SYSTEM_EVENTS__REGISTRAR_FAIL,
+            application.vector());
         break;
       }
 
@@ -522,16 +518,9 @@ class Controller {
         KApplication application = Registrar::args_to_application(args);
         auto         id          = m_registrar.add(application);
         (!id.empty()) ?
-          m_system_callback_fn(
-            client_fd,
-            SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-            DataUtils::vector_absorb(std::move(application.vector()), std::move(id))
-          ) :
-          m_system_callback_fn(
-            client_fd,
-            SYSTEM_EVENTS__REGISTRAR_FAIL,
-            application.vector()
-          );
+          m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+            DataUtils::vector_absorb(std::move(application.vector()), std::move(id))) :
+          m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL, application.vector());
         break;
       }
 
@@ -540,20 +529,16 @@ class Controller {
         KApplication application = Registrar::args_to_application(args);
         auto         name        = m_registrar.remove(application);
         (!name.empty()) ?
-          m_system_callback_fn(
-            client_fd,
-            SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-            DataUtils::vector_absorb(std::move(application.vector()), std::move(std::string{"Application was deleted"}))
-          ) :
-          m_system_callback_fn(
-            client_fd,
-            SYSTEM_EVENTS__REGISTRAR_FAIL,
+          m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+            DataUtils::vector_absorb(std::move(application.vector()),  std::move(std::string{"Application was deleted"}))) :
+          m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL,
             DataUtils::vector_absorb(std::move(application.vector()), std::move(std::string{"Failed to delete application"})));
         break;
       }
 
       case (RequestType::UPDATE_APPLICATION):
       {
+        KLOG("Must implement UPDATE_APPLICATION");
         break;
       }
 
@@ -568,7 +553,8 @@ class Controller {
         payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
         payload.emplace_back("Schedule");
 
-        for (const auto& task : tasks) { // TODO: This needs to handle < 4 items
+        for (const auto& task : tasks)
+        {
           KApplication app = m_executor->getAppInfo(task.execution_mask);
           payload.emplace_back(std::to_string(task.id));
           payload.emplace_back(               app.name);
@@ -579,12 +565,9 @@ class Controller {
           payload.emplace_back(std::to_string(task.notify));
           payload.emplace_back(               task.runtime);
           payload.emplace_back(               task.filesToString());
-          if (!(++i % TASKS_PER_EVENT)) {
-            m_system_callback_fn(
-              client_fd,
-              SYSTEM_EVENTS__SCHEDULER_FETCH,
-              payload
-            );
+          if (!(++i % TASKS_PER_EVENT))
+          {
+            m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
             payload.clear();
             payload.emplace_back("Schedule more");
           }
@@ -593,16 +576,10 @@ class Controller {
         if (!payload.empty())
           m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
 
-
-        auto size = tasks.size();
+        const auto size = tasks.size();
         KLOG("Fetched {} scheduled tasks for client", size);
 
-        // usleep(100000); // TODO: Get rid of this once we implement proper protocol
-        m_system_callback_fn( // Demarcate end of fetch
-          client_fd,
-          SYSTEM_EVENTS__SCHEDULER_FETCH,
-          {"Schedule end", std::to_string(size)}
-        );
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
 
         break;
       }
@@ -615,10 +592,7 @@ class Controller {
         bool               save_success = m_scheduler.update(task_wrapper.task);
         bool               env_updated  = m_scheduler.updateEnvfile(task_id, task_wrapper.envfile);
 
-        m_system_callback_fn(
-          client_fd,
-          SYSTEM_EVENTS__SCHEDULER_UPDATE,
-          {task_id, (save_success) ? "Success" : "Failure"});
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_UPDATE, {task_id, (save_success) ? "Success" : "Failure"});
 
         if (!env_updated)
           KLOG("Failed to update envfile while handling update for task {}", task_id);
@@ -631,10 +605,36 @@ class Controller {
         auto id = args.at(constants::PAYLOAD_ID_INDEX);
         Task task = m_scheduler.getTask(id);
         if (task.validate())
-          m_system_callback_fn(
-            client_fd,
-            SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
-            DataUtils::vector_absorb(std::move(FileUtils::readFlagTokens(task.envfile, task.execution_flags)), std::move(id)));
+          m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
+            DataUtils::vector_absorb(std::move(FileUtils::readFlagTokens(task.envfile, task.execution_flags)),
+                                     std::move(id)));
+        break;
+      }
+
+      case (RequestType::FETCH_TASK_DATA):
+      {
+        std::vector<std::string> payload{};
+        const std::vector<Task>  tasks =
+          m_scheduler.fetchTasks(args.at(constants::FETCH_TASK_MASK_INDEX),
+                                 args.at(constants::FETCH_TASK_DATE_RANGE_INDEX),
+                                 args.at(constants::FETCH_TASK_ROW_COUNT_INDEX),
+                                 args.at(constants::FETCH_TASK_MAX_ID_INDEX),
+                                 args.at(constants::FETCH_TASK_ORDER_INDEX));
+
+        payload.emplace_back(std::to_string(tasks.size()));
+
+        for (auto&& task : tasks)
+        {
+          payload.emplace_back(std::to_string(task.id));
+          for (const auto& flag : FileUtils::extractFlagTokens(task.execution_flags))
+          {
+            payload.emplace_back(flag);
+            payload.emplace_back(FileUtils::readEnvToken(task.envfile, flag));
+          }
+        }
+
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_DATA,       payload);
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_DATA_FINAL, {});
         break;
       }
 
@@ -657,19 +657,30 @@ class Controller {
       }
 
       case (TASK_FLAGS):
-        m_system_callback_fn(
-          client_fd,
-          SYSTEM_EVENTS__TASK_FETCH_FLAGS,
-          DataUtils::vector_absorb(
-            std::move(m_scheduler.getFlags(args.at(1))),
-            std::move(args.at(1))));
-      break;
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_FETCH_FLAGS,
+          DataUtils::vector_absorb(std::move(m_scheduler.getFlags(args.at(1))),
+                                   std::move(args.at(1))));
+        break;
 
-      case (RequestType::UNKNOWN):
+      case (FETCH_FILE):
       {
-        ELOG("Controller could not process unknown client request: {}", type);
+        auto files = m_scheduler.getFiles(args.at(1));
+        if (!files.empty())
+          m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND, FileMetaData::MetaDataToPayload(files));
         break;
       }
+
+      case (FETCH_FILE_ACK):
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND_ACK, {});
+        break;
+
+      case (FETCH_FILE_READY):
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND_READY, {});
+        break;
+      case (RequestType::UNKNOWN):
+      default:
+        ELOG("Controller could not process unknown client request: {}", type);
+        break;
     }
   }
 

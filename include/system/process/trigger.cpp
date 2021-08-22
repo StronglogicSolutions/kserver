@@ -1,10 +1,5 @@
 #include "trigger.hpp"
 
-template <typename ...Args>
-static void ClearArgs(Args&& ...args)
-{
-  (args.clear(), ...);
-}
 /**
  * @brief processTriggers
  *
@@ -74,7 +69,7 @@ std::vector<Task> Trigger::process(Task* task)
               if (!pair.first.empty() && !pair.second.empty())
               {
                 param_info.map[pair.first] = pair.second;
-                ClearArgs(pair.first, pair.second);
+                DataUtils::ClearArgs(pair.first, pair.second);
               }
             }
 
@@ -102,7 +97,7 @@ std::vector<Task> Trigger::process(Task* task)
                   .config_section = section,
                   .config_name    = name
                 });
-                ClearArgs(token_name, section, name);
+                DataUtils::ClearArgs(token_name, section, name);
               }
             }
           }
@@ -110,7 +105,7 @@ std::vector<Task> Trigger::process(Task* task)
           configs.emplace_back(std::move(config));
         }
 
-        ClearArgs(trigger_mask, token_name, token_value);
+        DataUtils::ClearArgs(trigger_mask, token_name, token_value);
       }
     }
 

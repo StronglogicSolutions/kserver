@@ -82,13 +82,16 @@ virtual std::string               schedule(Task task) override;
                                              bool          is_recurring = false);
 
 virtual std::vector<Task>         fetchTasks() override;
+        std::vector<Task>         fetchTasks(const std::string& mask,        const std::string& date_range = "0TO0",
+                                             const std::string& count = "0", const std::string& limit = "0",
+                                             const std::string& order = "asc");
         std::vector<Task>         fetchRecurringTasks();
         std::vector<Task>         fetchAllTasks();
         std::vector<std::string>  fetchRepostIDs(const std::string& pid);
 
         Task                      getTask(std::string id);
         Task                      getTask(int id);
-        std::vector<std::string>  getFiles(std::string sid);
+        std::vector<FileMetaData> getFiles(const std::string& sid, const std::string& type = "");
 
         bool                      update(Task task);
         bool                      updateStatus(Task* task, const std::string& output = "");
