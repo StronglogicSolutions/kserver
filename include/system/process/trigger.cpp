@@ -42,7 +42,7 @@ std::vector<Task> Trigger::process(Task* task)
       if (!trigger_mask.empty() && !token_name.empty() && !token_value.empty())
       {
         TriggerConfig config{};
-        auto tok_v = FileUtils::readEnvToken(task->envfile, token_name);
+        auto tok_v = FileUtils::ReadEnvToken(task->envfile, token_name);
         bool match = tok_v == token_value;
         if (match)
         {
@@ -121,16 +121,16 @@ std::vector<Task> Trigger::process(Task* task)
       std::string       environment_file{};
       std::string       execution_flags {};
       Task              new_task = Task::clone_basic(*task, std::stoi(config.application.mask));
-      const std::string uuid     = StringUtils::generate_uuid_string();
+      const std::string uuid     = StringUtils::GenerateUUIDString();
       // TODO: better to clone envfile and change?
-      for (const auto& token : FileUtils::extractFlagTokens(task->execution_flags))
+      for (const auto& token : FileUtils::ExtractFlagTokens(task->execution_flags))
       {
         auto map_it = config.info.map.find(token);
         if (map_it != config.info.map.end())
         {
           auto token_name = map_it->second;
           environment_file +=
-            '\n' + token_name + "=\"" + FileUtils::readEnvToken(task->envfile, token) +
+            '\n' + token_name + "=\"" + FileUtils::ReadEnvToken(task->envfile, token) +
             '\"' + ARGUMENT_SEPARATOR;
           execution_flags += AsExecutionFlag(token_name, execution_flags.empty() ? "" : " ");
         }
@@ -142,14 +142,14 @@ std::vector<Task> Trigger::process(Task* task)
         if (!config_value.empty())
         {
           environment_file +=
-            '\n' + param_info.token_name + "=\"" + FileUtils::readFile(config_value) + '\"'  +
+            '\n' + param_info.token_name + "=\"" + FileUtils::ReadFile(config_value) + '\"'  +
             ARGUMENT_SEPARATOR;
           execution_flags += AsExecutionFlag(param_info.token_name, execution_flags.empty() ? "" : " ");
         }
       }
 
       new_task.execution_flags = execution_flags;
-      new_task.envfile         = FileUtils::saveEnvFile(environment_file, uuid);
+      new_task.envfile         = FileUtils::SaveEnvFile(environment_file, uuid);
       tasks.emplace_back(std::move(new_task));
     }
   }

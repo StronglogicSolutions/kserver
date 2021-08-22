@@ -228,7 +228,7 @@ public:
     {
       if (size > 0) {
         if (!filename.empty())
-          FileUtils::saveFile(data, size, filename);
+          FileUtils::SaveFile(data, size, filename);
         else
           callback_fn(id, FILE_HANDLE__SUCCESS, std::move(data), size);
       }

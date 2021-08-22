@@ -61,9 +61,9 @@ struct KSession {
   uuid id;
 };
 
-std::string get_cwd();
+std::string GetCWD();
 
-std::string get_executable_cwd();
+std::string GetExecutableCWD();
 
 int findIndexAfter(std::string s, int pos, char c);
 
@@ -71,71 +71,58 @@ int findIndexAfter(std::string s, int pos, char c);
  * JSON Tools
  */
 
-std::string getJsonString(std::string s);
+std::string GetJSONString(std::string s);
 
-std::string createMessage(const char *data, std::string args = "");
+std::string CreateMessage(const char *data, std::string args = "");
 
-std::string createEvent(const char *event, int mask, std::string stdout);
+std::string CreateEvent(const char *event, int mask, std::string stdout);
 
-std::string createEvent(const char *event, std::vector<std::string> args);
+std::string CreateEvent(const char *event, std::vector<std::string> args);
 
-std::string createEvent(const char *event, int mask,
+std::string CreateEvent(const char *event, int mask,
                         std::vector<std::string> args);
-
-std::string createOperation(const char *op, std::vector<std::string> args);
-
-std::string getOperation(const char *data);
-
+std::string CreateOperation(const char *op, std::vector<std::string> args);
+std::string GetOperation(const char *data);
 template<typename T>
-std::string getMessage(T data);
+std::string GetMessage(T data);
+std::string GetEvent(std::string data);
+bool IsSessionMessageEvent(std::string event);
+bool IsCloseEvent(std::string event);
+std::vector<std::string> GetArgs(std::string data);
+std::vector<std::string> GetArgs(const char* data);
+CommandMap GetArgMap(const char *data);
 
-std::string getEvent(std::string data);
-
-bool isSessionMessageEvent(std::string event);
-
-bool isCloseEvent(std::string event);
-
-std::vector<std::string> getArgs(std::string data);
-
-std::vector<std::string> getArgs(const char* data);
-
-CommandMap getArgMap(const char *data);
-
-std::string createSessionEvent(
+std::string CreateSessionEvent(
     int status, std::string message = "",
     std::vector<std::pair<std::string, std::string>> args = {});
 
-std::string createMessage(
+std::string CreateMessage(
     const char *data, std::vector<std::pair<std::string, std::string>> args);
 
-std::string createMessage(const char *data,
+std::string CreateMessage(const char *data,
                           std::map<int, std::string> map = {});
 
-std::string createMessage(const char *data, std::vector<KApplication> commands);
+std::string CreateMessage(const char *data, std::vector<KApplication> commands);
 
-std::string createMessage(const char *data,
+std::string CreateMessage(const char *data,
                           std::map<int, std::vector<std::string>> map = {});
 
 /**
  * Operations
  */
-bool isMessage(const char *data);
+bool IsMessage(const char *data);
 
-bool isOperation(const char *data);
+bool IsOperation(const char *data);
 
-bool isExecuteOperation(const char *data);
-bool isScheduleOperation(const char *data);
-
-bool isFileUploadOperation(const char *data);
-
-bool isIPCOperation(const char *data);
-bool isStartOperation(const char *data);
-bool isStopOperation(const char *data);
-bool isAppOperation(const char* data);
-
-bool isNewSession(const char *data);
-
-bool isPing(uint8_t* buffer, ssize_t size);
+bool IsExecuteOperation(const char *data);
+bool IsScheduleOperation(const char *data);
+bool IsFileUploadOperation(const char *data);
+bool IsIPCOperation(const char *data);
+bool IsStartOperation(const char *data);
+bool IsStopOperation(const char *data);
+bool IsAppOperation(const char* data);
+bool IsNewSession(const char *data);
+bool IsPing(uint8_t* buffer, ssize_t size);
 
 /**
  * General
@@ -144,36 +131,35 @@ using DecodedMessage = Either<std::string, std::vector<std::string>>;
 DecodedMessage DecodeMessage(uint8_t* buffer);
 
 namespace SystemUtils {
-  void sendMail(std::string recipient, std::string message, std::string from);
+void SendMail(std::string recipient, std::string message, std::string from);
 }
-
 namespace FileUtils {
-bool                     createDirectory(const char *dir_name);
-void                     saveFile(uint8_t *bytes, int size, const std::string& filename);
-void                     saveFile(     const std::vector<char>& bytes, const char* filename);
-void                     saveFile(     const std::string& env_file_string, const std::string& env_file_path);
-std::string              saveEnvFile(  const std::string& env_file_string, const std::string& unique_id);
-std::string              readEnvFile(  const std::string& env_file_path, bool relative_path = false);
-std::string              readRunArgs(  const std::string& env_file_path);
-std::string              readEnvToken( const std::string& env_file_path, const std::string& token_key);
-bool                     writeEnvToken(const std::string& env_file_path,
+bool                     CreateDirectory(const char *dir_name);
+void                     SaveFile(uint8_t *bytes, int size, const std::string& filename);
+void                     SaveFile(     const std::vector<char>& bytes, const char* filename);
+void                     SaveFile(     const std::string& env_file_string, const std::string& env_file_path);
+std::string              SaveEnvFile(  const std::string& env_file_string, const std::string& unique_id);
+std::string              ReadEnvFile(  const std::string& env_file_path, bool relative_path = false);
+std::string              ReadRunArgs(  const std::string& env_file_path);
+std::string              ReadEnvToken( const std::string& env_file_path, const std::string& token_key);
+bool                     WriteEnvToken(const std::string& env_file_path,
                                        const std::string& token_key,
                                        const std::string& token_value);
-std::vector<std::string> extractFlagTokens(std::string);
-std::vector<std::string> readFlagTokens(const std::string& env_file_path, const std::string& flags);
-std::vector<std::string> readEnvValues(const std::string& env_file_path, const std::vector<std::string>& flags);
-std::string              createEnvFile(std::unordered_map<std::string, std::string>&& key_pairs);
-std::string              readFile( const std::string& env_file_path);
-std::vector<uint8_t>     readFileAsBytes(const std::string& file_path);
-void                     clearFile(const std::string& file_path);
-bool                     createTaskDirectory(const std::string& unique_id);
+std::vector<std::string> ExtractFlagTokens(std::string);
+std::vector<std::string> ReadFlagTokens(const std::string& env_file_path, const std::string& flags);
+std::vector<std::string> ReadEnvValues(const std::string& env_file_path, const std::vector<std::string>& flags);
+std::string              CreateEnvFile(std::unordered_map<std::string, std::string>&& key_pairs);
+std::string              ReadFile( const std::string& env_file_path);
+std::vector<uint8_t>     ReadFileAsBytes(const std::string& file_path);
+void                     ClearFile(const std::string& file_path);
+bool                     CreateTaskDirectory(const std::string& unique_id);
 static const uint32_t PACKET_SIZE{4096};
 class FileIterator
 {
 static const uint32_t HEADER_SIZE{4};
 public:
 FileIterator(const std::string& path)
-: m_buffer(PrepareBuffer(std::move(readFileAsBytes(path)))),
+: m_buffer(PrepareBuffer(std::move(ReadFileAsBytes(path)))),
   data_ptr(nullptr),
   m_bytes_read(0)
 {
@@ -240,35 +226,33 @@ uint8_t*             data_ptr;
 uint32_t             m_bytes_read;
 uint32_t             m_size;
 };
-}  // namespace FileUtils
+} // namespace FileUtils
 
 namespace StringUtils {
 template <typename T>
-void split(const std::string &s, char delim, T result);
-std::vector<std::string> split(const std::string &s, char delim);
+void Split(const std::string &s, char delim, T result);
+std::vector<std::string> Split(const std::string &s, char delim);
 std::string sanitizeSingleQuotes(const std::string& s);
 std::string SanitizeJSON(std::string s);
-std::string generate_uuid_string();
+std::string GenerateUUIDString();
 std::string AlphaNumericOnly(std::string s);
 } // namespace StringUtils
 
 // Bit helpers
-
-size_t findNullIndex(uint8_t *data);
+size_t FindNullIndex(uint8_t *data);
 
 template <typename T>
-static std::string toBinaryString(const T &x);
-
-bool hasNthBitSet(int value, int n);
-bool isdigits(const std::string &s);
-std::string stripSQuotes(std::string s);
-std::string sanitize_token(std::string s);
+static std::string ToBinaryString(const T &x);
+bool HasNthBitSet(int value, int n);
+bool IsDigits(const std::string &s);
+std::string StripSQuotes(std::string s);
+std::string SanitizeToken(std::string s);
 
 namespace TimeUtils {
-int unixtime();
+int UnixTime();
 
-std::string format_timestamp(int unixtime);
-std::string format_timestamp(std::string unixtime);
+std::string FormatTimestamp(int unixtime);
+std::string FormatTimestamp(std::string unixtime);
 std::string time_as_today(std::string unixtime);
 }  // namespace TimeUtils
 

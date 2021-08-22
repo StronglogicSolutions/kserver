@@ -12,7 +12,7 @@
  */
 Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
                                      std::string uuid, Task* task_ptr) {
-  if (!FileUtils::createTaskDirectory(uuid)) {
+  if (!FileUtils::CreateTaskDirectory(uuid)) {
     return Task{};
   }
 
@@ -31,7 +31,7 @@ Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
 
   std::vector<FileInfo> task_files = parseFileInfo(file_info);
 
-  std::string media_filename = get_executable_cwd();
+  std::string media_filename = GetExecutableCWD();
   for (uint8_t i = 0; i < task_files.size(); i++) {
     task_files.at(i).first =
         media_filename + "/data/" + uuid + "/" + task_files.at(i).first;
@@ -57,7 +57,7 @@ Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
 
   env_file_string += "USER=\"" + user + "\""                               + ARGUMENT_SEPARATOR + "\n";
 
-  std::string env_filename = FileUtils::saveEnvFile(env_file_string, uuid);
+  std::string env_filename = FileUtils::SaveEnvFile(env_file_string, uuid);
   if (task_ptr == nullptr) {
     return Task{
       .execution_mask = std::stoi(mask),

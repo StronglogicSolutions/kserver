@@ -105,7 +105,7 @@ void handleMessages() {
   //     null_index = null_indexes[0];
 
   //   } else {
-  //     null_index = findNullIndex(receive_buffer);
+  //     null_index = FindNullIndex(receive_buffer);
   //   }
 
   //   if (null_index > 1) {
@@ -115,8 +115,8 @@ void handleMessages() {
 
   //     if (!m_raw_mode) {
   //       std::vector<std::string> s_v{};
-  //       if (isNewSession(data_string.c_str())) { // Session Start
-  //         m_commands = getArgMap(data_string.c_str());
+  //       if (IsNewSession(data_string.c_str())) { // Session Start
+  //         m_commands = GetArgMap(data_string.c_str());
   //         for (const auto& [k, v] : m_commands) { // Receive available commands
   //           s_v.push_back(v.data());
   //         }
@@ -135,7 +135,7 @@ void handleMessages() {
 }
 
 void close() {
-  std::string stop_operation_string = createOperation("stop", {});
+  std::string stop_operation_string = CreateOperation("stop", {});
   // Send operation as an encoded message
   sendEncoded(stop_operation_string);
   // Clean up socket file descriptor
@@ -172,7 +172,7 @@ void start() {
 
       if (::connect(m_client_socket_fd, reinterpret_cast<sockaddr*>(&server_socket),
                     sizeof(server_socket)) != -1) {
-          std::string start_operation_string = createOperation("start", {});
+          std::string start_operation_string = CreateOperation("start", {});
           // Send operation as an encoded message
           sendEncoded(start_operation_string);
 
@@ -191,11 +191,11 @@ void start() {
 }
 
 void startSession() {
-  sendEncoded(createOperation("start", {}));
+  sendEncoded(CreateOperation("start", {}));
 }
 
 void stopSession() {
-  sendEncoded(createOperation("stop", {}));
+  sendEncoded(CreateOperation("stop", {}));
 }
 
 uint8_t* createTestBuffer() {
@@ -218,7 +218,7 @@ void sendMessage() {
 }
 
 void sendCustomMessage(std::string message) {
-  sendEncoded(createMessage(message.c_str(), ""));
+  sendEncoded(CreateMessage(message.c_str(), ""));
 }
 
 private:

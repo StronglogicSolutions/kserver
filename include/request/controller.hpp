@@ -226,7 +226,7 @@ class Controller {
         std::string scheduled_times{"Scheduled time(s): "};
         KLOG("{} tasks found", tasks.size());
         for (const auto &task : tasks) {
-          auto formatted_time = TimeUtils::format_timestamp(task.datetime);
+          auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
           scheduled_times += formatted_time + " ";
           KLOG("Task info: Time: {} - Mask: {}\n Args: {}\n {}",
             formatted_time, std::to_string(task.execution_mask),
@@ -353,7 +353,7 @@ class Controller {
             callback_args.insert(callback_args.end(), {
               uuid, id,                            // UUID and database ID
               std::to_string(task.execution_mask), // Application mask
-              FileUtils::readEnvFile(task.envfile),// Environment file
+              FileUtils::ReadEnvFile(task.envfile),// Environment file
               std::to_string(task.files.size())    // File number
             });
             for (auto&& file : task.files) {
@@ -497,7 +497,7 @@ class Controller {
    * @param [in] {std::string} message
    */
   void process_client_request(int32_t client_fd, const std::string& message) {
-    std::vector<std::string> args = getArgs(message);
+    std::vector<std::string> args = GetArgs(message);
     RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
     switch (type)
@@ -606,7 +606,7 @@ class Controller {
         Task task = m_scheduler.getTask(id);
         if (task.validate())
           m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
-            DataUtils::vector_absorb(std::move(FileUtils::readFlagTokens(task.envfile, task.execution_flags)),
+            DataUtils::vector_absorb(std::move(FileUtils::ReadFlagTokens(task.envfile, task.execution_flags)),
                                      std::move(id)));
         break;
       }
@@ -626,10 +626,10 @@ class Controller {
         for (auto&& task : tasks)
         {
           payload.emplace_back(std::to_string(task.id));
-          for (const auto& flag : FileUtils::extractFlagTokens(task.execution_flags))
+          for (const auto& flag : FileUtils::ExtractFlagTokens(task.execution_flags))
           {
             payload.emplace_back(flag);
-            payload.emplace_back(FileUtils::readEnvToken(task.envfile, flag));
+            payload.emplace_back(FileUtils::ReadEnvToken(task.envfile, flag));
           }
         }
 
@@ -752,7 +752,7 @@ class Controller {
                 "Status: {}",
                 Completed::STRINGS[status]);
 
-            SystemUtils::sendMail(                                         // Email error to notification recipient
+            SystemUtils::SendMail(                                         // Email error to notification recipient
               ConfigParser::Email::notification(),
               std::string{Messages::TASK_ERROR_EMAIL + value},
               ConfigParser::Email::admin()
@@ -769,12 +769,12 @@ class Controller {
 
           task_it->completed = status;                            // Update status
           m_scheduler.updateStatus(&*task_it, value);             // Failed tasks will re-run once more
-          m_executor->saveResult(mask, 1, TimeUtils::unixtime()); // Save execution result
+          m_executor->saveResult(mask, 1, TimeUtils::UnixTime()); // Save execution result
 
           if (!error && task_it->recurring)                       // If no error, update last execution time
           {
             KLOG("Task {} will be scheduled for {}",
-              task_it->id, TimeUtils::format_timestamp(task_it->datetime));
+              task_it->id, TimeUtils::FormatTimestamp(task_it->datetime));
 
             m_scheduler.updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
@@ -790,7 +790,7 @@ class Controller {
             email_string += error ? "\nError" : "\n";
             email_string += value;
 
-            SystemUtils::sendMail(
+            SystemUtils::SendMail(
               ConfigParser::Email::notification(),
               email_string,
               ConfigParser::Email::admin()

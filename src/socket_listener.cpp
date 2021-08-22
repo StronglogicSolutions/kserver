@@ -72,7 +72,7 @@ void SocketListener::sendMessage(int client_socket_fd,
   if (s_buffer_ptr)
     send(client_socket_fd,
          s_buffer_ptr.get(),
-         static_cast<size_t>(MAX_BUFFER_SIZE) + 1, 0);
+         static_cast<size_t>(MAX_BUFFER_SIZE), 0);
    else
     std::cout << "Could not send message to client " << client_socket_fd << std::endl;
 }
@@ -82,19 +82,19 @@ void SocketListener::sendMessage(int client_socket_fd, char* message,
 {
   const auto BUFFER_SIZE = (short_message) ? SMALL_BUFFER_SIZE : MAX_BUFFER_SIZE;
 
-  send(client_socket_fd, message, static_cast<size_t>(BUFFER_SIZE) + 1,0);
+  send(client_socket_fd, message, static_cast<size_t>(BUFFER_SIZE),0);
 }
 
 void SocketListener::sendMessage(int client_socket_fd, char buffer[],
                                  size_t size)
 {
-  send(client_socket_fd, buffer, size + 1, 0);
+  send(client_socket_fd, buffer, size, 0);
 }
 
 void SocketListener::sendMessage(int client_socket_fd, const char* buffer,
                                  size_t size)
 {
-  send(client_socket_fd, buffer, size + 1, 0);
+  send(client_socket_fd, buffer, size, 0);
 }
 
 

@@ -70,7 +70,7 @@ TaskWrapper args_to_task(std::vector<std::string> args) {
       task.completed       = std::stoi(args.at(constants::PAYLOAD_COMPLETED_INDEX));
       task.recurring       = std::stoi(args.at(constants::PAYLOAD_RECURRING_INDEX));
       task.notify          = args.at(constants::PAYLOAD_NOTIFY_INDEX).compare("1") == 0;
-      task.runtime         = stripSQuotes(args.at(constants::PAYLOAD_RUNTIME_INDEX));
+      task.runtime         = StripSQuotes(args.at(constants::PAYLOAD_RUNTIME_INDEX));
       // task.filenames = args.at(constants::PAYLOAD_ID_INDEX;
       wrapper.envfile      = args.at(constants::PAYLOAD_ENVFILE_INDEX);
       KLOG("Can't parse files from schedule payload. Must be implemented");
@@ -262,8 +262,8 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
           .completed        = completed,
           .recurring        = recurring,
           .notify           = (notify == 1),
-          .runtime          = FileUtils::readRunArgs(envfile), // ⬅ set from DB?
-          .filenames        = StringUtils::split(filenames, ' ')
+          .runtime          = FileUtils::ReadRunArgs(envfile), // ⬅ set from DB?
+          .filenames        = StringUtils::Split(filenames, ' ')
         });
         id                  = 0;
         recurring           = -1;
@@ -578,7 +578,7 @@ std::vector<std::string> Scheduler::getFlags(const T& mask)
 
   for (const auto& row : m_kdb.select("schedule", {Field::FLAGS}, QueryFilter{{"mask", filter_mask}}, 1))
     if (row.first == Field::FLAGS)
-      return StringUtils::split(row.second, ' ');
+      return StringUtils::Split(row.second, ' ');
 
   ELOG("No task exists with that mask");
   return {};
@@ -690,7 +690,7 @@ bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
   for (const auto& value : rows)
     if (value.first == "envfile")
     {
-      FileUtils::saveFile(env, value.second);
+      FileUtils::SaveFile(env, value.second);
       updated = true;
     }
 

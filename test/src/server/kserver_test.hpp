@@ -91,7 +91,7 @@ void runServer() {
 //       attempts++;
 //       // std::this_thread::sleep_for(std::chrono::milliseconds(300));
 //       received_bytes = g_client->getReceivedMessage();
-//       started_session = isNewSession(received_bytes.c_str());
+//       started_session = IsNewSession(received_bytes.c_str());
 
 //       if (attempts % 10 == 0) {
 //         g_client->startSession();
@@ -147,7 +147,7 @@ void runServer() {
 //   while (!started_session) {
 //     g_client->startSession();
 //     std::this_thread::sleep_for(std::chrono::milliseconds(300));
-//     started_session = isNewSession(g_client->getReceivedMessage().c_str());
+//     started_session = IsNewSession(g_client->getReceivedMessage().c_str());
 //   }
 
 //   for (uint8_t i = 0; i < 100; i++) {

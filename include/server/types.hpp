@@ -59,7 +59,7 @@ static constexpr const char* const PONG = "PONG";
 static constexpr size_t PONG_SIZE = 4;
 
 // // TODO: Create an implementation file, or move this to utilities
-// inline bool isPing(std::string s) {
+// inline bool IsPing(std::string s) {
 //   return s.size() == 3 && strcmp(s.c_str(), PING) == 0;
 // }
 struct ReceivedFile {
