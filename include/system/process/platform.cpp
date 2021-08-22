@@ -20,10 +20,10 @@ std::string savePlatformEnvFile(const PlatformPost& post)
   const std::string directory_name{post.time + post.id + post.pid};
   const std::string filename      {directory_name};
 
-  FileUtils::createTaskDirectory(directory_name);
+  FileUtils::CreateTaskDirectory(directory_name);
 
-  return FileUtils::saveEnvFile(
-    FileUtils::createEnvFile(
+  return FileUtils::SaveEnvFile(
+    FileUtils::CreateEnvFile(
     std::unordered_map<std::string, std::string>{
       {"content", post.content},
       {"urls",    post.urls}
@@ -41,7 +41,7 @@ std::string savePlatformEnvFile(const PlatformPost& post)
 bool populatePlatformPost(PlatformPost& post)
 {
   const std::string env_path{"data/" + post.time + post.id + post.pid + "/v.env"};
-  const std::vector<std::string> post_values = FileUtils::readEnvValues(env_path, PLATFORM_ENV_KEYS);
+  const std::vector<std::string> post_values = FileUtils::ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
   if (post_values.size() == 2)
   {
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
@@ -154,12 +154,12 @@ PlatformPost createAffiliatePost(const std::string user, const std::string type,
 {
   static const char DO_NOT_REPOST[] = {"false"};
   const auto createAffiliateContent = [&user, &type, &post]() {
-    const std::string affiliate_content = FileUtils::readFile(ConfigParser::Platform::affiliate_content(type));
+    const std::string affiliate_content = FileUtils::ReadFile(ConfigParser::Platform::affiliate_content(type));
     return affiliate_content + '\n' + post.content;
   };
 
   PlatformPost affiliate_post{};
-  affiliate_post.id      = StringUtils::generate_uuid_string();
+  affiliate_post.id      = StringUtils::GenerateUUIDString();
   affiliate_post.pid     = post.pid;
   affiliate_post.o_pid   = post.pid;
   affiliate_post.user    = user;
@@ -325,9 +325,9 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
   return savePlatformPost(PlatformPost{
     .pid     = platform_id,
     .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
-    .id      = id  .empty() ? StringUtils::generate_uuid_string()   : id,
+    .id      = id  .empty() ? StringUtils::GenerateUUIDString()   : id,
     .user    = user,
-    .time    = time.empty() ? std::to_string(TimeUtils::unixtime()) : time,
+    .time    = time.empty() ? std::to_string(TimeUtils::UnixTime()) : time,
     .content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
     .urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
     .repost  = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX),

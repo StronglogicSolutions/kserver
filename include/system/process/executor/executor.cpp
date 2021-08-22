@@ -151,7 +151,7 @@ bool ProcessExecutor::saveResult(uint32_t mask, T status, uint32_t time) {
         KLOG("Recorded process {} with result of {} at {}",
           app_info.name,
           Completed::NAMES[status],
-          TimeUtils::format_timestamp(time)
+          TimeUtils::FormatTimestamp(time)
         );
 
         return true;

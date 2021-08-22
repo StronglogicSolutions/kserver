@@ -160,7 +160,7 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
         // TODO: UUID > FD
         KLOG("Data buffer found. Creating directory and saving file");
         const std::string filename = args.at(0);
-        FileUtils::saveFile(received_file->f_ptr, received_file->size, filename.c_str());
+        FileUtils::SaveFile(received_file->f_ptr, received_file->size, filename.c_str());
         m_received_files.erase(received_file);
 
         if (args.size() == 4 && args.at(3) == "final file")
@@ -304,6 +304,7 @@ void KServer::onProcessEvent(std::string result, int mask, std::string request_i
 
 void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
 {
+  m_controller.setHandlingData(true);
   using F_Iterator = FileUtils::FileIterator;
   using P_Wrapper  = FileUtils::FileIterator::PacketWrapper;
 
@@ -314,6 +315,7 @@ void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
     P_Wrapper packet = iterator.next();
     SocketListener::sendMessage(client_socket_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
+  m_controller.setHandlingData(false);
 }
 
 /**
@@ -329,14 +331,14 @@ void KServer::sendEvent(int client_socket_fd, std::string event,
                 std::vector<std::string> argv)
 {
   KLOG("Sending {} event to {}", event, client_socket_fd);
-  std::string event_string = createEvent(event.c_str(), argv);
+  std::string event_string = CreateEvent(event.c_str(), argv);
   sendMessage(client_socket_fd, event_string.c_str(), event_string.size());
 }
 
 void KServer::sendSessionMessage(int client_socket_fd, int status,
                         std::string message, SessionInfo info)
 {
-  std::string session_message = createSessionEvent(status, message, info);
+  std::string session_message = CreateSessionEvent(status, message, info);
   KLOG("Sending session message to {}.\nSession info: {}", client_socket_fd,
         session_message);
   sendMessage(client_socket_fd, session_message.c_str(),
@@ -354,7 +356,7 @@ void KServer::onFileHandled(int socket_fd, int result, uint8_t*&& f_ptr,
       // Push to received files immediately so that we ensure it's ready to be
       // used in subsequent client requests
       if (size > 0) {
-        auto timestamp = TimeUtils::unixtime();
+        auto timestamp = TimeUtils::UnixTime();
         m_received_files.push_back(ReceivedFile{.timestamp = timestamp,
                                                 .client_fd = socket_fd,
                                                 .f_ptr = f_ptr,
@@ -415,7 +417,7 @@ void KServer::handleStart(std::string decoded_message, int client_socket_fd)
   // Database fetch
   ServerData server_data = m_controller("Start");
   // Send welcome
-  std::string start_message = createMessage("New Session", server_data);
+  std::string start_message = CreateMessage("New Session", server_data);
   sendMessage(client_socket_fd, start_message.c_str(), start_message.size());
   auto uuid_str = uuids::to_string(new_uuid);
   KLOG("New session created for {}. Session ID: {}", client_socket_fd,
@@ -432,7 +434,7 @@ void KServer::handleStart(std::string decoded_message, int client_socket_fd)
  */
 void KServer::handleExecute(std::string decoded_message, int client_socket_fd)
 {
-  std::vector<std::string> args = getArgs(decoded_message.c_str());
+  std::vector<std::string> args = GetArgs(decoded_message.c_str());
   if (!args.empty() && args.size() > 1) {
     KLOG("Execute request received");
     auto mask = args.at(0);
@@ -450,7 +452,7 @@ void KServer::handleFileUploadRequest(int client_socket_fd)
   SetFilePending(client_socket_fd);
   m_controller.setHandlingData(true);
 
-  std::string file_ready_message = createMessage("File Ready", "");
+  std::string file_ready_message = CreateMessage("File Ready", "");
   sendMessage(client_socket_fd, file_ready_message.c_str(),
               file_ready_message.size());
 }
@@ -468,42 +470,42 @@ void KServer::handleSchedule(std::vector<std::string> task, int client_socket_fd
  */
 void KServer::handleOperation(std::string decoded_message, int client_socket_fd)
 {
-  KOperation op = getOperation(decoded_message.c_str());
-  if (isStartOperation(op.c_str())) {        // Start
+  KOperation op = GetOperation(decoded_message.c_str());
+  if (IsStartOperation(op.c_str())) {        // Start
     KLOG("Start operation");
     handleStart(decoded_message, client_socket_fd);
     return;
   }
   else
-  if (isStopOperation(op.c_str())) {         // Stop
+  if (IsStopOperation(op.c_str())) {         // Stop
     KLOG("Stop operation. Shutting down client and closing connection");
     handleStop(client_socket_fd);
     return;
   }
   else
-  if (isExecuteOperation(op.c_str())) {      // Process execution request
+  if (IsExecuteOperation(op.c_str())) {      // Process execution request
     KLOG("Execute operation");
     handleExecute(decoded_message, client_socket_fd);
     return;
   }
   else
-  if (isFileUploadOperation(op.c_str())) {   // File upload request
+  if (IsFileUploadOperation(op.c_str())) {   // File upload request
     KLOG("File upload operation");
     handleFileUploadRequest(client_socket_fd);
     return;
   }
   else
-  if (isIPCOperation(op.c_str())) {          // IPC request
+  if (IsIPCOperation(op.c_str())) {          // IPC request
     KLOG("Testing IPC");
     handleIPC(decoded_message, client_socket_fd);
   }
   else
-  if (isAppOperation(op.c_str())) {          // Register app
+  if (IsAppOperation(op.c_str())) {          // Register app
     KLOG("App request");
     handleAppRequest(client_socket_fd, decoded_message);
   }
   else
-  if (isScheduleOperation(op.c_str())) {     // Fetch schedule
+  if (IsScheduleOperation(op.c_str())) {     // Fetch schedule
     KLOG("Fetch schedule request");
     handleScheduleRequest(client_socket_fd, decoded_message);
   }
@@ -543,7 +545,7 @@ void KServer::onMessageReceived(int                      client_socket_fd,
         handlePendingFile(s_buffer_ptr, client_socket_fd, size);
         return;
       }
-      if (isPing(s_buffer_ptr.get(), size))                     // Ping
+      if (IsPing(s_buffer_ptr.get(), size))                     // Ping
       {
         KLOG("Client {} - keepAlive", client_socket_fd);
         sendMessage(client_socket_fd, PONG, PONG_SIZE);
@@ -617,16 +619,16 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
         {
           KLOG("Received message: {}", decoded_message);
           // Handle operations
-          if (isOperation(decoded_message.c_str()))
+          if (IsOperation(decoded_message.c_str()))
           {
             KLOG("Received operation");
             handleOperation(decoded_message, client_socket_fd);
           }
           else
-          if (isMessage(decoded_message.c_str()))
+          if (IsMessage(decoded_message.c_str()))
               sendEvent(client_socket_fd,
                         "Message Received",
-                        {"Received by KServer", "Message", getMessage(decoded_message)});
+                        {"Received by KServer", "Message", GetMessage(decoded_message)});
 
           return decoded_message;
         })

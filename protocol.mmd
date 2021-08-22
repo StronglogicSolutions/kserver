@@ -15,7 +15,15 @@ Server-->>Client: (Send event: task data)
 Client-->>Document: ReceiveData()
 note over Document: Task data in memory
 Client-->>Server: Fetch Files for Tasks (by ID)
-Server-->>Client: (File data)
+Server-->>Client: (Send event: File metadata - all files)
+Client-->>Server: Ack
+loop For each file
+Server-->>Client: (Send event: File metadata)
+Client-->>Server: Ready
+Server-->>Client: (Send packets)
+note over Client: If expecting another file, send another Ack
+Client-->>Server: Ack
+end
 note over Client: download complete
 Client-->>Document: ReceiveFiles();
 note over Document: Add files to task data

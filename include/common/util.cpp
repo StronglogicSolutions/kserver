@@ -4,12 +4,12 @@ static const std::string_view APP_NAME         = "kserver";
 static       int              APP_NAME_LENGTH  = 7;
 const char                    ARGUMENT_SEPARATOR{'\x1f'};
 
-std::string get_cwd() {
+std::string GetCWD() {
   char *working_dir_path = realpath(".", NULL);
   return std::string{working_dir_path};
 }
 
-std::string get_executable_cwd() {
+std::string GetExecutableCWD() {
   std::string full_path{realpath("/proc/self/exe", NULL)};
   return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
 }
@@ -27,7 +27,7 @@ int findIndexAfter(std::string s, int pos, char c) {
  * JSON Tools
  */
 
-std::string getJsonString(std::string s) {
+std::string GetJSONString(std::string s) {
   Document d;
   d.Parse(s.c_str());
   StringBuffer buffer;
@@ -36,7 +36,7 @@ std::string getJsonString(std::string s) {
   return buffer.GetString();
 }
 
-std::string createMessage(const char *data, std::string args) {
+std::string CreateMessage(const char *data, std::string args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -50,7 +50,7 @@ std::string createMessage(const char *data, std::string args) {
   return s.GetString();
 }
 
-std::string createEvent(const char *event, int mask, std::string stdout) {
+std::string CreateEvent(const char *event, int mask, std::string stdout) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -64,7 +64,7 @@ std::string createEvent(const char *event, int mask, std::string stdout) {
   return s.GetString();
 }
 
-std::string createEvent(const char *event, std::vector<std::string> args) {
+std::string CreateEvent(const char *event, std::vector<std::string> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -84,7 +84,7 @@ std::string createEvent(const char *event, std::vector<std::string> args) {
   return s.GetString();
 }
 
-std::string createEvent(const char *event, int mask,
+std::string CreateEvent(const char *event, int mask,
                         std::vector<std::string> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
@@ -105,7 +105,7 @@ std::string createEvent(const char *event, int mask,
   return s.GetString();
 }
 
-std::string createOperation(const char *op, std::vector<std::string> args) {
+std::string CreateOperation(const char *op, std::vector<std::string> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -125,7 +125,7 @@ std::string createOperation(const char *op, std::vector<std::string> args) {
   return s.GetString();
 }
 
-std::string getOperation(const char *data) {
+std::string GetOperation(const char *data) {
   Document d;
   d.Parse(data);
   if (d.HasMember("command")) {
@@ -135,7 +135,7 @@ std::string getOperation(const char *data) {
 }
 
 template<typename T>
-std::string getMessage(T data) {
+std::string GetMessage(T data) {
   Document d;
   if constexpr (std::is_same_v<T, std::string>)
     d.Parse(data.c_str());
@@ -149,11 +149,11 @@ std::string getMessage(T data) {
   return "";
 }
 
-template std::string getMessage(std::string);
+template std::string GetMessage(std::string);
 
-template std::string getMessage(const char*);
+template std::string GetMessage(const char*);
 
-std::string getEvent(std::string data) {
+std::string GetEvent(std::string data) {
   if (!data.empty()) {
     Document d;
     d.Parse(data.c_str());
@@ -164,15 +164,15 @@ std::string getEvent(std::string data) {
   return "";
 }
 
-bool isSessionMessageEvent(std::string event) {
+bool IsSessionMessageEvent(std::string event) {
   return event.compare("Session Message") == 0;
 }
 
-bool isCloseEvent(std::string event) {
+bool IsCloseEvent(std::string event) {
   return event.compare("Close Session") == 0;
 }
 
-std::vector<std::string> getArgs(std::string data) {
+std::vector<std::string> GetArgs(std::string data) {
   Document d;
   d.Parse(data.c_str());
   std::vector<std::string> args{};
@@ -184,7 +184,7 @@ std::vector<std::string> getArgs(std::string data) {
   return args;
 }
 
-std::vector<std::string> getArgs(const char* data) {
+std::vector<std::string> GetArgs(const char* data) {
   Document d;
   d.Parse(data);
   std::vector<std::string> args{};
@@ -196,7 +196,7 @@ std::vector<std::string> getArgs(const char* data) {
   return args;
 }
 
-CommandMap getArgMap(const char *data) {
+CommandMap GetArgMap(const char *data) {
   Document d;
   d.Parse(data);
   CommandMap cm{};
@@ -208,7 +208,7 @@ CommandMap getArgMap(const char *data) {
   return cm;
 }
 
-std::string createSessionEvent(
+std::string CreateSessionEvent(
     int status, std::string message,
     std::vector<std::pair<std::string, std::string>> args) {
   StringBuffer s;
@@ -235,7 +235,7 @@ std::string createSessionEvent(
   return s.GetString();
 }
 
-std::string createMessage(
+std::string CreateMessage(
     const char *data, std::vector<std::pair<std::string, std::string>> args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
@@ -257,7 +257,7 @@ std::string createMessage(
   return s.GetString();
 }
 
-std::string createMessage(const char *data,
+std::string CreateMessage(const char *data,
                           std::map<int, std::string> map) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
@@ -279,7 +279,7 @@ std::string createMessage(const char *data,
   return s.GetString();
 }
 
-std::string createMessage(const char *data, std::vector<KApplication> commands) {
+std::string CreateMessage(const char *data, std::vector<KApplication> commands) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -302,7 +302,7 @@ std::string createMessage(const char *data, std::vector<KApplication> commands) 
   return s.GetString();
 }
 
-std::string createMessage(const char *data,
+std::string CreateMessage(const char *data,
                           std::map<int, std::vector<std::string>> map) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
@@ -333,7 +333,7 @@ std::string createMessage(const char *data,
 /**
  * Operations
  */
-bool isMessage(const char *data) {
+bool IsMessage(const char *data) {
   if (data != nullptr) {
     Document d;
     d.Parse(data);
@@ -343,7 +343,7 @@ bool isMessage(const char *data) {
   return false;
 }
 
-bool isOperation(const char *data) {
+bool IsOperation(const char *data) {
   if (data != nullptr) {
     Document d;
     d.Parse(data);
@@ -353,27 +353,27 @@ bool isOperation(const char *data) {
   return false;
 }
 
-bool isExecuteOperation(const char *data) {
+bool IsExecuteOperation(const char *data) {
   return strcmp(data, "Execute") == 0;
 }
 
-bool isScheduleOperation(const char *data) {
+bool IsScheduleOperation(const char *data) {
   return strcmp(data, "Schedule") == 0;
 }
 
-bool isFileUploadOperation(const char *data) {
+bool IsFileUploadOperation(const char *data) {
   return strcmp(data, "FileUpload") == 0;
 }
 
-bool isIPCOperation(const char *data) {
+bool IsIPCOperation(const char *data) {
   return strcmp(data, "ipc") == 0;
 }
 
-bool isStartOperation(const char *data) { return strcmp(data, "start") == 0; }
+bool IsStartOperation(const char *data) { return strcmp(data, "start") == 0; }
 
-bool isStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
+bool IsStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
 
-bool isAppOperation(const char* data) { return strcmp(data, "AppRequest") == 0; }
+bool IsAppOperation(const char* data) { return strcmp(data, "AppRequest") == 0; }
 
 static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
 {
@@ -381,7 +381,7 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
   return VerifyMessageBuffer(verifier);
 }
 
-bool isPing(uint8_t* buffer, ssize_t size)
+bool IsPing(uint8_t* buffer, ssize_t size)
 {
   return (size > 4) && (*(buffer + 4) == 0xFD);
 }
@@ -477,7 +477,7 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
   return right(std::vector<std::string>{});
 }
 
-bool isNewSession(const char *data) {
+bool IsNewSession(const char *data) {
   if (*data != '\0') {
     Document d;
     d.Parse(data);
@@ -489,7 +489,7 @@ bool isNewSession(const char *data) {
 }
 
 namespace SystemUtils {
-void sendMail(std::string recipient, std::string message, std::string from) {
+void SendMail(std::string recipient, std::string message, std::string from) {
   std::string sanitized = StringUtils::sanitizeSingleQuotes(message);
   std::system(
     std::string{
@@ -501,7 +501,7 @@ void sendMail(std::string recipient, std::string message, std::string from) {
 
 namespace FileUtils {
 
-bool createDirectory(const char *dir_name) {
+bool CreateDirectory(const char *dir_name) {
   std::error_code err{};
   std::filesystem::create_directory(dir_name, err);
   auto code = err.value();
@@ -512,7 +512,7 @@ bool createDirectory(const char *dir_name) {
   return false;
 }
 
-void saveFile(const std::vector<char>& bytes, const char *filename) {
+void SaveFile(const std::vector<char>& bytes, const char *filename) {
   std::ofstream output(filename,
                        std::ios::binary | std::ios::out | std::ios::app);
   const char* raw_data = bytes.data();
@@ -522,7 +522,7 @@ void saveFile(const std::vector<char>& bytes, const char *filename) {
   output.close();
 }
 
-void saveFile(uint8_t *bytes, int size, const std::string& filename) {
+void SaveFile(uint8_t *bytes, int size, const std::string& filename) {
   std::ofstream output(filename.c_str(),
                        std::ios::binary | std::ios::out | std::ios::app);
   for (int i = 0; i < size; i++) {
@@ -531,12 +531,12 @@ void saveFile(uint8_t *bytes, int size, const std::string& filename) {
   output.close();
 }
 
-std::string saveEnvFile(const std::string& env_file_string, const std::string& unique_id) {
+std::string SaveEnvFile(const std::string& env_file_string, const std::string& unique_id) {
   const std::string relative_directory{"data/" + unique_id};
   const std::string relative_path{relative_directory + "/v.env"};
-  const std::string task_directory{get_executable_cwd() + "/" + relative_directory};
+  const std::string task_directory{GetExecutableCWD() + "/" + relative_directory};
   if (!std::filesystem::exists(task_directory))
-    createDirectory(task_directory.c_str());
+    CreateDirectory(task_directory.c_str());
   const std::string filename{task_directory + "/v.env"};
   std::ofstream out{filename.c_str()};
   out << env_file_string;
@@ -553,7 +553,7 @@ void saveFopenFile(std::vector<char> bytes, const char *filename) {
   output.close();
 }
 
-void saveFile(const std::string& env_file_string, const std::string& env_file_path) {
+void SaveFile(const std::string& env_file_string, const std::string& env_file_path) {
   std::ofstream out{env_file_path.c_str(), (std::ios::trunc | std::ios::out | std::ios::binary)};
   out << env_file_string;
 }
@@ -573,7 +573,7 @@ static void trim_outer_whitespace(std::string& s)
   if (s.back()  == ' ') s.pop_back();
 }
 
-static std::string sanitize_token(std::string& s)
+static std::string SanitizeToken(std::string& s)
 {
   remove_double_quotes(s);
   trim_outer_whitespace(s);
@@ -581,18 +581,18 @@ static std::string sanitize_token(std::string& s)
 }
 
 
-std::string readEnvFile(const std::string& env_file_path, bool relative_path) {
-  std::string full_path = (relative_path) ? get_cwd() + "/" + env_file_path : env_file_path;
+std::string ReadEnvFile(const std::string& env_file_path, bool relative_path) {
+  std::string full_path = (relative_path) ? GetCWD() + "/" + env_file_path : env_file_path;
   std::ifstream file_stream{full_path};
   std::stringstream env_file_stream{};
   env_file_stream << file_stream.rdbuf();
   return env_file_stream.str();
 }
 
-std::string readRunArgs(const std::string& env_file_path) {
+std::string ReadRunArgs(const std::string& env_file_path) {
   const std::string token_key{"R_ARGS="};
   std::string run_arg_s{};
-  std::string env = readEnvFile(env_file_path);
+  std::string env = ReadEnvFile(env_file_path);
   if (!env.empty()) {
     auto start = env.find(token_key);
     if (start != std::string::npos) {
@@ -601,10 +601,10 @@ std::string readRunArgs(const std::string& env_file_path) {
       run_arg_s  = sub_s.substr(token_key.size(), end);
     }
   }
-  return sanitize_token(run_arg_s);
+  return SanitizeToken(run_arg_s);
 }
 
-std::string readFile(const std::string& env_file_path) {
+std::string ReadFile(const std::string& env_file_path) {
     std::ifstream file_stream{env_file_path};
     std::stringstream env_file_stream{};
     env_file_stream << file_stream.rdbuf();
@@ -615,7 +615,7 @@ std::string readFile(const std::string& env_file_path) {
 }
 
 
-std::vector<uint8_t> readFileAsBytes(const std::string& file_path)
+std::vector<uint8_t> ReadFileAsBytes(const std::string& file_path)
 {
   std::ifstream        byte_stream(file_path, std::ios::binary);
   std::vector<uint8_t> file_bytes{std::istreambuf_iterator<char>(byte_stream), {}};
@@ -624,7 +624,7 @@ std::vector<uint8_t> readFileAsBytes(const std::string& file_path)
 }
 
 
-std::string createEnvFile(std::unordered_map<std::string, std::string>&& key_pairs)
+std::string CreateEnvFile(std::unordered_map<std::string, std::string>&& key_pairs)
 {
   const std::string SHEBANG{"#!/usr/bin/env bash\n"};
   std::string       environment_file{SHEBANG};
@@ -637,9 +637,9 @@ std::string createEnvFile(std::unordered_map<std::string, std::string>&& key_pai
   return environment_file;
 }
 
-std::string readEnvToken(const std::string& env_file_path, const std::string& token_key) {
+std::string ReadEnvToken(const std::string& env_file_path, const std::string& token_key) {
   std::string run_arg_s{};
-  std::string env = readEnvFile(env_file_path);
+  std::string env = ReadEnvFile(env_file_path);
   if (!env.empty()) {
     auto start = env.find('\n' + token_key);
     if (start != std::string::npos) {
@@ -648,11 +648,11 @@ std::string readEnvToken(const std::string& env_file_path, const std::string& to
       run_arg_s  = sub_s.substr(0, end);
     }
   }
-  return sanitize_token(run_arg_s);
+  return SanitizeToken(run_arg_s);
 }
 
-bool writeEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
-  std::string env = readEnvFile(env_file_path);
+bool WriteEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
+  std::string env = ReadEnvFile(env_file_path);
   if (!env.empty()) {
     auto key_index = env.find(token_key);
     if (key_index != std::string::npos) {
@@ -663,7 +663,7 @@ bool writeEnvToken(const std::string& env_file_path, const std::string& token_ke
       if (end_index != std::string::npos) {
         end_index += start_index;
         env.replace(start_index, end_index - start_index, token_value);
-        saveFile(env, env_file_path);
+        SaveFile(env, env_file_path);
         return true;
       }
     }
@@ -671,7 +671,7 @@ bool writeEnvToken(const std::string& env_file_path, const std::string& token_ke
   return false;
 }
 
-std::vector<std::string> extractFlagTokens(std::string flags) {
+std::vector<std::string> ExtractFlagTokens(std::string flags) {
   const char token_symbol{'$'};
   std::vector<std::string> tokens{};
   auto delim_index = flags.find_first_of(token_symbol);
@@ -691,37 +691,37 @@ std::vector<std::string> extractFlagTokens(std::string flags) {
   return tokens;
 }
 
-std::vector<std::string> readFlagTokens(const std::string& env_file_path, const std::string& flags) {
-  std::vector<std::string> tokens = extractFlagTokens(flags);
+std::vector<std::string> ReadFlagTokens(const std::string& env_file_path, const std::string& flags) {
+  std::vector<std::string> tokens = ExtractFlagTokens(flags);
   std::vector<std::string> token_values{};
   // TODO: Do this in one pass without reading the entire environment file each time
   for (const auto& token : tokens) {
-    token_values.emplace_back(readEnvToken(env_file_path, token));
+    token_values.emplace_back(ReadEnvToken(env_file_path, token));
   }
   return token_values;
 }
 
-std::vector<std::string> readEnvValues(const std::string& env_file_path, const std::vector<std::string>& flags) {
+std::vector<std::string> ReadEnvValues(const std::string& env_file_path, const std::vector<std::string>& flags) {
   std::vector<std::string> values{};
   for (const auto& flag : flags) {
-    values.emplace_back(readEnvToken(env_file_path, flag));
+    values.emplace_back(ReadEnvToken(env_file_path, flag));
   }
   return values;
 }
 
-void clearFile(std::string file_path) {
+void ClearFile(std::string file_path) {
   std::ofstream file(file_path);
 }
 
-bool createTaskDirectory(const std::string& unique_id) {
+bool CreateTaskDirectory(const std::string& unique_id) {
   std::string directory_name{"data/" + unique_id};
-  return createDirectory(directory_name.c_str());
+  return CreateDirectory(directory_name.c_str());
 }
 }  // namespace FileUtils
 
 namespace StringUtils {
 template <typename T>
-void split(const std::string &s, char delim, T result) {
+void Split(const std::string &s, char delim, T result) {
     std::istringstream iss(s);
     std::string item;
     while (std::getline(iss, item, delim)) {
@@ -729,10 +729,10 @@ void split(const std::string &s, char delim, T result) {
     }
 }
 
-std::vector<std::string> split(const std::string &s, char delim) {
+std::vector<std::string> Split(const std::string &s, char delim) {
     std::vector<std::string> v{};
     if (!s.empty()) {
-      split(s, delim, std::back_inserter(v));
+      Split(s, delim, std::back_inserter(v));
     }
     return v;
 }
@@ -767,7 +767,7 @@ std::string SanitizeJSON(std::string s) {
   return o;
 }
 
-std::string generate_uuid_string()
+std::string GenerateUUIDString()
 {
   return uuids::to_string(uuids::uuid_system_generator{}());
 }
@@ -790,7 +790,7 @@ std::string AlphaNumericOnly(std::string s)
 
 // Bit helpers
 
-inline size_t findNullIndex(uint8_t *data) {
+inline size_t FindNullIndex(uint8_t *data) {
   size_t index = 0;
   while (data) {
     if (strcmp(const_cast<const char *>((char *)data), "\0") == 0) {
@@ -803,13 +803,13 @@ inline size_t findNullIndex(uint8_t *data) {
 }
 
 template <typename T>
-static std::string toBinaryString(const T &x) {
+static std::string ToBinaryString(const T &x) {
   std::stringstream ss;
   ss << std::bitset<sizeof(T) * 8>(x);
   return ss.str();
 }
 
-bool hasNthBitSet(int value, int n) {
+bool HasNthBitSet(int value, int n) {
   auto result = value & (1 << (n - 1));
   if (result) {
     return true;
@@ -817,7 +817,7 @@ bool hasNthBitSet(int value, int n) {
   return false;
 }
 
-std::string stripSQuotes(std::string s) {
+std::string StripSQuotes(std::string s) {
   s.erase(
     std::remove(s.begin(), s.end(),'\''),
     s.end()
@@ -826,7 +826,7 @@ std::string stripSQuotes(std::string s) {
 }
 
 // aka isNumber
-bool isdigits(const std::string &s) {
+bool IsDigits(const std::string &s) {
   for (char c : s)
     if (!isdigit(c)) {
       return false;
@@ -835,13 +835,13 @@ bool isdigits(const std::string &s) {
 }
 
 namespace TimeUtils {
-int unixtime() {
+int UnixTime() {
   return std::chrono::duration_cast<std::chrono::seconds>(
     std::chrono::system_clock::now().time_since_epoch()
   ).count();
 }
 
-std::string format_timestamp(int unixtime) {
+std::string FormatTimestamp(int unixtime) {
   char       buf[80];
   const std::time_t time = static_cast<std::time_t>(unixtime);
   struct tm ts = *localtime(&time);
@@ -849,7 +849,7 @@ std::string format_timestamp(int unixtime) {
   return std::string{buf};
 }
 
-std::string format_timestamp(std::string unixtime) {
+std::string FormatTimestamp(std::string unixtime) {
   char       buf[80];
   const std::time_t time = static_cast<std::time_t>(stoi(unixtime));
   struct tm ts = *localtime(&time);

@@ -50,7 +50,7 @@ static const std::string RUNTIME_FLAG{"R_ARGS"};
  */
 inline std::vector<std::string> exec_flags_to_vector(std::string flag_s) {
   std::vector<std::string> flags{};
-  for (const auto& expression : StringUtils::split(flag_s, ' ')) {
+  for (const auto& expression : StringUtils::Split(flag_s, ' ')) {
     flags.push_back(expression.substr(expression.find_first_of('$') + 1));
   }
   return flags;
@@ -94,7 +94,7 @@ virtual void setTask(Task task) override {
  */
 virtual bool prepareRuntime() override {
   if (m_task.validate()) {
-    std::string  envfile = FileUtils::readEnvFile(m_task.envfile, true);
+    std::string  envfile = FileUtils::ReadEnvFile(m_task.envfile, true);
     KApplication app     = get_app_info(m_task.execution_mask);
 
     m_state.path = app.path;
