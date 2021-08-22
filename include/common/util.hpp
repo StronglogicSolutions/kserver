@@ -196,21 +196,29 @@ uint32_t size;
 
 bool has_data()
 {
-  return data_ptr != nullptr;
+  return (data_ptr != nullptr);
+}
+
+std::string to_string()
+{
+  std::string data_s{};
+  for (uint32_t i = 0; i < m_buffer.size(); i++) data_s += std::to_string(+(*(m_buffer.data() + i)));
+  return data_s;
 }
 
 PacketWrapper next() {
-  uint8_t* ptr = data_ptr;
+  uint32_t size;
   uint32_t bytes_remaining = m_size - m_bytes_read;
-  uint32_t size{};
+  uint8_t* ptr             = data_ptr;
+
   if (bytes_remaining < PACKET_SIZE)
   {
-    size = bytes_remaining;
+    size     = bytes_remaining;
     data_ptr = nullptr;
   }
   else
   {
-    size      = PACKET_SIZE;
+    size     =  PACKET_SIZE;
     data_ptr += PACKET_SIZE;
   }
 
