@@ -614,6 +614,16 @@ std::string readFile(const std::string& env_file_path) {
     return return_s;
 }
 
+
+std::vector<uint8_t> readFileAsBytes(const std::string& file_path)
+{
+  std::ifstream        byte_stream(file_path, std::ios::binary);
+  std::vector<uint8_t> file_bytes{std::istreambuf_iterator<char>(byte_stream), {}};
+  byte_stream.close();
+  return file_bytes;
+}
+
+
 std::string createEnvFile(std::unordered_map<std::string, std::string>&& key_pairs)
 {
   const std::string SHEBANG{"#!/usr/bin/env bash\n"};
@@ -733,6 +743,9 @@ std::string sanitizeSingleQuotes(const std::string& s) {
   for (const char& c : s) {
     if (c == '\'')
       o += "&#39;";
+    else
+    if (c == '"')
+      o += "&#34;";
     else
       o += c;
   }

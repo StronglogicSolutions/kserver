@@ -299,6 +299,16 @@ void KServer::onProcessEvent(std::string result, int mask, std::string request_i
   }
 }
 
+void KServer::SendFile(int32_t client_socket_fd, const std::string& filename)
+{
+  FileUtils::FileIterator iterator{filename};
+  while (iterator.has_data())
+  {
+    auto packet = iterator.next();
+    SocketListener::sendMessage(client_socket_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
+  }
+}
+
 /**
  * sendEvent
  *

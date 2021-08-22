@@ -164,8 +164,54 @@ std::vector<std::string> readFlagTokens(const std::string& env_file_path, const 
 std::vector<std::string> readEnvValues(const std::string& env_file_path, const std::vector<std::string>& flags);
 std::string              createEnvFile(std::unordered_map<std::string, std::string>&& key_pairs);
 std::string              readFile( const std::string& env_file_path);
+std::vector<uint8_t>     readFileAsBytes(const std::string& file_path);
 void                     clearFile(const std::string& file_path);
 bool                     createTaskDirectory(const std::string& unique_id);
+
+class FileIterator
+{
+public:
+FileIterator(const std::string& path)
+: m_buffer(readFileAsBytes(path))
+{}
+
+struct PacketWrapper
+{
+  PacketWrapper(uint8_t* ptr_, uint32_t size_)
+  : ptr(ptr_),
+    size(size_) {}
+  uint8_t* ptr;
+  uint32_t size;
+
+  uint8_t* data() { return ptr; }
+};
+
+bool has_data() { return data_ptr != nullptr; }
+
+PacketWrapper next() {
+  uint8_t* ptr = data_ptr;
+  uint32_t bytes_remaining = m_size - m_bytes_read;
+  uint32_t size{};
+  if (bytes_remaining < 4096)
+  {
+    size = bytes_remaining;
+    data_ptr = nullptr;
+  }
+  else
+  {
+    size = 4096;
+    data_ptr += 4096;
+  }
+    return PacketWrapper{ptr, size};
+}
+
+private:
+
+std::vector<uint8_t> m_buffer;
+uint8_t*             data_ptr;
+uint32_t             m_bytes_read;
+uint32_t             m_size;
+};
 }  // namespace FileUtils
 
 namespace StringUtils {
