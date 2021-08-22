@@ -304,6 +304,7 @@ void KServer::onProcessEvent(std::string result, int mask, std::string request_i
 
 void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
 {
+  m_controller.setHandlingData(true);
   using F_Iterator = FileUtils::FileIterator;
   using P_Wrapper  = FileUtils::FileIterator::PacketWrapper;
 
@@ -314,6 +315,7 @@ void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
     P_Wrapper packet = iterator.next();
     SocketListener::sendMessage(client_socket_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
+  m_controller.setHandlingData(false);
 }
 
 /**
