@@ -508,7 +508,46 @@ Task Scheduler::getTask(std::string id) {
  * @param sid
  * @return std::vector<std::string>
  */
-std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std::string& type) {
+std::vector<FileMetaData> Scheduler::getFiles(const std::vector<std::string>& sids, const std::string& type)
+{
+  std::vector<FileMetaData> files{};
+  files.reserve(sids.size());
+
+  for (const auto& sid : sids)
+  {
+    const QueryFilter         filter = (type.empty()) ?
+                                        QueryFilter{{"sid", sid}} :
+                                        QueryFilter{{"sid", sid}, {"type", type}};
+
+    QueryValues result = m_kdb.select("file", {"id", "name", "type"}, filter);
+
+    FileMetaData file{};
+
+    for (const auto& v : result)
+    {
+      if (v.first == "id")
+        file.id = v.second;
+      else
+      if (v.first == "name")
+        file.name = v.second;
+      else
+      if (v.first == "type")
+        file.type = v.second;
+
+      if (file.complete())
+      {
+        file.task_id = sid;
+        files.push_back(file);
+        file.clear();
+      }
+    }
+  }
+
+  return files;
+}
+
+std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std::string& type)
+{
   std::vector<FileMetaData> files{};
   const QueryFilter         filter = (type.empty()) ?
                                       QueryFilter{{"sid", sid}} :

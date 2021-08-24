@@ -664,7 +664,7 @@ class Controller {
 
       case (FETCH_FILE):
       {
-        auto files = m_scheduler.getFiles(args.at(1));
+        auto files = m_scheduler.getFiles(std::vector<std::string>{args.begin() + 1, args.end()});
         if (!files.empty())
           m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND, FileMetaData::MetaDataToPayload(files));
         break;

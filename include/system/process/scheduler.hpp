@@ -92,6 +92,7 @@ virtual std::vector<Task>         fetchTasks() override;
         Task                      getTask(std::string id);
         Task                      getTask(int id);
         std::vector<FileMetaData> getFiles(const std::string& sid, const std::string& type = "");
+        std::vector<FileMetaData> getFiles(const std::vector<std::string>& sids, const std::string& type = "");
 
         bool                      update(Task task);
         bool                      updateStatus(Task* task, const std::string& output = "");
