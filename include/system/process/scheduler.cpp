@@ -135,7 +135,7 @@ std::string Scheduler::schedule(Task task) {
         KLOG("Request to schedule task was accepted\nID {}", id);
         for (const auto& file : task.files) {
           KLOG("Recording file in DB: {}", file.first);
-          m_kdb.insert("file", {                  // table
+          m_kdb.insert("file", {                  // table TODO: save file type
             "name",                               // fields
             "sid"
           }, {
