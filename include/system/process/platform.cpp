@@ -507,7 +507,7 @@ void Platform::onPlatformError(const std::vector<std::string>& payload)
   const std::string& error       = payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX);
 
   ELOG("Platform error received.\nError message: {}", error);
-  SystemUtils::sendMail(ConfigParser::Email::admin(), error, ConfigParser::Email::admin());
+  SystemUtils::SendMail(ConfigParser::Email::admin(), error, ConfigParser::Email::admin());
 
   if (!id.empty())
   {
