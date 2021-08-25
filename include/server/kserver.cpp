@@ -164,7 +164,7 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
         m_received_files.erase(received_file);
 
         if (args.size() == 4 && args.at(3) == "final file")
-          eraseFileHandler(client_socket_fd);
+          EraseFileHandler(client_socket_fd);
 
         sendEvent(client_socket_fd, "File Save Success", {timestamp});
       } else {
@@ -598,8 +598,9 @@ void KServer::onConnectionClose(int client_socket_fd)
   if (it_session != m_sessions.end())
     m_sessions.erase(it_session);
 
-  eraseFileHandler   (client_socket_fd);
-  eraseMessageHandler(client_socket_fd);
+  EraseFileHandler   (client_socket_fd);
+  EraseMessageHandler(client_socket_fd);
+  EraseOutgoingFiles (client_socket_fd);
 }
 
 void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd)
@@ -647,7 +648,7 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
   }
 }
 
-bool KServer::eraseMessageHandler(int32_t client_socket_fd)
+bool KServer::EraseMessageHandler(int32_t client_socket_fd)
 {
   auto it = m_message_handlers.find(client_socket_fd);
   if (it != m_message_handlers.end())
@@ -659,7 +660,7 @@ bool KServer::eraseMessageHandler(int32_t client_socket_fd)
   return false;
 }
 
-bool KServer::eraseFileHandler(int client_socket_fd)
+bool KServer::EraseFileHandler(int client_socket_fd)
 {
   auto it = m_file_handlers.find(client_socket_fd);
   if (it != m_file_handlers.end())
@@ -669,6 +670,13 @@ bool KServer::eraseFileHandler(int client_socket_fd)
     return true;
   }
   return false;
+}
+
+void KServer::EraseOutgoingFiles(int32_t client_fd)
+{
+  for (auto file_it = m_outbound_files.begin(); file_it != m_outbound_files.end(); file_it++)
+    if (file_it->fd == client_fd)
+      m_outbound_files.erase(file_it);
 }
 
 void KServer::SetFileNotPending()
