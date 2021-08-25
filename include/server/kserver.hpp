@@ -72,8 +72,9 @@ private:
   void handleStop               (int client_socket_fd);
   virtual void onConnectionClose(int client_socket_fd) override;
   void receiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd);
-  bool eraseMessageHandler      (int32_t client_socket_fd);
-  bool eraseFileHandler         (int client_socket_fd);
+  bool EraseMessageHandler      (int32_t client_socket_fd);
+  bool EraseFileHandler         (int client_socket_fd);
+  void EraseOutgoingFiles       (int32_t client_fd);
   void SetFileNotPending        ();
   void SetFilePending           (int32_t fd);
   bool HandlingFile             (int32_t fd);
