@@ -21,6 +21,12 @@ enum RequestType {
   FETCH_FILE_ACK        = 0x0A,
   FETCH_FILE_READY      = 0x0B,
   FETCH_TASK_DATA       = 0x0C,
+  START_SESSION         = 0x0D,
+  STOP_SESSION          = 0x0E,
+  EXECUTE_PROCESS       = 0X0F,
+  UPLOAD_FILE           = 0x10,
+  SCHEDULE_TASK         = 0x11,
+  IPC_REQUEST           = 0x12,
   UNKNOWN               = 0x0D
 };
 

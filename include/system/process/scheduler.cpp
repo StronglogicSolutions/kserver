@@ -631,20 +631,12 @@ std::vector<std::string> Scheduler::getFlags(const T& mask)
  * @return [out] {bool}         Whether the UPDATE query was successful
  */
 bool Scheduler::updateStatus(Task* task, const std::string& output) {
-  return (!m_kdb.update(              // UPDATE
-    "schedule",                       // table
-    {
-      "completed"                     // field
-    },
-    {
-      std::to_string(task->completed) // value
-    },
-    QueryFilter{
-      {"id", std::to_string(task->id)}// filter
-    },
-    "id"                              // returning value
-  )
-  .empty());                          // not empty = success
+  const std::string table = "schedule";
+  const Fields      fields = {"completed"};
+  const Values      values = {std::to_string(task->completed)};
+  const QueryFilter filter{{"id", std::to_string(task->id)}};
+  const std::string returning = "id";
+  return (!m_kdb.update(table, fields, values, filter, returning).empty());
 }
 
   /**
@@ -655,11 +647,9 @@ bool Scheduler::updateStatus(Task* task, const std::string& output) {
  */
 bool Scheduler::update(Task task) {
   if (IsRecurringTask(task))
-    m_kdb.update(
-      "recurring", {"time"},
-      {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
-      {{"sid", std::to_string(task.id)}}
-    );
+    m_kdb.update("recurring", {"time"},
+                 {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
+                 {{"sid", std::to_string(task.id)}});
 
   KLOG("Runtime flags cannot be updated. Must be implemented");
   // TODO: implement writing of R_FLAGS to envfile
