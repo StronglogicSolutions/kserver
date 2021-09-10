@@ -401,6 +401,7 @@ void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
 }
 void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& files)
 {
+  m_file_sending    = true;
   m_file_sending_fd = client_fd;
   for (const auto file : FileMetaData::PayloadToMetaData(files))
     m_outbound_files.emplace_back(OutboundFile{.fd = client_fd, .file = file});
@@ -545,7 +546,7 @@ void KServer::onMessageReceived(int                      client_socket_fd,
         handlePendingFile(s_buffer_ptr, client_socket_fd, size);
         return;
       }
-      if (IsPing(s_buffer_ptr.get(), size))                     // Ping
+      if (IsPing(s_buffer_ptr.get(), size) && !m_file_sending)    // Ping
       {
         KLOG("Client {} - keepAlive", client_socket_fd);
         sendMessage(client_socket_fd, PONG, PONG_SIZE);
@@ -674,9 +675,12 @@ bool KServer::EraseFileHandler(int client_socket_fd)
 
 void KServer::EraseOutgoingFiles(int32_t client_fd)
 {
-  for (auto file_it = m_outbound_files.begin(); file_it != m_outbound_files.end(); file_it++)
+  auto file_it = m_outbound_files.begin();
+  for (; file_it != m_outbound_files.end();)
     if (file_it->fd == client_fd)
-      m_outbound_files.erase(file_it);
+      file_it = m_outbound_files.erase(file_it);
+    else
+      file_it++;
 }
 
 void KServer::SetFileNotPending()
