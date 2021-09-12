@@ -304,9 +304,8 @@ void KServer::onProcessEvent(std::string result, int mask, std::string request_i
 
 void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
 {
-  m_controller.setHandlingData(true);
-  using F_Iterator = FileUtils::FileIterator;
-  using P_Wrapper  = FileUtils::FileIterator::PacketWrapper;
+  using F_Iterator = FileUtils::FileIterator<uint8_t>;
+  using P_Wrapper  = FileUtils::FileIterator<uint8_t>::PacketWrapper;
 
   F_Iterator iterator{filename};
 
@@ -315,7 +314,8 @@ void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
     P_Wrapper packet = iterator.next();
     SocketListener::sendMessage(client_socket_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
-  m_controller.setHandlingData(false);
+
+  m_file_sending = false;
 }
 
 /**
@@ -331,18 +331,30 @@ void KServer::sendEvent(int client_socket_fd, std::string event,
                 std::vector<std::string> argv)
 {
   KLOG("Sending {} event to {}", event, client_socket_fd);
-  std::string event_string = CreateEvent(event.c_str(), argv);
-  sendMessage(client_socket_fd, event_string.c_str(), event_string.size());
+  sendMessage(client_socket_fd, CreateEvent(event.c_str(), argv));
 }
 
 void KServer::sendSessionMessage(int client_socket_fd, int status,
                         std::string message, SessionInfo info)
 {
   std::string session_message = CreateSessionEvent(status, message, info);
-  KLOG("Sending session message to {}.\nSession info: {}", client_socket_fd,
-        session_message);
-  sendMessage(client_socket_fd, session_message.c_str(),
-              session_message.size());
+  KLOG("Sending session message to {}.\nSession info: {}", client_socket_fd, session_message);
+
+  sendMessage(client_socket_fd, session_message);
+}
+
+void KServer::sendMessage(const int32_t& client_socket_fd, const std::string& message)
+{
+  using F_Iterator = FileUtils::FileIterator<char>;
+  using P_Wrapper  = FileUtils::FileIterator<char>::PacketWrapper;
+
+  F_Iterator iterator{message.data(), message.size()};
+
+  while (iterator.has_data())
+  {
+    P_Wrapper packet = iterator.next();
+    SocketListener::sendMessage(client_socket_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
+  }
 }
 
 /**
@@ -411,23 +423,16 @@ void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& 
  */
 void KServer::handleStart(std::string decoded_message, int client_socket_fd)
 {
-  // Session
-  uuids::uuid const new_uuid = uuids::uuid_system_generator{}();
-  m_sessions.push_back(
-      KSession{.fd = client_socket_fd, .status = 1, .id = new_uuid});
-  // Database fetch
-  ServerData server_data = m_controller("Start");
-  // Send welcome
-  std::string start_message = CreateMessage("New Session", server_data);
-  sendMessage(client_socket_fd, start_message.c_str(), start_message.size());
-  auto uuid_str = uuids::to_string(new_uuid);
-  KLOG("New session created for {}. Session ID: {}", client_socket_fd,
-        uuid_str);
-  // Send session info
-  SessionInfo session_info{{"status", std::to_string(SESSION_ACTIVE)},
-                            {"uuid", uuid_str}};
-  sendSessionMessage(client_socket_fd, SESSION_ACTIVE, "Session started",
-                      session_info);
+  const uuids::uuid new_uuid = uuids::uuid_system_generator{}();
+  const auto        uuid_str = uuids::to_string(new_uuid);
+  m_sessions.push_back(KSession{.fd = client_socket_fd, .status = 1, .id = new_uuid});
+  KLOG("New session created for {}. Session ID: {}", client_socket_fd, uuid_str);
+
+  sendMessage(client_socket_fd, CreateMessage("New Session", m_controller("Start")));
+  sendSessionMessage(client_socket_fd,
+                     SESSION_ACTIVE,
+                     "Session started",
+                     SessionInfo{{"status", std::to_string(SESSION_ACTIVE)},{"uuid", uuid_str}});
 }
 
 /**
@@ -452,10 +457,7 @@ void KServer::handleFileUploadRequest(int client_socket_fd)
 {
   SetFilePending(client_socket_fd);
   m_controller.setHandlingData(true);
-
-  std::string file_ready_message = CreateMessage("File Ready", "");
-  sendMessage(client_socket_fd, file_ready_message.c_str(),
-              file_ready_message.size());
+  sendMessage(client_socket_fd, CreateMessage("File Ready", ""));
 }
 
 void KServer::handleSchedule(std::vector<std::string> task, int client_socket_fd)
@@ -539,20 +541,18 @@ void KServer::onMessageReceived(int                      client_socket_fd,
 {
   try
   {
-    if (size) {
+    if (size)
+    {
       std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
-      if (m_file_pending && size != 5)                            // File
-      {
-        handlePendingFile(s_buffer_ptr, client_socket_fd, size);
-        return;
-      }
-      if (IsPing(s_buffer_ptr.get(), size) && !m_file_sending)    // Ping
+      if (m_file_pending)                                        // File
+        return handlePendingFile(s_buffer_ptr, client_socket_fd, size);
+      if (IsPing(s_buffer_ptr.get(), size))                       // Ping
       {
         KLOG("Client {} - keepAlive", client_socket_fd);
-        sendMessage(client_socket_fd, PONG, PONG_SIZE);
+        return SocketListener::sendMessage(client_socket_fd, PONG, PONG_SIZE);
       }
-      else
-        receiveMessage(s_buffer_ptr, size, client_socket_fd);     // Message
+
+      receiveMessage(s_buffer_ptr, size, client_socket_fd);     // Message
     }
   }
   catch(const std::exception& e)
@@ -563,8 +563,7 @@ void KServer::onMessageReceived(int                      client_socket_fd,
 
 void KServer::handleStop(int client_socket_fd)
 {
-  sendEvent(client_socket_fd, "Close Session",
-  {"KServer is shutting down the socket connection"});
+  sendEvent(client_socket_fd, "Close Session", {"KServer is shutting down the socket connection"});
 
   if (shutdown(client_socket_fd, SHUT_RD) != 0)
     KLOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));

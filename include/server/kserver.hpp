@@ -49,6 +49,7 @@ private:
   void onTasksReady             (int client_socket_fd, std::vector<Task> tasks) ;
   void onProcessEvent           (std::string result, int mask, std::string request_id,
                                  int client_socket_fd, bool error);
+  void sendMessage              (const int32_t& client_socket_fd, const std::string& message);
   void sendEvent                (int client_socket_fd, std::string event,
                                  std::vector<std::string> argv);
   void sendSessionMessage       (int client_socket_fd, int status,
