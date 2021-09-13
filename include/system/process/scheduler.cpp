@@ -113,57 +113,67 @@ Scheduler::~Scheduler() {
  * @return [out] {std::string}       The string value ID representing the Task in the database
  *                                   or an empty string if the insert failed
  */
-std::string Scheduler::schedule(Task task) {
-  if (task.validate()) {
-    try {
-      std::string id =
-        m_kdb.insert("schedule", {              // table
-          "time",                               // fields
-          "mask",
-          "flags",
-          "envfile",
-          "recurring",
-          "notify"}, {
-          task.datetime,                        // values
-          std::to_string(task.execution_mask),
-          task.execution_flags,
-          task.envfile,
-          std::to_string(task.recurring),
-          std::to_string(task.notify)},
-          "id");                                // return
-      if (!id.empty()) {
+std::string Scheduler::schedule(Task task)
+{
+  const auto IsImageExtension = [](const std::string& ext) -> bool
+  {
+    return ((ext == "jpg") || (ext == "jpeg") || (ext == "png") || (ext == "gif") || (ext == "bmp") || (ext == "svg"));
+  };
+  const auto IsVideoExtension = [](const std::string& ext) -> bool
+  {
+    return ((ext == "mp4") || (ext == "avi") || (ext == "mkv") || (ext == "webm"));
+  };
+  const auto GetFileType = [IsImageExtension, IsVideoExtension](const std::string& filename) -> const std::string
+  {
+          std::string extension = filename.substr(filename.find_last_of('.') + 1);
+    const std::string ext       = StringUtils::ToLower(extension);
+    if (IsImageExtension(ext))
+      return "image";
+    if (IsVideoExtension(ext))
+      return "video";
+    return "unknown";
+  };
+
+  std::string  id;
+  const auto   table {"schedule"};
+  const Fields fields{"time", "mask", "flags", "envfile", "recurring", "notify"};
+  const Values values{task.datetime, std::to_string(task.execution_mask), task.execution_flags,
+                      task.envfile, std::to_string(task.recurring), std::to_string(task.notify)};
+
+  if (task.validate())
+  {
+    try
+    {
+      id = m_kdb.insert(table, fields, values, "id");
+      if (!id.empty())
+      {
         KLOG("Request to schedule task was accepted\nID {}", id);
-        for (const auto& file : task.files) {
-          KLOG("Recording file in DB: {}", file.first);
-          m_kdb.insert("file", {                  // table TODO: save file type
-            "name",                               // fields
-            "sid"
-          }, {
-            file.first,                           // values
-            id
-          });
+        std::string filename;
+        for (auto it = task.files.begin(); filename = it->first, it != task.files.end(); it++)
+        {
+          const Fields f_fields = {"name","sid","type"};
+          const Values f_values = {filename, id, GetFileType(filename)};
+          KLOG("Recording file in DB: {}", filename);
+          m_kdb.insert("file", f_fields, f_values);
         }
-        if (task.recurring &&
-          !m_kdb.insert("recurring", {
-            "sid",
-            "time"
-          }, {
-            id,
-            std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))
-          })) {
-            ELOG(
-              "Recurring task was scheduled, but there was an error adding"\
-              "its entry to the recurring table");
+
+        if (task.recurring)
+        {
+          const auto recurring = std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring));
+          m_kdb.insert("recurring", {"sid", "time"}, {id, recurring});
         }
       }
-      return id;                                  // schedule id
-    } catch (const pqxx::sql_error &e) {
+    }
+    catch (const pqxx::sql_error &e)
+    {
       ELOG("Insert query failed: {}", e.what());
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
       ELOG("Insert query failed: {}", e.what());
     }
   }
-  return "";
+  return id;
 }
 
 /**
@@ -176,26 +186,31 @@ std::string Scheduler::schedule(Task task) {
  */
 Task Scheduler::parseTask(QueryValues&& result) {
   Task task{};
-  for (const auto& v : result) {
+  for (const auto& v : result)
     if (v.first == Field::MASK)
-      {
-        task.execution_mask      = std::stoi(v.second);
-      }
-else if (v.first == Field::FLAGS)
-      { task.execution_flags     = v.second;                  }
-else if (v.first == Field::ENVFILE)
-      { task.envfile             = v.second;                  }
-else if (v.first == Field::TIME)
-      { task.datetime            = v.second;                  }
-else if (v.first == Field::ID)
-      { task.id                  = std::stoi(v.second);       }
-else if (v.first == Field::COMPLETED)
-      { task.completed           = std::stoi(v.second);       }
-else if (v.first == Field::RECURRING)
-      { task.recurring           = std::stoi(v.second);       }
-else if (v.first == Field::NOTIFY)
-      { task.notify              = v.second.compare("t") == 0;}
-  }
+      task.execution_mask      = std::stoi(v.second);
+    else
+    if (v.first == Field::FLAGS)
+      task.execution_flags     = v.second;
+    else
+    if (v.first == Field::ENVFILE)
+      task.envfile             = v.second;
+    else
+    if (v.first == Field::TIME)
+      task.datetime            = v.second;
+    else
+    if (v.first == Field::ID)
+      task.id                  = std::stoi(v.second);
+    else
+    if (v.first == Field::COMPLETED)
+      task.completed           = std::stoi(v.second);
+    else
+    if (v.first == Field::RECURRING)
+      task.recurring           = std::stoi(v.second);
+    else
+    if (v.first == Field::NOTIFY)
+      task.notify              = v.second.compare("t") == 0;
+
   return task;
 }
 
