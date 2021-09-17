@@ -312,6 +312,7 @@ void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
   while (iterator.has_data())
   {
     P_Wrapper packet = iterator.next();
+    KLOG("Sending file packet with size {}", packet.size);
     SocketListener::sendMessage(client_socket_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 
@@ -353,6 +354,7 @@ void KServer::sendMessage(const int32_t& client_socket_fd, const std::string& me
   while (iterator.has_data())
   {
     P_Wrapper packet = iterator.next();
+    KLOG("Sending message packet with size {}", packet.size);
     SocketListener::sendMessage(client_socket_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 }
@@ -627,9 +629,14 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
           }
           else
           if (IsMessage(decoded_message.c_str()))
-              sendEvent(client_socket_fd,
-                        "Message Received",
-                        {"Received by KServer", "Message", GetMessage(decoded_message)});
+          {
+            auto message = GetMessage(decoded_message);
+            if (message == "test")
+              m_controller.process_client_request(client_socket_fd, CreateOperation("Fetch File", {std::to_string(0x09), "104", "105", "106"}));
+            // sendEvent(client_socket_fd,
+            //           "Message Received",
+            //           {"Received by KServer", "Message", GetMessage(decoded_message)});
+          }
 
           return decoded_message;
         })
