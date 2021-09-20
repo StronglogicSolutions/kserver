@@ -629,14 +629,7 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
           }
           else
           if (IsMessage(decoded_message.c_str()))
-          {
-            auto message = GetMessage(decoded_message);
-            if (message == "test")
-              m_controller.process_client_request(client_socket_fd, CreateOperation("Fetch File", {std::to_string(0x09), "104", "105", "106"}));
-            // sendEvent(client_socket_fd,
-            //           "Message Received",
-            //           {"Received by KServer", "Message", GetMessage(decoded_message)});
-          }
+            sendEvent(client_socket_fd,"Message Received", {"Received by KServer", "Message", GetMessage(decoded_message)});
 
           return decoded_message;
         })
