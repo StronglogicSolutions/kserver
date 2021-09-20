@@ -148,7 +148,7 @@ std::string Scheduler::schedule(Task task)
       if (!id.empty())
       {
         KLOG("Request to schedule task was accepted\nID {}", id);
-        std::string filename;
+
         for (const auto file : task.files)
         {
           const Fields f_fields = {"name","sid","type"};
