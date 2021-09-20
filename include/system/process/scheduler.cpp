@@ -149,11 +149,11 @@ std::string Scheduler::schedule(Task task)
       {
         KLOG("Request to schedule task was accepted\nID {}", id);
         std::string filename;
-        for (auto it = task.files.begin(); filename = it->first, it != task.files.end(); it++)
+        for (const auto file : task.files)
         {
           const Fields f_fields = {"name","sid","type"};
-          const Values f_values = {filename, id, GetFileType(filename)};
-          KLOG("Recording file in DB: {}", filename);
+          const Values f_values = {file.first, id, GetFileType(file.first)};
+          KLOG("Recording file in DB: {}", file.first);
           m_kdb.insert("file", f_fields, f_values);
         }
 
