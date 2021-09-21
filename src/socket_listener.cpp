@@ -7,6 +7,29 @@ static const auto    IS_ARGUMENT = [](const std::string& s, const std::string& a
   return (s.find(arg) != NOT_FOUND);
 };
 
+template <typename T>
+static void socket_send(int32_t client_socket_fd, const T* data, ssize_t size)
+{
+  if constexpr (std::is_integral<T>::value)
+  {
+    ssize_t bytes_sent{0};
+    int     flags     {0};
+
+    try
+    {
+      while (bytes_sent < size)
+        bytes_sent += send(client_socket_fd,
+                          data + bytes_sent, // ptr
+                          size - bytes_sent, // bytes
+                          flags);
+    }
+    catch(const std::exception& e)
+    {
+      throw e;
+    }
+  }
+}
+
 /**
  * Constructor
  * Initialize with ip_address, port and message_handler
@@ -44,9 +67,9 @@ SocketListener::MessageHandler SocketListener::createMessageHandler(std::functio
 /**
  * onMessageReceived
  */
-void SocketListener::onMessageReceived(int client_socket_fd,
+void SocketListener::onMessageReceived(int32_t                  client_socket_fd,
                                        std::weak_ptr<uint8_t[]> w_buffer_ptr,
-                                       ssize_t& size)
+                                       ssize_t&                 size)
 {
   sendMessage(client_socket_fd, w_buffer_ptr);
 }
@@ -56,7 +79,7 @@ void SocketListener::onMessageReceived(int client_socket_fd,
  */
 void SocketListener::onConnectionClose(int client_socket_fd)
 {
-  std::cout << "This should be overridden" << std::endl;
+  throw -1;
 }
 
 /**
@@ -65,38 +88,32 @@ void SocketListener::onConnectionClose(int client_socket_fd)
  * Send a null-terminated array of characters, supplied as a const uint8_t
  * pointer, to a client socket described by its file descriptor
  */
-void SocketListener::sendMessage(int client_socket_fd,
+void SocketListener::sendMessage(int32_t                  client_socket_fd,
                                  std::weak_ptr<uint8_t[]> w_buffer_ptr)
 {
-  std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
-  if (s_buffer_ptr)
-    send(client_socket_fd,
-         s_buffer_ptr.get(),
-         static_cast<size_t>(MAX_BUFFER_SIZE), 0);
-   else
-    std::cout << "Could not send message to client " << client_socket_fd << std::endl;
-}
+  const std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
+  const uint8_t*                   data         = s_buffer_ptr.get();
 
-void SocketListener::sendMessage(int client_socket_fd, char* message,
-                                 bool short_message)
-{
-  const auto BUFFER_SIZE = (short_message) ? SMALL_BUFFER_SIZE : MAX_BUFFER_SIZE;
-
-  send(client_socket_fd, message, static_cast<size_t>(BUFFER_SIZE),0);
+  if (data != nullptr)
+  {
+    size_t size{};
+    while (data[size] != '\0')
+      size++;
+    socket_send(client_socket_fd, data, size);
+  }
 }
 
 void SocketListener::sendMessage(int client_socket_fd, char buffer[],
                                  size_t size)
 {
-  send(client_socket_fd, buffer, size, 0);
+  socket_send(client_socket_fd, buffer, size);
 }
 
 void SocketListener::sendMessage(int client_socket_fd, const char* buffer,
                                  size_t size)
 {
-  send(client_socket_fd, buffer, size, 0);
+  socket_send(client_socket_fd, buffer, size);
 }
-
 
 /**
  * init
@@ -161,10 +178,10 @@ void SocketListener::run()
         std::shared_ptr<uint8_t[]>   s_buffer_ptr(new uint8_t[MAX_BUFFER_SIZE]);
         std::weak_ptr<uint8_t[]>     w_buffer_ptr(s_buffer_ptr);
         std::function<void(ssize_t)> message_send_fn =
-            [this, client_socket_fd, w_buffer_ptr](ssize_t size)
-            {
-              this->onMessageReceived(client_socket_fd, w_buffer_ptr, size);
-            };
+          [this, client_socket_fd, w_buffer_ptr](ssize_t size)
+          {
+            this->onMessageReceived(client_socket_fd, w_buffer_ptr, size);
+          };
 
         MessageHandler message_handler = createMessageHandler(message_send_fn);
 

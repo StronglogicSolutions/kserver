@@ -154,6 +154,7 @@ std::vector<uint8_t>     ReadFileAsBytes(const std::string& file_path);
 void                     ClearFile(const std::string& file_path);
 bool                     CreateTaskDirectory(const std::string& unique_id);
 static const uint32_t PACKET_SIZE{4096};
+template <typename T>
 class FileIterator
 {
 static const uint32_t HEADER_SIZE{4};
@@ -170,10 +171,23 @@ FileIterator(const std::string& path)
   }
 }
 
-static std::vector<uint8_t> PrepareBuffer (std::vector<uint8_t>&& data)
+FileIterator(const T* bytes, const size_t size)
+: m_buffer(PrepareBuffer(std::move(std::vector<T>(bytes, bytes + size)))),
+  data_ptr(nullptr),
+  m_bytes_read(0)
+{
+  if (!m_buffer.empty())
+  {
+    data_ptr = m_buffer.data();
+    m_size   = m_buffer.size();
+  }
+}
+
+
+static std::vector<T> PrepareBuffer (std::vector<T>&& data)
 {
   const uint32_t bytes = (data.size() + HEADER_SIZE);
-  std::vector<uint8_t> buffer{};
+  std::vector<T> buffer{};
   buffer.reserve(bytes);
   buffer.emplace_back((bytes >> 24) & 0xFF);
   buffer.emplace_back((bytes >> 16) & 0xFF);
@@ -184,13 +198,13 @@ static std::vector<uint8_t> PrepareBuffer (std::vector<uint8_t>&& data)
 };
 struct PacketWrapper
 {
-PacketWrapper(uint8_t* ptr_, uint32_t size_)
+PacketWrapper(T* ptr_, uint32_t size_)
 : ptr(ptr_),
   size(size_) {}
 
-uint8_t* data() { return ptr; }
+T* data() { return ptr; }
 
-uint8_t* ptr;
+T*       ptr;
 uint32_t size;
 };
 
@@ -209,7 +223,7 @@ std::string to_string()
 PacketWrapper next() {
   uint32_t size;
   uint32_t bytes_remaining = m_size - m_bytes_read;
-  uint8_t* ptr             = data_ptr;
+  T*       ptr             = data_ptr;
 
   if (bytes_remaining < PACKET_SIZE)
   {
@@ -229,10 +243,10 @@ PacketWrapper next() {
 
 private:
 
-std::vector<uint8_t> m_buffer;
-uint8_t*             data_ptr;
-uint32_t             m_bytes_read;
-uint32_t             m_size;
+std::vector<T> m_buffer;
+T*             data_ptr;
+uint32_t       m_bytes_read;
+uint32_t       m_size;
 };
 } // namespace FileUtils
 
@@ -244,6 +258,7 @@ std::string sanitizeSingleQuotes(const std::string& s);
 std::string SanitizeJSON(std::string s);
 std::string GenerateUUIDString();
 std::string AlphaNumericOnly(std::string s);
+std::string ToLower(std::string& s);
 } // namespace StringUtils
 
 // Bit helpers
@@ -274,8 +289,8 @@ template <typename ...Args>
 void ClearArgs(Args&& ...args);
 
 template void ClearArgs(std::string&&);
-template <typename ...Args>
-void ClearArgs(Args&& ...args)
+template <typename... Args>
+void ClearArgs(Args&&... args)
 {
   (args.clear(), ...);
 }
