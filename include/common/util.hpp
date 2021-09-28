@@ -295,4 +295,16 @@ void ClearArgs(Args&&... args)
   (args.clear(), ...);
 }
 
+template <typename ...Args>
+bool          NoEmptyArgs(Args&& ...args);
+template bool NoEmptyArgs(std::string&&);
+template <typename... Args>
+bool          NoEmptyArgs(Args&&... args)
+{
+  for (const auto& arg : {args...})
+    if (arg.empty())
+      return false;
+  return true;
+}
+
 } // namespace DataUtils
