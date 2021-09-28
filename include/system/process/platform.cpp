@@ -401,29 +401,19 @@ std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
     else if (v.first == "platform.method")         { method = v.second;  }
     else if (v.first == "platform_post.uid")       { uid    = v.second;  }
 
-    if (!pid.empty() && !o_pid.empty() && !id.empty() && !time.empty() &&
-        !repost.empty() && !name.empty() && !method.empty() && !uid.empty())
+    if (DataUtils::NoEmptyArgs(pid, o_pid, id, time, repost, name, method, uid))
     {
       PlatformPost post{};
-      post.pid   = pid;
-      post.o_pid = o_pid;
-      post.id    = id;
-      post.user  = getUser(uid);
-      post.time  = time;
+      post.pid    = pid;
+      post.o_pid  = o_pid;
+      post.id     = id;
+      post.user   = getUser(uid);
+      post.time   = time;
       post.repost = repost;
-      post.name = name;
+      post.name   = name;
       post.method = method;
-
       posts.emplace_back(std::move(post));
-
-      pid   .clear();
-      o_pid .clear();
-      id    .clear();
-      time  .clear();
-      repost.clear();
-      name  .clear();
-      method.clear();
-      uid   .clear();
+      DataUtils::ClearArgs(pid, o_pid, id, time, repost, name, method, uid);
     }
   }
 
@@ -437,22 +427,18 @@ std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
  */
 std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
 {
-  return parsePlatformPosts(
-    m_db.selectSimpleJoin(
-      "platform_post",
-      {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id", "platform_post.time", "platform.name", "platform_post.repost", "platform.method", "platform_post.uid"},
-      QueryFilter{
-        {"platform_post.status", constants::PLATFORM_POST_INCOMPLETE}
-      },
-      Join{
-        .table      = "platform",
-        .field      = "id",
-        .join_table = "platform_post",
-        .join_field = "pid",
-        .type       =  JoinType::INNER
-      }
-    )
-  );
+  static const auto        table{"platform_post"};
+  static const Fields      fields{"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id",
+                                  "platform_post.time", "platform.name", "platform_post.repost",
+                                  "platform.method", "platform_post.uid"};
+  static const QueryFilter filter{{"platform_post.status", constants::PLATFORM_POST_INCOMPLETE}};
+  static const Join        join{.table      = "platform",
+                                .field      = "id",
+                                .join_table = "platform_post",
+                                .join_field = "pid",
+                                .type       =  JoinType::INNER};
+
+  return parsePlatformPosts(m_db.selectSimpleJoin(table, fields, filter, join));
 }
 
 /**
@@ -546,22 +532,14 @@ void Platform::processPlatform()
   {
     if (populatePlatformPost(platform_post))
     {
-      m_platform_map.insert({
-        {platform_post.pid, platform_post.id}, PlatformPostState::PROCESSING
-      });
+      m_platform_map.insert({{platform_post.pid, platform_post.id}, PlatformPostState::PROCESSING});
 
-      m_event_callback(
-        ALL_CLIENTS,
-        SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
-        platformToPayload(platform_post)
-      );
-
+      m_event_callback(ALL_CLIENTS,
+                       SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
+                       platformToPayload(platform_post));
     }
     else
-      ELOG("Failed to retrieve values for {} platform post with id {}",
-        platform_post.name,
-        platform_post.id
-      );
+      ELOG("Failed to retrieve values for {} platform post with id {}", platform_post.name, platform_post.id);
   }
 }
 

@@ -248,22 +248,22 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
 
     if (!envfile.empty() && !flags.empty() && !time.empty() &&
         !mask.empty()    && completed != NO_COMPLETED_VALUE &&
-        id > 0           && recurring > -1 && notify > -1      ) {
+        id > 0           && recurring > -1 && notify > -1      )
+    {
 
-      if (parse_files && !checked_for_files) {
+      if (parse_files && !checked_for_files)
+      {
         checked_for_files = true;
         continue;
-      } else {
+      }
+      else
+      {
         if (recurring != Constants::Recurring::NO)
         {
           if (recurring == Constants::Recurring::HOURLY)
-          {
             time = std::to_string(std::stoi(time) + getIntervalSeconds(recurring));
-          }
           else
-          {
             time = TimeUtils::time_as_today(time);
-          }
         }
 
         tasks.push_back(Task{
@@ -278,18 +278,13 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
           .recurring        = recurring,
           .notify           = (notify == 1),
           .runtime          = FileUtils::ReadRunArgs(envfile), // ⬅ set from DB?
-          .filenames        = StringUtils::Split(filenames, ' ')
-        });
+          .filenames        = StringUtils::Split(filenames, ' ')});
         id                  = 0;
         recurring           = -1;
         notify              = -1;
         completed           = NO_COMPLETED_VALUE;
         checked_for_files   = false;
-        filenames.clear();
-        envfile.clear();
-        flags.clear();
-        time.clear();
-        mask.clear();
+        DataUtils::ClearArgs(filenames, envfile, flags, time, mask);
       }
     }
   }
@@ -314,7 +309,7 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
 
     const auto split_idx = date_range_s.find_first_of("TO");
     return DateRange{date_range_s.substr(0, (date_range_s.size() - split_idx - 2)),
-                     date_range_s.substr(split_idx + 2)};
+                     date_range_s.substr(split_idx + 1)};
 
   };
 
