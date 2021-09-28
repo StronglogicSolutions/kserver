@@ -369,4 +369,18 @@ const bool is_valid() const
   );
 }
 
+const std::string ToString() const
+{
+  return std::string{"PID: "     + pid    +
+                     "Origin: "  + o_pid  +
+                     "ID: "      + id     +
+                     "User: "    + user   +
+                     "Time: "    + time   +
+                     "Content: " + content+
+                     "URLS: "    + urls   +
+                     "Repost: "  + repost +
+                     "Name: "    + name   +
+                     "Method: "  + method};
+}
+
 };

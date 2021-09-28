@@ -38,7 +38,7 @@ std::string savePlatformEnvFile(const PlatformPost& post)
  * @return true
  * @return false
  */
-bool populatePlatformPost(PlatformPost& post)
+static bool PopulatePlatformPost(PlatformPost& post)
 {
   const std::string env_path{"data/" + post.time + post.id + post.pid + "/v.env"};
   const std::vector<std::string> post_values = FileUtils::ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
@@ -250,6 +250,7 @@ bool Platform::savePlatformPost(PlatformPost post, const std::string& status) {
   if (postAlreadyExists(post))
     return updatePostStatus(post, status);
 
+  KLOG("Saving platform post:\n{}", post.ToString());
   std::string uid{};
 
   if (!userExists(post.pid, post.user)) // This is redundant
@@ -530,13 +531,13 @@ void Platform::processPlatform()
 
   for (auto&& platform_post : fetchPendingPlatformPosts())
   {
-    if (populatePlatformPost(platform_post))
+    if (PopulatePlatformPost(platform_post))
     {
-      m_platform_map.insert({{platform_post.pid, platform_post.id}, PlatformPostState::PROCESSING});
+      KLOG("Processing platform post\n Platform: {}\nID: {}\nUser: {}\nContent: {}",
+            platform_post.name, platform_post.id, platform_post.user, platform_post.content);
 
-      m_event_callback(ALL_CLIENTS,
-                       SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
-                       platformToPayload(platform_post));
+      m_platform_map.insert({{platform_post.pid, platform_post.id}, PlatformPostState::PROCESSING});
+      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, platformToPayload(platform_post));
     }
     else
       ELOG("Failed to retrieve values for {} platform post with id {}", platform_post.name, platform_post.id);
