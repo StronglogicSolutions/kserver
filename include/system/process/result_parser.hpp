@@ -286,6 +286,20 @@ ProcessParseResult process(const std::string& output, KApplication app)
     return yt_parser.get_result();
   }
 
+  if (app.name == "TW Feed" || app.name == "TW Search")
+  {
+    (void)(0); // TODO: TWFeedResultParser tw_parser{app.name}; ?
+    /**
+     *   data["content"]  = tweet.text;
+     *   data["user"]     = tweet.username;
+     *   data["time"]     = to_unixtime(tweet.created_at);
+     *   data["date"]     = tweet.created_at;
+     *   data["mentions"] = tweet.mentions;
+     *   data["hashtags"]  = tweet.tags_to_string(true);
+     *   data["mentions"] = tweet.mentions_to_string(true);
+    */
+  }
+
   return ProcessParseResult{};
 }
 
