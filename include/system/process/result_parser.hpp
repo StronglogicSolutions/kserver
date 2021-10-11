@@ -376,7 +376,7 @@ virtual ProcessParseResult get_result() override {
           item.user,
           item.time,
           content,
-          {},
+          item.media_urls,
           constants::SHOULD_REPOST,
           constants::PLATFORM_PROCESS_METHOD
         }
