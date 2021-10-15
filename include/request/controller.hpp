@@ -138,9 +138,10 @@ class Controller {
    * callback. Starts a thread to perform work on the maintenance loop
    *
    */
-  void initialize(EventCallbackFn event_callback_fn,
+  void initialize(EventCallbackFn  event_callback_fn,
                   SystemCallbackFn system_callback_fn,
-                  TaskCallbackFn task_callback_fn) {
+                  TaskCallbackFn   task_callback_fn)
+  {
     const bool scheduled_task{true};
     m_executor = new ProcessExecutor();
     m_executor->setEventCallback(
@@ -154,9 +155,9 @@ class Controller {
       }
     );
 
-    m_system_callback_fn  = system_callback_fn;
-    m_event_callback_fn   = event_callback_fn;
-    m_task_callback_fn    = task_callback_fn;
+    m_system_callback_fn = system_callback_fn;
+    m_event_callback_fn  = event_callback_fn;
+    m_task_callback_fn   = task_callback_fn;
 
     setHandlingData(false);
 
@@ -295,87 +296,72 @@ class Controller {
    * @param[in] {std::string> `uuid` The unique universal identifier to
    * distinguish the task
    */
-  std::string operator()(KOperation op, std::vector<std::string> argv,
-                         int client_socket_fd, std::string uuid) {
-    if (op == "Schedule") {
-      if (argv.empty()) {
-        KLOG("Can't handle a task with no arguments");
-        return "";
-      }
-      auto mask = argv.at(TaskIndexes::MASK);
-      auto kdb = Database::KDB();
+  void operator()(KOperation op, std::vector<std::string> argv, int client_socket_fd, std::string uuid)
+  {
+    if (op != "Scheduler" || argv.empty()) return;
 
-      KLOG("Handling schedule request for process matching mask {}", mask);
+    const auto mask = argv.at(TaskIndexes::MASK);
+    const auto application = ProcessExecutor::getAppInfo(std::stoi(mask));
 
-      QueryValues result =
-          kdb.select("apps", {"name", "path"}, {{"mask", mask}});
-      std::string name{};
-      std::string path{};
-      for (const auto &value : result) {
-        if (value.first == "name") {
-          name += value.second;
-          continue;
-        }
-        if (value.first == "path") {
-          path += value.second;
-          continue;
-        }
+    KLOG("Handling schedule request application {} with mask {}", application.name, mask);
+
+    if (application.is_valid())
+    {
+      Task task{};
+      if (application.name == Name::INSTAGRAM)
+      {
+        KLOG("Instagram Task requested");
+        IGTaskHandler ig_task_handler{};
+        ig_task_handler.prepareTask(argv, uuid, &task);
       }
-      if (!path.empty() && !name.empty()) {
-        Task task{};
-        if (name == Name::INSTAGRAM) {
-          KLOG("New Instagram Task requested");
-          IGTaskHandler ig_task_handler{};
-          ig_task_handler.prepareTask(argv, uuid, &task);
-        } else { // assume Generic Task
-          KLOG("New Generic Task requested");
-          GenericTaskHandler generic_task_handler{};
-          generic_task_handler.prepareTask(argv, uuid, &task);
-        }
-        uint8_t file_index = 0;
-        for (const auto &file_info : task.files) {
-          KLOG("task file: {}", file_info.first);
-          std::vector<std::string> callback_args{file_info.first,
-                                                  file_info.second, uuid};
-          if (file_index == task.files.size() - 1) {
-            callback_args.push_back("final file");
-          }
-          m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE,
-                                callback_args);
-        }
-        if (task.validate()) {
-          KLOG("Sending task request to Scheduler");
-          auto id = m_scheduler.schedule(task);
-          if (!id.empty()) {
-            // Task was scheduled. Prepare a vector with info about the task.
-            std::vector<std::string> callback_args{};
-            callback_args.reserve((5 + task.files.size()));
-            callback_args.insert(callback_args.end(), {
-              uuid, id,                            // UUID and database ID
-              std::to_string(task.execution_mask), // Application mask
-              FileUtils::ReadEnvFile(task.envfile),// Environment file
-              std::to_string(task.files.size())    // File number
-            });
-            for (auto&& file : task.files) {
-              callback_args.emplace_back(file.first); // Add the filenames
-            }
-            m_system_callback_fn(
-                client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS,
-                callback_args
-              );
-            return OPERATION_SUCCESS;
-          } else {
-            KLOG("Task with UUID {} was validated, but scheduling failed", uuid);
-            return OPERATION_FAIL;
-          }
-        } else {
-          KLOG("Task with UUID {} was processed, but did not pass validation", uuid);
-          return OPERATION_FAIL;
-        }
+      else
+      {
+        KLOG("Generic Task requested");
+        GenericTaskHandler generic_task_handler{};
+        generic_task_handler.prepareTask(argv, uuid, &task);
       }
-      KLOG("Task scheduling failed: Unable to find an application matching mask {}", mask);
+
+      uint8_t file_index{0};
+
+      for (const auto &file_info : task.files)
+      {
+        KLOG("Task file: {}", file_info.first);
+        std::vector<std::string> callback_args{file_info.first, file_info.second, uuid};
+
+        if (file_index == task.files.size() - 1)
+          callback_args.push_back("final file");
+
+        m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE, callback_args);
+      }
+
+      if (task.validate())
+      {
+        KLOG("Sending task request to Scheduler");
+
+        auto id = m_scheduler.schedule(task);
+        if (!id.empty())
+        {
+          std::vector<std::string> callback_args{};
+          callback_args.reserve((5 + task.files.size()));
+          callback_args.insert(callback_args.end(), {
+            uuid, id,                            // UUID and database ID
+            std::to_string(task.execution_mask), // Application mask
+            FileUtils::ReadEnvFile(task.envfile),// Environment file
+            std::to_string(task.files.size())    // File number
+          });
+
+          for (auto&& file : task.files)         // Add filenames
+            callback_args.emplace_back(file.first);
+
+          m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, callback_args);
+        }
+        else
+          KLOG("Task with UUID {} was validated, but scheduling failed", uuid);
+      }
+      else
+        KLOG("Task with UUID {} was processed, but did not pass validation", uuid);
     }
-    return OPERATION_FAIL;
+    KLOG("Task scheduling failed to match app to mask {}", mask);
   }
 
   /**
@@ -468,7 +454,7 @@ class Controller {
  * @param [in] {int32_t}                  event
  * @param [in] {std::vector<std::string>> payload
  */
-  void process_system_event(const int32_t event, const std::vector<std::string> payload)
+  void process_system_event(const int32_t event, const std::vector<std::string> payload, const int32_t id = 0)
   {
     switch (event)
     {
@@ -484,7 +470,7 @@ class Controller {
       {
         const std::string output =           payload.at(EVENT_PROCESS_OUTPUT_INDEX);
         const int32_t     mask   = std::stoi(payload.at(EVENT_PROCESS_MASK_INDEX));
-        m_scheduler.handleProcessOutput(output, mask);
+        m_scheduler.handleProcessOutput(output, mask, id);
       }
       break;
     }

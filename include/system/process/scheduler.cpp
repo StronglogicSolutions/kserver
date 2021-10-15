@@ -755,9 +755,12 @@ bool Scheduler::isKIQProcess(uint32_t mask) {
  * @return true
  * @return false
  */
-bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask) {
+bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
+{
+  const auto task = getTask(id);
+  const auto arg  = FileUtils::ReadEnvToken(task.envfile, constants::HEADER_KEY);
   ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
-
+  // TODO: if result, read ENV token for outgoing PLATFORM post
   if (!result.data.empty())
   {
     for (auto&& outgoing_event : result.data)

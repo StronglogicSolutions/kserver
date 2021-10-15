@@ -637,7 +637,8 @@ std::string CreateEnvFile(std::unordered_map<std::string, std::string>&& key_pai
   return environment_file;
 }
 
-std::string ReadEnvToken(const std::string& env_file_path, const std::string& token_key) {
+std::string ReadEnvToken(const std::string& env_file_path, const std::string& token_key)
+{
   std::string run_arg_s{};
   std::string env = ReadEnvFile(env_file_path);
   if (!env.empty()) {

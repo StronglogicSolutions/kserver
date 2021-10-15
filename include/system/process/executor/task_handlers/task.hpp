@@ -79,35 +79,43 @@ static const uint8_t     FETCH_TASK_ROW_COUNT_INDEX      {0x03};
 static const uint8_t     FETCH_TASK_MAX_ID_INDEX         {0x04};
 static const uint8_t     FETCH_TASK_ORDER_INDEX          {0x05};
 
-
-
-
        const std::string SHOULD_REPOST                   {"true"};
        const std::string PLATFORM_PROCESS_METHOD         {"process"};
        const std::string VIDEO_TYPE_ARGUMENT             {"video\""};
        const std::string IMAGE_TYPE_ARGUMENT             {"image\""};
        const char        LINE_BREAK                      {'\n'};
 
+static const char* DESCRIPTION_KEY        {"DESCRIPTION"};
+static const char* FILE_TYPE_KEY          {"FILE_TYPE"};
+static const char* HEADER_KEY             {"HEADER"};
+static const char* USER_KEY               {"USER"};
+static const char* HASHTAGS_KEY           {"HASHTAGS"};
+static const char* LINK_BIO_KEY           {"LINK_BIO"};
+static const char* REQUESTED_BY_KEY       {"REQUESTED_BY"};
+static const char* REQUESTED_BY_PHRASE_KEY{"REQUESTED_BY_PHRASE"};
+static const char* REQUESTED_BY_KEY       {"REQUESTED_BY"};
+static const char* PROMOTE_SHARE_KEY      {"PROMOTE_SHARE"};
+static const char* DIRECT_MESSAGE_KEY     {"DIRECT_MESSAGE"};
+
 static const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
-  {"DESCRIPTION", "--description"},
-  {"FILE_TYPE", "--media"},
-  {"HEADER", "--header"},
-  {"USER", "--user"},
-  {"HASHTAGS", "--hashtags"},
-  {"LINK_BIO", "--link_bio"},
-  {"REQUESTED_BY", "--requested_by"},
-  {"REQUESTED_BY_PHRASE", "--requested_by_phrase"},
-  {"REQUESTED_BY", "--requested_by"},
-  {"PROMOTE_SHARE", "--promote_share"},
-  {"DIRECT_MESSAGE", "--direct_message"}
+  {DESCRIPTION_KEY,         "--description"},
+  {FILE_TYPE_KEY,           "--media"},
+  {HEADER_KEY,              "--header"},
+  {USER_KEY,                "--user"},
+  {HASHTAGS_KEY,            "--hashtags"},
+  {LINK_BIO_KEY,            "--link_bio"},
+  {REQUESTED_BY_KEY,        "--requested_by"},
+  {REQUESTED_BY_PHRASE_KEY, "--requested_by_phrase"},
+  {REQUESTED_BY_KEY,        "--requested_by"},
+  {PROMOTE_SHARE_KEY,       "--promote_share"},
+  {DIRECT_MESSAGE_KEY,      "--direct_message"}
 };
 
 static const char INSTAGRAM_DIRECT_MESSAGE[]{"IG DM"};
 static const char INSTAGRAM_FEED[]{"IG Feed"};
 static const char YOUTUBE_FEED[]{"YT Feed"};
+static const char TWITTER_SEARCH[]{"TW Search"};
 static const char IG_DIRECT_MESSAGE_FLAG[]{" --direct_message=$DIRECT_MESSAGE"};
-static const char REQUEST_BY_TOKEN[]{"REQUESTED_BY"};
-static const char REQUEST_BY_PHRASE_TOKEN[]{"REQUESTED_BY_PHRASE"};
 } // namespace constants
 /**
  * \note Scheduled Task Completion States
