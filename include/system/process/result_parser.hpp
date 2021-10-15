@@ -247,6 +247,7 @@ virtual ProcessParseResult get_result() override {
         .payload = std::vector<std::string>{
           m_app_name,
           item.id,
+          "DEFAULT_USER",
           item.datetime,
           content,
           {},
@@ -262,6 +263,132 @@ virtual ProcessParseResult get_result() override {
 
 private:
 std::vector<YTFeedItem> m_feed_items;
+std::string             m_app_name;
+};
+
+/**
+ * TWITTER
+ *
+ * @brief Twitter Feed Items
+ *
+ */
+struct TWFeedItem
+{
+std::string id;
+std::string time;
+std::string date;
+std::string hashtags;
+std::string mentions;
+std::string user;
+std::string likes;
+std::string retweets;
+std::string content;
+std::string media_urls;
+};
+
+class TWFeedResultParser : public ProcessParseInterface
+{
+public:
+TWFeedResultParser(const std::string& app_name)
+: m_app_name{app_name}
+{}
+
+virtual ~TWFeedResultParser() override {}
+
+virtual bool read(const std::string& s)
+{
+  using namespace rapidjson;
+
+  Document d{};
+  d.Parse(s.c_str());
+  if (!d.IsNull() && d.IsArray())
+  {
+
+    for (const auto& item : d.GetArray())
+    {
+      TWFeedItem tw_item{};
+      if (!item.IsObject())
+        continue;
+
+      for (const auto& k : item.GetObject())
+      {
+        if (strcmp(k.name.GetString(), "id") == 0)
+          tw_item.id = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "content") == 0)
+          tw_item.content = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "date") == 0)
+          tw_item.date = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "time") == 0)
+          tw_item.time = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "user") == 0)
+          tw_item.user = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "likes") == 0)
+          tw_item.likes = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "retweets") == 0)
+          tw_item.retweets = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "hashtags") == 0)
+          tw_item.hashtags = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "mentions") == 0)
+          tw_item.mentions = k.value.GetString();
+        else
+        if (strcmp(k.name.GetString(), "urls") == 0)
+          tw_item.media_urls = k.value.GetString();
+      }
+
+      m_feed_items.emplace_back(std::move(tw_item));
+    }
+    return true;
+  }
+  return false;
+}
+
+virtual ProcessParseResult get_result() override {
+  ProcessParseResult result{};
+
+  KLOG("Returning {} TW Feed items", m_feed_items.size());
+
+  for (const auto& item : m_feed_items)
+  {
+    std::string content{};
+    if (!item.mentions.empty())
+      content += item.mentions + '\n';
+    content += item.content;
+    if (!item.hashtags.empty())
+      content += '\n' + item.hashtags;
+    content += "\nPosted:   " + item.date;
+    content += "\nLikes:    " + item.likes;
+    content += "\nRetweets: " + item.retweets;
+    result.data.emplace_back(
+
+      ProcessEventData{
+        .event = SYSTEM_EVENTS__PLATFORM_NEW_POST,
+        .payload = std::vector<std::string>{
+          m_app_name,
+          item.id,
+          item.user,
+          item.time,
+          content,
+          item.media_urls,
+          constants::SHOULD_REPOST,
+          constants::PLATFORM_PROCESS_METHOD
+        }
+      }
+    );
+  }
+
+  return result;
+}
+
+private:
+std::vector<TWFeedItem> m_feed_items;
 std::string             m_app_name;
 };
 
@@ -284,6 +411,13 @@ ProcessParseResult process(const std::string& output, KApplication app)
     YTFeedResultParser yt_parser(app.name);
     yt_parser.read(output);
     return yt_parser.get_result();
+  }
+
+  if (app.name == "TW Feed" || app.name == "TW Search")
+  {
+    TWFeedResultParser tw_parser{app.name};
+    tw_parser.read(output);
+    return tw_parser.get_result();
   }
 
   return ProcessParseResult{};
