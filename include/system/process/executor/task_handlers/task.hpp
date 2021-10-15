@@ -93,7 +93,6 @@ static const char* HASHTAGS_KEY           {"HASHTAGS"};
 static const char* LINK_BIO_KEY           {"LINK_BIO"};
 static const char* REQUESTED_BY_KEY       {"REQUESTED_BY"};
 static const char* REQUESTED_BY_PHRASE_KEY{"REQUESTED_BY_PHRASE"};
-static const char* REQUESTED_BY_KEY       {"REQUESTED_BY"};
 static const char* PROMOTE_SHARE_KEY      {"PROMOTE_SHARE"};
 static const char* DIRECT_MESSAGE_KEY     {"DIRECT_MESSAGE"};
 
@@ -106,7 +105,6 @@ static const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
   {LINK_BIO_KEY,            "--link_bio"},
   {REQUESTED_BY_KEY,        "--requested_by"},
   {REQUESTED_BY_PHRASE_KEY, "--requested_by_phrase"},
-  {REQUESTED_BY_KEY,        "--requested_by"},
   {PROMOTE_SHARE_KEY,       "--promote_share"},
   {DIRECT_MESSAGE_KEY,      "--direct_message"}
 };
