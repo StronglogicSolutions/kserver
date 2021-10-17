@@ -755,14 +755,20 @@ bool Scheduler::isKIQProcess(uint32_t mask) {
  * @return true
  * @return false
  */
-bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask) {
+bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
+{
   ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
-
+  // TODO: if result, read ENV token for outgoing PLATFORM post
   if (!result.data.empty())
   {
     for (auto&& outgoing_event : result.data)
       if (outgoing_event.event == SYSTEM_EVENTS__PLATFORM_NEW_POST)
+      {
+        const auto task  = getTask(id);
+        const auto arg  = FileUtils::ReadEnvToken(task.envfile, constants::HEADER_KEY);
+        outgoing_event.payload.emplace_back(arg);
         m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
+      }
       else
         ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
     return true;

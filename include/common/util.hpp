@@ -133,7 +133,8 @@ DecodedMessage DecodeMessage(uint8_t* buffer);
 namespace SystemUtils {
 void SendMail(std::string recipient, std::string message, std::string from);
 }
-namespace FileUtils {
+namespace FileUtils
+{
 bool                     CreateDirectory(const char *dir_name);
 void                     SaveFile(uint8_t *bytes, int size, const std::string& filename);
 void                     SaveFile(     const std::vector<char>& bytes, const char* filename);

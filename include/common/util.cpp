@@ -581,21 +581,26 @@ static std::string SanitizeToken(std::string& s)
 }
 
 
-std::string ReadEnvFile(const std::string& env_file_path, bool relative_path) {
-  std::string full_path = (relative_path) ? GetCWD() + "/" + env_file_path : env_file_path;
-  std::ifstream file_stream{full_path};
-  std::stringstream env_file_stream{};
+std::string ReadEnvFile(const std::string& env_file_path, bool relative_path)
+{
+  const std::string       full_path = (relative_path) ? GetCWD() + "/" + env_file_path : env_file_path;
+  const std::ifstream     file_stream{full_path};
+        std::stringstream env_file_stream{};
   env_file_stream << file_stream.rdbuf();
+
   return env_file_stream.str();
 }
 
-std::string ReadRunArgs(const std::string& env_file_path) {
-  const std::string token_key{"R_ARGS="};
+std::string ReadRunArgs(const std::string& env_file_path)
+{
+  static const std::string token_key{"R_ARGS="};
   std::string run_arg_s{};
   std::string env = ReadEnvFile(env_file_path);
-  if (!env.empty()) {
+  if (!env.empty())
+  {
     auto start = env.find(token_key);
-    if (start != std::string::npos) {
+    if (start != std::string::npos)
+    {
       auto sub_s = env.substr(start);
       auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR);
       run_arg_s  = sub_s.substr(token_key.size(), end);
@@ -637,9 +642,13 @@ std::string CreateEnvFile(std::unordered_map<std::string, std::string>&& key_pai
   return environment_file;
 }
 
-std::string ReadEnvToken(const std::string& env_file_path, const std::string& token_key) {
+std::string ReadEnvToken(const std::string& env_file_path, const std::string& token_key)
+{
   std::string run_arg_s{};
   std::string env = ReadEnvFile(env_file_path);
+  for (auto c : env)
+    std::cout << c;
+  std::cout << std::endl;
   if (!env.empty()) {
     auto start = env.find('\n' + token_key);
     if (start != std::string::npos) {
@@ -671,41 +680,44 @@ bool WriteEnvToken(const std::string& env_file_path, const std::string& token_ke
   return false;
 }
 
-std::vector<std::string> ExtractFlagTokens(std::string flags) {
-  const char token_symbol{'$'};
+std::vector<std::string> ExtractFlagTokens(std::string flags)
+{
+  static const char        token_symbol{'$'};
   std::vector<std::string> tokens{};
-  auto delim_index = flags.find_first_of(token_symbol);
-  while (delim_index != std::string::npos) {
-    std::string token_start = flags.substr(delim_index);
-    auto end_index = token_start.find_first_of(' ') - 1;
-    std::string token = token_start.substr(1, end_index);
+  auto                     delim_index = flags.find_first_of(token_symbol);
+  while (delim_index != std::string::npos)
+  {
+    std::string       token_start = flags.substr(delim_index);
+    const auto        end_index   = token_start.find_first_of(' ') - 1;
+    const std::string token       = token_start.substr(1, end_index);
     tokens.push_back(token);
 
-    if (token_start.size() >= token.size()) {
-      flags = token_start.substr(token.size());
+    if (token_start.size() >= token.size())
+    {
+      flags       = token_start.substr(token.size());
       delim_index = flags.find_first_of(token_symbol);
-    } else {
-      break;
     }
+    else
+      break;
   }
   return tokens;
 }
 
-std::vector<std::string> ReadFlagTokens(const std::string& env_file_path, const std::string& flags) {
+std::vector<std::string> ReadFlagTokens(const std::string& env_file_path, const std::string& flags)
+{
   std::vector<std::string> tokens = ExtractFlagTokens(flags);
   std::vector<std::string> token_values{};
   // TODO: Do this in one pass without reading the entire environment file each time
-  for (const auto& token : tokens) {
+  for (const auto& token : tokens)
     token_values.emplace_back(ReadEnvToken(env_file_path, token));
-  }
   return token_values;
 }
 
 std::vector<std::string> ReadEnvValues(const std::string& env_file_path, const std::vector<std::string>& flags) {
   std::vector<std::string> values{};
-  for (const auto& flag : flags) {
+  for (const auto& flag : flags)
     values.emplace_back(ReadEnvToken(env_file_path, flag));
-  }
+
   return values;
 }
 

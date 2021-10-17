@@ -26,7 +26,8 @@ std::string savePlatformEnvFile(const PlatformPost& post)
     FileUtils::CreateEnvFile(
     std::unordered_map<std::string, std::string>{
       {"content", post.content},
-      {"urls",    post.urls}
+      {"urls",    post.urls},
+      {"args",    post.args}
     }
   ), filename);
 }
@@ -40,12 +41,16 @@ std::string savePlatformEnvFile(const PlatformPost& post)
  */
 static bool PopulatePlatformPost(PlatformPost& post)
 {
-  const std::string env_path{"data/" + post.time + post.id + post.pid + "/v.env"};
+  const std::string              env_path    = "data/" + post.time + post.id + post.pid + "/v.env";
   const std::vector<std::string> post_values = FileUtils::ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
-  if (post_values.size() == 2)
+  const size_t                   size        = post_values.size();
+  const bool                     has_args    = (size == 3);
+  if (size > 1)
   {
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
     post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
+    post.args    = (has_args) ?
+                     post_values.at(constants::PLATFORM_POST_ARGS_INDEX) : "";
     return true;
   }
 
@@ -166,6 +171,8 @@ PlatformPost createAffiliatePost(const std::string user, const std::string type,
   affiliate_post.time    = post.time;
   affiliate_post.urls    = post.urls;
   affiliate_post.method  = post.method;
+  affiliate_post.name    = post.name; // TODO: recent addition -> appropriate?
+  affiliate_post.args    = post.args;
   affiliate_post.repost  = DO_NOT_REPOST;
   affiliate_post.content = createAffiliateContent();
 
@@ -207,11 +214,11 @@ const std::vector<PlatformPost> Platform::createAffiliatePosts(const PlatformPos
   for (const auto& value : result)
   {
     if (value.first == "platform_affiliate_user.a_uid")
+    {
       for (const auto& af_value : m_db.select("platform_user", {"name"}, QueryFilter{{"id", value.second}}))
-      {
         if (af_value.first == "name")
           name = af_value.second;
-      }
+    }
     else
     if (value.first == "platform_user.type")
       type = value.second;
@@ -273,7 +280,7 @@ bool Platform::savePlatformPost(PlatformPost post, const std::string& status) {
   {
     for (const auto& platform_id : fetchRepostIDs(post.pid))
     {
-      PlatformPost repost{
+      const PlatformPost repost{
         .pid     = platform_id,
         .o_pid   = post.pid,
         .id      = post.id,
@@ -281,7 +288,10 @@ bool Platform::savePlatformPost(PlatformPost post, const std::string& status) {
         .time    = post.time,
         .content = post.content,
         .urls    = post.urls,
-        .repost  = post.repost
+        .repost  = post.repost,
+        .name    = post.name,
+        .args    = post.args,
+        .method  = post.method
       };
       savePlatformPost(repost, constants::PLATFORM_POST_INCOMPLETE);
 
@@ -307,11 +317,16 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
   if (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
       return false;
 
-  const std::string& name = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
-  const std::string& id   = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
-  const std::string& user = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
-  const std::string& time = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
-  const std::string& platform_id = getPlatformID(name);
+  const std::string& name        = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
+  const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+  const std::string& user        = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
+  const std::string& time        = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
+  const std::string& args        = payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX);
+  const std::string& content     = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX);
+  const std::string& urls        = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX);
+  const std::string& repost      = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX);
+  const std::string& method      = payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
+  const std::string& platform_id = getPlatformID(name); // TODO: pass METHOD
 
   if (platform_id.empty())
     return false;
@@ -329,10 +344,12 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
     .id      = id  .empty() ? StringUtils::GenerateUUIDString()   : id,
     .user    = user,
     .time    = time.empty() ? std::to_string(TimeUtils::UnixTime()) : time,
-    .content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
-    .urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
-    .repost  = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX),
-    .name    = name
+    .content = content,
+    .urls    = urls,
+    .repost  = repost,
+    .name    = name,
+    .args    = args,
+    .method  = method
   });
 }
 
@@ -451,7 +468,7 @@ std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
 std::vector<std::string> Platform::platformToPayload(PlatformPost& platform)
 {
   std::vector<std::string> payload{};
-  payload.resize(8);
+  payload.resize(9);
   payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = platform.name;
   payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = platform.id;
   payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = platform.user;
@@ -460,6 +477,7 @@ std::vector<std::string> Platform::platformToPayload(PlatformPost& platform)
   payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)      = platform.urls; // concatenated string
   payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)   = platform.repost;
   payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX)   = platform.method;
+  payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX)     = platform.args;
 
   return payload;
 }
