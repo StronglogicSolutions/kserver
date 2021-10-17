@@ -63,7 +63,8 @@ static const uint8_t     PLATFORM_PAYLOAD_ERROR_INDEX    {0x03};
 static const uint8_t     PLATFORM_PAYLOAD_CONTENT_INDEX  {0x04};
 static const uint8_t     PLATFORM_PAYLOAD_URL_INDEX      {0x05}; // concatenated string
 static const uint8_t     PLATFORM_PAYLOAD_REPOST_INDEX   {0x06};
-static const uint8_t     PLATFORM_PAYLOAD_METHOD_INDEX   {0x06};
+static const uint8_t     PLATFORM_PAYLOAD_METHOD_INDEX   {0x07};
+static const uint8_t     PLATFORM_PAYLOAD_ARGS_INDEX     {0x08};
 static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
 
        const std::string NO_ORIGIN_PLATFORM_EXISTS       {"2"};
@@ -72,6 +73,7 @@ static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
 
 static const uint8_t     PLATFORM_POST_CONTENT_INDEX     {0x00};
 static const uint8_t     PLATFORM_POST_URL_INDEX         {0x01};
+static const uint8_t     PLATFORM_POST_ARGS_INDEX        {0x02};
 
 static const uint8_t     FETCH_TASK_MASK_INDEX           {0x01};
 static const uint8_t     FETCH_TASK_DATE_RANGE_INDEX     {0x02};
@@ -115,6 +117,7 @@ static const char YOUTUBE_FEED[]{"YT Feed"};
 static const char TWITTER_SEARCH[]{"TW Search"};
 static const char IG_DIRECT_MESSAGE_FLAG[]{" --direct_message=$DIRECT_MESSAGE"};
 } // namespace constants
+
 /**
  * \note Scheduled Task Completion States
  *
@@ -365,14 +368,12 @@ std::string content;
 std::string urls;
 std::string repost;
 std::string name;
+std::string args;
 std::string method;
 
 const bool is_valid() const
 {
-  return (
-    !pid.empty() &&
-    !content.empty()
-  );
+  return (!(pid.empty()) && !(content.empty()));
 }
 
 const std::string ToString() const
@@ -386,6 +387,7 @@ const std::string ToString() const
                      "URLS: "    + urls   +
                      "Repost: "  + repost +
                      "Name: "    + name   +
+                     "Args: "    + args   +
                      "Method: "  + method};
 }
 

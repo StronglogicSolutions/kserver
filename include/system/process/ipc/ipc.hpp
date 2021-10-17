@@ -29,6 +29,7 @@ const uint8_t USER     = 0x04;
 const uint8_t DATA     = 0x05;
 const uint8_t URLS     = 0x06;
 const uint8_t REPOST   = 0x07;
+const uint8_t ARGS     = 0x08;
 const uint8_t KIQ_DATA = 0x02;
 const uint8_t ERROR    = 0x05;
 } // namespace index
@@ -161,7 +162,7 @@ const std::string payload()
 class platform_message : public ipc_message
 {
 public:
-platform_message(const std::string& platform, const std::string& id, const std::string& user, const std::string& content, const std::string& urls, const bool repost = false)
+platform_message(const std::string& platform, const std::string& id, const std::string& user, const std::string& content, const std::string& urls, const bool repost = false, const std::string& args = "")
 {
   m_frames = {
     byte_buffer{},
@@ -170,8 +171,9 @@ platform_message(const std::string& platform, const std::string& id, const std::
     byte_buffer{id.data(), id.data() + id.size()},
     byte_buffer{user.data(), user.data() + user.size()},
     byte_buffer{content.data(), content.data() + content.size()},
-    byte_buffer{urls.data(), urls.data() + urls.size()},
-    byte_buffer{static_cast<uint8_t>(repost)}
+    byte_buffer{urls.data(),    urls.data() + urls.size()},
+    byte_buffer{static_cast<uint8_t>(repost)},
+    byte_buffer{args.data(), args.data() + args.size()}
   };
 }
 
@@ -185,7 +187,8 @@ platform_message(const std::vector<byte_buffer>& data)
     byte_buffer{data.at(constants::index::USER)},
     byte_buffer{data.at(constants::index::DATA)},
     byte_buffer{data.at(constants::index::URLS)},
-    byte_buffer{data.at(constants::index::REPOST)}
+    byte_buffer{data.at(constants::index::REPOST)},
+    byte_buffer{data.at(constants::index::ARGS)}
   };
 }
 
@@ -234,6 +237,14 @@ const std::string urls() const
 const bool repost() const
 {
   return (m_frames.at(constants::index::REPOST).front() != 0x00);
+}
+
+const std::string args() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::ARGS).data()),
+    m_frames.at(constants::index::ARGS).size()
+  };
 }
 };
 

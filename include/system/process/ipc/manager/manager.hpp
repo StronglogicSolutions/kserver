@@ -49,7 +49,8 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
       args.at(constants::PLATFORM_PAYLOAD_USER_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y"
+      args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
+      args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX)
     )));
 
   return true;
@@ -90,6 +91,7 @@ void HandleClientMessages()
           payload.emplace_back(message->content());
           payload.emplace_back(message->urls());
           payload.emplace_back(std::to_string(message->repost()));
+          payload.emplace_back(message->args());
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
         }
         break;

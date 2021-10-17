@@ -298,7 +298,7 @@ class Controller {
    */
   void operator()(KOperation op, std::vector<std::string> argv, int client_socket_fd, std::string uuid)
   {
-    if (op != "Scheduler" || argv.empty()) return;
+    if (op != "Schedule" || argv.empty()) return;
 
     const auto mask = argv.at(TaskIndexes::MASK);
     const auto application = ProcessExecutor::getAppInfo(std::stoi(mask));

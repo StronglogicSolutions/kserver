@@ -262,7 +262,7 @@ void KServer::onTasksReady(int client_socket_fd, std::vector<Task> tasks)
  *
  * TODO: Place results in a queue if handling file for client
  */
-void KServer::onProcessEvent(std::string result, int mask, std::string request_id,
+void KServer::onProcessEvent(std::string result, int mask, std::string id,
                     int client_socket_fd, bool error)
 {
   KLOG("Received result:\n{}", result);
@@ -270,7 +270,7 @@ void KServer::onProcessEvent(std::string result, int mask, std::string request_i
   std::vector<std::string> event_args{};
 
   event_args.reserve((error) ? 4 : 3);
-  event_args.insert(event_args.end(), {std::to_string(mask), request_id, result});
+  event_args.insert(event_args.end(), {std::to_string(mask), id, result});
 
   if (error)
     event_args.push_back("Executed process returned an ERROR");
@@ -282,7 +282,7 @@ void KServer::onProcessEvent(std::string result, int mask, std::string request_i
     sendEvent(client_socket_fd, "Process Result", event_args);
 
   if (Scheduler::isKIQProcess(mask))
-    m_controller.process_system_event(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)});
+    m_controller.process_system_event(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));
 }
 
 void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
