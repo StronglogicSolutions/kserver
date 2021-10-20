@@ -99,9 +99,9 @@ virtual bool prepareRuntime() override {
 
     m_state.path = app.path;
 
-    auto runtime_arguments = parseExecArguments(envfile);
 
-    if (!runtime_arguments.empty()) m_state.argv.emplace_back(runtime_arguments);
+    for (const auto& runtime_arg : StringUtils::Split(parseExecArguments(envfile), ' '))
+      m_state.argv.emplace_back(StringUtils::SanitizeArg(runtime_arg));
 
     for (const auto& runtime_flag : exec_flags_to_vector(m_task.execution_flags)) {
       auto arg = parseNamedArgument(runtime_flag, envfile);

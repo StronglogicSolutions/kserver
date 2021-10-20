@@ -779,6 +779,19 @@ std::string SanitizeJSON(std::string s) {
   return o;
 }
 
+std::string SanitizeArg(std::string s)
+{
+  s.erase(std::remove_if(
+    s.begin(), s.end(),
+    [](char c)
+    {
+      return c == '\"';
+    }),
+    s.end());
+
+  return s;
+}
+
 std::string GenerateUUIDString()
 {
   return uuids::to_string(uuids::uuid_system_generator{}());
