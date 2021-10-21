@@ -661,8 +661,6 @@ bool Scheduler::update(Task task) {
                  {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
                  {{"sid", std::to_string(task.id)}});
 
-  KLOG("Runtime flags cannot be updated. Must be implemented");
-  // TODO: implement writing of R_FLAGS to envfile
   return !m_kdb.update(                // UPDATE
     "schedule", {                      // table
           "mask",

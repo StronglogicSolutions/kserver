@@ -378,16 +378,16 @@ const bool is_valid() const
 
 const std::string ToString() const
 {
-  return std::string{"PID: "     + pid    +
-                     "Origin: "  + o_pid  +
-                     "ID: "      + id     +
-                     "User: "    + user   +
-                     "Time: "    + time   +
-                     "Content: " + content+
-                     "URLS: "    + urls   +
-                     "Repost: "  + repost +
-                     "Name: "    + name   +
-                     "Args: "    + args   +
+  return std::string{"PID: "     + pid    + '\n' +
+                     "Origin: "  + o_pid  + '\n' +
+                     "ID: "      + id     + '\n' +
+                     "User: "    + user   + '\n' +
+                     "Time: "    + time   + '\n' +
+                     "Content: " + content+ '\n' +
+                     "URLS: "    + urls   + '\n' +
+                     "Repost: "  + repost + '\n' +
+                     "Name: "    + name   + '\n' +
+                     "Args: "    + args   + '\n' +
                      "Method: "  + method};
 }
 
