@@ -321,12 +321,14 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
   const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
   const std::string& user        = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
   const std::string& time        = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
-  const std::string& args        = payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX);
   const std::string& content     = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX);
   const std::string& urls        = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX);
   const std::string& repost      = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX);
   const std::string& method      = payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
-  const std::string& platform_id = getPlatformID(name); // TODO: pass METHOD
+  const std::string& platform_id = getPlatformID(name);
+  const std::string& args        = payload.size() > 8 ?
+                                     payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX) :
+                                     "";
 
   if (platform_id.empty())
     return false;

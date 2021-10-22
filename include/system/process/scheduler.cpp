@@ -661,8 +661,6 @@ bool Scheduler::update(Task task) {
                  {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
                  {{"sid", std::to_string(task.id)}});
 
-  KLOG("Runtime flags cannot be updated. Must be implemented");
-  // TODO: implement writing of R_FLAGS to envfile
   return !m_kdb.update(                // UPDATE
     "schedule", {                      // table
           "mask",
@@ -758,14 +756,13 @@ bool Scheduler::isKIQProcess(uint32_t mask) {
 bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
 {
   ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
-  // TODO: if result, read ENV token for outgoing PLATFORM post
+
   if (!result.data.empty())
   {
     for (auto&& outgoing_event : result.data)
       if (outgoing_event.event == SYSTEM_EVENTS__PLATFORM_NEW_POST)
       {
-        const auto task  = getTask(id);
-        const auto arg  = FileUtils::ReadEnvToken(task.envfile, constants::HEADER_KEY);
+        const auto arg = FileUtils::ReadEnvToken(getTask(id).envfile, constants::HEADER_KEY);
         outgoing_event.payload.emplace_back(arg);
         m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
       }

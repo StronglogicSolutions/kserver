@@ -256,6 +256,7 @@ template <typename T>
 void Split(const std::string &s, char delim, T result);
 std::vector<std::string> Split(const std::string &s, char delim);
 std::string sanitizeSingleQuotes(const std::string& s);
+std::string SanitizeArg(std::string s);
 std::string SanitizeJSON(std::string s);
 std::string GenerateUUIDString();
 std::string AlphaNumericOnly(std::string s);

@@ -566,13 +566,10 @@ class Controller {
         KLOG("Fetched {} scheduled tasks for client", size);
 
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
-
-        break;
       }
-
+      break;
       case (RequestType::UPDATE_SCHEDULE):
       {
-        // TODO: Not getting completed/status value
         TaskWrapper        task_wrapper = args_to_task(args);
         const std::string& task_id      = std::to_string(task_wrapper.task.id);
         bool               save_success = m_scheduler.update(task_wrapper.task);
@@ -582,10 +579,8 @@ class Controller {
 
         if (!env_updated)
           KLOG("Failed to update envfile while handling update for task {}", task_id);
-        // TODO: Consolidate update event to include information about saving environment file
-        break;
       }
-
+      break;
       case (RequestType::FETCH_SCHEDULE_TOKENS):
       {
         auto id = args.at(constants::PAYLOAD_ID_INDEX);
