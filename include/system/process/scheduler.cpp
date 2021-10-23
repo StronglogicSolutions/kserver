@@ -104,6 +104,22 @@ Scheduler::~Scheduler() {
   KLOG("Scheduler destroyed");
 }
 
+template <typename T>
+bool Scheduler::HasRecurring(const T& id)
+{
+  std::string task_id;
+  if constexpr (std::is_integral<T>::value)
+    task_id = std::to_string(id);
+  else
+    task_id = id;
+
+  const auto filter = QueryFilter{{"sid", task_id}};
+  return !(m_kdb.select("recurring", {"id"}, filter).empty());
+}
+
+template bool Scheduler::HasRecurring(const std::string& id);
+template bool Scheduler::HasRecurring(const int32_t& id);
+
 /**
  * schedule
  *
@@ -493,7 +509,8 @@ std::vector<Task> Scheduler::fetchAllTasks() {
  * @param  [in]  {std::string}  id  The task ID
  * @return [out] {Task}             A task
  */
-Task Scheduler::getTask(std::string id) {
+Task Scheduler::getTask(const std::string& id)
+{
   Task task = parseTask(m_kdb.select(
     "schedule", {       // table
       Field::MASK,    Field::FLAGS, // fields
@@ -655,11 +672,17 @@ bool Scheduler::updateStatus(Task* task, const std::string& output) {
  * @param   [in] {Task}   task  The task to update
  * @return [out] {bool}         Whether the UPDATE query was successful
  */
-bool Scheduler::update(Task task) {
+bool Scheduler::update(Task task)
+{
   if (IsRecurringTask(task))
+    if (!HasRecurring(task.id))
+      m_kdb.insert("recurring", {"sid", "time"}, {
+        std::to_string(task.id),
+        std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))});
+    else
     m_kdb.update("recurring", {"time"},
-                 {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
-                 {{"sid", std::to_string(task.id)}});
+      {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
+      {{"sid", std::to_string(task.id)}});
 
   return !m_kdb.update(                // UPDATE
     "schedule", {                      // table

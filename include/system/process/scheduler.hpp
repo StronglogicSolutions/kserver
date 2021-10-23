@@ -89,11 +89,12 @@ virtual std::vector<Task>         fetchTasks() override;
         std::vector<Task>         fetchAllTasks();
         std::vector<std::string>  fetchRepostIDs(const std::string& pid);
 
-        Task                      getTask(std::string id);
+        Task                      getTask(const std::string& id);
         Task                      getTask(int id);
         std::vector<FileMetaData> getFiles(const std::string& sid, const std::string& type = "");
         std::vector<FileMetaData> getFiles(const std::vector<std::string>& sids, const std::string& type = "");
-
+        template <typename T>
+        bool                      HasRecurring(const T& id);
         bool                      update(Task task);
         bool                      updateStatus(Task* task, const std::string& output = "");
         bool                      updateRecurring(Task* task);
