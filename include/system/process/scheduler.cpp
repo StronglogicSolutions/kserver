@@ -783,14 +783,25 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
   if (!result.data.empty())
   {
     for (auto&& outgoing_event : result.data)
-      if (outgoing_event.event == SYSTEM_EVENTS__PLATFORM_NEW_POST)
+      switch (outgoing_event.event)
       {
-        const auto arg = FileUtils::ReadEnvToken(getTask(id).envfile, constants::HEADER_KEY);
-        outgoing_event.payload.emplace_back(arg);
-        m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
+        case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
+          outgoing_event.payload.emplace_back(FileUtils::ReadEnvToken(getTask(id).envfile, constants::HEADER_KEY));
+          m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
+        break;
+        case (SYSTEM_EVENTS__PROCESS_RESEARCH):
+        {
+          const auto ProcessResearch = [](const ProcessEventData event) -> void
+          {
+            // TODO: Process here
+          };
+
+          ProcessResearch(outgoing_event);
+        }
+        break;
+        default:
+          ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
       }
-      else
-        ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
     return true;
   }
   return false;

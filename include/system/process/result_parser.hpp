@@ -350,46 +350,67 @@ virtual bool read(const std::string& s)
   return false;
 }
 
-virtual ProcessParseResult get_result() override {
+static ProcessEventData ReadEventData(const TWFeedItem& item, const std::string& app_name, const int32_t& event)
+{
+  std::string content{};
+
+  if (!item.mentions.empty())
+    content += item.mentions + '\n';
+  content += item.content;
+  if (!item.hashtags.empty())
+    content += '\n' + item.hashtags;
+  content += "\nPosted:   " + item.date;
+  content += "\nLikes:    " + item.likes;
+  content += "\nRetweets: " + item.retweets;
+
+  return ProcessEventData{
+    .event = event,
+    .payload = std::vector<std::string>{
+      app_name,
+      item.id,
+      item.user,
+      item.time,
+      content,
+      item.media_urls,
+      constants::SHOULD_REPOST,
+      constants::PLATFORM_PROCESS_METHOD
+    }
+  };
+}
+
+virtual ProcessParseResult get_result() override
+{
   ProcessParseResult result{};
-
   KLOG("Returning {} TW Feed items", m_feed_items.size());
-
   for (const auto& item : m_feed_items)
-  {
-    std::string content{};
-    if (!item.mentions.empty())
-      content += item.mentions + '\n';
-    content += item.content;
-    if (!item.hashtags.empty())
-      content += '\n' + item.hashtags;
-    content += "\nPosted:   " + item.date;
-    content += "\nLikes:    " + item.likes;
-    content += "\nRetweets: " + item.retweets;
-    result.data.emplace_back(
-
-      ProcessEventData{
-        .event = SYSTEM_EVENTS__PLATFORM_NEW_POST,
-        .payload = std::vector<std::string>{
-          m_app_name,
-          item.id,
-          item.user,
-          item.time,
-          content,
-          item.media_urls,
-          constants::SHOULD_REPOST,
-          constants::PLATFORM_PROCESS_METHOD
-        }
-      }
-    );
-  }
+    result.data.emplace_back(TWFeedResultParser::ReadEventData(item, m_app_name, SYSTEM_EVENTS__PLATFORM_NEW_POST));
 
   return result;
 }
 
-private:
-std::vector<TWFeedItem> m_feed_items;
+protected:
 std::string             m_app_name;
+std::vector<TWFeedItem> m_feed_items;
+};
+
+class TWResearchParser : public TWFeedResultParser
+{
+public:
+TWResearchParser(const std::string& app_name)
+: TWFeedResultParser{app_name}
+{}
+
+virtual ~TWResearchParser() override {}
+
+  virtual ProcessParseResult get_result() override
+  {
+    ProcessParseResult result{};
+    KLOG("Returning {} TW Feed items", m_feed_items.size());
+    for (const auto& item : m_feed_items)
+      result.data.emplace_back(TWFeedResultParser::ReadEventData(item, m_app_name, SYSTEM_EVENTS__PROCESS_RESEARCH));
+
+    return result;
+  }
 };
 
 class ResultProcessor {
@@ -399,28 +420,21 @@ ResultProcessor()
 
 ProcessParseResult process(const std::string& output, KApplication app)
 {
+  std::unique_ptr<ProcessParseInterface> u_parser_ptr;
   if (app.name == "IG Feed")
-  {
-    IGFeedResultParser ig_parser{app.name};
-    ig_parser.read(output);
-    return ig_parser.get_result();
-  }
-
+    u_parser_ptr.reset(new IGFeedResultParser{app.name});
+  else
   if (app.name == "YT Feed")
-  {
-    YTFeedResultParser yt_parser(app.name);
-    yt_parser.read(output);
-    return yt_parser.get_result();
-  }
-
+    u_parser_ptr.reset(new YTFeedResultParser{app.name});
+  else
   if (app.name == "TW Feed" || app.name == "TW Search")
-  {
-    TWFeedResultParser tw_parser{app.name};
-    tw_parser.read(output);
-    return tw_parser.get_result();
-  }
+    u_parser_ptr.reset(new TWFeedResultParser{app.name});
+  else
+  if (app.name == "TW Research")
+    u_parser_ptr.reset(new TWResearchParser{app.name});
+  u_parser_ptr->read(output);
 
-  return ProcessParseResult{};
+  return u_parser_ptr->get_result();
 }
 
 };
