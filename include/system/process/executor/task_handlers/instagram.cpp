@@ -10,11 +10,12 @@
  * @param task_ptr
  * @return Task
  */
-Task IGTaskHandler::prepareTask(std::vector<std::string> argv,
-                                     std::string uuid, Task* task_ptr) {
-  if (!FileUtils::CreateTaskDirectory(uuid)) {
+Task IGTaskHandler::prepareTask(const std::vector<std::string>& argv,
+                           const std::string&                   uuid,
+                           Task*                                task_ptr)
+{
+  if (!FileUtils::CreateTaskDirectory(uuid))
     return Task{};
-  }
 
   auto mask = argv.at(IGTaskIndex::MASK);
   auto file_info = argv.at(IGTaskIndex::FILEINFO);

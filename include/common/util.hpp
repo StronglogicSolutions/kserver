@@ -275,7 +275,7 @@ std::string SanitizeToken(std::string s);
 
 namespace TimeUtils {
 int UnixTime();
-
+std::string Now();
 std::string FormatTimestamp(int unixtime);
 std::string FormatTimestamp(std::string unixtime);
 std::string time_as_today(std::string unixtime);

@@ -68,7 +68,9 @@ TaskWrapper args_to_task(std::vector<std::string> args);
  */
 class Scheduler : public DeferInterface, CalendarManagerInterface {
 public:
-        // Scheduler();
+using PostExecDuo = std::pair<int32_t, int32_t>;
+using PostExecMap = std::unordered_map<int32_t, int32_t>;
+
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
 
@@ -108,6 +110,7 @@ virtual std::vector<Task>         fetchTasks() override;
         void                      onPlatformError(const std::vector<std::string>& payload);
         bool                      processTriggers(Task*              task);
         bool                      addTrigger(const std::vector<std::string>& payload);
+        PostExecMap::iterator     FindPostExec(const int32_t& id);
 
         template <typename T>
         std::vector<std::string>  getFlags(const T& mask);
@@ -118,5 +121,6 @@ Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;
 Platform            m_platform;
 Trigger             m_trigger;
+PostExecMap         m_postexec_waiting;
 
 };

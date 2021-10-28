@@ -33,8 +33,9 @@ namespace Name {
 
 class IGTaskHandler : public TaskHandler {
  public:
-  virtual Task prepareTask(std::vector<std::string> argv,
-                                     std::string uuid, Task* task_ptr = nullptr) override;
+  virtual Task prepareTask(const std::vector<std::string>& argv,
+                           const std::string&              uuid,
+                           Task*                           task_ptr = nullptr) override;
 };
 
 #endif  // __INSTAGRAM_HPP__

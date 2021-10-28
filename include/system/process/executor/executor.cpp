@@ -133,7 +133,7 @@ void ProcessExecutor::request(std::string_view         path,
 template <typename T>
 bool ProcessExecutor::saveResult(uint32_t mask, T status, uint32_t time) {
   try {
-    auto app_info = ProcessExecutor::getAppInfo(mask);
+    auto app_info = ProcessExecutor::GetAppInfo(mask);
 
     if (!app_info.id.empty()) {
       Database::KDB kdb{};
@@ -191,37 +191,41 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
   } // TODO: Handle failed preparation -> tasks can get stuck in the request_handler's task map
 }
 
-KApplication ProcessExecutor::getAppInfo(int mask) {
-  Database::KDB kdb{}; KApplication k_app{};
+KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const std::string& name) {
+  using FPair = std::pair<std::string, std::string>;
 
-  QueryValues values = kdb.select(
-    "apps",                           // table
-    {
-      "id", "path", "data", "name", "internal"          // fields
-    },
-    {
-      {"mask", std::to_string(mask)}  // filter
-    }
-  );
+  if (mask == -1 && name.empty())
+    throw std::invalid_argument{"Must provide mask or name"};
 
-  for (const auto &value_pair : values) {
+  Database::KDB kdb{};
+  KApplication  app{};
+  Fields        fields{"id", "path", "data", "name", "internal"};
+  QueryFilter   filter{};
+
+  if (mask > -1)
+    filter.emplace_back(FPair{"mask", std::to_string(mask)});
+  if (name.size())
+    filter.emplace_back(FPair{"name", name});
+
+  QueryValues values = kdb.select("apps", fields, filter);
+
+  for (const auto &value_pair : values)
+  {
     if (value_pair.first == "path")
-      k_app.path = value_pair.second;
+      app.path = value_pair.second;
     else
     if (value_pair.first == "data")
-      k_app.data = value_pair.second;
+      app.data = value_pair.second;
     else
     if (value_pair.first == "name")
-      k_app.name = value_pair.second;
+      app.name = value_pair.second;
     else
     if (value_pair.first == "id")
-      k_app.id = value_pair.second;
+      app.id = value_pair.second;
     else
     if (value_pair.first == "internal")
-      k_app.is_kiq = (value_pair.second == "t") ?
-                       true:
-                       false;
-
+      app.is_kiq = (value_pair.second == "t") ? true : false;
   }
-  return k_app;
+
+  return app;
 }

@@ -20,6 +20,10 @@ bool is_initialized();
 
 std::string query(const std::string& section, const std::string& name);
 
+namespace System {
+const std::string admin();
+}
+
 namespace Logging {
 const std::string level();
 const std::string path();

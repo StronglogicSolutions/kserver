@@ -33,6 +33,9 @@ std::string query(const std::string& section, const std::string& name)
   return value;
 }
 
+namespace System {
+const std::string admin() { return reader.Get("system", "admin", "admin"); }
+}
 namespace Logging {
 const std::string level()     { return reader.Get("logging", "level",      "info"); }
 const std::string path()      { return reader.Get("logging", "path",       requiredConfig("[logging] path")); }

@@ -1,7 +1,8 @@
 #include "scheduler.hpp"
+#include "executor/task_handlers/generic.hpp"
 
-
-uint32_t getAppMask(std::string name) {
+uint32_t getAppMask(std::string name)
+{
   const std::string filter_field{"name"};
   const std::string value_field{"mask"};
 
@@ -765,7 +766,7 @@ bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
  * @return falses
  */
 bool Scheduler::isKIQProcess(uint32_t mask) {
-  return ProcessExecutor::getAppInfo(mask).is_kiq;
+  return ProcessExecutor::GetAppInfo(mask).is_kiq;
 }
 
 /**
@@ -778,7 +779,7 @@ bool Scheduler::isKIQProcess(uint32_t mask) {
  */
 bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
 {
-  ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::getAppInfo(mask));
+  ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::GetAppInfo(mask));
 
   if (!result.data.empty())
   {
@@ -789,11 +790,48 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
           outgoing_event.payload.emplace_back(FileUtils::ReadEnvToken(getTask(id).envfile, constants::HEADER_KEY));
           m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
         break;
+        case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
+        {
+          auto it = FindPostExec(id);
+          // TODO: perform PostExec work based on the two applications by name
+        }
+        break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
         {
-          const auto ProcessResearch = [](const ProcessEventData event) -> void
+          const auto ProcessResearch = [this, id](const ProcessEventData event) -> void
           {
             // TODO: Process here
+            /**
+             * 1. Tokenize (KNLP)
+             * 2. Analyze(KNLP)
+             * 3. Record DB and Term hits?
+             * 4. Sentences from previous hits
+             * 5. Analyze (KNLP)
+             * 6. Analyze-comparison (KNLP)
+             * 7. Compare interests (TODO)
+             * 8. Discover memetic origin
+             * 9. Discover memetic propagators
+             *
+             */
+            KApplication app = ProcessExecutor::GetAppInfo(-1, "KNLP");
+            if (!app.is_valid())
+            {
+               ELOG("No KNLP app for language processing");
+               return;
+            }
+
+            Task task = GenericTaskHandler::Create(
+              app.mask, event.payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX));
+
+            const auto task_id = schedule(task);
+
+            if (task_id.size())
+            {
+              KLOG("Research triggered scheduling of task {}", task_id);
+              m_postexec_waiting.insert({id, std::stoi(task_id)});
+            }
+            else
+              ELOG("Failed to schedule {} task", app.name);
           };
 
           ProcessResearch(outgoing_event);
@@ -873,8 +911,8 @@ bool Scheduler::addTrigger(const std::vector<std::string>& payload)
     const int32_t       trigger_mask          = std::stoi(payload.at(2));
     const int32_t       map_num               = std::stoi(payload.at(5));
     const int32_t       config_num            = std::stoi(payload.at(6));
-    const KApplication  app                   = ProcessExecutor::getAppInfo(mask);
-    const KApplication  trigger_app           = ProcessExecutor::getAppInfo(trigger_mask);
+    const KApplication  app                   = ProcessExecutor::GetAppInfo(mask);
+    const KApplication  trigger_app           = ProcessExecutor::GetAppInfo(trigger_mask);
 
     if (app.is_valid() && trigger_app.is_valid())
     {
@@ -901,4 +939,15 @@ bool Scheduler::addTrigger(const std::vector<std::string>& payload)
   }
 
   return false;
+}
+
+Scheduler::PostExecMap::iterator Scheduler::FindPostExec(const int32_t& id)
+{
+  auto it = std::find_if(
+    m_postexec_waiting.begin(), m_postexec_waiting.end(), [id](const PostExecDuo& duo)
+    { return duo.second == id; });
+  if (it == m_postexec_waiting.end())
+    ELOG("Failed to match newly executed task to its initiator");
+
+  return it;
 }

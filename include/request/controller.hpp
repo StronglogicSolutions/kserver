@@ -301,7 +301,7 @@ class Controller {
     if (op != "Schedule" || argv.empty()) return;
 
     const auto mask = argv.at(TaskIndexes::MASK);
-    const auto application = ProcessExecutor::getAppInfo(std::stoi(mask));
+    const auto application = ProcessExecutor::GetAppInfo(std::stoi(mask));
 
     KLOG("Handling schedule request application {} with mask {}", application.name, mask);
 
@@ -541,7 +541,7 @@ class Controller {
 
         for (const auto& task : tasks)
         {
-          KApplication app = m_executor->getAppInfo(task.execution_mask);
+          KApplication app = m_executor->GetAppInfo(task.execution_mask);
           payload.emplace_back(std::to_string(task.id));
           payload.emplace_back(               app.name);
           payload.emplace_back(               task.datetime);

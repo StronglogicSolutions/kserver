@@ -362,7 +362,7 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
  * @return std::string
  */
 std::string Platform::getPlatformID(uint32_t mask) {
-  auto app_info = ProcessExecutor::getAppInfo(mask);
+  auto app_info = ProcessExecutor::GetAppInfo(mask);
   if (!app_info.name.empty()) {
     auto result = m_db.select(
       "platform",

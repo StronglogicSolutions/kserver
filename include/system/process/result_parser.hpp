@@ -47,7 +47,72 @@ virtual bool               read(const std::string& s) = 0;
 virtual ProcessParseResult get_result() = 0;
 };
 
+class KNLPResultParser : public ProcessParseInterface {
+struct NLPItem{
+std::string type;
+std::string value;
+};
+public:
+KNLPResultParser(const std::string& app_name)
+: m_app_name(app_name)
+{}
 
+virtual ~KNLPResultParser() {}
+virtual bool read(const std::string& s) override
+{
+  using namespace rapidjson;
+  Document d{};
+  d.Parse(s.c_str());
+  if (!d.IsNull() && d.IsArray())
+  {
+    for (const auto& item : d.GetArray())
+    {
+      NLPItem nlp_item{};
+      if (item.IsObject())
+      {
+        for (const auto& k : item.GetObject())
+        {
+          if (strcmp(k.name.GetString(), "type") == 0)
+            nlp_item.type = k.value.GetString();
+          else
+          if (strcmp(k.name.GetString(), "value") == 0)
+            nlp_item.value = k.value.GetString();
+        }
+      }
+      m_items.emplace_back(std::move(nlp_item));
+    }
+    return true;
+  }
+  return false;
+}
+
+virtual ProcessParseResult get_result() override
+{
+  ProcessParseResult result{};
+
+  KLOG("Returning {} NLP tokens", m_items.size());
+
+  for (const auto& item : m_items)
+  {
+    result.data.emplace_back(
+      ProcessEventData{
+        .event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+        .payload = std::vector<std::string>{
+          m_app_name,
+          item.type,
+          item.value
+        }
+      }
+    );
+  }
+
+  return result;
+}
+
+private:
+std::string m_app_name;
+std::vector<NLPItem> m_items;
+};
 
 /**
  *
@@ -72,7 +137,6 @@ IGFeedResultParser(const std::string& app_name)
 {}
 
 virtual ~IGFeedResultParser() override {}
-
 /**
  * @brief
  *
@@ -432,6 +496,9 @@ ProcessParseResult process(const std::string& output, KApplication app)
   else
   if (app.name == "TW Research")
     u_parser_ptr.reset(new TWResearchParser{app.name});
+  else
+  if (app.name == "KNLP")
+    u_parser_ptr.reset(new KNLPResultParser{app.name});
   u_parser_ptr->read(output);
 
   return u_parser_ptr->get_result();

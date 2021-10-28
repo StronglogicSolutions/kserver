@@ -865,6 +865,11 @@ bool IsDigits(const std::string &s) {
 }
 
 namespace TimeUtils {
+std::string Now()
+{
+  return std::to_string(UnixTime());
+}
+
 int UnixTime() {
   return std::chrono::duration_cast<std::chrono::seconds>(
     std::chrono::system_clock::now().time_since_epoch()

@@ -4,7 +4,8 @@
 #include "executor.hpp"
 #include "database/kdb.hpp"
 
-inline KApplication get_app_info(int mask) {
+static KApplication get_app_info(int mask)
+{
   Database::KDB     kdb{}; KApplication k_app{};
   const std::string mask_s = std::to_string(mask);
 
