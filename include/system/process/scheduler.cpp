@@ -94,14 +94,55 @@ Scheduler::Scheduler(Database::KDB&& kdb)
   KLOG("Scheduler instantiated for testing");
 }
 
+static Scheduler::ApplicationMap FetchApplicationMap(Database::KDB& db)
+{
+  static const std::string  table{"apps"};
+  static const Fields       fields = {"mask", "name"};
+  static const QueryFilter  filter{};
+  Scheduler::ApplicationMap map{};
+  std::string               mask, name;
+
+  for (const auto& value : db.select(table, fields, filter))
+  {
+    if (value.first == "mask")
+      mask = value.second;
+    else
+    if (value.first == "name")
+      name = value.second;
+
+    if (DataUtils::NoEmptyArgs(mask, name))
+    {
+      map.insert({std::stoi(mask), name});
+      DataUtils::ClearArgs(mask, name);
+    }
+  }
+  return map;
+}
+
 Scheduler::Scheduler(SystemEventcallback fn)
 : m_event_callback(fn),
   m_kdb(Database::KDB{}),
   m_platform(fn),
-  m_trigger(&m_kdb)
-{}
+  m_trigger(&m_kdb),
+  m_app_map(FetchApplicationMap(m_kdb))
+{
+  const auto AppExists = [this](const std::string& name) -> bool {
+    return std::find_if(m_app_map.begin(), m_app_map.end(), [name](const ApplicationInfo& info) { return info.second == name;}) != m_app_map.end();};
+  try
+  {
+    for (int i = 0; i < REQUIRED_APPLICATION_NUM; i++)
+    if (AppExists(REQUIRED_APPLICATIONS[i]));
+      throw std::runtime_error{"Required application was missing. {}"};
+  }
+  catch(const std::exception& e)
+  {
+    ELOG(e.what());
+    throw;
+  }
+}
 
-Scheduler::~Scheduler() {
+Scheduler::~Scheduler()
+{
   KLOG("Scheduler destroyed");
 }
 
@@ -119,7 +160,7 @@ bool Scheduler::HasRecurring(const T& id)
 }
 
 template bool Scheduler::HasRecurring(const std::string& id);
-template bool Scheduler::HasRecurring(const int32_t& id);
+template bool Scheduler::HasRecurring(const int32_t&     id);
 
 /**
  * schedule
@@ -768,7 +809,103 @@ bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
 bool Scheduler::isKIQProcess(uint32_t mask) {
   return ProcessExecutor::GetAppInfo(mask).is_kiq;
 }
+struct TermHit
+{
+std::string person;
+std::string organization;
+std::string time;
+};
+const auto FetchTermHits = [](Database::KDB& db, const std::string& term, bool insert = true)
+{
+  const auto DoQuery = [](Database::KDB& db, const std::string& tid)
+  {
+    return db.selectJoin("term_hit", {"term_hit.time", "person.id", "person.name", "organization.id", "organization.name"}, {QueryFilter{{"term_hit.tid", tid}}}, Joins{
+      Join{
+        .table = "person",
+        .field = "person.id",
+        .join_table = "term_hit",
+        .join_field = "term_hit.pid"
+      },
+      Join{
+        .table = "organization",
+        .field = "organization.id",
+        .join_table = "term_hit",
+        .join_field = "term_hit.oid"
+      }
+    });
+  };
 
+  std::vector<TermHit> result{};
+  std::string tid;
+  auto r = db.select("term", {"id"}, QueryFilter{{"name", term}});
+  if (r.empty())
+  {
+    tid = db.insert("term", {"name"}, {term}, "id");
+  }
+  else
+    tid = r.front().second;
+
+  db.insert("term_hit", {"tid", "pid", "oid", "time"}, {});
+  if (r.size())
+  {
+    std::string time, person, organization;
+    for (const auto& value : DoQuery(db, tid))
+    {
+      if (value.first == "term_hit.time")
+        time = value.second;
+      else
+      if (value.first == "person.name")
+        person = value.second;
+      else
+      if (value.first == "organization.name")
+        organization = value.second;
+
+      if (DataUtils::NoEmptyArgs(time, person, organization))
+      {
+        KLOG("Term hit was discovered for {}:\nPerson: {}\nOrg: {}\nTime: {}", person, organization, time);
+        result.emplace_back(TermHit{person, organization, time});
+        DataUtils::ClearArgs(time, person, organization);
+      }
+    }
+  }
+  return result;
+};
+
+void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications)
+{
+  auto initiating_task = getTask(applications.first);
+  auto responding_task = getTask(applications.second);
+  auto init_mask       = initiating_task.execution_mask;
+  auto resp_mask       = responding_task.execution_mask;
+  try
+  {
+    assert(m_app_map.at(init_mask).size() && m_app_map.at(resp_mask).size());
+  }
+  catch(const std::exception& e)
+  {
+    ELOG("Unknown application cannot be processed for post execution work. Exception: {}", e.what());
+    return;
+  }
+
+  auto initiating_application = m_app_map.at(applications.first);
+  auto responding_application = m_app_map.at(applications.second);
+
+  if (initiating_application == "TW Research" && responding_application == "KNLP")
+  {
+    using JSONItem  = KNLPResultParser::NLPItem;
+
+    std::vector<JSONItem> items{};
+
+    for (size_t i = 1; i < (event.payload.size() - 2); i += 2)
+      items.emplace_back(JSONItem{.type = event.payload[i], .value = event.payload[i + 1]});
+
+    for (const auto& item : items)
+    {
+      auto username = FileUtils::ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
+      auto term_results = FetchTermHits(m_kdb, item.value, true);
+    }
+  }
+}
 /**
  * @brief
  *
@@ -793,7 +930,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
         {
           auto it = FindPostExec(id);
-          // TODO: perform PostExec work based on the two applications by name
+          PostExecWork(outgoing_event, (*it));
         }
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):

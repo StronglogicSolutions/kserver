@@ -48,16 +48,18 @@ virtual ProcessParseResult get_result() = 0;
 };
 
 class KNLPResultParser : public ProcessParseInterface {
-struct NLPItem{
-std::string type;
-std::string value;
-};
 public:
 KNLPResultParser(const std::string& app_name)
 : m_app_name(app_name)
 {}
 
 virtual ~KNLPResultParser() {}
+
+struct NLPItem{
+std::string type;
+std::string value;
+};
+
 virtual bool read(const std::string& s) override
 {
   using namespace rapidjson;

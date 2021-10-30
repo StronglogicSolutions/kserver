@@ -196,7 +196,7 @@ QueryValues select(std::string table,       Fields   fields,
     }
   }
 
-  template <typename T>
+  template <typename T = std::vector<QueryFilter>>
   QueryValues selectJoin(std::string table, Fields fields, T filters, Joins joins) {
     try {
       JoinQuery<T> select_query{

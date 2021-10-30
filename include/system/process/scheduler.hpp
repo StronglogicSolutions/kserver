@@ -29,14 +29,32 @@ const std::string UNIXTIME_NOW{
   */
 uint32_t getAppMask(std::string name);
 
+static int8_t IG_FEED_IDX{0x00};
+static int8_t YT_FEED_IDX{0x01};
+static int8_t TW_FEED_IDX{0x02};
+static int8_t TW_SEARCH_IDX{0x03};
+static int8_t TW_RESEARCH_IDX{0x04};
+static int8_t KNLP_IDX{0x05};
+static const char* REQUIRED_APPLICATIONS[]{
+  "IG Feed",
+  "YT Feed",
+  "TW Feed",
+  "TW Search",
+  "TW Research",
+  "KNLP"
+};
 
-class DeferInterface {
+static int8_t REQUIRED_APPLICATION_NUM{6};
+
+class DeferInterface
+{
  public:
   virtual std::string schedule(Task task) = 0;
   virtual ~DeferInterface() {}
 };
 
-class CalendarManagerInterface {
+class CalendarManagerInterface
+{
  public:
   virtual std::vector<Task> fetchTasks() = 0;
   virtual ~CalendarManagerInterface() {}
@@ -66,10 +84,13 @@ TaskWrapper args_to_task(std::vector<std::string> args);
  * @class
  *
  */
-class Scheduler : public DeferInterface, CalendarManagerInterface {
+class Scheduler : public DeferInterface, CalendarManagerInterface
+{
 public:
-using PostExecDuo = std::pair<int32_t, int32_t>;
-using PostExecMap = std::unordered_map<int32_t, int32_t>;
+using PostExecDuo     = std::pair<int32_t, int32_t>;
+using PostExecMap     = std::unordered_map<int32_t, int32_t>;
+using ApplicationInfo = std::pair<int32_t, std::string>;
+using ApplicationMap  = std::unordered_map<int32_t, std::string>;
 
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
@@ -116,11 +137,13 @@ virtual std::vector<Task>         fetchTasks() override;
         std::vector<std::string>  getFlags(const T& mask);
 
 private:
+        void                      PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications);
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;
 Platform            m_platform;
 Trigger             m_trigger;
 PostExecMap         m_postexec_waiting;
+ApplicationMap      m_app_map;
 
 };
