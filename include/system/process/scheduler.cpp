@@ -126,13 +126,19 @@ Scheduler::Scheduler(SystemEventcallback fn)
   m_trigger(&m_kdb),
   m_app_map(FetchApplicationMap(m_kdb))
 {
-  const auto AppExists = [this](const std::string& name) -> bool {
-    return std::find_if(m_app_map.begin(), m_app_map.end(), [name](const ApplicationInfo& info) { return info.second == name;}) != m_app_map.end();};
+  const auto AppExists = [this](const std::string& name) -> bool
+  {
+    auto it    = std::find_if(m_app_map.begin(), m_app_map.end(),
+      [name](const ApplicationInfo& info) { return info.second == name;});
+    auto found = it != m_app_map.end();
+    return found;
+  };
+
   try
   {
     for (int i = 0; i < REQUIRED_APPLICATION_NUM; i++)
-    if (AppExists(REQUIRED_APPLICATIONS[i]));
-      throw std::runtime_error{"Required application was missing. {}"};
+      if (!AppExists(REQUIRED_APPLICATIONS[i]))
+        throw std::runtime_error{("Required application was missing. {}", REQUIRED_APPLICATIONS[i])};
   }
   catch(const std::exception& e)
   {
