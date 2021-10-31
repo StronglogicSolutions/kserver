@@ -1,6 +1,55 @@
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
 
+class ResearchManager
+{
+public:
+ResearchManager(Database::KDB* db_ptr)
+: m_db_ptr(db_ptr) {}
+
+private:
+using Database = Database::KDB;
+bool PersonExists(const std::string& name) const
+{
+        auto db     = m_db_ptr;
+  const auto filter = QueryFilter{{"name", name}};
+  return db->select("person", {"id"}, filter).size();
+}
+
+bool OrganizationExists(const std::string& name) const
+{
+        auto db     = m_db_ptr;
+  const auto filter = QueryFilter{{"name", name}};
+  return db->select("organization", {"id"}, filter).size();
+}
+
+bool TermExists(const std::string& name) const
+{
+        auto db     = m_db_ptr;
+  const auto filter = QueryFilter{{"name", name}};
+  return db->select("term", {"id"}, filter).size();
+}
+
+std::string AddPerson();
+std::string AddUser();
+std::string AddOrganization();
+std::string AddTerm();
+std::string AddTermHit();
+std::string AddAffiliation();
+void        GetTermHits();
+void        GetTerm();
+void        GetPerson();
+void        GetUser();
+void        GetOrganization();
+void        GetAffiliation();
+void        FindPeople();
+void        FindOrganizations();
+void        FindAffiliations();
+
+
+Database* m_db_ptr;
+};
+
 uint32_t getAppMask(std::string name)
 {
   const std::string filter_field{"name"};

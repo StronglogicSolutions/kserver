@@ -199,7 +199,7 @@ KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const std::string&
 
   Database::KDB kdb{};
   KApplication  app{};
-  Fields        fields{"id", "path", "data", "name", "internal"};
+  Fields        fields{"id", "path", "data", "name", "internal", "mask"};
   QueryFilter   filter{};
 
   if (mask > -1)
@@ -212,16 +212,19 @@ KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const std::string&
   for (const auto &value_pair : values)
   {
     if (value_pair.first == "path")
-      app.path = value_pair.second;
+      app.path   = value_pair.second;
     else
     if (value_pair.first == "data")
-      app.data = value_pair.second;
+      app.data   = value_pair.second;
     else
     if (value_pair.first == "name")
-      app.name = value_pair.second;
+      app.name   = value_pair.second;
     else
     if (value_pair.first == "id")
-      app.id = value_pair.second;
+      app.id     = value_pair.second;
+    else
+    if (value_pair.first == "mask")
+      app.mask   = value_pair.second;
     else
     if (value_pair.first == "internal")
       app.is_kiq = (value_pair.second == "t") ? true : false;
