@@ -11,6 +11,7 @@
 #include "result_parser.hpp"
 #include "platform.hpp"
 #include "trigger.hpp"
+#include "research_manager.hpp"
 
 #define NO_COMPLETED_VALUE 99
 
@@ -78,6 +79,7 @@ const uint32_t getIntervalSeconds(uint32_t interval);
  */
 TaskWrapper args_to_task(std::vector<std::string> args);
 
+class ResearchManager;
 /**
  * Scheduler
  *
@@ -145,5 +147,5 @@ Platform            m_platform;
 Trigger             m_trigger;
 PostExecMap         m_postexec_waiting;
 ApplicationMap      m_app_map;
-
+ResearchManager     m_research_manager;
 };

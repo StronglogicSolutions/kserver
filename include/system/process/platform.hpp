@@ -31,10 +31,10 @@ explicit Platform(SystemEventcallback fn);
 bool                      savePlatformPost(std::vector<std::string> payload);
 void                      onPlatformError(const std::vector<std::string>& payload);
 void                      processPlatform();
+std::string               GetPlatformID(const std::string& name);
+std::string               GetPlatformID(uint32_t mask);
 
 private:
-std::string               getPlatformID(uint32_t mask);
-std::string               getPlatformID(const std::string& name);
 std::vector<std::string>  fetchRepostIDs(const std::string& pid);
 std::vector<PlatformPost> fetchPendingPlatformPosts();
 std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result);

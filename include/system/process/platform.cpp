@@ -325,7 +325,7 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
   const std::string& urls        = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX);
   const std::string& repost      = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX);
   const std::string& method      = payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
-  const std::string& platform_id = getPlatformID(name);
+  const std::string& platform_id = GetPlatformID(name);
   const std::string& args        = payload.size() > 8 ?
                                      payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX) :
                                      "";
@@ -356,12 +356,12 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
 }
 
 /**
- * @brief Get the Platform I D object
+ * @brief Get the Platform ID object
  *
  * @param mask
  * @return std::string
  */
-std::string Platform::getPlatformID(uint32_t mask) {
+std::string Platform::GetPlatformID(uint32_t mask) {
   auto app_info = ProcessExecutor::GetAppInfo(mask);
   if (!app_info.name.empty()) {
     auto result = m_db.select(
@@ -386,7 +386,7 @@ std::string Platform::getPlatformID(uint32_t mask) {
  * @param name
  * @return std::string
  */
-std::string Platform::getPlatformID(const std::string& name) {
+std::string Platform::GetPlatformID(const std::string& name) {
   if (!name.empty()) {
     auto result = m_db.select(
       "platform",
@@ -510,7 +510,7 @@ void Platform::onPlatformError(const std::vector<std::string>& payload)
   const std::string& name        = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
   const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
   const std::string& user        = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
-  const std::string& platform_id = getPlatformID(name);
+  const std::string& platform_id = GetPlatformID(name);
   const std::string& error       = payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX);
 
   ELOG("Platform error received.\nError message: {}", error);

@@ -1,81 +1,17 @@
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
 
-class ResearchManager
-{
-public:
-ResearchManager(Database::KDB* db_ptr)
-: m_db_ptr(db_ptr) {}
-
-private:
-using Database = Database::KDB;
-bool PersonExists(const std::string& name) const
-{
-        auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
-  return db->select("person", {"id"}, filter).size();
-}
-
-bool OrganizationExists(const std::string& name) const
-{
-        auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
-  return db->select("organization", {"id"}, filter).size();
-}
-
-bool TermExists(const std::string& name) const
-{
-        auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
-  return db->select("term", {"id"}, filter).size();
-}
-
-std::string AddPerson();
-std::string AddUser();
-std::string AddOrganization();
-std::string AddTerm();
-std::string AddTermHit();
-std::string AddAffiliation();
-void        GetTermHits();
-void        GetTerm();
-void        GetPerson();
-void        GetUser();
-void        GetOrganization();
-void        GetAffiliation();
-void        FindPeople();
-void        FindOrganizations();
-void        FindAffiliations();
-
-
-Database* m_db_ptr;
-};
-
 uint32_t getAppMask(std::string name)
 {
+        auto        db = Database::KDB{};
   const std::string filter_field{"name"};
   const std::string value_field{"mask"};
 
-  QueryValues values = Database::KDB{}.select(
-    "apps",
-    {
-      value_field
-    },
-    {
-      {filter_field, name}
-    }
-  );
-
-  for (const auto &pair : values) {
-    auto key   = pair.first;
-    auto value = pair.second;
-
-    if (key == value_field)
-      return std::stoi(value);
-  }
-
+  for (const auto& row : db.select("apps", {value_field}, {{filter_field, name}}))
+    if (row.first == value_field)
+      return std::stoi(row.second);
   return std::numeric_limits<uint32_t>::max();
 }
-
 
 /**
  * getIntervalSeconds
@@ -138,7 +74,8 @@ bool IsRecurringTask(const Task& task)
 Scheduler::Scheduler(Database::KDB&& kdb)
 : m_kdb(std::move(kdb)),
   m_platform(nullptr),
-  m_trigger(nullptr)
+  m_trigger(nullptr),
+  m_research_manager(&m_kdb, &m_platform)
 {
   KLOG("Scheduler instantiated for testing");
 }
@@ -173,7 +110,8 @@ Scheduler::Scheduler(SystemEventcallback fn)
   m_kdb(Database::KDB{}),
   m_platform(fn),
   m_trigger(&m_kdb),
-  m_app_map(FetchApplicationMap(m_kdb))
+  m_app_map(FetchApplicationMap(m_kdb)),
+  m_research_manager(&m_kdb, &m_platform)
 {
   const auto AppExists = [this](const std::string& name) -> bool
   {
@@ -864,70 +802,10 @@ bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
 bool Scheduler::isKIQProcess(uint32_t mask) {
   return ProcessExecutor::GetAppInfo(mask).is_kiq;
 }
-struct TermHit
-{
-std::string person;
-std::string organization;
-std::string time;
-};
-const auto FetchTermHits = [](Database::KDB& db, const std::string& term, bool insert = true)
-{
-  const auto DoQuery = [](Database::KDB& db, const std::string& tid)
-  {
-    return db.selectJoin("term_hit", {"term_hit.time", "person.id", "person.name", "organization.id", "organization.name"}, {QueryFilter{{"term_hit.tid", tid}}}, Joins{
-      Join{
-        .table = "person",
-        .field = "person.id",
-        .join_table = "term_hit",
-        .join_field = "term_hit.pid"
-      },
-      Join{
-        .table = "organization",
-        .field = "organization.id",
-        .join_table = "term_hit",
-        .join_field = "term_hit.oid"
-      }
-    });
-  };
-
-  std::vector<TermHit> result{};
-  std::string tid;
-  auto r = db.select("term", {"id"}, QueryFilter{{"name", term}});
-  if (r.empty())
-  {
-    tid = db.insert("term", {"name"}, {term}, "id");
-  }
-  else
-    tid = r.front().second;
-
-  db.insert("term_hit", {"tid", "pid", "oid", "time"}, {});
-  if (r.size())
-  {
-    std::string time, person, organization;
-    for (const auto& value : DoQuery(db, tid))
-    {
-      if (value.first == "term_hit.time")
-        time = value.second;
-      else
-      if (value.first == "person.name")
-        person = value.second;
-      else
-      if (value.first == "organization.name")
-        organization = value.second;
-
-      if (DataUtils::NoEmptyArgs(time, person, organization))
-      {
-        KLOG("Term hit was discovered for {}:\nPerson: {}\nOrg: {}\nTime: {}", person, organization, time);
-        result.emplace_back(TermHit{person, organization, time});
-        DataUtils::ClearArgs(time, person, organization);
-      }
-    }
-  }
-  return result;
-};
 
 void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications)
 {
+  using namespace FileUtils;
   auto initiating_task = getTask(applications.first);
   auto responding_task = getTask(applications.second);
   auto init_mask       = initiating_task.execution_mask;
@@ -956,8 +834,11 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
 
     for (const auto& item : items)
     {
-      auto username = FileUtils::ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
-      auto term_results = FetchTermHits(m_kdb, item.value, true);
+      auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
+      auto known_term = m_research_manager.TermHasHits(item.value);
+      auto hit_id     = m_research_manager.RecordTermEvent(item.value, user, initiating_application);
+      if (known_term)
+        m_research_manager.AnalyzeTermHit(item.value, hit_id);
     }
   }
 }
@@ -991,20 +872,14 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
         {
           const auto ProcessResearch = [this, id](const ProcessEventData event) -> void
-          {
-            // TODO: Process here
-            /**
-             * 1. Tokenize (KNLP)
-             * 2. Analyze(KNLP)
+          { /* 2. Analyze(KNLP)
              * 3. Record DB and Term hits?
              * 4. Sentences from previous hits
              * 5. Analyze (KNLP)
              * 6. Analyze-comparison (KNLP)
              * 7. Compare interests (TODO)
              * 8. Discover memetic origin
-             * 9. Discover memetic propagators
-             *
-             */
+             * 9. Discover memetic propagators*/
             KApplication app = ProcessExecutor::GetAppInfo(-1, "KNLP");
             if (!app.is_valid())
             {
@@ -1114,17 +989,14 @@ bool Scheduler::addTrigger(const std::vector<std::string>& payload)
       for (int i = 0; i < map_num; i++)
         config.info.map.insert({
           payload.at((TRIGGER_MAP_NUM_INDEX + i + 1)),
-          payload.at((TRIGGER_MAP_NUM_INDEX + i + 2))
-        });
+          payload.at((TRIGGER_MAP_NUM_INDEX + i + 2))});
 
       for (int i = 0; i < config_num; i++)
         config.info.config_info_v.emplace_back(
           ParamConfigInfo{
             .token_name     = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 1)),
             .config_section = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 2)),
-            .config_name    = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 3))
-          }
-        );
+            .config_name    = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 3))});
 
       return m_trigger.add(config);
     }
