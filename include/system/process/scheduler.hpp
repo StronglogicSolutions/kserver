@@ -45,7 +45,8 @@ static const char* REQUIRED_APPLICATIONS[]{
   "KNLP"
 };
 
-static int8_t REQUIRED_APPLICATION_NUM{6};
+static const int8_t  REQUIRED_APPLICATION_NUM{6};
+static const int32_t INVALID_ID = std::numeric_limits<int32_t>::max();
 
 class DeferInterface
 {
@@ -90,7 +91,7 @@ class Scheduler : public DeferInterface, CalendarManagerInterface
 {
 public:
 using PostExecDuo     = std::pair<int32_t, int32_t>;
-using PostExecMap     = std::unordered_map<int32_t, int32_t>;
+using PostExecMap     = std::unordered_map<int32_t, std::vector<int32_t>>;
 using ApplicationInfo = std::pair<int32_t, std::string>;
 using ApplicationMap  = std::unordered_map<int32_t, std::string>;
 
@@ -133,13 +134,15 @@ virtual std::vector<Task>         fetchTasks() override;
         void                      onPlatformError(const std::vector<std::string>& payload);
         bool                      processTriggers(Task*              task);
         bool                      addTrigger(const std::vector<std::string>& payload);
-        PostExecMap::iterator     FindPostExec(const int32_t& id);
+        int32_t                   FindPostExec(const int32_t& id);
 
         template <typename T>
         std::vector<std::string>  getFlags(const T& mask);
 
 private:
         void                      PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications);
+        template <typename T = int32_t>
+        void                      PostExecWait(const int32_t& i, const T& r);
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;

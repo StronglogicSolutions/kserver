@@ -775,41 +775,36 @@ bool Scheduler::updateRecurring(Task* task) {
  */
 bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
 {
-  bool       updated{false};
-  const auto rows = m_kdb.select(
-    "schedule",
-    {"envfile"},
-    {{"id", id}}
-  );
-
-  for (const auto& value : rows)
+  for (const auto& value : m_kdb.select("schedule", {"envfile"}, {{"id", id}}))
     if (value.first == "envfile")
     {
       FileUtils::SaveFile(env, value.second);
-      updated = true;
+      return true;
     }
-
-  return updated;
+  return false;
 }
 
 /**
- * @brief
+ * isKIQProcess
  *
- * @param mask
- * @return true
- * @return falses
+ * @param   [in] <uint32_t>
+ * @returns [out] {bool}
  */
-bool Scheduler::isKIQProcess(uint32_t mask) {
+bool Scheduler::isKIQProcess(uint32_t mask)
+{
   return ProcessExecutor::GetAppInfo(mask).is_kiq;
 }
 
+/**
+ * PostExecWork
+ */
 void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications)
 {
   using namespace FileUtils;
-  auto initiating_task = getTask(applications.first);
-  auto responding_task = getTask(applications.second);
-  auto init_mask       = initiating_task.execution_mask;
-  auto resp_mask       = responding_task.execution_mask;
+  const auto  initiating_task = getTask(applications.first);
+  const auto  responding_task = getTask(applications.second);
+  const auto& init_mask       = initiating_task.execution_mask;
+  const auto& resp_mask       = responding_task.execution_mask;
   try
   {
     assert(m_app_map.at(init_mask).size() && m_app_map.at(resp_mask).size());
@@ -820,8 +815,8 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
     return;
   }
 
-  auto initiating_application = m_app_map.at(applications.first);
-  auto responding_application = m_app_map.at(applications.second);
+  const auto& initiating_application = m_app_map.at(init_mask);
+  const auto& responding_application = m_app_map.at(resp_mask);
 
   if (initiating_application == "TW Research" && responding_application == "KNLP")
   {
@@ -829,19 +824,41 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
 
     std::vector<JSONItem> items{};
 
-    for (size_t i = 1; i < (event.payload.size() - 2); i += 2)
+    for (size_t i = 1; i < (event.payload.size() - 1); i += 2)
       items.emplace_back(JSONItem{.type = event.payload[i], .value = event.payload[i + 1]});
 
     for (const auto& item : items)
     {
-      auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
-      auto known_term = m_research_manager.TermHasHits(item.value);
-      auto hit_id     = m_research_manager.RecordTermEvent(item.value, user, initiating_application);
+      const auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
+      const auto known_term = m_research_manager.TermHasHits(item.value);
+      const auto hit_id     = m_research_manager.RecordTermEvent(item.value, user, initiating_application);
       if (known_term)
         m_research_manager.AnalyzeTermHit(item.value, hit_id);
     }
   }
 }
+
+/**
+ * PostExecWait
+ */
+template <typename T>
+void Scheduler::PostExecWait(const int32_t& i, const T& r_)
+{
+  using ExecPair = std::pair<int32_t, std::vector<int32_t>>;
+  int32_t r;
+  if constexpr(std::is_integral<T>::value)
+    r = r_;
+  else
+    r = std::stoi(r_);
+
+  auto& map = m_postexec_waiting;
+  const auto HasKey = [&map](const int32_t& k) -> bool { return map.find(k) != map.end(); };
+
+  if (!HasKey(i))
+    map.insert(ExecPair(i, {}));
+  map[i].emplace_back(r);
+}
+
 /**
  * @brief
  *
@@ -850,6 +867,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
  * @return true
  * @return false
  */
+
 bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
 {
   ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::GetAppInfo(mask));
@@ -865,8 +883,9 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
         {
-          auto it = FindPostExec(id);
-          PostExecWork(outgoing_event, (*it));
+          auto parent_id = FindPostExec(id);
+          if (parent_id != INVALID_ID)
+            PostExecWork(outgoing_event, PostExecDuo{parent_id, id});
         }
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
@@ -895,7 +914,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
             if (task_id.size())
             {
               KLOG("Research triggered scheduling of task {}", task_id);
-              m_postexec_waiting.insert({id, std::stoi(task_id)});
+              PostExecWait(id, task_id);
             }
             else
               ELOG("Failed to schedule {} task", app.name);
@@ -1005,13 +1024,13 @@ bool Scheduler::addTrigger(const std::vector<std::string>& payload)
   return false;
 }
 
-Scheduler::PostExecMap::iterator Scheduler::FindPostExec(const int32_t& id)
+// TODO: This should persist in DB or file system
+int32_t Scheduler::FindPostExec(const int32_t& id)
 {
-  auto it = std::find_if(
-    m_postexec_waiting.begin(), m_postexec_waiting.end(), [id](const PostExecDuo& duo)
-    { return duo.second == id; });
-  if (it == m_postexec_waiting.end())
-    ELOG("Failed to match newly executed task to its initiator");
-
-  return it;
+  auto not_found = m_postexec_waiting.end();
+  for (const auto& [initiator, responding_tasks] : m_postexec_waiting)
+    for (const auto& task : responding_tasks)
+      if (task == id)
+        return initiator;
+  return INVALID_ID;
 }

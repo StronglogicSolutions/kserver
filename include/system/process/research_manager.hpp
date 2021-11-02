@@ -233,7 +233,7 @@ void        AnalyzeTermHit(const std::string& term, const std::string& hid)
   auto hits = GetTermHits(term);
   std::string hit_info;
   for (const auto& hit : hits)
-  KLOG("Returned hit:\n{}\n MORE TO DO!!!", hit.ToString());
+    KLOG("Returned hit:\n{}\n MORE TO DO!!!", hit.ToString());
 }
 
 private:
