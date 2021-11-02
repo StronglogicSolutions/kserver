@@ -34,6 +34,38 @@ typedef std::vector<std::string> Values;
 typedef std::pair<std::string, std::string> QueryValue;
 typedef std::vector<QueryValue> QueryValues;
 
+static std::string DoubleSingleQuotes(const std::string& s)
+{
+  std::string o;
+  for (const char& c : s)
+    if (c == '\'')
+      o += "''";
+    else
+      o += c;
+  return o;
+}
+
+struct QueryFilterDev
+{
+using FilterPair = std::pair<std::string, std::string>;
+using Filters = std::vector<FilterPair>;
+template <typename... T>
+QueryFilterDev static Create(T... args)
+{
+  QueryFilter filter{};
+  filter
+}
+void Add(const std::string& key, const std::string& value)
+{
+  m_filters.emplace_back(FilterPair{key, DoubleSingleQuotes(value)});
+}
+
+Filters value() { return m_filters; }
+
+private:
+Filters m_filters;
+};
+
 namespace FilterTypes {
 static constexpr int STANDARD = 1;
 static constexpr int COMPARISON = 2;
