@@ -765,6 +765,17 @@ std::string sanitizeSingleQuotes(const std::string& s) {
   return o;
 }
 
+std::string DoubleSingleQuotes(const std::string& s)
+{
+  std::string o;
+  for (const char& c : s)
+    if (c == '\'')
+      o += "''";
+    else
+      o += c;
+  return o;
+}
+
 std::string SanitizeJSON(std::string s) {
   std::string o{};
   o.reserve(s.size());
