@@ -24,6 +24,36 @@ static const std::vector<std::string> PLATFORM_ENV_KEYS{
   "args"
 };
 
+static const std::unordered_map<std::string, std::string> PlatformMaster
+{
+  {"TW Research", "Twitter"},
+  {"TW Search",   "Twitter"},
+};
+
+static const std::string GetBasePlatform(const std::string& name)
+{
+  return PlatformMaster.at(name);
+}
+
+static bool IsTwitterPlatform(const std::string& name)
+{
+  return (PlatformMaster.at(name) == "Twitter");
+}
+
+static bool HasBasePlatform(const std::string& name)
+{
+  try
+  {
+    auto base = GetBasePlatform(name);
+    return (base.size());
+  }
+  catch (const std::exception& e)
+  {
+    KLOG("Exception thrown retrieving base platform {}. Exception: {}", name, e.what());
+    return false;
+  }
+}
+
 class Platform
 {
 public:
