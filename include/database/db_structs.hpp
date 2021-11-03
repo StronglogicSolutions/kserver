@@ -1,16 +1,26 @@
 #pragma once
 
-#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
 #include <variant>
 
-enum QueryType { INSERT = 0, DELETE = 1, UPDATE = 2, SELECT = 3 };
+enum class QueryType {
+  INSERT = 0,
+  DELETE = 1,
+  UPDATE = 2,
+  SELECT = 3
+};
 
-typedef std::vector<std::pair<std::string, std::string>> TupVec;
-typedef std::vector<std::string> Fields;
-typedef std::vector<std::string> StringVec;
+using TupVec                       = std::vector<std::pair<std::string, std::string>>;
+using FTuple                       = std::tuple<std::string, std::string, std::string>;
+using Fields                       = std::vector<std::string>;
+using StringVec                    = std::vector<std::string>;
+using QueryComparisonFilter        = std::vector<FTuple>;
+using QueryComparisonBetweenFilter = std::vector<FTuple>;
+using Values                       = std::vector<std::string>;
+using QueryValue                   = std::pair<std::string, std::string>;
+using QueryValues                  = std::vector<QueryValue>;
 
 struct DatabaseCredentials {
   std::string user;
@@ -19,19 +29,11 @@ struct DatabaseCredentials {
 };
 
 struct DatabaseConfiguration {
-  /* credentials */ DatabaseCredentials credentials;
-  /* address */ std::string address;
-  /* port */ std::string port;
+  DatabaseCredentials credentials;
+  std::string         address;
+  std::string         port;
 };
 
-typedef std::tuple<std::string, std::string, std::string> FTuple;
-
-// typedef std::vector<std::pair<std::string, std::string>> QueryFilter;
-typedef std::vector<FTuple> QueryComparisonFilter;
-typedef std::vector<FTuple> QueryComparisonBetweenFilter;
-typedef std::vector<std::string> Values;
-typedef std::pair<std::string, std::string> QueryValue;
-typedef std::vector<QueryValue> QueryValues;
 
 static std::string DoubleSingleQuotes(const std::string& s)
 {
@@ -46,20 +48,22 @@ static std::string DoubleSingleQuotes(const std::string& s)
 
 
 struct QueryFilter;
+
 template<typename... Ts>
 using AllString = decltype((((QueryFilter)std::string(std::declval<Ts>())), ...));
+
 struct QueryFilter
 {
 using FilterPair = std::pair<std::string, std::string>;
 using Filters    = std::vector<FilterPair>;
+
+QueryFilter() {}
 
 template<typename... Ts>
 QueryFilter(Ts... args)
 {
   Add(args...);
 }
-
-QueryFilter() {}
 
 template<typename... Ts, typename S = std::string>
 void Add(Ts&&... args)
@@ -75,21 +79,23 @@ void Add(Ts&&... args)
   }
 }
 
-bool   empty() const { return m_filters.empty(); }
-size_t size()  const { return m_filters.size(); }
-FilterPair front() const { return m_filters.front(); }
-FilterPair at(size_t i) const { return m_filters.at(i); }
-
-Filters value() { return m_filters; }
+bool       empty()      const { return m_filters.empty(); }
+size_t     size()       const { return m_filters.size();  }
+FilterPair front()      const { return m_filters.front(); }
+FilterPair at(size_t i) const { return m_filters.at(i);   }
+Filters    value()            { return m_filters;         }
 
 Filters::const_iterator cbegin() const { return m_filters.cbegin(); }
 Filters::const_iterator cend()   const { return m_filters.cend();   }
-Filters::const_iterator       begin()  const { return m_filters.cbegin(); }
-Filters::const_iterator       end()    const { return m_filters.cend();   }
+Filters::const_iterator begin()  const { return m_filters.cbegin(); }
+Filters::const_iterator end()    const { return m_filters.cend();   }
+Filters::iterator       begin()        { return m_filters.begin();  }
+Filters::iterator       end()          { return m_filters.end();    }
 
 private:
 Filters m_filters;
 };
+
 template<typename... Ts, typename = AllString<Ts...>>
 static QueryFilter CreateFilter(Ts&&... args)
 {
@@ -101,7 +107,7 @@ static QueryFilter CreateFilter(Ts&&... args)
 namespace FilterTypes {
 static constexpr int STANDARD = 1;
 static constexpr int COMPARISON = 2;
-}  // namespace FilterTypes
+}  // ns FilterTypes
 
 struct GenericFilter {
   std::string a;
@@ -148,76 +154,76 @@ bool has_value()
 };
 
 struct Query {
-  std::string table;
-  std::vector<std::string> fields;
-  std::vector<std::string> values;
+std::string table;
+std::vector<std::string> fields;
+std::vector<std::string> values;
 };
 
 struct DatabaseQuery : Query {
-  std::string table;
-  std::vector<std::string> fields;
-  QueryType type;
-  std::vector<std::string> values;
-  QueryFilter filter;
+std::string table;
+std::vector<std::string> fields;
+QueryType type;
+std::vector<std::string> values;
+QueryFilter filter;
 };
 
 struct FullQuery : Query {
-  std::string              table;
-  std::vector<std::string> fields;
-  QueryType                type;
-  std::vector<std::string> values;
-  QueryFilter              filter;
+std::string              table;
+std::vector<std::string> fields;
+QueryType                type;
+std::vector<std::string> values;
+QueryFilter              filter;
 };
 
 struct MultiFilterSelect {
-  std::string table;
-  std::vector<std::string> fields;
-  std::vector<GenericFilter> filter;
+std::string table;
+std::vector<std::string> fields;
+std::vector<GenericFilter> filter;
 };
 
 template <typename T>
 struct MultiVariantFilterSelect {
-  std::string              table;
-  std::vector<std::string> fields;
-  T                        filter;
-  OrderFilter              order;
-  LimitFilter              limit;
+std::string              table;
+std::vector<std::string> fields;
+T                        filter;
+OrderFilter              order;
+LimitFilter              limit;
 };
 
 struct InsertReturnQuery : Query {
-  std::string table;
-  std::vector<std::string> fields;
-  QueryType type = QueryType::INSERT;
-  StringVec values;
-  std::string returning;
+std::string              table;
+std::vector<std::string> fields;
+QueryType                type = QueryType::INSERT;
+StringVec                values;
+std::string              returning;
 };
 
 struct UpdateReturnQuery : Query {
-  std::string table;
-  std::vector<std::string> fields;
-  QueryType type = QueryType::INSERT;
-  StringVec values;
-  QueryFilter filter;
-  std::string returning;
+std::string table;
+Fields      fields;
+QueryType   type = QueryType::INSERT;
+StringVec   values;
+QueryFilter filter;
+std::string returning;
 };
 
 struct ComparisonSelectQuery : Query {
-  std::string table;
-  std::vector<std::string> fields;
-  std::vector<std::string> values;
-  QueryComparisonFilter filter;
+std::string           table;
+Fields                fields;
+Values                values;
+QueryComparisonFilter filter;
 };
 
 struct ComparisonBetweenSelectQuery : Query {
-  std::string table;
-  std::vector<std::string> fields;
-  std::vector<std::string> values;
-  std::vector<CompFilter> filter;
+std::string             table;
+Fields                  fields;
+Values                  values;
+std::vector<CompFilter> filter;
 };
 
 struct QueryResult {
-  std::string table;
-  std::vector<std::pair<std::string, std::string>> values;
+std::string table;
+std::vector<std::pair<std::string, std::string>> values;
 };
 
 enum JoinType {
@@ -226,26 +232,26 @@ enum JoinType {
 };
 
 struct Join {
-  std::string table;
-  std::string field;
-  std::string join_table;
-  std::string join_field;
-  JoinType    type;
+std::string table;
+std::string field;
+std::string join_table;
+std::string join_field;
+JoinType    type;
 };
 
 using Joins = std::vector<Join>;
 
 template <typename T>
 struct JoinQuery : MultiVariantFilterSelect<T> {
-  std::string              table;
-  std::vector<std::string> fields;
-  T                        filter;
-  Joins                    joins;
+std::string              table;
+std::vector<std::string> fields;
+T                        filter;
+Joins                    joins;
 };
 
 struct SimpleJoinQuery{
-  std::string              table;
-  std::vector<std::string> fields;
-  QueryFilter              filter;
-  Join                     join;
+std::string              table;
+std::vector<std::string> fields;
+QueryFilter              filter;
+Join                     join;
 };
