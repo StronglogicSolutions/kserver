@@ -128,10 +128,21 @@ template <typename T>
 std::string getFilterStatement(T filter) {  // TODO: fix template usage
   std::string delim = "";
 
-  if constexpr (std::is_same_v<T, QueryFilter>)
+  if constexpr (std::is_same_v<T, QueryFilter::Filters>)
   {
     std::string filter_string{};
     for (const auto& filter_pair : filter)
+    {
+      filter_string += delim + filter_pair.first + '=' + '\'' + filter_pair.second + '\'';
+      delim = " AND ";
+    }
+    return filter_string;
+  }
+  else
+  if constexpr (std::is_same_v<T, QueryFilter>)
+  {
+    std::string filter_string{};
+    for (const auto& filter_pair : filter.value())
     {
       filter_string += delim + filter_pair.first + '=' + '\'' + filter_pair.second + '\'';
       delim = " AND ";
