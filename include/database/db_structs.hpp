@@ -79,7 +79,11 @@ void Add(Ts&&... args)
   }
 }
 
-bool       empty()      const { return m_filters.empty(); }
+bool       empty()      const
+{
+  auto empty_value = m_filters.empty();
+  return empty_value;
+}
 size_t     size()       const { return m_filters.size();  }
 FilterPair front()      const { return m_filters.front(); }
 FilterPair at(size_t i) const { return m_filters.at(i);   }

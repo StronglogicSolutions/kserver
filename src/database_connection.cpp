@@ -267,11 +267,11 @@ std::string deleteStatement(T query)
 template <typename T>
 std::string selectStatement(T query)
 {
-  const auto  filter = query.filter;
-  std::string delim{""};
-  std::string filter_string{" WHERE "};
+  const auto  filter        = query.filter;
+  std::string delim         = "";
+  std::string filter_string = " WHERE ";
 
-  if (!filter.empty())
+  if (filter.size())
   {
     if constexpr (std::is_same_v<T, Query>)
     {
@@ -387,6 +387,16 @@ std::string selectStatement(T query)
     {
       filter_string += getFilterStatement(filter);
       std::string join_string = getJoinStatement({query.join});
+      return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + filter_string;
+    }
+    if constexpr(std::is_same_v<T, JoinQuery<std::vector<QueryFilter>>>)
+    {
+      for (const auto &f : filter)
+      {
+        filter_string += delim + getFilterStatement(f);  // *** HERE for variant impl
+        delim = " AND ";
+      }
+      std::string join_string = getJoinStatement(query.joins);
       return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + filter_string;
     }
   }
@@ -520,11 +530,13 @@ QueryResult DatabaseConnection::query(DatabaseQuery query) {
 }
 
 template <typename T>
-QueryResult DatabaseConnection::query(T query) {
+QueryResult DatabaseConnection::query(T query)
+{
   pqxx::result pqxx_result = performSelect(query);
   QueryResult result{.table = query.table};
   result.values.reserve(pqxx_result.size());
-  for (const auto &row : pqxx_result) {
+  for (const auto &row : pqxx_result)
+  {
     int index{};
     for (const auto &value : row)
       result.values.push_back(std::make_pair(query.fields[index++], value.c_str()));

@@ -82,8 +82,10 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
       return result.values;
 
     } catch (const pqxx::sql_error &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     } catch (const std::exception &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -101,8 +103,10 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
       return result.values;
 
     } catch (const pqxx::sql_error &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     } catch (const std::exception &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -119,8 +123,10 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
       return result.values;
 
     } catch (const pqxx::sql_error &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     } catch (const std::exception &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -142,8 +148,10 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
       return result.values;
 
     } catch (const pqxx::sql_error &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     } catch (const std::exception &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -161,9 +169,10 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
       QueryResult result = m_connection->query(select_query);
       return result.values;
     } catch (const pqxx::sql_error &e) {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     } catch (const std::exception &e) {
-      std::string error{e.what()};
+      ELOG("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -186,16 +195,22 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
       };
       QueryResult result = m_connection->query(select_query);
       return result.values;
-    } catch (const pqxx::sql_error &e) {
+    }
+    catch (const pqxx::sql_error &e)
+    {
+      ELOG("Exception caught: {}", e.what());
       throw e;
-    } catch (const std::exception &e) {
-      std::string error{e.what()};
+    }
+    catch (const std::exception &e)
+    {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     }
   }
 
   template <typename T = std::vector<QueryFilter>>
-  QueryValues selectJoin(std::string table, Fields fields, T filters, Joins joins) {
+  QueryValues selectJoin(std::string table, Fields fields, T filters, Joins joins)
+  {
     try {
       JoinQuery<T> select_query{
         .table  = table,
@@ -205,9 +220,15 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
       };
       QueryResult result = m_connection->query(select_query);
       return result.values;
-    } catch (const pqxx::sql_error &e) {
+    }
+    catch (const pqxx::sql_error &e)
+    {
+      ELOG("Exception caught: {}", e.what());
       throw e;
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
+      ELOG("Exception caught: {}", e.what());
       throw e;
     }
   }

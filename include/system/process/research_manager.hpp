@@ -18,6 +18,7 @@ std::string ToString() const
 
 class ResearchManager
 {
+using JSONItem = KNLPResultParser::NLPItem;
 public:
 ResearchManager(Database::KDB* db_ptr, Platform* plat_ptr)
 : m_db_ptr(db_ptr),
@@ -129,10 +130,12 @@ std::string GetUser(const std::string& name, const std::string& pid)
   return uid;
 }
 
-std::string SaveTermHit(const std::string& term, const std::string& uid)
+std::string SaveTermHit(const JSONItem& term, const std::string& uid)
 {
-  auto db  = m_db_ptr;
-  auto tid = (TermExists(term)) ? GetTerm(term) : AddTerm(term);
+  const auto& value = term.value;
+  const auto& type  = term.type;
+        auto  db    = m_db_ptr;
+        auto  tid   = (TermExists(value)) ? GetTerm(value) : AddTerm(value, type);
   return db->insert("term_hit", {"tid", "uid"}, {tid, uid}, "id");
 }
 
@@ -141,7 +144,8 @@ bool TermHasHits(const std::string& term)
   return (TermExists(term) && GetTermHits(term).size());
 }
 
-std::string RecordTermEvent(const std::string& term, const std::string& user, const std::string& app)
+
+std::string RecordTermEvent(const JSONItem& term, const std::string& user, const std::string& app)
 {
   std::string id;
   if (HasBasePlatform(app))
@@ -160,28 +164,42 @@ std::string RecordTermEvent(const std::string& term, const std::string& user, co
 std::vector<TermHit> GetTermHits(const std::string& term)
 {
   auto db = m_db_ptr;
-  const auto DoQuery = [&db](const std::string& tid)
+  const auto DoQuery = [&db](const std::string& tid) -> QueryValues
   {
-    return db->selectJoin("term_hit", {"term_hit.time", "user.id", "user.name", "organization.id", "organization.name"}, {CreateFilter("term_hit.tid", tid)}, Joins{
-      Join{
-        .table = "platform_user",
-        .field = "platform_user.id",
-        .join_table = "term_hit",
-        .join_field = "term_hit.uid"
-      },
-      Join{
-        .table = "organization",
-        .field = "organization.id",
-        .join_table = "term_hit",
-        .join_field = "term_hit.oid"
-      },
-      Join{
-        .table = "person",
-        .field = "person.id",
-        .join_table = "platform_user",
-        .join_field = "platform_user.pers_id"
-      }
-    });
+    try
+    {
+      return db->selectJoin("term_hit", {"term_hit.time", "user.id", "user.name", "organization.id", "organization.name"}, {CreateFilter("term_hit.tid", tid)}, Joins{
+        Join{
+          .table = "platform_user",
+          .field = "id",
+          .join_table = "term_hit",
+          .join_field = "uid"
+        },
+        Join{
+          .table = "person",
+          .field = "id",
+          .join_table = "platform_user",
+          .join_field = "pers_id"
+        },
+        Join{
+          .table = "affiliation",
+          .field = "pid",
+          .join_table = "person",
+          .join_field = "id"
+        },
+        Join{
+          .table = "organization",
+          .field = "id",
+          .join_table = "affiliation",
+          .join_field = "oid"
+        }
+      });
+    }
+    catch (const std::exception& e)
+    {
+      ELOG("Exception from KDB: {}", e.what());
+    }
+    return {};
   };
 
   std::vector<TermHit> result{};
@@ -218,9 +236,9 @@ std::vector<TermHit> GetTermHits(const std::string& term)
 
 std::string AddUser(const std::string& name, const std::string& pid, const std::string& pers_id, const std::string& type);
 std::string AddOrganization();
-std::string AddTerm(const std::string& name)
+std::string AddTerm(const std::string& name, const std::string& type)
 {
-  return m_db_ptr->insert("term", {"name"}, {name}, "id");
+  return m_db_ptr->insert("term", {"name", "type"}, {name, type}, "id");
 }
 std::string AddAffiliation();
 void        GetOrganization();

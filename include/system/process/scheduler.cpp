@@ -810,7 +810,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
     {
       const auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
       const auto known_term = m_research_manager.TermHasHits(item.value);
-      const auto hit_id     = m_research_manager.RecordTermEvent(item.value, user, initiating_application);
+      const auto hit_id     = m_research_manager.RecordTermEvent(item, user, initiating_application);
       if (known_term)
         m_research_manager.AnalyzeTermHit(item.value, hit_id);
     }
