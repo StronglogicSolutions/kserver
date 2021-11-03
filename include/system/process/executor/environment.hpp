@@ -6,18 +6,10 @@
 
 static KApplication get_app_info(int mask)
 {
-  Database::KDB     kdb{}; KApplication k_app{};
-  const std::string mask_s = std::to_string(mask);
+  Database::KDB kdb{}; KApplication k_app{};
+  std::string          mask_s = std::to_string(mask);
 
-  QueryValues values = kdb.select(
-    "apps",                           // table
-    {
-      "path", "data", "name"          // fields
-    },
-    {
-      {"mask", mask_s}  // filter
-    }
-  );
+  QueryValues values = kdb.select("apps", {"path", "data", "name"}, CreateFilter("mask", mask_s));
 
   for (const auto &value_pair : values) {
     if (value_pair.first == "path")

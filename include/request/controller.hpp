@@ -425,7 +425,7 @@ class Controller {
   void operator()(uint32_t mask, std::string request_id, int client_socket_fd) {
     const std::string              name{"apps"};
     const std::vector<std::string> fields{"path"};
-    const QueryFilter              filter{{"mask", std::to_string(mask)}};
+    const QueryFilter              filter = CreateFilter("mask", std::to_string(mask));
 
     ProcessExecutor executor{};
     executor.setEventCallback([this](std::string result,

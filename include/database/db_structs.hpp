@@ -1,5 +1,4 @@
-#ifndef __DB_STRUCTS_H__
-#define __DB_STRUCTS_H__
+#pragma once
 
 #include <iostream>
 #include <string>
@@ -27,7 +26,7 @@ struct DatabaseConfiguration {
 
 typedef std::tuple<std::string, std::string, std::string> FTuple;
 
-typedef std::vector<std::pair<std::string, std::string>> QueryFilter;
+// typedef std::vector<std::pair<std::string, std::string>> QueryFilter;
 typedef std::vector<FTuple> QueryComparisonFilter;
 typedef std::vector<FTuple> QueryComparisonBetweenFilter;
 typedef std::vector<std::string> Values;
@@ -45,26 +44,59 @@ static std::string DoubleSingleQuotes(const std::string& s)
   return o;
 }
 
-struct QueryFilterDev
+
+struct QueryFilter;
+template<typename... Ts>
+using AllString = decltype((((QueryFilter)std::string(std::declval<Ts>())), ...));
+struct QueryFilter
 {
 using FilterPair = std::pair<std::string, std::string>;
-using Filters = std::vector<FilterPair>;
-template <typename... T>
-QueryFilterDev static Create(T... args)
+using Filters    = std::vector<FilterPair>;
+
+template<typename... Ts>
+QueryFilter(Ts... args)
 {
-  QueryFilter filter{};
-  filter
-}
-void Add(const std::string& key, const std::string& value)
-{
-  m_filters.emplace_back(FilterPair{key, DoubleSingleQuotes(value)});
+  Add(args...);
 }
 
+QueryFilter() {}
+
+template<typename... Ts, typename S = std::string>
+void Add(Ts&&... args)
+{
+  const std::vector<S> v{args...};
+  if (v.size() % 2) throw std::invalid_argument{"Must provide alternating key/filter pairs"};
+
+  for (size_t i = 0; i < v.size() - 1; i += 2)
+  {
+    const auto& key   = v[i    ];
+    const auto& value = v[i + 1];
+    m_filters.emplace_back(FilterPair{key, DoubleSingleQuotes(value)});
+  }
+}
+
+bool   empty() const { return m_filters.empty(); }
+size_t size()  const { return m_filters.size(); }
+FilterPair front() const { return m_filters.front(); }
+FilterPair at(size_t i) const { return m_filters.at(i); }
+
 Filters value() { return m_filters; }
+
+Filters::const_iterator cbegin() const { return m_filters.cbegin(); }
+Filters::const_iterator cend()   const { return m_filters.cend();   }
+Filters::const_iterator       begin()  const { return m_filters.cbegin(); }
+Filters::const_iterator       end()    const { return m_filters.cend();   }
 
 private:
 Filters m_filters;
 };
+template<typename... Ts, typename = AllString<Ts...>>
+static QueryFilter CreateFilter(Ts&&... args)
+{
+  QueryFilter filter{};
+  filter.Add(args...);
+  return filter;
+}
 
 namespace FilterTypes {
 static constexpr int STANDARD = 1;
@@ -217,5 +249,3 @@ struct SimpleJoinQuery{
   QueryFilter              filter;
   Join                     join;
 };
-
-#endif  // __DB_STRUCTS_H__

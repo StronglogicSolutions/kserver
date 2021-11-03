@@ -28,7 +28,7 @@ using Database = Database::KDB;
 bool PersonExists(const std::string& name) const
 {
         auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
+  const auto filter = CreateFilter("name", name);
   return db->select("person", {"id"}, filter).size();
 }
 
@@ -39,9 +39,9 @@ bool UserExists(const std::string& name = "", const std::string& id = "") const
         auto db     = m_db_ptr;
   QueryFilter filter{};
   if (id.size())
-    filter.emplace_back("id", id);
+    filter.Add("id", id);
   if (name.size())
-    filter.emplace_back("name", name);
+    filter.Add("name", name);
 
   return db->select("person", {"id"}, filter).size();
 }
@@ -49,14 +49,14 @@ bool UserExists(const std::string& name = "", const std::string& id = "") const
 bool OrganizationExists(const std::string& name) const
 {
         auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
+  const auto filter = CreateFilter("name", name);
   return db->select("organization", {"id"}, filter).size();
 }
 
 bool TermExists(const std::string& name) const
 {
         auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
+  const auto filter = CreateFilter("name", name);
   return db->select("term", {"id"}, filter).size();
 }
 
@@ -92,7 +92,7 @@ std::string AddTermHit(const std::string& tid, const std::string& uid, const std
 std::string GetTerm(const std::string& term)
 {
   std::string id{};
-  for (const auto& row : m_db_ptr->select("term", {"id"}, QueryFilter{{"name", term}}))
+  for (const auto& row : m_db_ptr->select("term", {"id"}, CreateFilter("name", term)))
     if (row.first == "id")
       id = row.second;
   return id;
@@ -101,7 +101,7 @@ std::string GetTerm(const std::string& term)
 std::string GetPerson(const std::string& name)
 {
   std::string id{};
-  for (const auto& row : m_db_ptr->select("person", {"id"}, QueryFilter{{"name", name}}))
+  for (const auto& row : m_db_ptr->select("person", {"id"}, CreateFilter("name", name)))
     if (row.first == "id")
       id = row.second;
   return id;
@@ -110,7 +110,7 @@ std::string GetPerson(const std::string& name)
 std::string GetPersonForUID(const std::string& uid)
 {
   std::string id{};
-  for (const auto& row : m_db_ptr->select("platform_user", {"pers_id"}, QueryFilter{{"id", uid}}))
+  for (const auto& row : m_db_ptr->select("platform_user", {"pers_id"}, CreateFilter("id", uid)))
     if (row.first == "pers_id")
       id = row.second;
   return id;
@@ -122,7 +122,7 @@ std::string GetUser(const std::string& name, const std::string& pid)
     throw std::invalid_argument{"Must provide name and platform id"};
   std::string uid;
   auto        db = m_db_ptr;
-  QueryFilter filter{{"name", name}, {"pid", pid}};
+  QueryFilter filter = CreateFilter("name", name, "pid", pid);
   for (const auto& row : db->select("platform_user", {"id"}, filter))
     if (row.first == "id")
       uid = row.second;
@@ -162,7 +162,7 @@ std::vector<TermHit> GetTermHits(const std::string& term)
   auto db = m_db_ptr;
   const auto DoQuery = [&db](const std::string& tid)
   {
-    return db->selectJoin("term_hit", {"term_hit.time", "user.id", "user.name", "organization.id", "organization.name"}, {QueryFilter{{"term_hit.tid", tid}}}, Joins{
+    return db->selectJoin("term_hit", {"term_hit.time", "user.id", "user.name", "organization.id", "organization.name"}, {CreateFilter("term_hit.tid", tid)}, Joins{
       Join{
         .table = "platform_user",
         .field = "platform_user.id",

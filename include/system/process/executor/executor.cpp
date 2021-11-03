@@ -120,7 +120,7 @@ void ProcessExecutor::request(std::string_view         path,
         std::string result = kdb.update("schedule",               // table
                                         {"completed"},            // field
                                         {COMPLETED},              // value
-                                        QueryFilter{{"id", id}},  // filter
+                                        CreateFilter("id", id),
                                         "id"  // field value to return
         );
         KLOG("Updated task {} to reflect its completion", result);
@@ -203,9 +203,9 @@ KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const std::string&
   QueryFilter   filter{};
 
   if (mask > -1)
-    filter.emplace_back(FPair{"mask", std::to_string(mask)});
+    filter.Add("mask", std::to_string(mask));
   if (name.size())
-    filter.emplace_back(FPair{"name", name});
+    filter.Add("name", name);
 
   QueryValues values = kdb.select("apps", fields, filter);
 
