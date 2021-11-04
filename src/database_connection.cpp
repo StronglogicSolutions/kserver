@@ -32,12 +32,12 @@ std::string valuesAsString(StringVec values, size_t number_of_fields)
   {
     delim = (index++ % number_of_fields == 0) ? "),(" : ",";
     value_string += "'";
-    value_string += (value.empty()) ? "NULL" : value;
+    value_string += (value.empty()) ? "NULL" : DoubleSingleQuotes(value);
     value_string += "'" + delim;
   }
   value_string.erase(value_string.end() - 2, value_string.end());
 
-  return DoubleSingleQuotes(value_string);
+  return value_string;
 }
 
 static std::string orderStatement(const OrderFilter& filter)
@@ -406,6 +406,12 @@ std::string selectStatement(T query)
         filter_string += delim + getFilterStatement(f);
         delim = " AND ";
       }
+      std::string join_string = getJoinStatement(query.joins);
+      return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + filter_string;
+    }
+    if constexpr(std::is_same_v<T, JoinQuery<QueryFilter>>)
+    {
+      filter_string          += delim + getFilterStatement(filter);
       std::string join_string = getJoinStatement(query.joins);
       return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + filter_string;
     }
