@@ -18,6 +18,7 @@ std::string ToString() const
 
 class ResearchManager
 {
+using JSONItem = KNLPResultParser::NLPItem;
 public:
 ResearchManager(Database::KDB* db_ptr, Platform* plat_ptr)
 : m_db_ptr(db_ptr),
@@ -28,7 +29,7 @@ using Database = Database::KDB;
 bool PersonExists(const std::string& name) const
 {
         auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
+  const auto filter = CreateFilter("name", name);
   return db->select("person", {"id"}, filter).size();
 }
 
@@ -39,9 +40,9 @@ bool UserExists(const std::string& name = "", const std::string& id = "") const
         auto db     = m_db_ptr;
   QueryFilter filter{};
   if (id.size())
-    filter.emplace_back("id", id);
+    filter.Add("id", id);
   if (name.size())
-    filter.emplace_back("name", name);
+    filter.Add("name", name);
 
   return db->select("person", {"id"}, filter).size();
 }
@@ -49,14 +50,14 @@ bool UserExists(const std::string& name = "", const std::string& id = "") const
 bool OrganizationExists(const std::string& name) const
 {
         auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
+  const auto filter = CreateFilter("name", name);
   return db->select("organization", {"id"}, filter).size();
 }
 
 bool TermExists(const std::string& name) const
 {
         auto db     = m_db_ptr;
-  const auto filter = QueryFilter{{"name", name}};
+  const auto filter = CreateFilter("name", name);
   return db->select("term", {"id"}, filter).size();
 }
 
@@ -92,7 +93,7 @@ std::string AddTermHit(const std::string& tid, const std::string& uid, const std
 std::string GetTerm(const std::string& term)
 {
   std::string id{};
-  for (const auto& row : m_db_ptr->select("term", {"id"}, QueryFilter{{"name", term}}))
+  for (const auto& row : m_db_ptr->select("term", {"id"}, CreateFilter("name", term)))
     if (row.first == "id")
       id = row.second;
   return id;
@@ -101,7 +102,7 @@ std::string GetTerm(const std::string& term)
 std::string GetPerson(const std::string& name)
 {
   std::string id{};
-  for (const auto& row : m_db_ptr->select("person", {"id"}, QueryFilter{{"name", name}}))
+  for (const auto& row : m_db_ptr->select("person", {"id"}, CreateFilter("name", name)))
     if (row.first == "id")
       id = row.second;
   return id;
@@ -166,17 +167,19 @@ std::string GetUser(const std::string& name, const std::string& pid)
     throw std::invalid_argument{"Must provide name and platform id"};
   std::string uid;
   auto        db = m_db_ptr;
-  QueryFilter filter{{"name", name}, {"pid", pid}};
+  QueryFilter filter = CreateFilter("name", name, "pid", pid);
   for (const auto& row : db->select("platform_user", {"id"}, filter))
     if (row.first == "id")
       uid = row.second;
   return uid;
 }
 
-std::string SaveTermHit(const std::string& term, const std::string& uid)
+std::string SaveTermHit(const JSONItem& term, const std::string& uid)
 {
-  auto db  = m_db_ptr;
-  auto tid = (TermExists(term)) ? GetTerm(term) : AddTerm(term);
+  const auto& value = term.value;
+  const auto& type  = term.type;
+        auto  db    = m_db_ptr;
+        auto  tid   = (TermExists(value)) ? GetTerm(value) : AddTerm(value, type);
   return db->insert("term_hit", {"tid", "uid"}, {tid, uid}, "id");
 }
 
@@ -233,7 +236,7 @@ TermEvent RecordTermEvent(const JSONItem& term, const std::string& user, const s
 std::vector<TermHit> GetTermHits(const std::string& term)
 {
   auto db = m_db_ptr;
-  const auto DoQuery = [&db](const std::string& tid)
+  const auto DoQuery = [&db](const std::string& tid) -> QueryValues
   {
     try
     {
@@ -306,9 +309,9 @@ std::vector<TermHit> GetTermHits(const std::string& term)
 
 std::string AddUser(const std::string& name, const std::string& pid, const std::string& pers_id, const std::string& type);
 std::string AddOrganization();
-std::string AddTerm(const std::string& name)
+std::string AddTerm(const std::string& name, const std::string& type)
 {
-  return m_db_ptr->insert("term", {"name"}, {name}, "id");
+  return m_db_ptr->insert("term", {"name", "type"}, {name, type}, "id");
 }
 std::string AddAffiliation();
 void        GetOrganization();

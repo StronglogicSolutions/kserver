@@ -75,23 +75,9 @@ static bool shouldRepost(const std::string& s)
 std::vector<std::string> Platform::fetchRepostIDs(const std::string& pid)
 {
   std::vector<std::string> pids{};
-
-  auto result = m_db.select(
-    "platform_repost",
-    {
-      "r_pid"
-    },
-    QueryFilter{
-      {"pid", pid}
-    }
-  );
-
-  for (const auto& value : result)
-  {
+  for (const auto& value : m_db.select("platform_repost", {"r_pid"}, CreateFilter("pid", pid)))
     if (value.first == "r_pid")
       pids.emplace_back(value.second);
-  }
-
   return pids;
 }
 
@@ -107,10 +93,7 @@ bool Platform::postAlreadyExists(const PlatformPost& post)
   return !(m_db.selectSimpleJoin(
     "platform_post",
     {"platform_post.id"},
-    QueryFilter{
-      {"platform_post.pid",       post.pid},
-      {"platform_user.name",      post.user},
-      {"platform_post.unique_id", post.id}},
+    CreateFilter("platform_post.pid", post.pid, "platform_user.name", post.user, "platform_post.unique_id", post.id),
       Join{
         .table = "platform_user",
         .field = "id",
@@ -138,11 +121,7 @@ bool Platform::updatePostStatus(const PlatformPost& post, const std::string& sta
     "platform_post",
     {"status"},
     {status},
-    QueryFilter{
-      {"pid", post.pid},
-      {"unique_id", post.id},
-      {"uid", getUserID(post.pid, post.user)}
-    },
+    CreateFilter("pid", post.pid, "unique_id", post.id, "uid", getUserID(post.pid, post.user)),
     "id"
   ).empty());
 }
@@ -195,10 +174,7 @@ const std::vector<PlatformPost> Platform::createAffiliatePosts(const PlatformPos
       "platform_affiliate_user.a_uid",
       "platform_user.type"
     },
-    QueryFilter{
-      {"platform_user.name", post.user},
-      {"platform_user.pid",  post.pid}
-    },
+    CreateFilter("platform_user.name", post.user, "platform_user.pid",  post.pid),
     Join{
       .table = "platform_affiliate_user",
       .field      = "uid",
@@ -215,7 +191,7 @@ const std::vector<PlatformPost> Platform::createAffiliatePosts(const PlatformPos
   {
     if (value.first == "platform_affiliate_user.a_uid")
     {
-      for (const auto& af_value : m_db.select("platform_user", {"name"}, QueryFilter{{"id", value.second}}))
+      for (const auto& af_value : m_db.select("platform_user", {"name"}, CreateFilter("id", value.second)))
         if (af_value.first == "name")
           name = af_value.second;
     }
@@ -364,16 +340,7 @@ bool Platform::savePlatformPost(std::vector<std::string> payload) {
 std::string Platform::GetPlatformID(uint32_t mask) {
   auto app_info = ProcessExecutor::GetAppInfo(mask);
   if (!app_info.name.empty()) {
-    auto result = m_db.select(
-      "platform",
-      {
-        "id"
-      },
-      QueryFilter{
-      {"name", app_info.name}
-      }
-    );
-    for (const auto& value : result)
+    for (const auto& value : m_db.select("platform", {"id"}, CreateFilter("name", app_info.name)))
       if (value.first == "id")
         return value.second;
   }
@@ -388,12 +355,7 @@ std::string Platform::GetPlatformID(uint32_t mask) {
  */
 std::string Platform::GetPlatformID(const std::string& name) {
   if (!name.empty()) {
-    auto result = m_db.select(
-      "platform",
-      {"id"},
-      QueryFilter{{"name", name}}
-    );
-    for (const auto& value : result)
+    for (const auto& value : m_db.select("platform", {"id"}, CreateFilter("name", name)))
       if (value.first == "id")
         return value.second;
   }
@@ -451,7 +413,7 @@ std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
   static const Fields      fields{"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id",
                                   "platform_post.time", "platform.name", "platform_post.repost",
                                   "platform.method", "platform_post.uid"};
-  static const QueryFilter filter{{"platform_post.status", constants::PLATFORM_POST_INCOMPLETE}};
+  static const QueryFilter filter = CreateFilter("platform_post.status", constants::PLATFORM_POST_INCOMPLETE);
   static const Join        join{.table      = "platform",
                                 .field      = "id",
                                 .join_table = "platform_post",
@@ -574,7 +536,7 @@ void Platform::processPlatform()
  */
 bool Platform::userExists(const std::string& pid, const std::string& name)
 {
-  return !m_db.select("platform_user", {"id"}, QueryFilter{{"pid", pid}, {"name", name}}).empty();
+  return !m_db.select("platform_user", {"id"}, CreateFilter("pid", pid, "name", name)).empty();
 }
 
 /**
@@ -599,7 +561,7 @@ std::string Platform::addUser(const std::string& pid, const std::string& name, c
  */
 std::string Platform::getUserID(const std::string& pid, const std::string& name)
 {
-  for (const auto& v : m_db.select("platform_user", {"id"}, {{"pid", pid}, {"name", name}}))
+  for (const auto& v : m_db.select("platform_user", {"id"}, CreateFilter("pid", pid, "name", name)))
     if (v.first == "id")
       return v.second;
   return "";
@@ -615,7 +577,7 @@ std::string Platform::getUserID(const std::string& pid, const std::string& name)
  */
 std::string Platform::getUser(const std::string& uid)
 {
-  for (const auto& v : m_db.select("platform_user", {"name"}, {{"id", uid}}))
+  for (const auto& v : m_db.select("platform_user", {"name"}, CreateFilter("id", uid)))
     if (v.first == "name")
       return v.second;
   return "";

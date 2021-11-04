@@ -4,11 +4,10 @@
 
 uint32_t getAppMask(std::string name)
 {
-        auto        db = Database::KDB{};
-  const std::string filter_field{"name"};
-  const std::string value_field{"mask"};
+        auto db = Database::KDB{};
+  const auto value_field{"mask"};
 
-  for (const auto& row : db.select("apps", {value_field}, {{filter_field, name}}))
+  for (const auto& row : db.select("apps", {value_field}, CreateFilter("name", name)))
     if (row.first == value_field)
       return std::stoi(row.second);
   return std::numeric_limits<uint32_t>::max();
@@ -149,8 +148,7 @@ bool Scheduler::HasRecurring(const T& id)
   else
     task_id = id;
 
-  const auto filter = QueryFilter{{"sid", task_id}};
-  return !(m_kdb.select("recurring", {"id"}, filter).empty());
+  return !(m_kdb.select("recurring", {"id"}, CreateFilter("sid", task_id)).empty());
 }
 
 template bool Scheduler::HasRecurring(const std::string& id);
@@ -385,15 +383,14 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
           .a     = date_range.first,
           .b     = date_range.second
         },
-        QueryFilter{{Field::MASK, mask}}},
+        CreateFilter(Field::MASK, mask)},
         OrderFilter{
           .field = Field::ID,
           .order = row_order
         },
         LimitFilter{
           .count = count
-        }
-    );
+        });
   return parseTasks(std::move(tasks));
 }
 
@@ -553,7 +550,7 @@ Task Scheduler::getTask(const std::string& id)
       Field::ENVFILE, Field::TIME,
       Field::COMPLETED
       }, {
-        {"id", id}      // filter
+        CreateFilter("id", id)      // filter
       }
   ));
 
@@ -562,7 +559,6 @@ Task Scheduler::getTask(const std::string& id)
 
   return task;
 }
-
 
 
 /**
@@ -578,15 +574,10 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::vector<std::string>& si
 
   for (const auto& sid : sids)
   {
-    const QueryFilter         filter = (type.empty()) ?
-                                        QueryFilter{{"sid", sid}} :
-                                        QueryFilter{{"sid", sid}, {"type", type}};
+    const QueryFilter filter = (type.empty()) ? CreateFilter("sid", sid) : CreateFilter("sid", sid, "type", type);
+    FileMetaData      file{};
 
-    QueryValues result = m_kdb.select("file", {"id", "name", "type"}, filter);
-
-    FileMetaData file{};
-
-    for (const auto& v : result)
+    for (const auto& v : m_kdb.select("file", {"id", "name", "type"}, filter))
     {
       if (v.first == "id")
         file.id = v.second;
@@ -613,8 +604,8 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std:
 {
   std::vector<FileMetaData> files{};
   const QueryFilter         filter = (type.empty()) ?
-                                      QueryFilter{{"sid", sid}} :
-                                      QueryFilter{{"sid", sid}, {"type", type}};
+                                      CreateFilter("sid", sid) :
+                                      CreateFilter("sid", sid, "type", type);
 
   QueryValues result = m_kdb.select("file", {"id", "name", "type"}, filter);
 
@@ -656,8 +647,7 @@ Task Scheduler::getTask(int id) {
                           Field::MASK,    Field::FLAGS,
                           Field::ENVFILE, Field::TIME,
                           Field::COMPLETED},
-                          QueryFilter{
-                            {"id", std::to_string(id)}}));
+                          CreateFilter("id", std::to_string(id))));
 
   for (const auto& file : getFiles(std::to_string(id)))                 // files
     task.filenames.push_back(file.name);
@@ -678,7 +668,7 @@ std::vector<std::string> Scheduler::getFlags(const T& mask)
   if constexpr (std::is_integral<T>::value)
     filter_mask =  std::to_string(mask);
 
-  for (const auto& row : m_kdb.select("schedule", {Field::FLAGS}, QueryFilter{{"mask", filter_mask}}, 1))
+  for (const auto& row : m_kdb.select("schedule", {Field::FLAGS}, CreateFilter("mask", filter_mask), 1))
     if (row.first == Field::FLAGS)
       return StringUtils::Split(row.second, ' ');
 
@@ -697,7 +687,7 @@ bool Scheduler::updateStatus(Task* task, const std::string& output) {
   const std::string table = "schedule";
   const Fields      fields = {"completed"};
   const Values      values = {std::to_string(task->completed)};
-  const QueryFilter filter{{"id", std::to_string(task->id)}};
+  const QueryFilter filter = CreateFilter("id", std::to_string(task->id));
   const std::string returning = "id";
   return (!m_kdb.update(table, fields, values, filter, returning).empty());
 }
@@ -718,7 +708,7 @@ bool Scheduler::update(Task task)
     else
     m_kdb.update("recurring", {"time"},
       {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
-      {{"sid", std::to_string(task.id)}});
+      CreateFilter("sid", std::to_string(task.id)));
 
   return !m_kdb.update(                // UPDATE
     "schedule", {                      // table
@@ -737,9 +727,7 @@ bool Scheduler::update(Task task)
       std::to_string(task.recurring),
       std::to_string(task.notify),
       task.runtime
-    }, QueryFilter{
-      {"id", std::to_string(task.id)} // filter
-    },
+    }, CreateFilter("id", std::to_string(task.id)),
     "id"                               // returning value
   )
   .empty();                            // not empty = success
@@ -754,17 +742,7 @@ bool Scheduler::update(Task task)
  * @return [out] {bool}         Whether the UPDATE query was successful
  */
 bool Scheduler::updateRecurring(Task* task) {
-  return !m_kdb.update(                // UPDATE
-    "recurring", {                     // table
-      "time"                           // field
-    }, {
-      task->datetime  // value
-    }, QueryFilter{
-      {"sid", std::to_string(task->id)}// filter
-    },
-    "id"                               // returning value
-  )
-  .empty();                            // Row created
+  return !m_kdb.update("recurring", {"time"}, {task->datetime}, CreateFilter("sid", std::to_string(task->id)), "id").empty();
 }
 
 /**
@@ -776,7 +754,7 @@ bool Scheduler::updateRecurring(Task* task) {
  */
 bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
 {
-  for (const auto& value : m_kdb.select("schedule", {"envfile"}, {{"id", id}}))
+  for (const auto& value : m_kdb.select("schedule", {"envfile"}, CreateFilter("id", id)))
     if (value.first == "envfile")
     {
       FileUtils::SaveFile(env, value.second);
