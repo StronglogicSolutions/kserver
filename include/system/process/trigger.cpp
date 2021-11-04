@@ -20,10 +20,8 @@ std::vector<Task> Trigger::process(Task* task)
     std::vector<TriggerConfig> configs{};
     std::string                id, trigger_mask, token_name, token_value;
 
-    auto query = this->m_db->select("triggers",
-      {"id", "trigger_mask", "token_name", "token_value"},
-      QueryFilter{{"mask", std::to_string(task->execution_mask)}}
-    );
+    auto query = this->m_db->select("triggers", {"id", "trigger_mask", "token_name", "token_value"},
+      CreateFilter("mask", std::to_string(task->execution_mask)));
 
     for (const auto& value : query)
     {
@@ -54,10 +52,7 @@ std::vector<Task> Trigger::process(Task* task)
             param_info.map["id"] = id; // TODO: Possibly best to remove this line
             TriggerPair pair{};
             query.clear();
-            query = this->m_db->select("trigger_map",
-              {"old", "new"},
-              QueryFilter{{"tid", id}}
-            );
+            query = this->m_db->select("trigger_map", {"old", "new"}, CreateFilter("tid", id));
 
             for (const auto& value : query)
             {
@@ -74,10 +69,7 @@ std::vector<Task> Trigger::process(Task* task)
             }
 
             query.clear();
-            query = this->m_db->select("trigger_config",
-              {"token_name", "section", "name"},
-              QueryFilter{{"tid", id}}
-            );
+            query = this->m_db->select("trigger_config", {"token_name", "section", "name"}, CreateFilter("tid", id));
 
             std::string token_name, section, name, config_value;
             for (const auto& value : query)

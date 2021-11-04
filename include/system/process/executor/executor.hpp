@@ -110,7 +110,7 @@ class ProcessExecutor : public ProcessManager {
   template <typename T = uint8_t>
   bool saveResult(uint32_t mask, T status, uint32_t time);
 
-  static KApplication getAppInfo(int mask);
+  static KApplication GetAppInfo(const int32_t& mask = -1, const std::string& name = "");
 
 private:
   ProcessEventCallback m_callback;

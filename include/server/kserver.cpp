@@ -129,6 +129,9 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
         KLOG("Platform Post requested: Must implement process execution");
       }
     break;
+    case SYSTEM_EVENTS__KIQ_IPC_MESSAGE:
+        m_ipc_manager.process(args.front(), client_socket_fd);
+    break;
     case SYSTEM_EVENTS__PLATFORM_ERROR:
       m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
       ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));

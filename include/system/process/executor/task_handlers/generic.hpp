@@ -31,8 +31,14 @@ const std::string GENERIC_TASK_EXECUTION_FLAGS{"--description=$DESCRIPTION "\
 
 class GenericTaskHandler : public TaskHandler {
  public:
-  virtual Task prepareTask(std::vector<std::string> argv,
-                                     std::string uuid, Task* task_ptr = nullptr) override;
+  virtual Task prepareTask(const std::vector<std::string>& argv,
+                           const std::string&              uuid,
+                           Task*                           task_ptr = nullptr) override;
+
+  static  Task Create(const std::string& mask,
+                      const std::string& description = "",
+                      const std::string& header      = "",
+                      const std::string& user        = "");
 };
 
 #endif  // __GENERIC_HPP__

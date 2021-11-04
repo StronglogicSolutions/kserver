@@ -1,7 +1,33 @@
 #include "generic.hpp"
 
-Task GenericTaskHandler::prepareTask(std::vector<std::string> argv,
-                                     std::string uuid, Task* task_ptr) {
+Task GenericTaskHandler::Create(const std::string& mask,
+                                const std::string& description,
+                                const std::string& header,
+                                const std::string& user)
+{
+  const std::string username = (user.empty()) ? ConfigParser::System::admin() : user;
+        Task task{};
+  std::vector<std::string> argv{
+    mask,                 // 0 mask
+    "",                   // 1 fileinfo
+    TimeUtils::Now(),     // 2 datetime
+    description,          // 3 description
+    "false",              // 4 is video
+    header,               // 5 header
+    username,             // 6 user
+    "0",                  // 7 recurring
+    "0",                  // 8 notify
+    ""                    // 9 runtime arguments
+  };
+  GenericTaskHandler handler{};
+  handler.prepareTask(argv, StringUtils::GenerateUUIDString(), &task);
+  return task;
+}
+
+Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
+                                     const std::string&              uuid,
+                                     Task*                           task_ptr)
+{
   if (!FileUtils::CreateTaskDirectory(uuid)) {
     std::cout << "UNABLE TO CREATE TASK DIRECTORY! Returning empty task"
               << std::endl;
@@ -10,15 +36,15 @@ Task GenericTaskHandler::prepareTask(std::vector<std::string> argv,
 
   auto mask         = argv.at(GenericTaskIndex::MASK);
   auto file_info    = argv.at(GenericTaskIndex::FILEINFO);
-  auto is_video     = argv.at(GenericTaskIndex::IS_VIDEO) == "1";
   auto datetime     = argv.at(GenericTaskIndex::DATETIME);
   auto description  = argv.at(GenericTaskIndex::DESCRIPTION);
+  auto is_video     = argv.at(GenericTaskIndex::IS_VIDEO) == "1";
   auto header       = argv.at(GenericTaskIndex::HEADER);
   auto user         = argv.at(GenericTaskIndex::USER);
   auto recurring    = argv.at(GenericTaskIndex::RECURRING);
   auto notify       = argv.at(GenericTaskIndex::NOTIFY);
-  auto has_files    = !file_info.empty();
   auto runtime_args = argv.at(GenericTaskIndex::RUNTIME);
+  auto has_files    = !file_info.empty();
 
   std::vector<FileInfo> task_files;
 

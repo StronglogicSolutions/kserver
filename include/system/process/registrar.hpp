@@ -68,39 +68,14 @@ std::string add(KApplication application) {
 }
 
 std::string remove(KApplication application) {
-  return m_kdb.remove(
-    "apps",
-    QueryFilter{
-      {"name", application.name},
-      {"path", application.path}
-    }
-  );
+  return m_kdb.remove("apps", CreateFilter("name", application.name, "path", application.path));
 }
 
 void update() {}
 
 bool find(KApplication application) {
-  QueryValues result = m_kdb.select(
-    "apps",
-    Fields{
-      "name",
-      "mask",
-      "path",
-      "data"
-    },
-    QueryFilter{
-      { "name", application.name }
-    }
-  );
-
-  for (const auto& item : result) {
-    std::cout << item.first << " : " << item.second << std::endl;
-  }
-  if (result.size() < 2) {
-    return false;
-  }
-
-  return true;
+  QueryValues result = m_kdb.select("apps", {"name", "mask", "path", "data"}, CreateFilter("name", application.name));
+  return (result.size() > 2);
 }
 
 private:

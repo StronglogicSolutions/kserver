@@ -1,5 +1,4 @@
-#ifndef __DATABASE_CONNECTION_TEST_HPP__
-#define __DATABASE_CONNECTION_TEST_HPP__
+#pragma once
 
 #define GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 
@@ -8,6 +7,7 @@
 #include <database/database_connection.hpp>
 #include <pqxx/pqxx>
 #include <config/config_parser.hpp>
+#include <database/kdb.hpp>
 
 using ::testing::_;
 using ::testing::Return;
@@ -87,4 +87,37 @@ TEST_F(MockDBFixture, MockQueryTest) {
   EXPECT_EQ(result.values[1], expected_return_value_2);
 }
 
-#endif // __DATABASE_CONNECTION_TEST_HPP__
+TEST(KDBTest, SelectJoinTest)
+{
+  Database::KDB db{};
+  auto tid = "39";
+  EXPECT_NO_THROW(
+    db.selectJoin("term_hit", {"term_hit.time", "platform_user.id", "platform_user.name", "organization.id", "organization.name"}, {CreateFilter("term_hit.tid", tid)}, Joins{
+        Join{
+          .table = "platform_user",
+          .field = "id",
+          .join_table = "term_hit",
+          .join_field = "uid"
+        },
+        Join{
+          .table = "person",
+          .field = "id",
+          .join_table = "platform_user",
+          .join_field = "pers_id"
+        },
+        Join{
+          .table = "affiliation",
+          .field = "pid",
+          .join_table = "person",
+          .join_field = "id"
+        },
+        Join{
+          .table = "organization",
+          .field = "id",
+          .join_table = "affiliation",
+          .join_field = "oid"
+        }
+      }
+    )
+  );
+}

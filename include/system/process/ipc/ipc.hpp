@@ -15,24 +15,28 @@
  */
 
 namespace constants {
-const uint8_t IPC_OK_TYPE       {0x00};
-const uint8_t IPC_KIQ_MESSAGE   {0x01};
-const uint8_t IPC_PLATFORM_TYPE {0x02};
-const uint8_t IPC_PLATFORM_ERROR{0x03};
+static const uint8_t IPC_OK_TYPE       {0x00};
+static const uint8_t IPC_KIQ_MESSAGE   {0x01};
+static const uint8_t IPC_PLATFORM_TYPE {0x02};
+static const uint8_t IPC_PLATFORM_ERROR{0x03};
 
 namespace index {
-const uint8_t EMPTY    = 0x00;
-const uint8_t TYPE     = 0x01;
-const uint8_t PLATFORM = 0x02;
-const uint8_t ID       = 0x03;
-const uint8_t USER     = 0x04;
-const uint8_t DATA     = 0x05;
-const uint8_t URLS     = 0x06;
-const uint8_t REPOST   = 0x07;
-const uint8_t ARGS     = 0x08;
-const uint8_t KIQ_DATA = 0x02;
-const uint8_t ERROR    = 0x05;
+static const uint8_t EMPTY    = 0x00;
+static const uint8_t TYPE     = 0x01;
+static const uint8_t PLATFORM = 0x02;
+static const uint8_t ID       = 0x03;
+static const uint8_t USER     = 0x04;
+static const uint8_t DATA     = 0x05;
+static const uint8_t URLS     = 0x06;
+static const uint8_t REPOST   = 0x07;
+static const uint8_t ARGS     = 0x08;
+static const uint8_t KIQ_DATA = 0x02;
+static const uint8_t ERROR    = 0x05;
 } // namespace index
+static const char*   TELEGRAM_COMMAND{"telegram:messages"};
+static const char*   MASTODON_COMMAND{"mastodon:comments"};
+static const char*   DISCORD_COMMAND {"discord:messages"};
+static const char*   YOUTUBE_COMMAND {"youtube:livestream"};
 } // namespace constants
 
 class ipc_message

@@ -255,6 +255,7 @@ namespace StringUtils {
 template <typename T>
 void Split(const std::string &s, char delim, T result);
 std::vector<std::string> Split(const std::string &s, char delim);
+std::string DoubleSingleQuotes(const std::string& s);
 std::string sanitizeSingleQuotes(const std::string& s);
 std::string SanitizeArg(std::string s);
 std::string SanitizeJSON(std::string s);
@@ -275,7 +276,7 @@ std::string SanitizeToken(std::string s);
 
 namespace TimeUtils {
 int UnixTime();
-
+std::string Now();
 std::string FormatTimestamp(int unixtime);
 std::string FormatTimestamp(std::string unixtime);
 std::string time_as_today(std::string unixtime);

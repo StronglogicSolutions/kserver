@@ -337,7 +337,7 @@ std::vector<FileInfo> parseFileInfo(std::string file_info);
 
 class TaskHandler {
   public:
-    virtual Task prepareTask(TaskArguments argv, std::string uuid, Task* task = nullptr) = 0;
+    virtual Task prepareTask(const TaskArguments& argv, const std::string& uuid, Task* task = nullptr) = 0;
 };
 
 enum class PlatformPostState{ PROCESSING = 0x00, SUCCESS = 0x01, FAILURE = 0x02};

@@ -301,7 +301,7 @@ class Controller {
     if (op != "Schedule" || argv.empty()) return;
 
     const auto mask = argv.at(TaskIndexes::MASK);
-    const auto application = ProcessExecutor::getAppInfo(std::stoi(mask));
+    const auto application = ProcessExecutor::GetAppInfo(std::stoi(mask));
 
     KLOG("Handling schedule request application {} with mask {}", application.name, mask);
 
@@ -425,7 +425,7 @@ class Controller {
   void operator()(uint32_t mask, std::string request_id, int client_socket_fd) {
     const std::string              name{"apps"};
     const std::vector<std::string> fields{"path"};
-    const QueryFilter              filter{{"mask", std::to_string(mask)}};
+    const QueryFilter              filter = CreateFilter("mask", std::to_string(mask));
 
     ProcessExecutor executor{};
     executor.setEventCallback([this](std::string result,
@@ -541,7 +541,7 @@ class Controller {
 
         for (const auto& task : tasks)
         {
-          KApplication app = m_executor->getAppInfo(task.execution_mask);
+          KApplication app = m_executor->GetAppInfo(task.execution_mask);
           payload.emplace_back(std::to_string(task.id));
           payload.emplace_back(               app.name);
           payload.emplace_back(               task.datetime);
