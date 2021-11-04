@@ -107,13 +107,57 @@ std::string GetPerson(const std::string& name)
   return id;
 }
 
-std::string GetPersonForUID(const std::string& uid)
+struct Person{
+std::string id;
+std::string name;
+};
+
+Person GetPersonForUID(const std::string& uid)
 {
-  std::string id{};
-  for (const auto& row : m_db_ptr->select("platform_user", {"pers_id"}, QueryFilter{{"id", uid}}))
-    if (row.first == "pers_id")
-      id = row.second;
-  return id;
+  Person person {};
+  Fields fields {"platform_user.pers_id", "person.name"};
+  auto   filter = CreateFilter("platform_user.id", uid);
+  Join   join   {"person", "id", "platform_user", "pers_id"};
+
+  for (const auto& row : m_db_ptr->selectSimpleJoin("platform_user", fields, filter, join))
+    if (row.first == "platform_user.pers_id")
+      person.id   = row.second;
+    else
+    if (row.first == "person.name")
+      person.name = row.second;
+
+  return person;
+}
+
+struct Identity
+{
+std::string id;
+std::string name;
+std::string organization;
+};
+
+Identity GetIdentity(const std::string& name, const std::string& pid)
+{
+  if (name.empty() || pid.empty())
+    throw std::invalid_argument{"Must provide name and platform id"};
+  Identity identity{};
+  auto     db     = m_db_ptr;
+  Joins    joins  = {{"person", "id", "platform_user", "pers_id"}, {"affiliation", "pid", "person", "id"},
+                     {"organization", "id", "affiliation", "oid"}};
+  Fields   fields = {"platform_user.id", "platform_user.name", "organization.name"};
+  auto     filter = CreateFilter("platform_user.name", name, "platform_user.pid", pid);
+
+  for (const auto& row : db->selectJoin("platform_user", fields, filter, joins))
+    if (row.first == "platform_user.id")
+      identity.id           = row.second;
+    else
+    if (row.first == "platform_user.name")
+      identity.name         = row.second;
+    else
+    if (row.first == "organization.name")
+      identity.organization = row.second;
+
+  return identity;
 }
 
 std::string GetUser(const std::string& name, const std::string& pid)
@@ -141,20 +185,49 @@ bool TermHasHits(const std::string& term)
   return (TermExists(term) && GetTermHits(term).size());
 }
 
-std::string RecordTermEvent(const std::string& term, const std::string& user, const std::string& app)
+struct TermEvent
 {
-  std::string id;
+std::string id;
+std::string user;
+std::string person;
+std::string organization;
+std::string term;
+std::string type;
+std::string time;
+
+std::string ToString() const
+{
+  return "ID  : " + id           + '\n' +
+         "Term: " + term         + '\n' +
+         "Type: " + type         + '\n' +
+         "User: " + user         + '\n' +
+         "Org : " + organization + '\n' +
+         "Time: " + time;
+}
+};
+
+TermEvent RecordTermEvent(const JSONItem& term, const std::string& user, const std::string& app)
+{
+  TermEvent event{};
+  event.term = term.value;
+  event.type = term.type;
+  event.user = user;
   if (HasBasePlatform(app))
   {
     const auto pid = m_plat_ptr->GetPlatformID(GetBasePlatform(app));
     if (!pid.empty())
     {
-      auto uid = GetUser(user, pid);
-      if (!uid.empty())
-      return SaveTermHit(term, uid);
+      auto identity = GetIdentity(user, pid);
+      if (!identity.id.empty())
+      {
+        event.id           = SaveTermHit(term, identity.id);
+        event.organization = identity.organization;
+        event.person       = GetPersonForUID(identity.id).name;
+        event.time         = TimeUtils::FormatTimestamp(TimeUtils::UnixTime());
+      }
     }
   }
-  return id;
+  return event;
 }
 
 std::vector<TermHit> GetTermHits(const std::string& term)
@@ -162,26 +235,41 @@ std::vector<TermHit> GetTermHits(const std::string& term)
   auto db = m_db_ptr;
   const auto DoQuery = [&db](const std::string& tid)
   {
-    return db->selectJoin("term_hit", {"term_hit.time", "user.id", "user.name", "organization.id", "organization.name"}, {QueryFilter{{"term_hit.tid", tid}}}, Joins{
-      Join{
-        .table = "platform_user",
-        .field = "platform_user.id",
-        .join_table = "term_hit",
-        .join_field = "term_hit.uid"
-      },
-      Join{
-        .table = "organization",
-        .field = "organization.id",
-        .join_table = "term_hit",
-        .join_field = "term_hit.oid"
-      },
-      Join{
-        .table = "person",
-        .field = "person.id",
-        .join_table = "platform_user",
-        .join_field = "platform_user.pers_id"
-      }
-    });
+    try
+    {
+      Fields fields{"term_hit.time", "platform_user.id", "platform_user.name", "organization.id", "organization.name"};
+      return db->selectJoin("term_hit", fields, {CreateFilter("term_hit.tid", tid)}, Joins{
+        Join{
+          .table      = "platform_user",
+          .field      = "id",
+          .join_table = "term_hit",
+          .join_field = "uid"
+        },
+        Join{
+          .table      = "person",
+          .field      = "id",
+          .join_table = "platform_user",
+          .join_field = "pers_id"
+        },
+        Join{
+          .table      = "affiliation",
+          .field      = "pid",
+          .join_table = "person",
+          .join_field = "id"
+        },
+        Join{
+          .table      = "organization",
+          .field      = "id",
+          .join_table = "affiliation",
+          .join_field = "oid"
+        }
+      });
+    }
+    catch (const std::exception& e)
+    {
+      ELOG("Exception from KDB: {}", e.what());
+    }
+    return {};
   };
 
   std::vector<TermHit> result{};

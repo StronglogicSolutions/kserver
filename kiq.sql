@@ -413,6 +413,43 @@ ALTER SEQUENCE public.schedule_id_seq OWNED BY public.schedule.id;
 
 
 --
+-- Name: trigger_config; Type: TABLE; Schema: public; Owner: kiqadmin
+--
+
+CREATE TABLE public.trigger_config (
+    id integer NOT NULL,
+    tid integer NOT NULL,
+    token_name text,
+    section text,
+    name text
+);
+
+
+ALTER TABLE public.trigger_config OWNER TO kiqadmin;
+
+--
+-- Name: trigger_config_id_seq; Type: SEQUENCE; Schema: public; Owner: kiqadmin
+--
+
+CREATE SEQUENCE public.trigger_config_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.trigger_config_id_seq OWNER TO kiqadmin;
+
+--
+-- Name: trigger_config_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: kiqadmin
+--
+
+ALTER SEQUENCE public.trigger_config_id_seq OWNED BY public.trigger_config.id;
+
+
+--
 -- Name: trigger_map; Type: TABLE; Schema: public; Owner: kiqadmin
 --
 
@@ -556,6 +593,13 @@ ALTER TABLE ONLY public.schedule ALTER COLUMN id SET DEFAULT nextval('public.sch
 
 
 --
+-- Name: trigger_config id; Type: DEFAULT; Schema: public; Owner: kiqadmin
+--
+
+ALTER TABLE ONLY public.trigger_config ALTER COLUMN id SET DEFAULT nextval('public.trigger_config_id_seq'::regclass);
+
+
+--
 -- Name: trigger_map id; Type: DEFAULT; Schema: public; Owner: kiqadmin
 --
 
@@ -650,6 +694,14 @@ ALTER TABLE ONLY public.schedule
 
 
 --
+-- Name: trigger_config trigger_config_pkey; Type: CONSTRAINT; Schema: public; Owner: kiqadmin
+--
+
+ALTER TABLE ONLY public.trigger_config
+    ADD CONSTRAINT trigger_config_pkey PRIMARY KEY (id, tid);
+
+
+--
 -- Name: trigger_map trigger_map_pkey; Type: CONSTRAINT; Schema: public; Owner: kiqadmin
 --
 
@@ -734,6 +786,14 @@ ALTER TABLE ONLY public.platform_repost
 --
 
 ALTER TABLE ONLY public.trigger_map
+    ADD CONSTRAINT fk_trigger FOREIGN KEY (tid) REFERENCES public.triggers(id);
+
+
+--
+-- Name: trigger_config fk_trigger; Type: FK CONSTRAINT; Schema: public; Owner: kiqadmin
+--
+
+ALTER TABLE ONLY public.trigger_config
     ADD CONSTRAINT fk_trigger FOREIGN KEY (tid) REFERENCES public.triggers(id);
 
 

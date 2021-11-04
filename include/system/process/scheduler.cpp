@@ -1,5 +1,6 @@
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
+#include "ipc/ipc.hpp"
 
 uint32_t getAppMask(std::string name)
 {
@@ -827,14 +828,20 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
     for (size_t i = 1; i < (event.payload.size() - 1); i += 2)
       items.emplace_back(JSONItem{.type = event.payload[i], .value = event.payload[i + 1]});
 
+    std::string message{"KIQ is now tracking the following terms:"};
+
     for (const auto& item : items)
     {
       const auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
       const auto known_term = m_research_manager.TermHasHits(item.value);
-      const auto hit_id     = m_research_manager.RecordTermEvent(item.value, user, initiating_application);
+      const auto term_info  = m_research_manager.RecordTermEvent(item, user, initiating_application);
       if (known_term)
-        m_research_manager.AnalyzeTermHit(item.value, hit_id);
+        m_research_manager.AnalyzeTermHit(item.value, term_info.id);
+      message               += '\n' + term_info.ToString();
     }
+
+    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE,
+      {CreateOperation("ipc", {constants::TELEGRAM_COMMAND, message, ""})});
   }
 }
 

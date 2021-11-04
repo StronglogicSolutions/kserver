@@ -95,4 +95,4 @@ target_include_directories(${PROJECT_NAME}_lib PRIVATE
   "third_party"
 )
 
-add_subdirectory(test)
+# add_subdirectory(test)
