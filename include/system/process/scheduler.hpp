@@ -151,4 +151,5 @@ Trigger             m_trigger;
 PostExecMap         m_postexec_waiting;
 ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
+std::string         m_message_buffer;
 };
