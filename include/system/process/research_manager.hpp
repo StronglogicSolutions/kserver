@@ -22,11 +22,11 @@ static bool VerifyTerm(const std::string& term)
   using VerifyFunction  = std::function<bool(const std::string&)>;
 
   static const size_t                      npos = std::string::npos;
-  static const std::vector<const char*>    VerifyPatterns {"&amp;", "Thu Feb"};
+  static const std::vector<const char*>    RejectPatterns {"&amp;", "Thu Feb", "Wed Feb", "@…", "Thu Oct"};
   static const std::vector<VerifyFunction> VerifyFunctions{
     [](const std::string& s) { size_t i{}, x{}; while (i++ < 2) { x = s.find("@", x);
       if (x == npos) return true; else x++; } return false;                   },
-    [](const std::string& s) { for (const auto& p : VerifyPatterns)
+    [](const std::string& s) { for (const auto& p : RejectPatterns)
       if (s.find(p) != npos) return false; return true; }
   };
 
@@ -46,46 +46,30 @@ ResearchManager(Database::KDB* db_ptr, Platform* plat_ptr)
   m_plat_ptr(plat_ptr)
 {}
 
-using Database = Database::KDB;
 bool PersonExists(const std::string& name) const
 {
-        auto db     = m_db_ptr;
-  const auto filter = CreateFilter("name", name);
-  return db->select("person", {"id"}, filter).size();
+  return m_db_ptr->select("person", {"id"}, CreateFilter("name", name)).size();
 }
 
 bool UserExists(const std::string& name = "", const std::string& id = "") const
 {
   if (id.empty() && name.empty()) return false;
-
-        auto db     = m_db_ptr;
-  QueryFilter filter{};
-  if (id.size())
-    filter.Add("id", id);
-  if (name.size())
-    filter.Add("name", name);
-
-  return db->select("person", {"id"}, filter).size();
+  return m_db_ptr->select("person", {"id"}, CreateFilter("id", id, "name", name)).size();
 }
 
 bool OrganizationExists(const std::string& name) const
 {
-        auto db     = m_db_ptr;
-  const auto filter = CreateFilter("name", name);
-  return db->select("organization", {"id"}, filter).size();
+  return m_db_ptr->select("organization", {"id"}, CreateFilter("name", name)).size();
 }
 
 bool TermExists(const std::string& name) const
 {
-        auto db     = m_db_ptr;
-  const auto filter = CreateFilter("name", name);
-  return db->select("term", {"id"}, filter).size();
+  return m_db_ptr->select("term", {"id"}, CreateFilter("name", name)).size();
 }
 
 std::string AddPerson(const std::string& name)
 {
-  if (name.empty())
-    return "";
+  if (name.empty()) return "";
   return m_db_ptr->insert("person", {"name"}, {name}, "id");
 }
 
@@ -100,7 +84,7 @@ std::string AddTermHit(const std::string& tid, const std::string& uid, const std
   if (oid.size())
   {
     values.emplace_back(oid);
-    fields.emplace_back("oid)");
+    fields.emplace_back("oid");
   }
   if (time.size())
   {
@@ -115,8 +99,7 @@ std::string GetTerm(const std::string& term)
 {
   std::string id{};
   for (const auto& row : m_db_ptr->select("term", {"id"}, CreateFilter("name", term)))
-    if (row.first == "id")
-      id = row.second;
+    if (row.first == "id") id = row.second;
   return id;
 }
 
@@ -124,8 +107,7 @@ std::string GetPerson(const std::string& name)
 {
   std::string id{};
   for (const auto& row : m_db_ptr->select("person", {"id"}, CreateFilter("name", name)))
-    if (row.first == "id")
-      id = row.second;
+    if (row.first == "id") id = row.second;
   return id;
 }
 
@@ -136,18 +118,15 @@ std::string name;
 
 Person GetPersonForUID(const std::string& uid)
 {
-  Person person {};
-  Fields fields {"platform_user.pers_id", "person.name"};
-  auto   filter = CreateFilter("platform_user.id", uid);
-  Join   join   {"person", "id", "platform_user", "pers_id"};
+        Person      person {};
+  const Fields      fields {"platform_user.pers_id", "person.name"};
+  const QueryFilter filter {"platform_user.id", uid};
+  const Join        join   {"person", "id", "platform_user", "pers_id"};
 
   for (const auto& row : m_db_ptr->selectSimpleJoin("platform_user", fields, filter, join))
-    if (row.first == "platform_user.pers_id")
-      person.id   = row.second;
+    if (row.first == "platform_user.pers_id") person.id   = row.second;
     else
-    if (row.first == "person.name")
-      person.name = row.second;
-
+    if (row.first == "person.name")           person.name = row.second;
   return person;
 }
 
@@ -239,12 +218,13 @@ std::string ToString(const bool verbose = false) const
 }
 };
 
-TermEvent RecordTermEvent(const JSONItem& term, const std::string& user, const std::string& app)
+TermEvent RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app)
 {
   TermEvent event{};
 
   if (VerifyTerm(term.value))
   {
+    term.value = StringUtils::RemoveTags(term.value);                  // After verify, so we can parse out non-distinct terms
     event.term = term.value;
     event.type = term.type;
     event.user = user;
@@ -365,6 +345,6 @@ void        AnalyzeTermHit(const std::string& term, const std::string& hid)
 }
 
 private:
-Database* m_db_ptr;
-Platform* m_plat_ptr;
+Database::KDB* m_db_ptr;
+Platform*      m_plat_ptr;
 };

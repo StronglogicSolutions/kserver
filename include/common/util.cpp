@@ -822,6 +822,19 @@ std::string AlphaNumericOnly(std::string s)
   return s;
 }
 
+std::string RemoveTags(std::string s)
+{
+  s.erase(std::remove_if(
+    s.begin(), s.end(),
+    [](char c)
+    {
+      return (c == '#' || c == '@');
+    }),
+    s.end()
+  );
+  return s;
+}
+
 std::string ToLower(std::string& s)
 {
   std::transform(s.begin(), s.end(), s.begin(), [](char c) { return tolower(c);});

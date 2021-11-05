@@ -806,11 +806,11 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
     if (m_message_buffer.empty())
       m_message_buffer += IPC_Message_Header;
 
-    for (const auto& item : items)
+    for (auto&& item : items)
     {
       const auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
       const auto known_term = m_research_manager.TermHasHits(item.value);
-      const auto term_info  = m_research_manager.RecordTermEvent(item, user, initiating_application);
+      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application);
       if (known_term)
         m_research_manager.AnalyzeTermHit(item.value, term_info.id);
       if (term_info.valid())
