@@ -754,15 +754,15 @@ bool Scheduler::isKIQProcess(uint32_t mask)
 void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications)
 {
   using namespace FileUtils;
-  const auto& map = m_postexec_waiting;
-  const auto  task_fn = ProcessExecutor::GetAppInfo;
-  const auto  LastExecPair = [&map, &task_fn](const int32_t& a, const int32_t&b, const int32_t& mask)
+  const auto  TaskFn       = [this](const int32_t& id) { return getTask(id); };
+  const auto& map          = m_postexec_waiting;
+  const auto  LastExecPair = [&map, &TaskFn](const int32_t& a, const int32_t&b, const int32_t& mask)
   {
-    const auto GetMask = [&task_fn](auto mask) { return std::stoi(task_fn(mask, "").mask); };
+    const auto GetMask = [&TaskFn](auto id) { return TaskFn(id).execution_mask; };
     bool found{false};
     if (map.find(a) != map.end())
     {
-      auto v = map.at(a);
+      const auto& v = map.at(a);
       for (auto i = 0; i < v.size(); i++)
       {
         if (found && GetMask(v.at(i)) == mask)
@@ -775,8 +775,10 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
     return found;
   };
 
-  const auto  initiating_task = getTask(applications.first);
-  const auto  responding_task = getTask(applications.second);
+  const auto& init_id         = applications.first;
+  const auto& resp_id         = applications.second;
+  const auto  initiating_task = getTask(init_id);
+  const auto  responding_task = getTask(resp_id);
   const auto& init_mask       = initiating_task.execution_mask;
   const auto& resp_mask       = responding_task.execution_mask;
   try
@@ -815,11 +817,12 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
         m_message_buffer += '\n' + term_info.ToString();
     }
 
-    if (LastExecPair(initiating_task.id, responding_task.id, responding_task.execution_mask))
+    if (LastExecPair(init_id, resp_id, responding_task.execution_mask))
     {
       m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, {
         CreateOperation("ipc", {constants::TELEGRAM_COMMAND, m_message_buffer, ""})});
       m_message_buffer.clear();
+      // TODO: Clean up PostExec map
     }
   }
 }

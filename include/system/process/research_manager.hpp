@@ -24,14 +24,16 @@ static bool VerifyTerm(const std::string& term)
   static const size_t                      npos = std::string::npos;
   static const std::vector<const char*>    VerifyPatterns {"&amp;", "Thu Feb"};
   static const std::vector<VerifyFunction> VerifyFunctions{
-    [](const std::string& s) {  size_t i, x; while (i++ < 2 ) { x = s.find("@", x);
-      if (x == npos) return true; } return false;                   },
+    [](const std::string& s) { size_t i{}, x{}; while (i++ < 2) { x = s.find("@", x);
+      if (x == npos) return true; else x++; } return false;                   },
     [](const std::string& s) { for (const auto& p : VerifyPatterns)
-      if (s.find(p) != npos) return false; return true;             }
+      if (s.find(p) != npos) return false; return true; }
   };
 
   for (const auto& fn : VerifyFunctions)
-    if (!fn(term)) return false;
+    if (!fn(term))
+      return false;
+
   return true;
 }
 
@@ -222,10 +224,18 @@ bool valid() const
   return (id.size());
 }
 
-std::string ToString() const
+std::string ToString(const bool verbose = false) const
 {
-  return "New term added at " + time + ":\n" + id + ": " +
-         "Term \"" + term + "\" of type " + type + " by " + user + " (" + person + ") from " + organization + '\n';
+  return (verbose) ?
+    "ID  : " + id           + '\n' +
+    "Term: " + term         + '\n' +
+    "Type: " + type         + '\n' +
+    "User: " + user         + '\n' +
+    "Org : " + organization + '\n' +
+    "Time: " + time
+                                    :
+    "New term added at " + time + ":\n" + id + ": " +
+    "Term \"" + term + "\" of type " + type + " by " + user + " (" + person + ") from " + organization + '\n';
 }
 };
 
