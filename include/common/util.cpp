@@ -127,10 +127,13 @@ std::string CreateOperation(const char *op, std::vector<std::string> args)
 
 std::string GetOperation(const std::string& data)
 {
-  Document d;
-  d.Parse(data.c_str());
-  if (d.HasMember("command"))
-    return d["command"].GetString();
+  if (data.size())
+  {
+    Document d;
+    d.Parse(data.c_str());
+    if (d.HasMember("command"))
+      return d["command"].GetString();
+  }
   return "";
 }
 
@@ -154,7 +157,8 @@ template std::string GetMessage(std::string);
 template std::string GetMessage(const char*);
 
 std::string GetEvent(std::string data) {
-  if (!data.empty()) {
+  if (!data.empty())
+  {
     Document d;
     d.Parse(data.c_str());
     if (d.HasMember("event")) {
@@ -176,41 +180,54 @@ bool IsCloseEvent(const std::string& event)
 
 std::vector<std::string> GetArgs(const std::string& data)
 {
-  Document d;
-  d.Parse(data.c_str());
-  std::vector<std::string> args{};
-  if (d.HasMember("args")) {
-    for (const auto &v : d["args"].GetArray()) {
-      args.push_back(v.GetString());
+  std::vector<std::string> v;
+  if (data.size())
+  {
+    Document d;
+    d.Parse(data.c_str());
+    std::vector<std::string> args{};
+    if (d.HasMember("args")) {
+      for (const auto &v : d["args"].GetArray()) {
+        args.push_back(v.GetString());
+      }
     }
+    v = args;
   }
-  return args;
+
+  return v;
 }
 
 std::vector<std::string> GetArgs(const char* data)
 {
   std::vector<std::string> args{};
-  Document                 d;
-  d.Parse(data);
-  if (d.HasMember("args"))
-    for (const auto &v : d["args"].GetArray())
-      args.push_back(v.GetString());
+  if (data)
+  {
+    Document                 d;
+    d.Parse(data);
+    if (d.HasMember("args"))
+      for (const auto &v : d["args"].GetArray())
+        args.push_back(v.GetString());
+  }
   return args;
 }
 
 CommandMap GetArgMap(const char *data)
 {
   CommandMap cm{};
-  Document   d;
-  d.Parse(data);
-  if (d.HasMember("args"))
-    for (const auto &m : d["args"].GetObject())
-      cm.emplace(std::stoi(m.name.GetString()), m.value.GetString());
+  if (data)
+  {
+    Document   d;
+    d.Parse(data);
+    if (d.HasMember("args"))
+      for (const auto &m : d["args"].GetObject())
+        cm.emplace(std::stoi(m.name.GetString()), m.value.GetString());
+  }
   return cm;
 }
 
 using KIQArgMap = std::vector<std::pair<std::string, std::string>>;
-std::string CreateSessionEvent(int status, std::string message, KIQArgMap args) {
+std::string CreateSessionEvent(int status, std::string message, KIQArgMap args)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -340,30 +357,36 @@ std::string CreateMessage(const char *data, std::map<int, std::vector<std::strin
  */
 bool IsMessage(const std::string& data)
 {
-  Document d;
-  d.Parse(data.c_str());
-  if (!d.IsNull())
-    return d.HasMember("message");
+  if (data.size())
+  {
+    Document d;
+    d.Parse(data.c_str());
+    if (!d.IsNull())
+      return d.HasMember("message");
+  }
   return false;
 }
 
 bool IsOperation(const std::string& data)
 {
-  Document d;
-  d.Parse(data.c_str());
-  if (!d.IsNull())
-    return strcmp(d["type"].GetString(), "operation") == 0;
+  if (data.size())
+  {
+    Document d;
+    d.Parse(data.c_str());
+    if (!d.IsNull())
+      return strcmp(d["type"].GetString(), "operation") == 0;
+  }
 return false;
 }
 
 bool IsExecuteOperation(const std::string& data)
 {
-  return data == "Execute";
+  return data.size() ? data == "Execute" : false;
 }
 
 bool IsScheduleOperation(const std::string& data)
 {
-  return data == "Schedule";
+  return data.data() ? data == "Schedule" : false;
 }
 
 bool IsFileUploadOperation(const std::string& data) { return data == "FileUpload"; }
