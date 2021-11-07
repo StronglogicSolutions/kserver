@@ -75,6 +75,7 @@ void Add(Ts&&... args)
   {
     const auto& key   = v[i    ];
     const auto& value = v[i + 1];
+    if (value.empty())  continue;
     m_filters.emplace_back(FilterPair{key, DoubleSingleQuotes(value)});
   }
 }

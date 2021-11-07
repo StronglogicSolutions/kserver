@@ -191,7 +191,8 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
   } // TODO: Handle failed preparation -> tasks can get stuck in the request_handler's task map
 }
 
-KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const std::string& name) {
+KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const std::string& name)
+{
   using FPair = std::pair<std::string, std::string>;
 
   if (mask == -1 && name.empty())

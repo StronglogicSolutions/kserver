@@ -503,34 +503,14 @@ std::vector<Task> Scheduler::fetchRecurringTasks() {
  *
  * @return std::vector<Task>
  */
-std::vector<Task> Scheduler::fetchAllTasks() {
-  return parseTasks(
-    m_kdb.selectJoin<QueryFilter>(
-      "schedule",
-      {
-        Field::ID,                                            // fields
-        Field::TIME,
-        Field::MASK,
-        Field::FLAGS,
-        Field::ENVFILE,
-        Field::COMPLETED,
-        Field::RECURRING,
-        Field::NOTIFY,
-        "(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files" // TODO: replace with grouping
-      },
-      {},
-      Joins{
-        Join{
-            .table      ="file",
-            .field      ="sid",
-            .join_table ="schedule",
-            .join_field ="id",
-            .type       = JoinType::OUTER
-          }
-      }
-    ),
-    true
-  );
+std::vector<Task> Scheduler::fetchAllTasks()
+{
+  static const char*  FILEQUERY{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
+  static const Fields fields{Field::ID, Field::TIME, Field::MASK, Field::FLAGS, Field::ENVFILE,
+                             Field::COMPLETED,Field::RECURRING,Field::NOTIFY, FILEQUERY};
+  static const Joins  joins{{ "file", "sid", "schedule", "id", JoinType::OUTER}};
+
+  return parseTasks(m_kdb.selectJoin<QueryFilter>("schedule", fields, {}, joins), true);
 }
 
 /**
@@ -544,15 +524,9 @@ std::vector<Task> Scheduler::fetchAllTasks() {
  */
 Task Scheduler::getTask(const std::string& id)
 {
-  Task task = parseTask(m_kdb.select(
-    "schedule", {       // table
-      Field::MASK,    Field::FLAGS, // fields
-      Field::ENVFILE, Field::TIME,
-      Field::COMPLETED
-      }, {
-        CreateFilter("id", id)      // filter
-      }
-  ));
+  static const Fields fields{Field::MASK, Field::FLAGS, Field::ENVFILE, Field::TIME,Field::COMPLETED};
+
+  Task task = parseTask(m_kdb.select("schedule", fields, {CreateFilter("id", id)}));
 
   for (const auto& file : getFiles(id))
     task.filenames.push_back(file.name);
@@ -780,8 +754,31 @@ bool Scheduler::isKIQProcess(uint32_t mask)
 void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications)
 {
   using namespace FileUtils;
-  const auto  initiating_task = getTask(applications.first);
-  const auto  responding_task = getTask(applications.second);
+  const auto  TaskFn       = [this](const int32_t& id) { return getTask(id); };
+  const auto& map          = m_postexec_waiting;
+  const auto  LastExecPair = [&map, &TaskFn](const int32_t& a, const int32_t&b, const int32_t& mask)
+  {
+    const auto GetMask = [&TaskFn](auto id) { return TaskFn(id).execution_mask; };
+    bool found{false};
+    if (map.find(a) != map.end())
+    {
+      const auto& v = map.at(a);
+      for (auto i = 0; i < v.size(); i++)
+      {
+        if (found && GetMask(v.at(i)) == mask)
+          return false;
+
+        if (v.at(i) == b)
+          found = true;
+      }
+    }
+    return found;
+  };
+
+  const auto& init_id         = applications.first;
+  const auto& resp_id         = applications.second;
+  const auto  initiating_task = getTask(init_id);
+  const auto  responding_task = getTask(resp_id);
   const auto& init_mask       = initiating_task.execution_mask;
   const auto& resp_mask       = responding_task.execution_mask;
   try
@@ -800,26 +797,33 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
   if (initiating_application == "TW Research" && responding_application == "KNLP")
   {
     using JSONItem  = KNLPResultParser::NLPItem;
-
-    std::vector<JSONItem> items{};
+    static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
+    std::vector<JSONItem>    items{};
 
     for (size_t i = 1; i < (event.payload.size() - 1); i += 2)
       items.emplace_back(JSONItem{.type = event.payload[i], .value = event.payload[i + 1]});
 
-    std::string message{"KIQ is now tracking the following terms:"};
+    if (m_message_buffer.empty())
+      m_message_buffer += IPC_Message_Header;
 
-    for (const auto& item : items)
+    for (auto&& item : items)
     {
       const auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
       const auto known_term = m_research_manager.TermHasHits(item.value);
-      const auto term_info  = m_research_manager.RecordTermEvent(item, user, initiating_application);
+      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application);
       if (known_term)
         m_research_manager.AnalyzeTermHit(item.value, term_info.id);
-      message               += '\n' + term_info.ToString();
+      if (term_info.valid())
+        m_message_buffer += '\n' + term_info.ToString();
     }
 
-    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE,
-      {CreateOperation("ipc", {constants::TELEGRAM_COMMAND, message, ""})});
+    if (LastExecPair(init_id, resp_id, responding_task.execution_mask))
+    {
+      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, {
+        CreateOperation("ipc", {constants::TELEGRAM_COMMAND, m_message_buffer, ""})});
+      m_message_buffer.clear();
+      // TODO: Clean up PostExec map
+    }
   }
 }
 
