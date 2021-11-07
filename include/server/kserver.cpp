@@ -1,4 +1,5 @@
 #include "kserver.hpp"
+#include "kiqoder/file_iterator.hpp"
 
 namespace KYO {
 
@@ -158,7 +159,7 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
       {
         KLOG("Data buffer found. Creating directory and saving file");
         const std::string filename = args.at(0);
-        FileUtils::SaveFile(received_file->f_ptr, received_file->size, filename.c_str());
+        FileUtils::SaveFile(received_file->f_ptr, received_file->size, filename);
         m_received_files.erase(received_file);
 
         if (args.size() == 4 && args.at(3) == "final file")
@@ -290,8 +291,8 @@ void KServer::onProcessEvent(std::string result, int mask, std::string id,
 
 void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
 {
-  using F_Iterator = FileUtils::FileIterator<uint8_t>;
-  using P_Wrapper  = FileUtils::FileIterator<uint8_t>::PacketWrapper;
+  using F_Iterator = Kiqoder::FileIterator<uint8_t>;
+  using P_Wrapper  = Kiqoder::FileIterator<uint8_t>::PacketWrapper;
 
   F_Iterator iterator{filename};
 
@@ -317,7 +318,7 @@ void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
 void KServer::sendEvent(int client_socket_fd, std::string event, std::vector<std::string> argv)
 {
   KLOG("Sending {} event to {}", event, client_socket_fd);
-  sendMessage(client_socket_fd, CreateEvent(event.c_str(), argv));
+  sendMessage(client_socket_fd, CreateEvent(event, argv));
 }
 
 void KServer::sendSessionMessage(int client_socket_fd, int status, std::string message, SessionInfo info)
@@ -330,8 +331,8 @@ void KServer::sendSessionMessage(int client_socket_fd, int status, std::string m
 
 void KServer::sendMessage(const int32_t& client_socket_fd, const std::string& message)
 {
-  using F_Iterator = FileUtils::FileIterator<char>;
-  using P_Wrapper  = FileUtils::FileIterator<char>::PacketWrapper;
+  using F_Iterator = Kiqoder::FileIterator<char>;
+  using P_Wrapper  = Kiqoder::FileIterator<char>::PacketWrapper;
 
   F_Iterator iterator{message.data(), message.size()};
 
@@ -346,27 +347,22 @@ void KServer::sendMessage(const int32_t& client_socket_fd, const std::string& me
 /**
  * File Transfer Completion
  */
-void KServer::onFileHandled(int socket_fd, int result, uint8_t*&& f_ptr, size_t size)
+void KServer::onFileHandled(int socket_fd, uint8_t*&& f_ptr, size_t size)
 {
   if (m_file_pending_fd == socket_fd)
   {
-    if (result == FILE_HANDLE__SUCCESS && size)
-    {
-      const auto timestamp = TimeUtils::UnixTime();
-      m_received_files.push_back(ReceivedFile{.timestamp = timestamp,
-                                              .client_fd = socket_fd,
-                                              .f_ptr     = f_ptr,
-                                              .size      = size});
-      KLOG("Finished handling file for client {} at {}", socket_fd, timestamp);
-      SetFileNotPending();
-      m_controller.setHandlingData(false);
-      sendEvent(socket_fd, "File Transfer Complete",
-                {std::to_string(timestamp)});
+    const auto timestamp = TimeUtils::UnixTime();
+    m_received_files.push_back(ReceivedFile{.timestamp = timestamp,
+                                            .client_fd = socket_fd,
+                                            .f_ptr     = f_ptr,
+                                            .size      = size});
+    KLOG("Finished handling file for client {} at {}", socket_fd, timestamp);
+    SetFileNotPending();
+    m_controller.setHandlingData(false);
+    sendEvent(socket_fd, "File Transfer Complete",
+              {std::to_string(timestamp)});
 
-      return;
-    }
-    KLOG("File transfer failed");
-    sendEvent(socket_fd, "File Transfer Failed", {});  // Nothing saved
+    return;
   }
   KLOG("Lost file intended for {}", socket_fd);
 }
@@ -377,19 +373,22 @@ void KServer::onFileHandled(int socket_fd, int result, uint8_t*&& f_ptr, size_t 
 void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
                         int client_socket_fd, uint32_t size)
 {
-  auto handler = m_file_handlers.find(client_socket_fd);
+  using FileHandler = Kiqoder::FileHandler;
+  auto  handler     = m_file_handlers.find(client_socket_fd);
 
   if (handler != m_file_handlers.end())
     handler->second.processPacket(s_buffer_ptr.get(), size);
   else
   {
     KLOG("creating FileHandler for {}", client_socket_fd);
-    m_file_handlers.insert({client_socket_fd, FileHandler{client_socket_fd, "", s_buffer_ptr.get(), size,
-      [this](int socket_fd, int result, uint8_t *f_ptr, size_t buffer_size)
+    m_file_handlers.insert({client_socket_fd, FileHandler{
+      [this](int32_t fd, uint8_t* data, size_t size)
       {
-        onFileHandled(socket_fd, result, std::move(f_ptr), buffer_size);
+        onFileHandled(fd, std::move(data), size);
       }
     }});
+    m_file_handlers.at(client_socket_fd).setID(client_socket_fd);
+    m_file_handlers.at(client_socket_fd).processPacket(s_buffer_ptr.get(), size);
   }
 }
 void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& files)
@@ -421,8 +420,9 @@ void KServer::handleStart(std::string decoded_message, int client_socket_fd)
  */
 void KServer::handleExecute(std::string decoded_message, int client_socket_fd)
 {
-  const std::vector<std::string> args = GetArgs(decoded_message.c_str());
-  if (!args.empty() && args.size() > 1) {
+  const std::vector<std::string> args = GetArgs(decoded_message);
+  if (!args.empty() && args.size() > 1)
+  {
     const auto mask         = args.at(0);
     const auto request_uuid = args.at(1);
     KLOG("Execute request received.\nMask: {}  ID: {}", mask, request_uuid);
@@ -453,42 +453,49 @@ void KServer::handleSchedule(std::vector<std::string> task, int client_socket_fd
  */
 void KServer::handleOperation(std::string decoded_message, int client_socket_fd)
 {
-  KOperation op = GetOperation(decoded_message.c_str());
-  if (IsStartOperation(op.c_str())) {        // Start
+  KOperation op = GetOperation(decoded_message);
+  if (IsStartOperation(op))
+  {
     KLOG("Start operation. TODO: Move to Controller::process_client_request()");
     handleStart(decoded_message, client_socket_fd);
     return;
   }
   else
-  if (IsStopOperation(op.c_str())) {         // Stop
+  if (IsStopOperation(op))
+  {
     KLOG("Stop operation. Shutting down client and closing connection. TODO: Move to Controller::process_client_request()");
     handleStop(client_socket_fd);
     return;
   }
   else
-  if (IsExecuteOperation(op.c_str())) {      // Process execution request
+  if (IsExecuteOperation(op))
+  {
     KLOG("Execute operation. TODO: Move to Controller::process_client_request()");
     handleExecute(decoded_message, client_socket_fd);
     return;
   }
   else
-  if (IsFileUploadOperation(op.c_str())) {   // File upload request
+  if (IsFileUploadOperation(op))
+  {
     KLOG("File upload operation. TODO: Move to Controller::process_client_request()");
     handleFileUploadRequest(client_socket_fd);
     return;
   }
   else
-  if (IsIPCOperation(op.c_str())) {          // IPC request
+  if (IsIPCOperation(op))
+  {
     KLOG("Testing IPC");
     handleIPC(decoded_message, client_socket_fd);
   }
   else
-  if (IsAppOperation(op.c_str())) {          // Register app
+  if (IsAppOperation(op))
+  {
     KLOG("App request. TODO: Move to Controller::process_client_request()");
     handleAppRequest(client_socket_fd, decoded_message);
   }
   else
-  if (IsScheduleOperation(op.c_str())) {     // Fetch schedule
+  if (IsScheduleOperation(op))
+  {
     KLOG("Fetch schedule request. TODO: Move to Controller::process_client_request()");
     handleScheduleRequest(client_socket_fd, decoded_message);
   }
@@ -582,40 +589,39 @@ void KServer::onConnectionClose(int client_socket_fd)
   EraseOutgoingFiles (client_socket_fd);
 }
 
-void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd)
+void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
 {
+  using FileHandler = Kiqoder::FileHandler;
   static const bool KEEP_HEADER{true};
 
-  auto handler = m_message_handlers.find(client_socket_fd);
+  auto handler = m_message_handlers.find(fd);
   if (handler != m_message_handlers.end())
     handler->second.processPacket(s_buffer_ptr.get(), size);
   else
   {
-    KLOG("creating message handler for {}", client_socket_fd);
-    m_message_handlers.insert({client_socket_fd, FileHandler{client_socket_fd, "", s_buffer_ptr.get(), size,
-      [this, client_socket_fd](int socket_fd, int result, uint8_t* m_ptr, size_t buffer_size)
+    KLOG("creating message handler for {}", fd);
+    m_message_handlers.insert({fd, FileHandler{
+      [this](int fd, uint8_t* m_ptr, size_t buffer_size)
       {
-        DecodeMessage(m_ptr).leftMap([this, client_socket_fd](auto decoded_message)
+        DecodeMessage(m_ptr).leftMap([this, fd](auto decoded_message)
         {
           KLOG("Received message: {}", decoded_message);
-          // Handle operations
-          if (IsOperation(decoded_message.c_str()))
+          if (IsOperation(decoded_message))
           {
             KLOG("Received operation");
-            handleOperation(decoded_message, client_socket_fd);
+            handleOperation(decoded_message, fd);
           }
           else
-          if (IsMessage(decoded_message.c_str()))
-            sendEvent(client_socket_fd,"Message Received", {"Received by KServer", "Message", GetMessage(decoded_message)});
-
+          if (IsMessage(decoded_message))
+            sendEvent(fd,"Message Received", {"Received by KServer", "Message", GetMessage(decoded_message)});
           return decoded_message;
         })
-        .rightMap([this, client_socket_fd](auto task_args)
+        .rightMap([this, fd](auto task_args)
         {
           if (!task_args.empty())
           {
             KLOG("Receive buffer contained schedule request");
-            handleSchedule(task_args, client_socket_fd);
+            handleSchedule(task_args, fd);
           }
 
           return task_args;
@@ -623,6 +629,8 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       },
       KEEP_HEADER
     }});
+    m_message_handlers.at(fd).setID(fd);
+    m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
   }
 }
 
@@ -638,9 +646,9 @@ bool KServer::EraseMessageHandler(int32_t client_socket_fd)
   return false;
 }
 
-bool KServer::EraseFileHandler(int client_socket_fd)
+bool KServer::EraseFileHandler(int fd)
 {
-  auto it = m_file_handlers.find(client_socket_fd);
+  auto it = m_file_handlers.find(fd);
   if (it != m_file_handlers.end())
   {
     m_file_handlers.erase(it);
@@ -650,11 +658,10 @@ bool KServer::EraseFileHandler(int client_socket_fd)
   return false;
 }
 
-void KServer::EraseOutgoingFiles(int32_t client_fd)
+void KServer::EraseOutgoingFiles(int32_t fd)
 {
-  auto file_it = m_outbound_files.begin();
-  for (; file_it != m_outbound_files.end();)
-    if (file_it->fd == client_fd)
+  for (auto file_it = m_outbound_files.begin(); file_it != m_outbound_files.end();)
+    if (file_it->fd == fd)
       file_it = m_outbound_files.erase(file_it);
     else
       file_it++;

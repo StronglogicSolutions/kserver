@@ -64,14 +64,34 @@ std::string CreateEvent(const char *event, int mask, std::string stdout) {
   return s.GetString();
 }
 
-std::string CreateEvent(const char *event, std::vector<std::string> args) {
+std::string CreateEvent(const std::string& event, std::vector<std::string> args)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
   w.Key("type");
   w.String("event");
   w.Key("event");
-  w.String(event);
+  w.String(event.c_str());
+  w.Key("args");
+  w.StartArray();
+  if (!args.empty())
+    for (const auto &arg : args)
+      w.String(arg.c_str());
+  w.EndArray();
+  w.EndObject();
+  return s.GetString();
+}
+
+std::string CreateEvent(const std::string& event, int mask, std::vector<std::string> args)
+{
+  StringBuffer s;
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
+  w.StartObject();
+  w.Key("type");
+  w.String("event");
+  w.Key("event");
+  w.String(event.c_str());
   w.Key("args");
   w.StartArray();
   if (!args.empty()) {
@@ -84,28 +104,8 @@ std::string CreateEvent(const char *event, std::vector<std::string> args) {
   return s.GetString();
 }
 
-std::string CreateEvent(const char *event, int mask,
-                        std::vector<std::string> args) {
-  StringBuffer s;
-  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
-  w.StartObject();
-  w.Key("type");
-  w.String("event");
-  w.Key("event");
-  w.String(event);
-  w.Key("args");
-  w.StartArray();
-  if (!args.empty()) {
-    for (const auto &arg : args) {
-      w.String(arg.c_str());
-    }
-  }
-  w.EndArray();
-  w.EndObject();
-  return s.GetString();
-}
-
-std::string CreateOperation(const char *op, std::vector<std::string> args) {
+std::string CreateOperation(const char *op, std::vector<std::string> args)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -125,17 +125,18 @@ std::string CreateOperation(const char *op, std::vector<std::string> args) {
   return s.GetString();
 }
 
-std::string GetOperation(const char *data) {
+std::string GetOperation(const std::string& data)
+{
   Document d;
-  d.Parse(data);
-  if (d.HasMember("command")) {
+  d.Parse(data.c_str());
+  if (d.HasMember("command"))
     return d["command"].GetString();
-  }
   return "";
 }
 
 template<typename T>
-std::string GetMessage(T data) {
+std::string GetMessage(T data)
+{
   Document d;
   if constexpr (std::is_same_v<T, std::string>)
     d.Parse(data.c_str());
@@ -150,7 +151,6 @@ std::string GetMessage(T data) {
 }
 
 template std::string GetMessage(std::string);
-
 template std::string GetMessage(const char*);
 
 std::string GetEvent(std::string data) {
@@ -164,15 +164,18 @@ std::string GetEvent(std::string data) {
   return "";
 }
 
-bool IsSessionMessageEvent(std::string event) {
+bool IsSessionMessageEvent(const std::string& event)
+{
   return event.compare("Session Message") == 0;
 }
 
-bool IsCloseEvent(std::string event) {
+bool IsCloseEvent(const std::string& event)
+{
   return event.compare("Close Session") == 0;
 }
 
-std::vector<std::string> GetArgs(std::string data) {
+std::vector<std::string> GetArgs(const std::string& data)
+{
   Document d;
   d.Parse(data.c_str());
   std::vector<std::string> args{};
@@ -184,33 +187,30 @@ std::vector<std::string> GetArgs(std::string data) {
   return args;
 }
 
-std::vector<std::string> GetArgs(const char* data) {
-  Document d;
-  d.Parse(data);
+std::vector<std::string> GetArgs(const char* data)
+{
   std::vector<std::string> args{};
-  if (d.HasMember("args")) {
-    for (const auto &v : d["args"].GetArray()) {
+  Document                 d;
+  d.Parse(data);
+  if (d.HasMember("args"))
+    for (const auto &v : d["args"].GetArray())
       args.push_back(v.GetString());
-    }
-  }
   return args;
 }
 
-CommandMap GetArgMap(const char *data) {
-  Document d;
-  d.Parse(data);
+CommandMap GetArgMap(const char *data)
+{
   CommandMap cm{};
-  if (d.HasMember("args")) {
-    for (const auto &m : d["args"].GetObject()) {
+  Document   d;
+  d.Parse(data);
+  if (d.HasMember("args"))
+    for (const auto &m : d["args"].GetObject())
       cm.emplace(std::stoi(m.name.GetString()), m.value.GetString());
-    }
-  }
   return cm;
 }
 
-std::string CreateSessionEvent(
-    int status, std::string message,
-    std::vector<std::pair<std::string, std::string>> args) {
+using KIQArgMap = std::vector<std::pair<std::string, std::string>>;
+std::string CreateSessionEvent(int status, std::string message, KIQArgMap args) {
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -224,19 +224,21 @@ std::string CreateSessionEvent(
   w.String(message.c_str());
   w.Key("info");
   w.StartObject();
-  if (!args.empty()) {
-    for (const auto &v : args) {
+
+  if (!args.empty())
+    for (const auto &v : args)
+    {
       w.Key(v.first.c_str());
       w.String(v.second.c_str());
     }
-  }
+
   w.EndObject();
   w.EndObject();
   return s.GetString();
 }
 
-std::string CreateMessage(
-    const char *data, std::vector<std::pair<std::string, std::string>> args) {
+std::string CreateMessage(const char *data, std::vector<std::pair<std::string, std::string>> args)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -246,19 +248,19 @@ std::string CreateMessage(
   w.String(data);
   w.Key("args");
   w.StartObject();
-  if (!args.empty()) {
-    for (const auto &v : args) {
+  if (!args.empty())
+    for (const auto &v : args)
+    {
       w.Key(v.first.c_str());
       w.String(v.second.c_str());
     }
-  }
   w.EndObject();
   w.EndObject();
   return s.GetString();
 }
 
-std::string CreateMessage(const char *data,
-                          std::map<int, std::string> map) {
+std::string CreateMessage(const char *data, std::map<int, std::string> map)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -268,18 +270,19 @@ std::string CreateMessage(const char *data,
   w.String(data);
   w.Key("args");
   w.StartObject();
-  if (!map.empty()) {
-    for (const auto &[k, v] : map) {
+  if (!map.empty())
+    for (const auto &[k, v] : map)
+    {
       w.Key(std::to_string(k).c_str());
       w.String(v.c_str());
     }
-  }
   w.EndObject();
   w.EndObject();
   return s.GetString();
 }
 
-std::string CreateMessage(const char *data, std::vector<KApplication> commands) {
+std::string CreateMessage(const char *data, std::vector<KApplication> commands)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -289,21 +292,21 @@ std::string CreateMessage(const char *data, std::vector<KApplication> commands) 
   w.String(data);
   w.Key("args");
   w.StartArray();
-  if (!commands.empty()) {
-    for (const auto& command : commands) {
+  if (!commands.empty())
+    for (const auto& command : commands)
+    {
       w.String(command.mask.c_str());
       w.String(command.name.c_str());
       w.String(command.path.c_str());
       w.String(command.data.c_str());
     }
-  }
   w.EndArray();
   w.EndObject();
   return s.GetString();
 }
 
-std::string CreateMessage(const char *data,
-                          std::map<int, std::vector<std::string>> map) {
+std::string CreateMessage(const char *data, std::map<int, std::vector<std::string>> map)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -313,14 +316,16 @@ std::string CreateMessage(const char *data,
   w.String(data);
   w.Key("args");
   w.StartObject();
-  if (!map.empty()) {
-    for (const auto &[k, v] : map) {
+  if (!map.empty())
+  {
+    for (const auto &[k, v] : map)
+    {
       w.Key(std::to_string(k).c_str());
-      if (!v.empty()) {
+      if (!v.empty())
+      {
         w.StartArray();
-        for (const auto &arg : v) {
+        for (const auto &arg : v)
           w.String(arg.c_str());
-        }
         w.EndArray();
       }
     }
@@ -333,47 +338,39 @@ std::string CreateMessage(const char *data,
 /**
  * Operations
  */
-bool IsMessage(const char *data) {
-  if (data != nullptr) {
-    Document d;
-    d.Parse(data);
-    if (!d.IsNull())
-      return d.HasMember("message");
-  }
+bool IsMessage(const std::string& data)
+{
+  Document d;
+  d.Parse(data.c_str());
+  if (!d.IsNull())
+    return d.HasMember("message");
   return false;
 }
 
-bool IsOperation(const char *data) {
-  if (data != nullptr) {
-    Document d;
-    d.Parse(data);
-    if (!d.IsNull())
-      return strcmp(d["type"].GetString(), "operation") == 0;
-  }
-  return false;
+bool IsOperation(const std::string& data)
+{
+  Document d;
+  d.Parse(data.c_str());
+  if (!d.IsNull())
+    return strcmp(d["type"].GetString(), "operation") == 0;
+return false;
 }
 
-bool IsExecuteOperation(const char *data) {
-  return strcmp(data, "Execute") == 0;
+bool IsExecuteOperation(const std::string& data)
+{
+  return data == "Execute";
 }
 
-bool IsScheduleOperation(const char *data) {
-  return strcmp(data, "Schedule") == 0;
+bool IsScheduleOperation(const std::string& data)
+{
+  return data == "Schedule";
 }
 
-bool IsFileUploadOperation(const char *data) {
-  return strcmp(data, "FileUpload") == 0;
-}
-
-bool IsIPCOperation(const char *data) {
-  return strcmp(data, "ipc") == 0;
-}
-
-bool IsStartOperation(const char *data) { return strcmp(data, "start") == 0; }
-
-bool IsStopOperation(const char *data) { return strcmp(data, "stop") == 0; }
-
-bool IsAppOperation(const char* data) { return strcmp(data, "AppRequest") == 0; }
+bool IsFileUploadOperation(const std::string& data) { return data == "FileUpload"; }
+bool IsIPCOperation(const std::string& data)   { return data == "ipc";  }
+bool IsStartOperation(const std::string& data) { return data == "start";     }
+bool IsStopOperation (const std::string& data) { return data == "stop";       }
+bool IsAppOperation  (const std::string& data) { return data == "AppRequest"; }
 
 static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
 {
@@ -445,7 +442,7 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
       std::memcpy(decode_buffer, buffer + 5, message_byte_size);
       if (VerifyFlatbuffer(decode_buffer, message_byte_size))
       {
-        const flatbuffers::Vector<uint8_t>* message_bytes = GetMessage(&decode_buffer)->data();
+        const flatbuffers::Vector<uint8_t>* message_bytes = KData::GetMessage(&decode_buffer)->data();
         return left(std::string{message_bytes->begin(), message_bytes->end()});
       }
     }
@@ -504,11 +501,8 @@ namespace FileUtils {
 bool CreateDirectory(const char *dir_name) {
   std::error_code err{};
   std::filesystem::create_directory(dir_name, err);
-  auto code = err.value();
-  if (code == 0) {
+  if (!err.value())
     return true;
-  }
-  std::cout << err.message() << "\n" << err.value() << std::endl;
   return false;
 }
 
@@ -619,16 +613,6 @@ std::string ReadFile(const std::string& env_file_path) {
     return return_s;
 }
 
-
-std::vector<uint8_t> ReadFileAsBytes(const std::string& file_path)
-{
-  std::ifstream        byte_stream(file_path, std::ios::binary);
-  std::vector<uint8_t> file_bytes{std::istreambuf_iterator<char>(byte_stream), {}};
-  byte_stream.close();
-  return file_bytes;
-}
-
-
 std::string CreateEnvFile(std::unordered_map<std::string, std::string>&& key_pairs)
 {
   const std::string SHEBANG{"#!/usr/bin/env bash\n"};
@@ -646,12 +630,11 @@ std::string ReadEnvToken(const std::string& env_file_path, const std::string& to
 {
   std::string run_arg_s{};
   std::string env = ReadEnvFile(env_file_path);
-  for (auto c : env)
-    std::cout << c;
-  std::cout << std::endl;
-  if (!env.empty()) {
+  if (!env.empty())
+  {
     auto start = env.find('\n' + token_key);
-    if (start != std::string::npos) {
+    if (start != std::string::npos)
+    {
       auto sub_s = env.substr(start + token_key.size() + 2);
       auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR);
       run_arg_s  = sub_s.substr(0, end);
@@ -662,9 +645,11 @@ std::string ReadEnvToken(const std::string& env_file_path, const std::string& to
 
 bool WriteEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
   std::string env = ReadEnvFile(env_file_path);
-  if (!env.empty()) {
+  if (!env.empty())
+  {
     auto key_index = env.find(token_key);
-    if (key_index != std::string::npos) {
+    if (key_index != std::string::npos)
+    {
       auto start_index = key_index + token_key.size() + 1;
       auto rem_s       = env.substr(start_index);
       auto end_index   = rem_s.find_first_of(ARGUMENT_SEPARATOR);
@@ -828,7 +813,7 @@ std::string RemoveTags(std::string s)
     s.begin(), s.end(),
     [](char c)
     {
-      return (c == '#' || c == '@' || c == '＠');
+      return (c == '#' || c == '@');
     }),
     s.end()
   );
@@ -901,17 +886,17 @@ int UnixTime() {
 }
 
 std::string FormatTimestamp(int unixtime) {
-  char       buf[80];
-  const std::time_t time = static_cast<std::time_t>(unixtime);
-  struct tm ts = *localtime(&time);
+  char               buf[80];
+  const  std::time_t time = static_cast<std::time_t>(unixtime);
+  struct tm          ts   = *(localtime(&time));
   std::strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
   return std::string{buf};
 }
 
 std::string FormatTimestamp(std::string unixtime) {
-  char       buf[80];
-  const std::time_t time = static_cast<std::time_t>(stoi(unixtime));
-  struct tm ts = *localtime(&time);
+  char               buf[80];
+  const  std::time_t time = static_cast<std::time_t>(std::stoi(unixtime));
+  struct tm          ts   = *(localtime(&time));
   std::strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
   return std::string{buf};
 }
