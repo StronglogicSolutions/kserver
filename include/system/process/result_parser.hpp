@@ -486,24 +486,31 @@ ResultProcessor()
 
 ProcessParseResult process(const std::string& output, KApplication app)
 {
-  std::unique_ptr<ProcessParseInterface> u_parser_ptr;
-  if (app.name == "IG Feed")
-    u_parser_ptr.reset(new IGFeedResultParser{app.name});
-  else
-  if (app.name == "YT Feed")
-    u_parser_ptr.reset(new YTFeedResultParser{app.name});
-  else
-  if (app.name == "TW Feed" || app.name == "TW Search")
-    u_parser_ptr.reset(new TWFeedResultParser{app.name});
-  else
-  if (app.name == "TW Research")
-    u_parser_ptr.reset(new TWResearchParser{app.name});
-  else
-  if (app.name == "KNLP")
-    u_parser_ptr.reset(new KNLPResultParser{app.name});
-  u_parser_ptr->read(output);
+  ProcessParseResult result;
 
-  return u_parser_ptr->get_result();
+  if (app.is_kiq)
+  {
+    std::unique_ptr<ProcessParseInterface> u_parser_ptr;
+    if (app.name == "IG Feed")
+      u_parser_ptr.reset(new IGFeedResultParser{app.name});
+    else
+    if (app.name == "YT Feed")
+      u_parser_ptr.reset(new YTFeedResultParser{app.name});
+    else
+    if (app.name == "TW Feed" || app.name == "TW Search")
+      u_parser_ptr.reset(new TWFeedResultParser{app.name});
+    else
+    if (app.name == "TW Research")
+      u_parser_ptr.reset(new TWResearchParser{app.name});
+    else
+    if (app.name == "KNLP")
+      u_parser_ptr.reset(new KNLPResultParser{app.name});
+    u_parser_ptr->read(output);
+
+    result = u_parser_ptr->get_result();
+  }
+
+  return result;
 }
 
 };
