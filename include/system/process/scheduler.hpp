@@ -94,6 +94,7 @@ using PostExecDuo     = std::pair<int32_t, int32_t>;
 using PostExecMap     = std::unordered_map<int32_t, std::vector<int32_t>>;
 using ApplicationInfo = std::pair<int32_t, std::string>;
 using ApplicationMap  = std::unordered_map<int32_t, std::string>;
+using TermEvents      = std::vector<ResearchManager::TermEvent>;
 
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
@@ -135,6 +136,7 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      processTriggers(Task*              task);
         bool                      addTrigger(const std::vector<std::string>& payload);
         int32_t                   FindPostExec(const int32_t& id);
+        TermEvents                FetchTermEvents() const;
 
         template <typename T>
         std::vector<std::string>  getFlags(const T& mask);

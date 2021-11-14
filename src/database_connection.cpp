@@ -184,15 +184,14 @@ std::string getFilterStatement(T filter)
 std::string getJoinStatement(Joins joins)
 {
   std::string join_s{};
-  if (!joins.empty()) {
-    for (const auto& join : joins) {
-      join_s += join.type == JoinType::INNER ? "INNER JOIN " : "LEFT OUTER JOIN ";
-      join_s += join.table + \
-       " ON " + join.table + "." + join.field + "=" + join.join_table + "." + join.join_field;
-      join_s += " ";
-    }
-    join_s.pop_back();
+  for (const auto& join : joins)
+  {
+    join_s += join.type == JoinType::INNER ? "INNER JOIN " : "LEFT OUTER JOIN ";
+    join_s += join.table + " ON " + join.table + '.' + join.field + '=' + join.join_table + '.' + join.join_field;
+    join_s += " ";
   }
+  if (join_s.size()) join_s.pop_back();
+
   return join_s;
 }
 
@@ -416,6 +415,10 @@ std::string selectStatement(T query)
       return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + " " + join_string + filter_string;
     }
   }
+  else
+  if constexpr(std::is_same_v<T, JoinQuery<QueryFilter>>)
+    return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + ' ' + getJoinStatement(query.joins);
+
   return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table;
 }
 

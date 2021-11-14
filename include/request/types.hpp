@@ -27,7 +27,8 @@ enum RequestType {
   UPLOAD_FILE           = 0x10,
   SCHEDULE_TASK         = 0x11,
   IPC_REQUEST           = 0x12,
-  UNKNOWN               = 0x0D
+  FETCH_TERM_HITS       = 0x13,
+  UNKNOWN               = 0x14
 };
 
 /**
@@ -73,6 +74,9 @@ static RequestType int_to_request_type(int byte) {
 
     case (FETCH_TASK_DATA):
       return FETCH_TASK_DATA;
+
+    case (FETCH_TERM_HITS):
+      return FETCH_TERM_HITS;
   }
   return UNKNOWN;
 }
