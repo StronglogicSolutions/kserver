@@ -41,6 +41,9 @@ std::string time;
 
 bool        valid() const;
 std::string ToString(const bool verbose = false) const;
+std::string ToJSON()                             const;
+
+static std::string NToString(const std::vector<TermEvent>& events);
 };
 
 std::string            AddTermHit(const std::string& tid,

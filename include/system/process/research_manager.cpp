@@ -281,7 +281,29 @@ std::string ResearchManager::TermEvent::ToString(const bool verbose) const
     "Term \"" + term + "\" of type " + type + " by " + user + " (" + person + ") from " + organization + '\n';
 }
 
+std::string ResearchManager::TermEvent::ToJSON() const
+{
+  rapidjson::StringBuffer s;
+  Writer<rapidjson::StringBuffer, rapidjson::Document::EncodingType, ASCII<>> w(s);
+  w.StartObject();
+  w.Key("id");
+  w.String(id.c_str());
+  w.Key("term");
+  w.String(term.c_str());
+  w.Key("type");
+  w.String(type.c_str());
+  w.Key("user");
+  w.String(user.c_str());
+  w.Key("person");
+  w.String(person.c_str());
+  w.Key("organization");
+  w.String(organization.c_str());
+  w.Key("time");
+  w.String(time.c_str());
+  w.EndObject();
 
+  return s.GetString();
+}
 /**
  * RecordtermEvent
  */

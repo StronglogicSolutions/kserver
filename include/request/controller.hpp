@@ -664,7 +664,7 @@ class Controller {
       {
         std::vector<std::string> event_args{};
         for (const auto& term_data : m_scheduler.FetchTermEvents())
-          event_args.emplace_back(term_data.ToString());
+          event_args.emplace_back(term_data.ToJSON());
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
       }
       break;
