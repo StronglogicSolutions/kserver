@@ -1023,3 +1023,8 @@ int32_t Scheduler::FindPostExec(const int32_t& id)
         return initiator;
   return INVALID_ID;
 }
+
+Scheduler::TermEvents Scheduler::FetchTermEvents() const
+{
+  return m_research_manager.GetAllTermEvents();
+}

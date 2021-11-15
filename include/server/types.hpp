@@ -44,6 +44,7 @@ static const int32_t SYSTEM_EVENTS__TASK_DATA_FINAL             = 26;
 static const int32_t SYSTEM_EVENTS__PROCESS_RESEARCH            = 27;
 static const int32_t SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT     = 28;
 static const int32_t SYSTEM_EVENTS__KIQ_IPC_MESSAGE             = 29;
+static const int32_t SYSTEM_EVENTS__TERM_HITS                   = 30;
 
 
 static const uint8_t EVENT_PROCESS_OUTPUT_INDEX{0x00};

@@ -212,17 +212,23 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
 
     case SYSTEM_EVENTS__REGISTRAR_FAIL:
       sendEvent(client_socket_fd, "Failed to register application", args);
-      break;
+    break;
 
     case SYSTEM_EVENTS__TASK_FETCH_FLAGS:
       sendEvent(client_socket_fd, "Application Flags", args);
-      break;
+    break;
+
     case SYSTEM_EVENTS__TASK_DATA:
       sendEvent(client_socket_fd, "Task Data", args);
-      break;
+    break;
+
     case SYSTEM_EVENTS__TASK_DATA_FINAL:
       sendEvent(client_socket_fd, "Task Data Final", args);
-      break;
+    break;
+
+    case SYSTEM_EVENTS__TERM_HITS:
+      sendEvent(client_socket_fd, "Term Hits", args);
+    break;
   }
 }
 

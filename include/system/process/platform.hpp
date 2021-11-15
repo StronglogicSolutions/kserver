@@ -1,4 +1,5 @@
 #pragma once
+
 #include "log/logger.h"
 #include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"

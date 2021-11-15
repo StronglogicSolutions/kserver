@@ -361,7 +361,8 @@ class Controller {
       else
         KLOG("Task with UUID {} was processed, but did not pass validation", uuid);
     }
-    KLOG("Task scheduling failed to match app to mask {}", mask);
+    else
+      KLOG("Task scheduling failed to match app to mask {}", mask);
   }
 
   /**
@@ -641,27 +642,38 @@ class Controller {
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_FETCH_FLAGS,
           DataUtils::vector_absorb(std::move(m_scheduler.getFlags(args.at(1))),
                                    std::move(args.at(1))));
-        break;
+      break;
 
       case (FETCH_FILE):
       {
         auto files = m_scheduler.getFiles(std::vector<std::string>{args.begin() + 1, args.end()});
         if (!files.empty())
           m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND, FileMetaData::MetaDataToPayload(files));
-        break;
       }
+      break;
 
       case (FETCH_FILE_ACK):
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND_ACK, {});
-        break;
+      break;
 
       case (FETCH_FILE_READY):
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILES_SEND_READY, {});
-        break;
+      break;
+
+      case (FETCH_TERM_HITS):
+      {
+        std::vector<std::string> event_args{};
+        for (const auto& term_data : m_scheduler.FetchTermEvents())
+          event_args.emplace_back(term_data.ToJSON());
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
+      }
+      break;
+
       case (RequestType::UNKNOWN):
+        [[ fallthrough ]];
       default:
         ELOG("Controller could not process unknown client request: {}", type);
-        break;
+      break;
     }
   }
 
