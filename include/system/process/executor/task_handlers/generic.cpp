@@ -28,9 +28,9 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
                                      const std::string&              uuid,
                                      Task*                           task_ptr)
 {
-  if (!FileUtils::CreateTaskDirectory(uuid)) {
-    std::cout << "UNABLE TO CREATE TASK DIRECTORY! Returning empty task"
-              << std::endl;
+  if (!FileUtils::CreateTaskDirectory(uuid))
+  {
+    ELOG("UNABLE TO CREATE TASK DIRECTORY! Returning empty task");
     return Task{};
   }
 
@@ -48,13 +48,13 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
 
   std::vector<FileInfo> task_files;
 
-  if (has_files) {
-    task_files = parseFileInfo(file_info);
+  if (has_files)
+  {
+                task_files     = parseFileInfo(file_info);
     std::string media_filename = GetExecutableCWD();
-    for (uint8_t i = 0; i < task_files.size(); i++) {
-      task_files.at(i).first =
-        media_filename + "/data/" + uuid + "/" + task_files.at(i).first;
-    }
+
+    for (uint8_t i = 0; i < task_files.size(); i++)
+      task_files.at(i).first = media_filename + "/data/" + uuid + "/" + task_files.at(i).first;
   }
 
   std::string                env_file_string   {"#!/usr/bin/env bash\n"};
@@ -62,8 +62,9 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
   if (!description.empty())  env_file_string += "DESCRIPTION=\"" + description + "\"" + ARGUMENT_SEPARATOR + "\n";
   if (!user.empty())         env_file_string += "USER=\"" + user + "\""               + ARGUMENT_SEPARATOR + "\n";
   if (!runtime_args.empty()) env_file_string += "R_ARGS=\"" + runtime_args + "\""     + ARGUMENT_SEPARATOR + "\n";
-  if (has_files) {
-  if (is_video)
+  if (has_files)
+  {
+    if (is_video)
     {
       env_file_string += "FILE_TYPE=\"video\"\x1f\n";
     }
@@ -75,7 +76,8 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
 
   std::string env_filename = FileUtils::SaveEnvFile(env_file_string, uuid);
 
-  if (task_ptr == nullptr) {
+  if (!task_ptr)
+  {
     return Task{
       .execution_mask  = std::stoi(mask),
       .datetime        = datetime,
@@ -88,7 +90,9 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
       .recurring       = std::stoi(recurring),
       .notify          = notify.compare("1") == 0
     };
-  } else {
+  }
+  else
+  {
     task_ptr->execution_mask  = std::stoi(mask);
     task_ptr->datetime        = datetime;
     task_ptr->file            = (!task_files.empty());
@@ -97,6 +101,7 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
     task_ptr->execution_flags = GENERIC_TASK_EXECUTION_FLAGS,
     task_ptr->recurring       = std::stoi(recurring);
     task_ptr->notify          = notify.compare("1") == 0;
+
     return *task_ptr;
   }
 }

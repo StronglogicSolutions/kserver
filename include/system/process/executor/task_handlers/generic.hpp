@@ -1,5 +1,4 @@
-#ifndef __GENERIC_HPP__
-#define __GENERIC_HPP__
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -40,5 +39,3 @@ class GenericTaskHandler : public TaskHandler {
                       const std::string& header      = "",
                       const std::string& user        = "");
 };
-
-#endif  // __GENERIC_HPP__

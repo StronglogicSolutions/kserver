@@ -33,10 +33,9 @@ Task IGTaskHandler::prepareTask(const std::vector<std::string>& argv,
   std::vector<FileInfo> task_files = parseFileInfo(file_info);
 
   std::string media_filename = GetExecutableCWD();
-  for (uint8_t i = 0; i < task_files.size(); i++) {
-    task_files.at(i).first =
-        media_filename + "/data/" + uuid + "/" + task_files.at(i).first;
-  }
+
+  for (uint8_t i = 0; i < task_files.size(); i++)
+    task_files.at(i).first = media_filename + "/data/" + uuid + "/" + task_files.at(i).first;
 
   std::string env_file_string{"#!/usr/bin/env bash\n"};
   env_file_string += "HEADER=\"" + header + "\""                           + ARGUMENT_SEPARATOR + "\n";
@@ -59,7 +58,8 @@ Task IGTaskHandler::prepareTask(const std::vector<std::string>& argv,
   env_file_string += "USER=\"" + user + "\""                               + ARGUMENT_SEPARATOR + "\n";
 
   std::string env_filename = FileUtils::SaveEnvFile(env_file_string, uuid);
-  if (task_ptr == nullptr) {
+  if (!task_ptr)
+  {
     return Task{
       .execution_mask = std::stoi(mask),
       .datetime = datetime,
@@ -72,7 +72,9 @@ Task IGTaskHandler::prepareTask(const std::vector<std::string>& argv,
           "--requested_by_phrase=$REQUESTED_BY_PHRASE "
           "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
           "--header=$HEADER --user=$USER"};
-  } else {
+  }
+  else
+  {
     task_ptr->execution_mask = std::stoi(mask);
     task_ptr->datetime = datetime;
     task_ptr->file = (!task_files.empty());
@@ -84,6 +86,7 @@ Task IGTaskHandler::prepareTask(const std::vector<std::string>& argv,
           "--requested_by_phrase=$REQUESTED_BY_PHRASE "
           "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
           "--header=$HEADER --user=$USER";
+
     return *task_ptr;
   }
 }
