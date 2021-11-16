@@ -813,6 +813,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
       const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application);
       if (known_term)
         m_research_manager.AnalyzeTermHit(item.value, term_info.id);
+      else
       if (term_info.valid())
         m_message_buffer += '\n' + term_info.ToString();
     }

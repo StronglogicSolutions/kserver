@@ -427,10 +427,10 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
 
   else
   {
-    auto byte1 = *buffer       << 24;
-    auto byte2 = *(buffer + 1) << 16;
-    auto byte3 = *(buffer + 2) << 8;
-    auto byte4 = *(buffer + 3);
+    const auto byte1 = *(buffer    ) << 24;
+    const auto byte2 = *(buffer + 1) << 16;
+    const auto byte3 = *(buffer + 2) << 8;
+    const auto byte4 = *(buffer + 3);
 
     uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
 
