@@ -4,30 +4,23 @@ static const std::string_view APP_NAME         = "kserver";
 static       int              APP_NAME_LENGTH  = 7;
 const char                    ARGUMENT_SEPARATOR{'\x1f'};
 
-std::string GetCWD() {
-  char *working_dir_path = realpath(".", NULL);
-  return std::string{working_dir_path};
+std::string GetCWD()
+{
+  return realpath(".", NULL);
 }
 
-std::string GetExecutableCWD() {
+std::string GetExecutableCWD()
+{
   std::string full_path{realpath("/proc/self/exe", NULL)};
   return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
-}
-
-int findIndexAfter(std::string s, int pos, char c) {
-  for (uint8_t i = pos; i < s.size(); i++) {
-    if (s.at(i) == c) {
-      return i;
-    }
-  }
-  return -1;
 }
 
 /**
  * JSON Tools
  */
 
-std::string GetJSONString(std::string s) {
+std::string GetJSONString(std::string s)
+{
   Document d;
   d.Parse(s.c_str());
   StringBuffer buffer;
@@ -36,7 +29,8 @@ std::string GetJSONString(std::string s) {
   return buffer.GetString();
 }
 
-std::string CreateMessage(const char *data, std::string args) {
+std::string CreateMessage(const char *data, std::string args)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -50,7 +44,8 @@ std::string CreateMessage(const char *data, std::string args) {
   return s.GetString();
 }
 
-std::string CreateEvent(const char *event, int mask, std::string stdout) {
+std::string CreateEvent(const char *event, int mask, std::string stdout)
+{
   StringBuffer s;
   Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
   w.StartObject();
@@ -130,8 +125,7 @@ std::string GetOperation(const std::string& data)
   if (data.size())
   {
     Document d;
-    d.Parse(data.c_str());
-    if (d.HasMember("command"))
+    if (!(d.Parse(data.c_str()).HasParseError()) && d.HasMember("command"))
       return d["command"].GetString();
   }
   return "";
@@ -148,7 +142,7 @@ std::string GetMessage(T data)
     d.Parse(data);
   else
     return "";
-  if (d.HasMember("message"))
+  if ((!d.HasParseError()) && d.HasMember("message"))
     return d["message"].GetString();
   return "";
 }
@@ -156,14 +150,13 @@ std::string GetMessage(T data)
 template std::string GetMessage(std::string);
 template std::string GetMessage(const char*);
 
-std::string GetEvent(std::string data) {
+std::string GetEvent(std::string data)
+{
   if (!data.empty())
   {
     Document d;
-    d.Parse(data.c_str());
-    if (d.HasMember("event")) {
+    if ((!d.Parse(data.c_str()).HasParseError()) && d.HasMember("event"))
       return d["event"].GetString();
-    }
   }
   return "";
 }
@@ -184,14 +177,9 @@ std::vector<std::string> GetArgs(const std::string& data)
   if (data.size())
   {
     Document d;
-    d.Parse(data.c_str());
-    std::vector<std::string> args{};
-    if (d.HasMember("args")) {
-      for (const auto &v : d["args"].GetArray()) {
-        args.push_back(v.GetString());
-      }
-    }
-    v = args;
+    if (!(d.Parse(data.c_str()).HasParseError()) && d.HasMember("args"))
+      for (const auto& arg : d["args"].GetArray())
+        v.emplace_back(arg.GetString());
   }
 
   return v;
@@ -202,9 +190,8 @@ std::vector<std::string> GetArgs(const char* data)
   std::vector<std::string> args{};
   if (data)
   {
-    Document                 d;
-    d.Parse(data);
-    if (d.HasMember("args"))
+    Document d;
+    if (!(d.Parse(data).HasParseError()) && d.HasMember("args"))
       for (const auto &v : d["args"].GetArray())
         args.push_back(v.GetString());
   }
@@ -217,8 +204,7 @@ CommandMap GetArgMap(const char *data)
   if (data)
   {
     Document   d;
-    d.Parse(data);
-    if (d.HasMember("args"))
+    if (!(d.Parse(data)).HasParseError() && d.HasMember("args"))
       for (const auto &m : d["args"].GetObject())
         cm.emplace(std::stoi(m.name.GetString()), m.value.GetString());
   }
@@ -360,9 +346,7 @@ bool IsMessage(const std::string& data)
   if (data.size())
   {
     Document d;
-    d.Parse(data.c_str());
-    if (!d.IsNull())
-      return d.HasMember("message");
+    return (!d.Parse(data.c_str()).HasParseError() && d.HasMember("message"));
   }
   return false;
 }
@@ -372,28 +356,19 @@ bool IsOperation(const std::string& data)
   if (data.size())
   {
     Document d;
-    d.Parse(data.c_str());
-    if (!d.IsNull())
+    if (!d.Parse(data.c_str()).HasParseError() && d.HasMember("type"))
       return strcmp(d["type"].GetString(), "operation") == 0;
   }
 return false;
 }
 
-bool IsExecuteOperation(const std::string& data)
-{
-  return data.size() ? data == "Execute" : false;
-}
-
-bool IsScheduleOperation(const std::string& data)
-{
-  return data.data() ? data == "Schedule" : false;
-}
-
+bool IsExecuteOperation(const std::string& data)    { return data == "Execute"; }
+bool IsScheduleOperation(const std::string& data)   { return data == "Schedule"; }
 bool IsFileUploadOperation(const std::string& data) { return data == "FileUpload"; }
-bool IsIPCOperation(const std::string& data)   { return data == "ipc";  }
-bool IsStartOperation(const std::string& data) { return data == "start";     }
-bool IsStopOperation (const std::string& data) { return data == "stop";       }
-bool IsAppOperation  (const std::string& data) { return data == "AppRequest"; }
+bool IsIPCOperation(const std::string& data)        { return data == "ipc";        }
+bool IsStartOperation(const std::string& data)      { return data == "start";      }
+bool IsStopOperation (const std::string& data)      { return data == "stop";       }
+bool IsAppOperation  (const std::string& data)      { return data == "AppRequest"; }
 
 static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
 {

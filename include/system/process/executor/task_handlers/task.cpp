@@ -20,6 +20,14 @@ std::string AsExecutionFlag(const std::string& flag, const std::string& prefix)
   return "";
 }
 
+static int findIndexAfter(std::string s, int pos, char c)
+{
+  for (uint8_t i = pos; i < s.size(); i++)
+    if (s.at(i) == c)
+      return i;
+  return -1;
+}
+
   /**
  * parseFileInfo
  *
