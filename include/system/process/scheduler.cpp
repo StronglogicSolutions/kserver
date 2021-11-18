@@ -234,7 +234,8 @@ std::string Scheduler::schedule(Task task)
  * @param  [in]  {QueryValues}  result  The DB query result consisting of string tuples
  * @return [out] {Task}                 The task
  */
-Task Scheduler::parseTask(QueryValues&& result) {
+Task Scheduler::parseTask(QueryValues&& result)
+{
   Task task{};
   for (const auto& v : result)
     if (v.first == Field::MASK)
@@ -269,10 +270,8 @@ Task Scheduler::parseTask(QueryValues&& result) {
  *
  * Parses a QueryValues data structure (vector of string tuples) and returns a vector of Task objects
  *
- * @param  [in]  {QueryValues}        result  The DB query result consisting of string tuples
- * @return [out] {std::vector<Task>}          A vector of Task objects
- *
- * TODO: Remove "parse_files" boolean after refactoring `fetchTasks` (non-recurring tasks method) to use joins
+ * @param  [in]  {QueryValues}        The DB query result consisting of string tuples
+ * @return [out] {std::vector<Task>}  A vector of Task objects
  */
 std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, bool is_recurring)
 {
@@ -394,7 +393,8 @@ std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::stri
   return parseTasks(std::move(tasks));
 }
 
-std::vector<Task> Scheduler::fetchTasks() {
+std::vector<Task> Scheduler::fetchTasks()
+{
   std::vector<Task> tasks = parseTasks(
     m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(
       "schedule", {                                   // table
@@ -424,7 +424,8 @@ std::vector<Task> Scheduler::fetchTasks() {
             Completed::STRINGS[Completed::FAILED]
           }
         }
-      }
+      },
+      OrderFilter{Field::ID, "ASC"}
     )
   );
   // TODO: Convert above to a JOIN query, and remove this code below
@@ -721,6 +722,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
   using namespace FileUtils;
   const auto  TaskFn       = [this](const int32_t& id) { return getTask(id); };
   const auto& map          = m_postexec_waiting;
+  const auto  HasPayload   = [](const ProcessEventData& event) { return (event.payload.size()); };
   const auto  LastExecPair = [&map, &TaskFn](const int32_t& a, const int32_t&b, const int32_t& mask)
   {
     const auto GetMask = [&TaskFn](auto id) { return TaskFn(id).execution_mask; };
@@ -765,8 +767,9 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
     std::vector<JSONItem>    items{};
 
-    for (size_t i = 1; i < (event.payload.size() - 1); i += 2)
-      items.emplace_back(JSONItem{.type = event.payload[i], .value = event.payload[i + 1]});
+    if (HasPayload(event))
+      for (size_t i = 1; i < (event.payload.size() - 1); i += 2)
+        items.emplace_back(JSONItem{.type = event.payload[i], .value = event.payload[i + 1]});
 
     if (m_message_buffer.empty())
       m_message_buffer += IPC_Message_Header;
