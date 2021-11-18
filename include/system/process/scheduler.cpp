@@ -443,59 +443,24 @@ std::vector<Task> Scheduler::fetchTasks() {
  * @return [out] {std::vector<Task>} A vector of Task objects
  */
 std::vector<Task> Scheduler::fetchRecurringTasks() {
-  using SelectJoinFilters = std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>;
-  return parseTasks(
-    m_kdb.selectJoin<SelectJoinFilters>(
-      "schedule", {                                                     // table
-        Field::ID,                                            // fields
-        Field::TIME,
-        Field::MASK,
-        Field::FLAGS,
-        Field::ENVFILE,
-        Field::COMPLETED,
-        Field::RECURRING,
-        Field::NOTIFY,
-        "recurring.time",                                                                      // TODO: Improve constants
-        "(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files" // TODO: replace with grouping
-      }, SelectJoinFilters{
-        CompFilter{                                                     // filter
-          Field::RECURRING,                                             // field
-          "0",                                                          // value
-          "<>"                                                          // comparator
-        },
-        CompFilter{                                                     // filter
-          UNIXTIME_NOW,                                                          // field
-          "recurring.time + (SELECT get_recurring_seconds(schedule.recurring))", // value (from function)
-          ">"                                                                    // comparator
-        },
-        MultiOptionFilter{                            // filter
-          "completed",                                // field of comparison
-          "IN", {                                     // comparison type
-            Completed::STRINGS[Completed::SCHEDULED], // set of values for comparison
-            Completed::STRINGS[Completed::FAILED]
-          }
-        }
-      },
-      Joins{
-        Join{
-          .table      ="recurring",                                     // table to join
-          .field      ="sid",                                           // field to join on
-          .join_table ="schedule",                                      // table to join to
-          .join_field ="id",                                            // field to join to
-          .type       = JoinType::INNER                                 // type of join
-        },
-        Join{
-          .table      ="file",
-          .field      ="sid",
-          .join_table ="schedule",
-          .join_field ="id",
-          .type       = JoinType::OUTER
-        }
-      }
-    ),
-    true, // ⬅ Parse files
-    true  // ⬅ Is recurring task
-  );
+  using Filters = std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>;
+  static const bool    parse_files{true};
+  static const bool    recurring{true};
+  static const char*   sub_q{"(SELECT  string_agg(file.name, ' ') "\
+                             "FROM file WHERE file.sid = schedule.id) as files"};
+  static const Fields  fields{Field::ID, Field::TIME, Field::MASK, Field::FLAGS,
+                              Field::ENVFILE, Field::COMPLETED, Field::RECURRING,
+                              Field::NOTIFY, "recurring.time", sub_q};
+  static const Filters filters{
+    CompFilter{Field::RECURRING, "0", "<>"},
+    CompFilter{UNIXTIME_NOW, "recurring.time + (SELECT get_recurring_seconds(schedule.recurring))", ">"},
+    MultiOptionFilter{"completed", "IN",
+      {Completed::STRINGS[Completed::SCHEDULED], Completed::STRINGS[Completed::FAILED]}}};
+  static const Joins   joins{{"recurring", "sid", "schedule", "id", JoinType::INNER},
+                             {"file", "sid", "schedule", "id",      JoinType::OUTER}};
+
+  return parseTasks(m_kdb.selectJoin<Filters>(
+    "schedule", fields, filters, joins, OrderFilter{Field::ID, "ASC"}), parse_files, recurring);
 }
 
 /**

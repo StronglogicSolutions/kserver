@@ -181,9 +181,11 @@ QueryFilter              filter;
 };
 
 struct MultiFilterSelect {
-std::string table;
-std::vector<std::string> fields;
+std::string                table;
+std::vector<std::string>   fields;
 std::vector<GenericFilter> filter;
+OrderFilter                order;
+LimitFilter                limit;
 };
 
 template <typename T>
@@ -252,11 +254,16 @@ std::string              table;
 std::vector<std::string> fields;
 T                        filter;
 Joins                    joins;
+OrderFilter              order;
+LimitFilter              limit;
 };
 
-struct SimpleJoinQuery{
+struct SimpleJoinQuery
+{
 std::string              table;
 std::vector<std::string> fields;
 QueryFilter              filter;
 Join                     join;
+OrderFilter              order;
+LimitFilter              limit;
 };
