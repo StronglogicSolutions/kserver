@@ -426,7 +426,7 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
     const uint8_t  byte3 = *(buffer + 2) << 0x08;
     const uint8_t  byte4 = *(buffer + 3) << 0x00;
     const uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
-    const uint8_t  decode_buffer[message_byte_size];
+          uint8_t  decode_buffer[message_byte_size];
 
     std::memcpy(decode_buffer, buffer + 5, message_byte_size);
     assert(VerifyFlatbuffer(decode_buffer, message_byte_size));
