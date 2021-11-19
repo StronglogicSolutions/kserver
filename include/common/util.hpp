@@ -60,10 +60,7 @@ struct KSession {
 };
 
 std::string GetCWD();
-
 std::string GetExecutableCWD();
-
-int findIndexAfter(std::string s, int pos, char c);
 
 /**
  * JSON Tools
