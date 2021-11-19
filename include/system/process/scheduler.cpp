@@ -6,7 +6,7 @@ using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration  = std::chrono::seconds;
 
 static TimePoint time_point;
-
+static bool      timer_active;
 
 static bool TimerExpired()
 {
@@ -14,6 +14,22 @@ static bool TimerExpired()
          const TimePoint now         = std::chrono::system_clock::now();
          const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
   return (elapsed > TEN_MINUTES)  ;
+}
+
+static void StartTimer()
+{
+  time_point   = std::chrono::system_clock::now();
+  timer_active = true;
+}
+
+static void StopTimer()
+{
+  timer_active = false;
+}
+
+static bool TimerActive()
+{
+  return timer_active;
 }
 
 uint32_t getAppMask(std::string name)
@@ -1014,7 +1030,7 @@ void Scheduler::SetIPCCommand(const uint8_t& command)
   if (m_ipc_command == constants::NO_COMMAND_INDEX)
   {
     m_ipc_command = command;
-    time_point    = std::chrono::system_clock::now();
+    StartTimer();
   }
   else
     ELOG("Cannot replace current pending IPC command: {}", constants::IPC_COMMANDS[m_ipc_command]);
@@ -1027,7 +1043,7 @@ bool Scheduler::IPCNotPending() const
 
 void Scheduler::ResolvePending(const bool& check_timer)
 {
-  if (check_timer && !TimerExpired()) return;
+  if (!TimerActive() || (check_timer && !TimerExpired())) return;
 
   KLOG("Resolving pending IPC message");
   const auto payload = {CreateOperation("ipc", {constants::IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
@@ -1036,4 +1052,5 @@ void Scheduler::ResolvePending(const bool& check_timer)
   m_message_buffer.clear();
 
   SetIPCCommand(constants::NO_COMMAND_INDEX);
+  StopTimer();
 }
