@@ -2,6 +2,20 @@
 #include "executor/task_handlers/generic.hpp"
 #include "ipc/ipc.hpp"
 
+using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
+using  Duration  = std::chrono::seconds;
+
+static TimePoint time_point;
+
+
+static bool TimerExpired()
+{
+  static const uint32_t  TEN_MINUTES = 600;
+         const TimePoint now         = std::chrono::system_clock::now();
+         const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
+  return (elapsed > TEN_MINUTES)  ;
+}
+
 uint32_t getAppMask(std::string name)
 {
         auto db = Database::KDB{};
@@ -722,6 +736,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
   using namespace FileUtils;
   const auto  TaskFn       = [this](const int32_t& id) { return getTask(id); };
   const auto& map          = m_postexec_waiting;
+  const bool& immediately  = false;
   const auto  HasPayload   = [](const ProcessEventData& event) { return (event.payload.size()); };
   const auto  LastExecPair = [&map, &TaskFn](const int32_t& a, const int32_t&b, const int32_t& mask)
   {
@@ -786,13 +801,11 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
         m_message_buffer += '\n' + term_info.ToString();
     }
 
+    if (IPCNotPending())
+      SetIPCCommand(constants::TELEGRAM_COMMAND_INDEX);
+
     if (LastExecPair(init_id, resp_id, responding_task.execution_mask))
-    {
-      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, {
-        CreateOperation("ipc", {constants::TELEGRAM_COMMAND, m_message_buffer, ""})});
-      m_message_buffer.clear();
-      // TODO: Clean up PostExec map
-    }
+      ResolvePending(immediately);
   }
 }
 
@@ -849,9 +862,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
         {
           const auto ProcessResearch = [this, id](const ProcessEventData event) -> void
-          { /* 2. Analyze(KNLP)
-             * 3. Record DB and Term hits?
-             * 4. Sentences from previous hits
+          { /* 4. Sentences from previous hits
              * 5. Analyze (KNLP)
              * 6. Analyze-comparison (KNLP)
              * 7. Compare interests (TODO)
@@ -996,4 +1007,33 @@ int32_t Scheduler::FindPostExec(const int32_t& id)
 Scheduler::TermEvents Scheduler::FetchTermEvents() const
 {
   return m_research_manager.GetAllTermEvents();
+}
+
+void Scheduler::SetIPCCommand(const uint8_t& command)
+{
+  if (m_ipc_command == constants::NO_COMMAND_INDEX)
+  {
+    m_ipc_command = command;
+    time_point    = std::chrono::system_clock::now();
+  }
+  else
+    ELOG("Cannot replace current pending IPC command: {}", constants::IPC_COMMANDS[m_ipc_command]);
+}
+
+bool Scheduler::IPCNotPending() const
+{
+  return (m_ipc_command == constants::NO_COMMAND_INDEX);
+}
+
+void Scheduler::ResolvePending(const bool& check_timer)
+{
+  if (check_timer && !TimerExpired()) return;
+
+  KLOG("Resolving pending IPC message");
+  const auto payload = {CreateOperation("ipc", {constants::IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
+
+  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, payload);
+  m_message_buffer.clear();
+
+  SetIPCCommand(constants::NO_COMMAND_INDEX);
 }

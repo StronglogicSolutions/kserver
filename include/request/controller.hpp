@@ -209,37 +209,37 @@ class Controller {
    * scheduled tasks, invoking the process executor and delegating work to the
    * system cron.
    */
-  void maintenanceLoop() {
+  void maintenanceLoop()
+  {
     KLOG("Beginning maintenance loop");
-    while (m_active) {
-      std::unique_lock<std::mutex> lock(m_mutex);
-      maintenance_loop_condition.wait(lock,
-        [this]() { return !handling_data; }
-      );
 
-      int client_socket_fd = -1;
+    while (m_active)
+    {
+      int32_t                      client_socket_fd{-1};
+      std::unique_lock<std::mutex> lock(m_mutex);
+
+      maintenance_loop_condition.wait(lock, [this]() { return !handling_data; });
 
       std::vector<Task> tasks = m_scheduler.fetchTasks();
       for (auto&& recurring_task : m_scheduler.fetchRecurringTasks())
         tasks.emplace_back(recurring_task);
 
-      if (!tasks.empty()) {
+      if (!tasks.empty())
+      {
         std::string scheduled_times{"Scheduled time(s): "};
         KLOG("{} tasks found", tasks.size());
-        for (const auto &task : tasks) {
+
+        for (const auto &task : tasks)
+        {
           auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
           scheduled_times += formatted_time + " ";
           KLOG("Task info: Time: {} - Mask: {}\n Args: {}\n {}",
             formatted_time, std::to_string(task.execution_mask),
-            task.file ? "hasFile(s)" : "", task.envfile
-          );
+            task.file ? "hasFile(s)" : "", task.envfile);
         }
 
-        m_system_callback_fn(
-          client_socket_fd,
-          SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
-          {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times}
-        );
+        m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
+          {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times});
 
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end())
@@ -256,6 +256,7 @@ class Controller {
         handlePendingTasks();
 
       m_scheduler.processPlatform();
+      m_scheduler.ResolvePending();
       maintenance_loop_condition.wait_for(lock, std::chrono::milliseconds(20000));
     }
   }

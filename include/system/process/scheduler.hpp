@@ -137,6 +137,7 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      addTrigger(const std::vector<std::string>& payload);
         int32_t                   FindPostExec(const int32_t& id);
         TermEvents                FetchTermEvents() const;
+        void                      ResolvePending(const bool& check_timer = true);
 
         template <typename T>
         std::vector<std::string>  getFlags(const T& mask);
@@ -145,6 +146,9 @@ private:
         void                      PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications);
         template <typename T = int32_t>
         void                      PostExecWait(const int32_t& i, const T& r);
+        void                      SetIPCCommand(const uint8_t& command);
+        bool                      IPCNotPending() const;
+
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;
@@ -154,4 +158,6 @@ PostExecMap         m_postexec_waiting;
 ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
 std::string         m_message_buffer;
+uint8_t             m_ipc_command;
+
 };
