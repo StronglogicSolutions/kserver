@@ -1049,8 +1049,8 @@ void Scheduler::ResolvePending(const bool& check_timer)
   const auto payload = {CreateOperation("ipc", {constants::IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, payload);
-  m_message_buffer.clear();
-
+  m_message_buffer  .clear();
+  m_postexec_waiting.clear();
   SetIPCCommand(constants::NO_COMMAND_INDEX);
   StopTimer();
 }
