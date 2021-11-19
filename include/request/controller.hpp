@@ -249,7 +249,7 @@ class Controller {
 
         KLOG("KServer has {} {} pending execution",
           m_tasks_map.at(client_socket_fd).size(),
-          m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "task");
+          m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "tasks");
       }
 
       if (!m_tasks_map.empty())

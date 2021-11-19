@@ -88,26 +88,24 @@ virtual bool read(const std::string& s) override
   return false;
 }
 
+static ProcessParseResult GetNOOPResult()
+{
+  return ProcessParseResult{{ProcessEventData{.event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
+}
+
 virtual ProcessParseResult get_result() override
 {
   ProcessParseResult result{};
 
   KLOG("Returning {} NLP tokens", m_items.size());
 
+  if (m_items.empty()) return GetNOOPResult();
+
   for (const auto& item : m_items)
-  {
     result.data.emplace_back(
       ProcessEventData{
         .event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
-        .payload = std::vector<std::string>{
-          m_app_name,
-          item.type,
-          item.value
-        }
-      }
-    );
-  }
-
+        .payload = std::vector<std::string>{m_app_name, item.type, item.value}});
   return result;
 }
 

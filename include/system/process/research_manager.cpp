@@ -9,7 +9,8 @@ static bool VerifyTerm(const std::string &term)
   using VerifyFunction = std::function<bool(const std::string &)>;
 
   static const size_t npos = std::string::npos;
-  static const std::vector<const char *> RejectPatterns{"&amp;", "Thu Feb", "Wed Feb", "@…", "Thu Oct"};
+  static const std::vector<const char *> RejectPatterns{
+    "&amp;", "Thu Feb", "Wed Feb", "Sun Nov", "Wed Nov", "@…", "Thu Oct"};
   static const std::vector<VerifyFunction> VerifyFunctions{
       [](const std::string &s)
       {

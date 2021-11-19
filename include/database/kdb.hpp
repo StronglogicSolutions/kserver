@@ -112,20 +112,29 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
   }
 
   QueryValues selectMultiFilter(std::string table, Fields fields,
-                                std::vector<GenericFilter> filters) {
-    try {
+                                std::vector<GenericFilter> filters,
+                                const OrderFilter&         order = OrderFilter{},
+                                const LimitFilter&         limit = LimitFilter{})
+  {
+    try
+    {
       MultiFilterSelect select_query{
         .table  = table,
         .fields = fields,
-        .filter = filters
+        .filter = filters,
+        .order  = order,
+        .limit  = limit
       };
       QueryResult result = m_connection->query(select_query);
       return result.values;
-
-    } catch (const pqxx::sql_error &e) {
+    }
+    catch (const pqxx::sql_error &e)
+    {
       ELOG("Exception caught: {}", e.what());
       throw e;
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
       ELOG("Exception caught: {}", e.what());
       throw e;
     }
@@ -158,20 +167,32 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
 
   template <typename FilterA, typename FilterB, typename FilterC>
   QueryValues selectMultiFilter(
-      std::string table, Fields fields,
-      std::vector<std::variant<FilterA, FilterB, FilterC>> filters) {
-    try {
+      const std::string&                                          table,
+      const Fields&                                               fields,
+      const std::vector<std::variant<FilterA, FilterB, FilterC>>& filters,
+      const OrderFilter&                                          order = OrderFilter{},
+      const LimitFilter&                                          limit = LimitFilter{}
+      )
+  {
+    try
+    {
       MultiVariantFilterSelect<std::vector<std::variant<FilterA, FilterB, FilterC>>> select_query{
         .table  = table,
         .fields = fields,
-        .filter = filters
+        .filter = filters,
+        .order  = order,
+        .limit  = limit
       };
       QueryResult result = m_connection->query(select_query);
       return result.values;
-    } catch (const pqxx::sql_error &e) {
+    }
+    catch (const pqxx::sql_error &e)
+    {
       ELOG("Exception caught: {}", e.what());
       throw e;
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
       ELOG("Exception caught: {}", e.what());
       throw e;
     }
@@ -209,14 +230,21 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
   }
 
   template <typename T = std::vector<QueryFilter>>
-  QueryValues selectJoin(std::string table, Fields fields, T filters, Joins joins)
+  QueryValues selectJoin(const std::string& table,
+                         const Fields&      fields,
+                         const T&           filters,
+                         const Joins&       joins,
+                         const OrderFilter& order = OrderFilter{},
+                         const LimitFilter& limit = LimitFilter{})
   {
     try {
       JoinQuery<T> select_query{
         .table  = table,
         .fields = fields,
         .filter = filters,
-        .joins   = joins
+        .joins  = joins,
+        .order  = order,
+        .limit  = limit
       };
       QueryResult result = m_connection->query(select_query);
       return result.values;

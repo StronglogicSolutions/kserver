@@ -362,15 +362,21 @@ std::string selectStatement(T query)
     else
     if constexpr (std::is_same_v<T, MultiVariantFilterSelect<std::vector<std::variant<CompFilter, CompBetweenFilter>>>>)
     {
-      filter_string += getVariantFilterStatement<CompFilter, CompBetweenFilter>(filter);
-      return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + filter_string;
+      std::string stmt{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + filter_string +
+        getVariantFilterStatement<CompFilter, CompBetweenFilter>(filter)};
+      if (query.order.has_value()) stmt += orderStatement(query.order);
+      if (query.limit.has_value()) stmt += limitStatement(query.limit.count);
+      return stmt;
     }
     else
     if constexpr (
       std::is_same_v<T, MultiVariantFilterSelect<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>>)
     {
-      filter_string += getVariantFilterStatement<CompFilter, CompBetweenFilter, MultiOptionFilter>(filter);
-      return std::string{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + filter_string};
+      std::string stmt{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + filter_string +
+        getVariantFilterStatement<CompFilter, CompBetweenFilter, MultiOptionFilter>(filter)};
+      if (query.order.has_value()) stmt += orderStatement(query.order);
+      if (query.limit.has_value()) stmt += limitStatement(query.limit.count);
+      return stmt;
     }
     else
     if constexpr (
@@ -378,10 +384,8 @@ std::string selectStatement(T query)
     {
       std::string stmt{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + filter_string +
                        getVariantFilterStatement<CompBetweenFilter, QueryFilter>(filter)};
-      if (query.order.has_value())
-        stmt += orderStatement(query.order);
-      if (query.limit.has_value())
-        stmt += limitStatement(query.limit.count);
+      if (query.order.has_value()) stmt += orderStatement(query.order);
+      if (query.limit.has_value()) stmt += limitStatement(query.limit.count);
       return stmt;
     }
     else
