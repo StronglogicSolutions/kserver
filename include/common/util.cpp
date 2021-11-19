@@ -421,13 +421,12 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
 
   else
   {
-    const auto byte1 = *(buffer    ) << 24;
-    const auto byte2 = *(buffer + 1) << 16;
-    const auto byte3 = *(buffer + 2) << 8;
-    const auto byte4 = *(buffer + 3);
-
-    uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
-    uint8_t  decode_buffer[message_byte_size];
+    const uint8_t  byte1 = *(buffer    ) << 0x18;
+    const uint8_t  byte2 = *(buffer + 1) << 0x10;
+    const uint8_t  byte3 = *(buffer + 2) << 0x08;
+    const uint8_t  byte4 = *(buffer + 3) << 0x00;
+    const uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
+    const uint8_t  decode_buffer[message_byte_size];
 
     std::memcpy(decode_buffer, buffer + 5, message_byte_size);
     assert(VerifyFlatbuffer(decode_buffer, message_byte_size));
