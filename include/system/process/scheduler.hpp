@@ -1,9 +1,8 @@
 #pragma once
 
-#include <iostream>
-#include <string>
 #include <type_traits>
 #include <vector>
+#include <deque>
 
 #include "log/logger.h"
 #include "database/kdb.hpp"
@@ -91,7 +90,8 @@ class Scheduler : public DeferInterface, CalendarManagerInterface
 {
 public:
 using PostExecDuo     = std::pair<int32_t, int32_t>;
-using PostExecMap     = std::unordered_map<int32_t, std::vector<int32_t>>;
+using PostExecQueue   = std::deque<int32_t>;
+using PostExecMap     = std::unordered_map<int32_t, std::vector<PostExecQueue>>;
 using ApplicationInfo = std::pair<int32_t, std::string>;
 using ApplicationMap  = std::unordered_map<int32_t, std::string>;
 using TermEvents      = std::vector<ResearchManager::TermEvent>;
@@ -116,8 +116,8 @@ virtual std::vector<Task>         fetchTasks() override;
         std::vector<Task>         fetchAllTasks();
         std::vector<std::string>  fetchRepostIDs(const std::string& pid);
 
-        Task                      getTask(const std::string& id);
-        Task                      getTask(int id);
+        Task                      GetTask(const std::string& id);
+        Task                      GetTask(int id);
         std::vector<FileMetaData> getFiles(const std::string& sid, const std::string& type = "");
         std::vector<FileMetaData> getFiles(const std::vector<std::string>& sids, const std::string& type = "");
         template <typename T>
@@ -146,6 +146,8 @@ private:
         void                      PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications);
         template <typename T = int32_t>
         void                      PostExecWait(const int32_t& i, const T& r);
+        template <typename T = int32_t>
+        void                      ProcessResearch(const T& id, const std::string& data, const std::string& application_name);
         void                      SetIPCCommand(const uint8_t& command);
         bool                      IPCNotPending() const;
 

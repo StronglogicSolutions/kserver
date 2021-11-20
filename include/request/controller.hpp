@@ -544,7 +544,7 @@ class Controller {
         for (const auto& task : tasks)
         {
           KApplication app = m_executor->GetAppInfo(task.execution_mask);
-          payload.emplace_back(std::to_string(task.id));
+          payload.emplace_back(task.id());
           payload.emplace_back(               app.name);
           payload.emplace_back(               task.datetime);
           payload.emplace_back(               task.execution_flags);
@@ -573,7 +573,7 @@ class Controller {
       case (RequestType::UPDATE_SCHEDULE):
       {
         TaskWrapper        task_wrapper = args_to_task(args);
-        const std::string& task_id      = std::to_string(task_wrapper.task.id);
+        const std::string& task_id      = task_wrapper.task.id();
         bool               save_success = m_scheduler.update(task_wrapper.task);
         bool               env_updated  = m_scheduler.updateEnvfile(task_id, task_wrapper.envfile);
 
@@ -586,7 +586,7 @@ class Controller {
       case (RequestType::FETCH_SCHEDULE_TOKENS):
       {
         auto id = args.at(constants::PAYLOAD_ID_INDEX);
-        Task task = m_scheduler.getTask(id);
+        Task task = m_scheduler.GetTask(id);
         if (task.validate())
           m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
             DataUtils::vector_absorb(std::move(FileUtils::ReadFlagTokens(task.envfile, task.execution_flags)),
@@ -608,7 +608,7 @@ class Controller {
 
         for (auto&& task : tasks)
         {
-          payload.emplace_back(std::to_string(task.id));
+          payload.emplace_back(task.id());
           for (const auto& flag : FileUtils::ExtractFlagTokens(task.execution_flags))
           {
             payload.emplace_back(flag);
@@ -729,7 +729,7 @@ class Controller {
       if (it != m_tasks_map.end())
       {                                   // Find task
         task_it = std::find_if(it->second.begin(), it->second.end(),
-          [id](Task task) { return task.id == std::stoi(id); }
+          [id](Task task) { return task.task_id == std::stoi(id); }
         );
 
         if (task_it != it->second.end())
@@ -758,7 +758,7 @@ class Controller {
               Completed::SCHEDULED :
               Completed::SUCCESS;
             if (!m_scheduler.processTriggers(&*task_it))
-              KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id, task_it->execution_mask);
+              KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id(), task_it->execution_mask);
           }
 
           task_it->completed = status;                            // Update status
@@ -768,11 +768,11 @@ class Controller {
           if (!error && task_it->recurring)                       // If no error, update last execution time
           {
             KLOG("Task {} will be scheduled for {}",
-              task_it->id, TimeUtils::FormatTimestamp(task_it->datetime));
+              task_it->id(), TimeUtils::FormatTimestamp(task_it->datetime));
 
             m_scheduler.updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
-              task_it->id, Constants::Recurring::names[task_it->recurring]);
+              task_it->id(), Constants::Recurring::names[task_it->recurring]);
           }
 
           if (task_it->notify)                                             // Send email notification

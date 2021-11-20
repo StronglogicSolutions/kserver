@@ -160,18 +160,23 @@ using TaskArguments = std::vector<std::string>;
 
 static const uint8_t TASK_PAYLOAD_SIZE{12};
 struct Task {
-  int                      execution_mask;
+  int32_t                  execution_mask;
   std::string              datetime;
   bool                     file;
   std::vector<FileInfo>    files;
   std::string              envfile;
   std::string              execution_flags;
-  int                      id = 0;
-  int                      completed;
-  int                      recurring;
+  int32_t                  task_id{0};
+  int32_t                  completed;
+  int32_t                  recurring;
   bool                     notify;
   std::string              runtime;
   std::vector<std::string> filenames;
+
+  std::string id() const
+  {
+    return std::to_string(task_id);
+  }
 
   static Task clone_basic(const Task& task, int new_mask = -1, bool recurring = false)
   {
@@ -196,7 +201,7 @@ struct Task {
   {
     std::vector<std::string> payload{};
     payload.reserve(8);
-    payload.emplace_back(std::to_string(id));
+    payload.emplace_back(id());
     payload.emplace_back(datetime);
     payload.emplace_back(execution_flags);
     payload.emplace_back(std::to_string(completed));
@@ -210,7 +215,7 @@ struct Task {
   std::string toString() const {
     std::string return_string{};
     return_string.reserve(100);
-    return_string += "ID: " + std::to_string(id);
+    return_string += "ID: " + id();
     return_string += "\nMask: " + std::to_string(execution_mask);
     return_string += "\nTime: " + datetime;
     return_string += "\nFiles: " + std::to_string(files.size());
@@ -248,7 +253,7 @@ struct Task {
       t1.execution_mask  == t2.execution_mask  &&
       t1.file            == t2.file            &&
       t1.files.size()    == t2.files.size()    && // TODO: implement comparison for FileInfo
-      t1.id              == t2.id              &&
+      t1.task_id         == t2.task_id         &&
       t1.recurring       == t2.recurring       &&
       t1.notify          == t2.notify,
       t1.runtime         == t1.runtime
