@@ -155,7 +155,8 @@ Scheduler::Scheduler(SystemEventcallback fn)
   m_platform(fn),
   m_trigger(&m_kdb),
   m_app_map(FetchApplicationMap(m_kdb)),
-  m_research_manager(&m_kdb, &m_platform)
+  m_research_manager(&m_kdb, &m_platform),
+  m_ipc_command(constants::NO_COMMAND_INDEX)
 {
   const auto AppExists = [this](const std::string& name) -> bool
   {
@@ -1048,7 +1049,7 @@ int32_t Scheduler::FindPostExec(const int32_t& id)
   auto not_found = m_postexec_map.end();
   for (const auto& [initiator, task_wrapper] : m_postexec_map)
     if (task_wrapper.second.id == id)
-      return initiator;
+      return task_wrapper.first;
   return INVALID_ID;
 }
 

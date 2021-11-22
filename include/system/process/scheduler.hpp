@@ -35,15 +35,15 @@ static int8_t TW_FEED_IDX{0x02};
 static int8_t TW_SEARCH_IDX{0x03};
 static int8_t TW_RESEARCH_IDX{0x04};
 static int8_t KNLP_IDX{0x05};
-static const char* NLP_APP{"KNLP"};
-static const char* TW_RESEARCH_APP{"TW Research"};
+static const std::string NLP_APP{"KNLP"};
+static const std::string TW_RESEARCH_APP{"TW Research"};
 static const char* REQUIRED_APPLICATIONS[]{
   "IG Feed",
   "YT Feed",
   "TW Feed",
   "TW Search",
-  TW_RESEARCH_APP,
-  NLP_APP
+  TW_RESEARCH_APP.c_str(),
+  NLP_APP.c_str()
 };
 
 static const int8_t  REQUIRED_APPLICATION_NUM{6};
