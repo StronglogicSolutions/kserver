@@ -1,9 +1,8 @@
 #pragma once
 
-#include <iostream>
-#include <string>
 #include <type_traits>
 #include <vector>
+#include <deque>
 
 #include "log/logger.h"
 #include "database/kdb.hpp"
@@ -36,13 +35,15 @@ static int8_t TW_FEED_IDX{0x02};
 static int8_t TW_SEARCH_IDX{0x03};
 static int8_t TW_RESEARCH_IDX{0x04};
 static int8_t KNLP_IDX{0x05};
+static const std::string NLP_APP{"KNLP"};
+static const std::string TW_RESEARCH_APP{"TW Research"};
 static const char* REQUIRED_APPLICATIONS[]{
   "IG Feed",
   "YT Feed",
   "TW Feed",
   "TW Search",
-  "TW Research",
-  "KNLP"
+  TW_RESEARCH_APP.c_str(),
+  NLP_APP.c_str()
 };
 
 static const int8_t  REQUIRED_APPLICATION_NUM{6};
@@ -76,9 +77,9 @@ const uint32_t getIntervalSeconds(uint32_t interval);
  * @brief
  *
  * @param args
- * @return TaskWrapper
+ * @return Task
  */
-TaskWrapper args_to_task(std::vector<std::string> args);
+Task args_to_task(std::vector<std::string> args);
 
 class ResearchManager;
 /**
@@ -87,14 +88,27 @@ class ResearchManager;
  * @class
  *
  */
+struct TaskWrapper
+{
+  int32_t      id;
+  bool         complete;
+  TaskWrapper* parent;
+  TaskWrapper* child;
+};
+
 class Scheduler : public DeferInterface, CalendarManagerInterface
 {
 public:
 using PostExecDuo     = std::pair<int32_t, int32_t>;
-using PostExecMap     = std::unordered_map<int32_t, std::vector<int32_t>>;
+using PostExecQueue   = std::deque<int32_t>;
+using PostExecTuple   = std::pair<int32_t, TaskWrapper>;
+using PostExecMap     = std::unordered_map<int32_t, PostExecTuple>;
+using PostExecLists   = std::unordered_map<int32_t, TaskWrapper*>;
 using ApplicationInfo = std::pair<int32_t, std::string>;
 using ApplicationMap  = std::unordered_map<int32_t, std::string>;
 using TermEvents      = std::vector<ResearchManager::TermEvent>;
+
+
 
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
@@ -116,8 +130,8 @@ virtual std::vector<Task>         fetchTasks() override;
         std::vector<Task>         fetchAllTasks();
         std::vector<std::string>  fetchRepostIDs(const std::string& pid);
 
-        Task                      getTask(const std::string& id);
-        Task                      getTask(int id);
+        Task                      GetTask(const std::string& id);
+        Task                      GetTask(int id);
         std::vector<FileMetaData> getFiles(const std::string& sid, const std::string& type = "");
         std::vector<FileMetaData> getFiles(const std::vector<std::string>& sids, const std::string& type = "");
         template <typename T>
@@ -137,6 +151,7 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      addTrigger(const std::vector<std::string>& payload);
         int32_t                   FindPostExec(const int32_t& id);
         TermEvents                FetchTermEvents() const;
+        void                      ResolvePending(const bool& check_timer = true);
 
         template <typename T>
         std::vector<std::string>  getFlags(const T& mask);
@@ -145,13 +160,21 @@ private:
         void                      PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications);
         template <typename T = int32_t>
         void                      PostExecWait(const int32_t& i, const T& r);
+        template <typename T = int32_t>
+        void                      ProcessResearch(const T& id, const std::string& data, const std::string& application_name);
+        void                      SetIPCCommand(const uint8_t& command);
+        bool                      IPCNotPending() const;
+
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;
 Platform            m_platform;
 Trigger             m_trigger;
-PostExecMap         m_postexec_waiting;
+PostExecLists       m_postexec_lists;      // -> These two need to be converted to a single class
+PostExecMap         m_postexec_map;        // -> where the root has access to a map of all the  task lists
 ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
 std::string         m_message_buffer;
+uint8_t             m_ipc_command;
+
 };

@@ -2,11 +2,56 @@
 #include "executor/task_handlers/generic.hpp"
 #include "ipc/ipc.hpp"
 
+using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
+using  Duration  = std::chrono::seconds;
+
+static TimePoint time_point;
+static bool      timer_active;
+
+static bool TimerExpired()
+{
+  static const uint32_t  TEN_MINUTES = 600;
+         const TimePoint now         = std::chrono::system_clock::now();
+         const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
+  return (elapsed > TEN_MINUTES)  ;
+}
+
+static void StartTimer()
+{
+  time_point   = std::chrono::system_clock::now();
+  timer_active = true;
+}
+
+static void StopTimer()
+{
+  timer_active = false;
+}
+
+static bool TimerActive()
+{
+  return timer_active;
+}
+
+static TaskWrapper* FindNode(const TaskWrapper* node, const int32_t& id)
+{
+  for (auto next = node->child; next;)
+    if (next->id == id)  return next;
+    else                 next = next->child;
+  throw std::invalid_argument{"Node not found"};
+}
+
+[[ maybe_unused ]]
+static bool HasPendingTasks(TaskWrapper* root)
+{
+  for (auto node = root; node; node = node->child)
+    if (!node->complete) return true;
+  return false;
+};
+
 uint32_t getAppMask(std::string name)
 {
         auto db = Database::KDB{};
   const auto value_field{"mask"};
-
   for (const auto& row : db.select("apps", {value_field}, CreateFilter("name", name)))
     if (row.first == value_field)
       return std::stoi(row.second);
@@ -42,14 +87,15 @@ const uint32_t getIntervalSeconds(uint32_t interval) {
  * @param args
  * @return Task
  */
-TaskWrapper args_to_task(std::vector<std::string> args) {
-  TaskWrapper wrapper{};
-  Task        task;
-  if (args.size() == constants::PAYLOAD_SIZE) {
+Task args_to_task(std::vector<std::string> args)
+{
+  Task task;
+  if (args.size() == constants::PAYLOAD_SIZE)
+  {
     auto mask = getAppMask(args.at(constants::PAYLOAD_NAME_INDEX));
-
-    if (mask != NO_APP_MASK) {
-      task.id              = std::stoi(args.at(constants::PAYLOAD_ID_INDEX));
+    if (mask != NO_APP_MASK)
+    {
+      task.task_id         = std::stoi(args.at(constants::PAYLOAD_ID_INDEX));
       task.execution_mask  = mask;
       task.datetime        = args.at(constants::PAYLOAD_TIME_INDEX);
       task.execution_flags = args.at(constants::PAYLOAD_FLAGS_INDEX);
@@ -58,12 +104,11 @@ TaskWrapper args_to_task(std::vector<std::string> args) {
       task.notify          = args.at(constants::PAYLOAD_NOTIFY_INDEX).compare("1") == 0;
       task.runtime         = StripSQuotes(args.at(constants::PAYLOAD_RUNTIME_INDEX));
       // task.filenames = args.at(constants::PAYLOAD_ID_INDEX;
-      wrapper.envfile      = args.at(constants::PAYLOAD_ENVFILE_INDEX);
+      task.envfile         = args.at(constants::PAYLOAD_ENVFILE_INDEX);
       KLOG("Can't parse files from schedule payload. Must be implemented");
     }
   }
-  wrapper.task = task;
-  return wrapper;
+  return task;
 }
 
 bool IsRecurringTask(const Task& task)
@@ -82,10 +127,10 @@ Scheduler::Scheduler(Database::KDB&& kdb)
 
 static Scheduler::ApplicationMap FetchApplicationMap(Database::KDB& db)
 {
-  static const std::string  table{"apps"};
-  static const Fields       fields = {"mask", "name"};
+  static const std::string  table {"apps"};
+  static const Fields       fields{"mask", "name"};
   static const QueryFilter  filter{};
-  Scheduler::ApplicationMap map{};
+  Scheduler::ApplicationMap map   {};
   std::string               mask, name;
 
   for (const auto& value : db.select(table, fields, filter))
@@ -111,7 +156,8 @@ Scheduler::Scheduler(SystemEventcallback fn)
   m_platform(fn),
   m_trigger(&m_kdb),
   m_app_map(FetchApplicationMap(m_kdb)),
-  m_research_manager(&m_kdb, &m_platform)
+  m_research_manager(&m_kdb, &m_platform),
+  m_ipc_command(constants::NO_COMMAND_INDEX)
 {
   const auto AppExists = [this](const std::string& name) -> bool
   {
@@ -251,7 +297,7 @@ Task Scheduler::parseTask(QueryValues&& result)
       task.datetime            = v.second;
     else
     if (v.first == Field::ID)
-      task.id                  = std::stoi(v.second);
+      task.task_id             = std::stoi(v.second);
     else
     if (v.first == Field::COMPLETED)
       task.completed           = std::stoi(v.second);
@@ -322,7 +368,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
           .files            = {},
           .envfile          = envfile,
           .execution_flags  = flags,
-          .id               = id,
+          .task_id          = id,
           .completed        = completed,
           .recurring        = recurring,
           .notify           = (notify == 1),
@@ -430,7 +476,7 @@ std::vector<Task> Scheduler::fetchTasks()
   );
   // TODO: Convert above to a JOIN query, and remove this code below
   for (auto& task : tasks)
-    for (const auto& file : getFiles(std::to_string(task.id)))
+    for (const auto& file : getFiles(task.id()))
       task.filenames.emplace_back(file.name);
 
   return tasks;
@@ -480,7 +526,7 @@ std::vector<Task> Scheduler::fetchAllTasks()
 }
 
 /**
- * getTask
+ * GetTask
  *
  * get one task by ID
  *
@@ -488,9 +534,9 @@ std::vector<Task> Scheduler::fetchAllTasks()
  * @param  [in]  {std::string}  id  The task ID
  * @return [out] {Task}             A task
  */
-Task Scheduler::getTask(const std::string& id)
+Task Scheduler::GetTask(const std::string& id)
 {
-  static const Fields fields{Field::MASK, Field::FLAGS, Field::ENVFILE, Field::TIME,Field::COMPLETED};
+  static const Fields fields{Field::ID, Field::MASK, Field::FLAGS, Field::ENVFILE, Field::TIME,Field::COMPLETED};
 
   Task task = parseTask(m_kdb.select("schedule", fields, {CreateFilter("id", id)}));
 
@@ -573,7 +619,7 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std:
   return files;
 }
 /**
- * getTask
+ * GetTask
  *
  * get one task by ID
  *
@@ -582,11 +628,11 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std:
  * @param  [in]  {int}  id  The task ID
  * @return [out] {Task}     A task
  */
-Task Scheduler::getTask(int id) {
+Task Scheduler::GetTask(int id) {
   Task task =  parseTask(m_kdb.select("schedule", {
-                          Field::MASK,    Field::FLAGS,
-                          Field::ENVFILE, Field::TIME,
-                          Field::COMPLETED},
+                          Field::MASK,      Field::FLAGS,
+                          Field::ENVFILE,   Field::TIME,
+                          Field::COMPLETED, Field::ID },
                           CreateFilter("id", std::to_string(id))));
 
   for (const auto& file : getFiles(std::to_string(id)))                 // files
@@ -627,7 +673,7 @@ bool Scheduler::updateStatus(Task* task, const std::string& output) {
   const std::string table = "schedule";
   const Fields      fields = {"completed"};
   const Values      values = {std::to_string(task->completed)};
-  const QueryFilter filter = CreateFilter("id", std::to_string(task->id));
+  const QueryFilter filter = CreateFilter("id", task->id());
   const std::string returning = "id";
   return (!m_kdb.update(table, fields, values, filter, returning).empty());
 }
@@ -641,14 +687,14 @@ bool Scheduler::updateStatus(Task* task, const std::string& output) {
 bool Scheduler::update(Task task)
 {
   if (IsRecurringTask(task))
-    if (!HasRecurring(task.id))
+    if (!HasRecurring(task.task_id))
       m_kdb.insert("recurring", {"sid", "time"}, {
-        std::to_string(task.id),
+        task.id(),
         std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))});
     else
     m_kdb.update("recurring", {"time"},
       {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
-      CreateFilter("sid", std::to_string(task.id)));
+      CreateFilter("sid", task.id()));
 
   return !m_kdb.update(                // UPDATE
     "schedule", {                      // table
@@ -667,7 +713,7 @@ bool Scheduler::update(Task task)
       std::to_string(task.recurring),
       std::to_string(task.notify),
       task.runtime
-    }, CreateFilter("id", std::to_string(task.id)),
+    }, CreateFilter("id", task.id()),
     "id"                               // returning value
   )
   .empty();                            // not empty = success
@@ -682,7 +728,7 @@ bool Scheduler::update(Task task)
  * @return [out] {bool}         Whether the UPDATE query was successful
  */
 bool Scheduler::updateRecurring(Task* task) {
-  return !m_kdb.update("recurring", {"time"}, {task->datetime}, CreateFilter("sid", std::to_string(task->id)), "id").empty();
+  return !m_kdb.update("recurring", {"time"}, {task->datetime}, CreateFilter("sid", task->id()), "id").empty();
 }
 
 /**
@@ -719,33 +765,32 @@ bool Scheduler::isKIQProcess(uint32_t mask)
  */
 void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications)
 {
-  using namespace FileUtils;
-  const auto  TaskFn       = [this](const int32_t& id) { return getTask(id); };
-  const auto& map          = m_postexec_waiting;
+  const auto& map          = m_postexec_map;
+  const auto& lists        = m_postexec_lists;
+  const bool& immediately  = false;
   const auto  HasPayload   = [](const ProcessEventData& event) { return (event.payload.size()); };
-  const auto  LastExecPair = [&map, &TaskFn](const int32_t& a, const int32_t&b, const int32_t& mask)
+  const auto  CompleteTask = [&map, &lists](const int32_t& id) -> void
   {
-    const auto GetMask = [&TaskFn](auto id) { return TaskFn(id).execution_mask; };
-    bool found{false};
-    if (map.find(a) != map.end())
-    {
-      const auto& v = map.at(a);
-      for (auto i = 0; i < v.size(); i++)
-      {
-        if (found && GetMask(v.at(i)) == mask)
-          return false;
+    auto pid  = map.at(id).first;
+    auto node = FindNode(lists.at(pid), id);
+    node->complete = true;
+  };
+  const auto AllTasksComplete = [&map]() -> bool
+  {
+    for (const auto [parent_id, task] : map)
+      if (!task.second.complete) return false;
+    return true;
+  };
 
-        if (v.at(i) == b)
-          found = true;
-      }
-    }
-    return found;
+  const auto AddPostExec = [this, &applications](const std::string& id, const std::string& application_name) -> void
+  {
+    ProcessResearch(applications.second, FileUtils::ReadEnvToken(GetTask(id).envfile, constants::DESCRIPTION_KEY), application_name);
   };
 
   const auto& init_id         = applications.first;
   const auto& resp_id         = applications.second;
-  const auto  initiating_task = getTask(init_id);
-  const auto  responding_task = getTask(resp_id);
+  const auto  initiating_task = GetTask(init_id);
+  const auto  responding_task = GetTask(resp_id);
   const auto& init_mask       = initiating_task.execution_mask;
   const auto& resp_mask       = responding_task.execution_mask;
   try
@@ -761,7 +806,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
   const auto& initiating_application = m_app_map.at(init_mask);
   const auto& responding_application = m_app_map.at(resp_mask);
 
-  if (initiating_application == "TW Research" && responding_application == "KNLP")
+  if (initiating_application == TW_RESEARCH_APP && responding_application == NLP_APP)
   {
     using JSONItem  = KNLPResultParser::NLPItem;
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
@@ -776,24 +821,49 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
 
     for (auto&& item : items)
     {
-      const auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
-      const auto known_term = m_research_manager.TermHasHits(item.value);
-      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application);
+      const auto user       = FileUtils::ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
+      const auto term_hits  = m_research_manager.GetTermHits(item.value);
+      const auto known_term = term_hits.size();
+      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, responding_task);
       if (known_term)
-        m_research_manager.AnalyzeTermHit(item.value, term_info.id);
+        for (const auto& hit : term_hits)
+          AddPostExec(hit.sid, "KNLP");
       else
       if (term_info.valid())
         m_message_buffer += '\n' + term_info.ToString();
     }
 
-    if (LastExecPair(init_id, resp_id, responding_task.execution_mask))
-    {
-      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, {
-        CreateOperation("ipc", {constants::TELEGRAM_COMMAND, m_message_buffer, ""})});
-      m_message_buffer.clear();
-      // TODO: Clean up PostExec map
-    }
+    if (IPCNotPending())
+      SetIPCCommand(constants::TELEGRAM_COMMAND_INDEX);
   }
+  else
+  if (initiating_application == NLP_APP && responding_application == NLP_APP)
+  {
+    /****************************************************
+     *     NOTE: store tokens for comparison            *
+     *     NEXT: IMPLEMENT SOLUTION                     *
+     ****************************************************
+     ** 1. Collect all tokens from both tasks          **
+     ** 2. Perform Word association analysis on tokens **
+     ** 3. Retrieve texts from both tasks              **
+     ** 4. Perform sentiment analysis on both tasks    **
+     ** 5. Perform subject analysis on both tasks      **
+     ** 6. Evaluate congruence:                        **
+     **   - supporting same ideas                      **
+     **   - organizational interests                   **
+     ** 7. Trends analysis                             **
+     **   - Comparse each task's trend timeline        **
+     **   - Identify disrupting word                   **
+     **   - Email / IPC notify admin                   **
+     ****************************************************
+     ****************************************************/
+    KLOG("IMPLEMENTATION MISSING: Handle token comparison");
+  }
+
+  CompleteTask(resp_id);
+
+  if (AllTasksComplete())
+    ResolvePending(immediately);
 }
 
 /**
@@ -802,19 +872,43 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
 template <typename T>
 void Scheduler::PostExecWait(const int32_t& i, const T& r_)
 {
-  using ExecPair = std::pair<int32_t, std::vector<int32_t>>;
+  static const bool always_complete{true};
   int32_t r;
   if constexpr(std::is_integral<T>::value)
     r = r_;
   else
     r = std::stoi(r_);
 
-  auto& map = m_postexec_waiting;
-  const auto HasKey = [&map](const int32_t& k) -> bool { return map.find(k) != map.end(); };
+  auto& lists = m_postexec_lists;
+  auto& map   = m_postexec_map;
+
+  const auto HasKey  = [&lists]      (const int32_t& k) -> bool { return lists.find(k) != lists.end(); };
+  const auto AddRoot = [&lists, &map](const int32_t& k) -> void
+  {
+    map  .insert({k, PostExecTuple{k, TaskWrapper{k, always_complete, nullptr, nullptr}}});
+    lists.insert({k, &(map.at(k).second)});
+  };
+  const auto AddNode = [&lists, &map](const int32_t& p, const int32_t& v) -> void
+  {
+    map.insert({v, PostExecTuple{p, TaskWrapper{v, false, nullptr, nullptr}}});
+
+    TaskWrapper* inserted_ptr = &(map.at(v).second);
+    TaskWrapper* root         = lists.at(p);
+    TaskWrapper* next         = root->child;
+    TaskWrapper* parent       = root;
+
+    while (next)
+    {
+      parent = next;
+      next   = next->child;
+    }
+    parent->child        = inserted_ptr;
+    inserted_ptr->parent = parent;
+  };
 
   if (!HasKey(i))
-    map.insert(ExecPair(i, {}));
-  map[i].emplace_back(r);
+    AddRoot(i);
+  AddNode(i, r);
 }
 
 /**
@@ -836,7 +930,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
       switch (outgoing_event.event)
       {
         case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
-          outgoing_event.payload.emplace_back(FileUtils::ReadEnvToken(getTask(id).envfile, constants::HEADER_KEY));
+          outgoing_event.payload.emplace_back(FileUtils::ReadEnvToken(GetTask(id).envfile, constants::HEADER_KEY));
           m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
@@ -847,39 +941,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         }
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
-        {
-          const auto ProcessResearch = [this, id](const ProcessEventData event) -> void
-          { /* 2. Analyze(KNLP)
-             * 3. Record DB and Term hits?
-             * 4. Sentences from previous hits
-             * 5. Analyze (KNLP)
-             * 6. Analyze-comparison (KNLP)
-             * 7. Compare interests (TODO)
-             * 8. Discover memetic origin
-             * 9. Discover memetic propagators*/
-            KApplication app = ProcessExecutor::GetAppInfo(-1, "KNLP");
-            if (!app.is_valid())
-            {
-               ELOG("No KNLP app for language processing");
-               return;
-            }
-
-            Task task = GenericTaskHandler::Create(
-              app.mask, event.payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX));
-
-            const auto task_id = schedule(task);
-
-            if (task_id.size())
-            {
-              KLOG("Research triggered scheduling of task {}", task_id);
-              PostExecWait(id, task_id);
-            }
-            else
-              ELOG("Failed to schedule {} task", app.name);
-          };
-
-          ProcessResearch(outgoing_event);
-        }
+          ProcessResearch(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], "KNLP");
         break;
         default:
           ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
@@ -931,7 +993,7 @@ bool Scheduler::processTriggers(Task* task_ptr)
     if (task_id.empty())
       processed_triggers = false;
     else
-      KLOG("Task {} triggered scheduling of new task with ID {}", task_ptr->id, task.id);
+      KLOG("Task {} triggered scheduling of new task with ID {}", task_ptr->id(), task.id());
 
   }
 
@@ -985,11 +1047,10 @@ bool Scheduler::addTrigger(const std::vector<std::string>& payload)
 // TODO: This should persist in DB or file system
 int32_t Scheduler::FindPostExec(const int32_t& id)
 {
-  auto not_found = m_postexec_waiting.end();
-  for (const auto& [initiator, responding_tasks] : m_postexec_waiting)
-    for (const auto& task : responding_tasks)
-      if (task == id)
-        return initiator;
+  auto not_found = m_postexec_map.end();
+  for (const auto& [initiator, task_wrapper] : m_postexec_map)
+    if (task_wrapper.second.id == id)
+      return task_wrapper.first;
   return INVALID_ID;
 }
 
@@ -997,3 +1058,67 @@ Scheduler::TermEvents Scheduler::FetchTermEvents() const
 {
   return m_research_manager.GetAllTermEvents();
 }
+
+void Scheduler::SetIPCCommand(const uint8_t& command)
+{
+  if (!TimerActive() || m_ipc_command == constants::NO_COMMAND_INDEX)
+  {
+    m_ipc_command = command;
+    StartTimer();
+  }
+  else
+    ELOG("Cannot replace current pending IPC command: {}", constants::IPC_COMMANDS[m_ipc_command]);
+}
+
+bool Scheduler::IPCNotPending() const
+{
+  return (m_ipc_command == constants::NO_COMMAND_INDEX);
+}
+
+void Scheduler::ResolvePending(const bool& check_timer)
+{
+  if (!TimerActive() || (check_timer && !TimerExpired())) return;
+
+  KLOG("Resolving pending IPC message");
+  const auto payload = {CreateOperation("ipc", {constants::IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
+
+  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, payload);
+  m_message_buffer.clear();
+  m_postexec_map  .clear();
+  SetIPCCommand(constants::NO_COMMAND_INDEX);
+  StopTimer();
+}
+
+template <typename T>
+void Scheduler::ProcessResearch(const T& id, const std::string& data, const std::string& application_name)
+{ /* 4. Sentences from previous hits
+    * 5. Analyze (KNLP)
+    * 6. Analyze-comparison (KNLP)
+    * 7. Compare interests (TODO)
+    * 8. Discover memetic origin
+    * 9. Discover memetic propagators*/
+  int32_t task_id;
+  if constexpr (std::is_integral<T>::value)
+    task_id = id;
+  else
+    task_id = std::stoi(id);
+
+  KApplication app = ProcessExecutor::GetAppInfo(-1, application_name);
+  if (!app.is_valid())
+  {
+    ELOG("No KNLP app for language processing");
+    return;
+  }
+
+  Task task = GenericTaskHandler::Create(app.mask, data);
+
+  const auto new_task_id = schedule(task);
+
+  if (new_task_id.size())
+  {
+    KLOG("Research triggered scheduling of task {}", new_task_id);
+    PostExecWait(task_id, new_task_id);
+  }
+  else
+    ELOG("Failed to schedule {} task", app.name);
+};

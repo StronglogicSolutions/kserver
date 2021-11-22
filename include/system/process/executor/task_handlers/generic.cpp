@@ -85,7 +85,7 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
       .files           = task_files,
       .envfile         = env_filename,
       .execution_flags = GENERIC_TASK_EXECUTION_FLAGS,
-      .id              = 0,
+      .task_id         = 0,
       .completed       = 0,
       .recurring       = std::stoi(recurring),
       .notify          = notify.compare("1") == 0

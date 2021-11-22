@@ -20,11 +20,13 @@ std::string organization;
 };
 struct TermHit
 {
+std::string id;
 std::string person;
 std::string user;
 std::string organization;
 std::string time;
 std::string term;
+std::string sid;
 
 std::string ToString() const;
 };
@@ -73,9 +75,8 @@ std::vector<TermEvent> GetAllTermEvents() const;
 void                   GetOrganization();
 void                   GetAffiliation();
 
-std::string            SaveTermHit(const JSONItem& term, const std::string& uid);
-void                   AnalyzeTermHit(const std::string& term, const std::string& hid);
-TermEvent              RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app);
+std::string            SaveTermHit(const JSONItem& term, const std::string& uid, const std::string& sid);
+TermEvent              RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task);
 
 bool                   OrganizationExists(const std::string& name) const;
 bool                   PersonExists(const std::string& name) const;

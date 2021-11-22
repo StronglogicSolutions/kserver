@@ -14,7 +14,7 @@ TEST(EnvironmentTest, DISABLED_ParseFlagsFromString) {
     .files = {FileInfo{std::pair<std::string, std::string>{"testfile.txt", "1590776872"}}},
     .envfile = env_file,
     .execution_flags = flag_string,
-    .id = 0, // default initialized value in Task struct
+    .task_id   = 0, // default initialized value in Task struct
     .completed = 0,
     .recurring = Constants::Recurring::YEARLY,
     .notify = true,

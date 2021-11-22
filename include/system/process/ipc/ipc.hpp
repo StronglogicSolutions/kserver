@@ -33,10 +33,21 @@ static const uint8_t ARGS     = 0x08;
 static const uint8_t KIQ_DATA = 0x02;
 static const uint8_t ERROR    = 0x05;
 } // namespace index
-static const char*   TELEGRAM_COMMAND{"telegram:messages"};
-static const char*   MASTODON_COMMAND{"mastodon:comments"};
-static const char*   DISCORD_COMMAND {"discord:messages"};
-static const char*   YOUTUBE_COMMAND {"youtube:livestream"};
+
+static const uint8_t TELEGRAM_COMMAND_INDEX = 0x00;
+static const uint8_t MASTODON_COMMAND_INDEX = 0x01;
+static const uint8_t DISCORD_COMMAND_INDEX  = 0x02;
+static const uint8_t YOUTUBE_COMMAND_INDEX  = 0x03;
+static const uint8_t NO_COMMAND_INDEX       = 0x04;
+
+static const char*   IPC_COMMANDS[]{
+"telegram:messages",
+"mastodon:comments",
+"discord:messages",
+"youtube:livestream",
+"no:command"
+};
+
 } // namespace constants
 
 class ipc_message

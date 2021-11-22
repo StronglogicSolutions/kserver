@@ -182,7 +182,7 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
       exec_state.path,
       task.execution_mask,
       client_socket_fd,
-      std::to_string(task.id),
+      task.id(),
       exec_state.argv,
       (task.recurring) ?
         constants::RECURRING_REQUEST :

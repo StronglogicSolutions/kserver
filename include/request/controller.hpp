@@ -209,37 +209,37 @@ class Controller {
    * scheduled tasks, invoking the process executor and delegating work to the
    * system cron.
    */
-  void maintenanceLoop() {
+  void maintenanceLoop()
+  {
     KLOG("Beginning maintenance loop");
-    while (m_active) {
-      std::unique_lock<std::mutex> lock(m_mutex);
-      maintenance_loop_condition.wait(lock,
-        [this]() { return !handling_data; }
-      );
 
-      int client_socket_fd = -1;
+    while (m_active)
+    {
+      int32_t                      client_socket_fd{-1};
+      std::unique_lock<std::mutex> lock(m_mutex);
+
+      maintenance_loop_condition.wait(lock, [this]() { return !handling_data; });
 
       std::vector<Task> tasks = m_scheduler.fetchTasks();
       for (auto&& recurring_task : m_scheduler.fetchRecurringTasks())
         tasks.emplace_back(recurring_task);
 
-      if (!tasks.empty()) {
+      if (!tasks.empty())
+      {
         std::string scheduled_times{"Scheduled time(s): "};
         KLOG("{} tasks found", tasks.size());
-        for (const auto &task : tasks) {
+
+        for (const auto &task : tasks)
+        {
           auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
           scheduled_times += formatted_time + " ";
           KLOG("Task info: Time: {} - Mask: {}\n Args: {}\n {}",
             formatted_time, std::to_string(task.execution_mask),
-            task.file ? "hasFile(s)" : "", task.envfile
-          );
+            task.file ? "hasFile(s)" : "", task.envfile);
         }
 
-        m_system_callback_fn(
-          client_socket_fd,
-          SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
-          {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times}
-        );
+        m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
+          {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times});
 
         auto it = m_tasks_map.find(client_socket_fd);
         if (it == m_tasks_map.end())
@@ -256,6 +256,7 @@ class Controller {
         handlePendingTasks();
 
       m_scheduler.processPlatform();
+      m_scheduler.ResolvePending();
       maintenance_loop_condition.wait_for(lock, std::chrono::milliseconds(20000));
     }
   }
@@ -543,7 +544,7 @@ class Controller {
         for (const auto& task : tasks)
         {
           KApplication app = m_executor->GetAppInfo(task.execution_mask);
-          payload.emplace_back(std::to_string(task.id));
+          payload.emplace_back(task.id());
           payload.emplace_back(               app.name);
           payload.emplace_back(               task.datetime);
           payload.emplace_back(               task.execution_flags);
@@ -571,10 +572,10 @@ class Controller {
       break;
       case (RequestType::UPDATE_SCHEDULE):
       {
-        TaskWrapper        task_wrapper = args_to_task(args);
-        const std::string& task_id      = std::to_string(task_wrapper.task.id);
-        bool               save_success = m_scheduler.update(task_wrapper.task);
-        bool               env_updated  = m_scheduler.updateEnvfile(task_id, task_wrapper.envfile);
+        Task               recvd_task   = args_to_task(args);
+        const std::string& task_id      = recvd_task.id();
+        bool               save_success = m_scheduler.update(recvd_task);
+        bool               env_updated  = m_scheduler.updateEnvfile(task_id, recvd_task.envfile);
 
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_UPDATE, {task_id, (save_success) ? "Success" : "Failure"});
 
@@ -585,7 +586,7 @@ class Controller {
       case (RequestType::FETCH_SCHEDULE_TOKENS):
       {
         auto id = args.at(constants::PAYLOAD_ID_INDEX);
-        Task task = m_scheduler.getTask(id);
+        Task task = m_scheduler.GetTask(id);
         if (task.validate())
           m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
             DataUtils::vector_absorb(std::move(FileUtils::ReadFlagTokens(task.envfile, task.execution_flags)),
@@ -607,7 +608,7 @@ class Controller {
 
         for (auto&& task : tasks)
         {
-          payload.emplace_back(std::to_string(task.id));
+          payload.emplace_back(task.id());
           for (const auto& flag : FileUtils::ExtractFlagTokens(task.execution_flags))
           {
             payload.emplace_back(flag);
@@ -728,7 +729,7 @@ class Controller {
       if (it != m_tasks_map.end())
       {                                   // Find task
         task_it = std::find_if(it->second.begin(), it->second.end(),
-          [id](Task task) { return task.id == std::stoi(id); }
+          [id](Task task) { return task.task_id == std::stoi(id); }
         );
 
         if (task_it != it->second.end())
@@ -757,7 +758,7 @@ class Controller {
               Completed::SCHEDULED :
               Completed::SUCCESS;
             if (!m_scheduler.processTriggers(&*task_it))
-              KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id, task_it->execution_mask);
+              KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id(), task_it->execution_mask);
           }
 
           task_it->completed = status;                            // Update status
@@ -767,11 +768,11 @@ class Controller {
           if (!error && task_it->recurring)                       // If no error, update last execution time
           {
             KLOG("Task {} will be scheduled for {}",
-              task_it->id, TimeUtils::FormatTimestamp(task_it->datetime));
+              task_it->id(), TimeUtils::FormatTimestamp(task_it->datetime));
 
             m_scheduler.updateRecurring(&*task_it); // Latest time
             KLOG("Task {} was a recurring task scheduled to run {}",
-              task_it->id, Constants::Recurring::names[task_it->recurring]);
+              task_it->id(), Constants::Recurring::names[task_it->recurring]);
           }
 
           if (task_it->notify)                                             // Send email notification

@@ -255,17 +255,16 @@ std::string updateStatement(UpdateReturnQuery query, std::string returning,
 template <typename T>
 std::string deleteStatement(T query)
 {
+  std::string stmt;
   const auto filter = query.filter.value();
-  std::string filter_string{"WHERE "};
+  if (filter.empty()) stmt = "";
+  else
   if constexpr (std::is_same_v<T, DatabaseQuery>)
-  {
-    if (filter.empty())
-      return "";
-
-    filter_string += filter.front().first + "='" + filter.front().second + "'";
-    return "DELETE FROM " + query.table + " " + filter_string +
-          " RETURNING "   + filter.front().first;
-  }
+    stmt =
+      "DELETE FROM " + query.table + " " +
+      "WHERE "       + filter.front().first + "='" + filter.front().second + "'" +
+     " RETURNING "   + filter.front().first;
+  return stmt;
 }
 
 /**

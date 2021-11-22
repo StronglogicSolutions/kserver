@@ -55,17 +55,23 @@ static std::vector<ResearchManager::TermEvent> ParseTermEvents(const QueryValues
   {
     if (value.first == "term_hit.time")
       time = value.second;
-    else if (value.first == "person.name")
+    else
+    if (value.first == "person.name")
       person = value.second;
-    else if (value.first == "organization.name")
+    else
+    if (value.first == "organization.name")
       organization = value.second;
-    else if (value.first == "platform_user.name")
+    else
+    if (value.first == "platform_user.name")
       user = value.second;
-    else if (value.first == "term.id")
+    else
+    if (value.first == "term.id")
       id = value.second;
-    else if (value.first == "term.name")
+    else
+    if (value.first == "term.name")
       term = value.second;
-    else if (value.first == "term.type")
+    else
+    if (value.first == "term.type")
       type = value.second;
     if (DataUtils::NoEmptyArgs(id, time, person, organization, term, type, user))
     {
@@ -252,13 +258,13 @@ std::string ResearchManager::GetUser(const std::string &name, const std::string 
 /**
  * SaveTermHit
  */
-std::string ResearchManager::SaveTermHit(const JSONItem &term, const std::string &uid)
+std::string ResearchManager::SaveTermHit(const JSONItem& term, const std::string& uid, const std::string& sid)
 {
-  const auto &value = term.value;
-  const auto &type = term.type;
-  auto db = m_db_ptr;
-  auto tid = (TermExists(value)) ? GetTerm(value) : AddTerm(value, type);
-  return db->insert("term_hit", {"tid", "uid"}, {tid, uid}, "id");
+  const auto& value = term.value;
+  const auto& type  = term.type;
+        auto  db    =  m_db_ptr;
+  const auto  tid   = (TermExists(value)) ? GetTerm(value) : AddTerm(value, type);
+  return db->insert("term_hit", {"tid", "uid", "sid"}, {tid, uid, sid}, "id");
 }
 
 /**
@@ -319,7 +325,7 @@ std::string ResearchManager::TermEvent::ToJSON() const
 /**
  * RecordtermEvent
  */
-ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem &&term, const std::string &user, const std::string &app)
+ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task)
 {
   TermEvent event{};
 
@@ -337,10 +343,10 @@ ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem &&term, con
         const auto identity = GetIdentity(user, pid);
         if (!identity.id.empty())
         {
-          event.id = SaveTermHit(term, identity.id);
+          event.id           = SaveTermHit(term, identity.id, task.id());
           event.organization = identity.organization;
-          event.person = GetPersonForUID(identity.id).name;
-          event.time = TimeUtils::FormatTimestamp(TimeUtils::UnixTime());
+          event.person       = GetPersonForUID(identity.id).name;
+          event.time         = TimeUtils::FormatTimestamp(TimeUtils::UnixTime());
         }
       }
     }
@@ -361,7 +367,7 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
   {
     try
     {
-      Fields fields{"term_hit.time", "person.name", "platform_user.name", "organization.name"};
+      Fields fields{"term_hit.time", "term_hit.sid", "person.name", "platform_user.name", "organization.name"};
       return db->selectJoin("term_hit", fields, {CreateFilter("term_hit.tid", tid)}, Joins{Join{.table = "platform_user", .field = "id", .join_table = "term_hit", .join_field = "uid"}, Join{.table = "person", .field = "id", .join_table = "platform_user", .join_field = "pers_id"}, Join{.table = "affiliation", .field = "pid", .join_table = "person", .join_field = "id"}, Join{.table = "organization", .field = "id", .join_table = "affiliation", .join_field = "oid"}});
     }
     catch (const std::exception &e)
@@ -378,11 +384,14 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
 
   tid = GetTerm(term);
 
-  std::string time, person, organization, user;
+  std::string time, person, organization, user, sid;
   for (const auto &value : DoQuery(tid))
   {
     if (value.first == "term_hit.time")
       time = value.second;
+    else
+    if (value.first == "term_hit.sid")
+      sid = value.second;
     else
     if (value.first == "person.name")
       person = value.second;
@@ -393,7 +402,7 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
     if (value.first == "platform_user.name")
       user = value.second;
 
-    if (DataUtils::NoEmptyArgs(time, person, organization, user))
+    if (DataUtils::NoEmptyArgs(time, person, organization, user, sid))
     {
       KLOG("Term {} has previous hit:\nPerson: {}\nOrg: {}\nTime: {}", term, person, organization, time);
       result.emplace_back(TermHit{person, user, organization, time, term});
@@ -411,16 +420,6 @@ std::string ResearchManager::AddTerm(const std::string &name, const std::string 
   return m_db_ptr->insert("term", {"name", "type"}, {name, type}, "id");
 }
 
-/**
- * AnalyzeTermHit
- */
-void ResearchManager::AnalyzeTermHit(const std::string &term, const std::string &hid)
-{
-  auto hits = GetTermHits(term);
-  std::string hit_info;
-  for (const auto &hit : hits)
-    KLOG("Returned hit:\n{}\n MORE TO DO!!!", hit.ToString());
-}
 
 /**
  * GetAllTermHits
