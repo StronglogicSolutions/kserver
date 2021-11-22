@@ -265,12 +265,6 @@ struct Task {
   }
 };
 
-struct TaskWrapper
-{
-Task        task;
-std::string envfile;
-};
-
 struct FileMetaData
 {
 std::string task_id;

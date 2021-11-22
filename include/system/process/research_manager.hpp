@@ -76,7 +76,6 @@ void                   GetOrganization();
 void                   GetAffiliation();
 
 std::string            SaveTermHit(const JSONItem& term, const std::string& uid, const std::string& sid);
-void                   AnalyzeTermHit(const TermHit& hit, const Task& task);
 TermEvent              RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task);
 
 bool                   OrganizationExists(const std::string& name) const;

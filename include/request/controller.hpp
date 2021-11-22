@@ -572,10 +572,10 @@ class Controller {
       break;
       case (RequestType::UPDATE_SCHEDULE):
       {
-        TaskWrapper        task_wrapper = args_to_task(args);
-        const std::string& task_id      = task_wrapper.task.id();
-        bool               save_success = m_scheduler.update(task_wrapper.task);
-        bool               env_updated  = m_scheduler.updateEnvfile(task_id, task_wrapper.envfile);
+        Task               recvd_task   = args_to_task(args);
+        const std::string& task_id      = recvd_task.id();
+        bool               save_success = m_scheduler.update(recvd_task);
+        bool               env_updated  = m_scheduler.updateEnvfile(task_id, recvd_task.envfile);
 
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_UPDATE, {task_id, (save_success) ? "Success" : "Failure"});
 

@@ -35,13 +35,15 @@ static int8_t TW_FEED_IDX{0x02};
 static int8_t TW_SEARCH_IDX{0x03};
 static int8_t TW_RESEARCH_IDX{0x04};
 static int8_t KNLP_IDX{0x05};
+static const char* NLP_APP{"KNLP"};
+static const char* TW_RESEARCH_APP{"TW Research"};
 static const char* REQUIRED_APPLICATIONS[]{
   "IG Feed",
   "YT Feed",
   "TW Feed",
   "TW Search",
-  "TW Research",
-  "KNLP"
+  TW_RESEARCH_APP,
+  NLP_APP
 };
 
 static const int8_t  REQUIRED_APPLICATION_NUM{6};
@@ -75,9 +77,9 @@ const uint32_t getIntervalSeconds(uint32_t interval);
  * @brief
  *
  * @param args
- * @return TaskWrapper
+ * @return Task
  */
-TaskWrapper args_to_task(std::vector<std::string> args);
+Task args_to_task(std::vector<std::string> args);
 
 class ResearchManager;
 /**
@@ -86,15 +88,27 @@ class ResearchManager;
  * @class
  *
  */
+struct TaskWrapper
+{
+  int32_t      id;
+  bool         complete;
+  TaskWrapper* parent;
+  TaskWrapper* child;
+};
+
 class Scheduler : public DeferInterface, CalendarManagerInterface
 {
 public:
 using PostExecDuo     = std::pair<int32_t, int32_t>;
 using PostExecQueue   = std::deque<int32_t>;
-using PostExecMap     = std::unordered_map<int32_t, std::vector<PostExecQueue>>;
+using PostExecTuple   = std::pair<int32_t, TaskWrapper>;
+using PostExecMap     = std::unordered_map<int32_t, PostExecTuple>;
+using PostExecLists   = std::unordered_map<int32_t, TaskWrapper*>;
 using ApplicationInfo = std::pair<int32_t, std::string>;
 using ApplicationMap  = std::unordered_map<int32_t, std::string>;
 using TermEvents      = std::vector<ResearchManager::TermEvent>;
+
+
 
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
@@ -156,7 +170,8 @@ Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;
 Platform            m_platform;
 Trigger             m_trigger;
-PostExecMap         m_postexec_waiting;
+PostExecLists       m_postexec_lists;
+PostExecMap         m_postexec_map;
 ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
 std::string         m_message_buffer;

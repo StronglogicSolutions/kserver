@@ -420,29 +420,6 @@ std::string ResearchManager::AddTerm(const std::string &name, const std::string 
   return m_db_ptr->insert("term", {"name", "type"}, {name, type}, "id");
 }
 
-/**
- * AnalyzeTermHit
- */
-void ResearchManager::AnalyzeTermHit(const TermHit& hit, const Task& task)
-{
-  /**
-   * Ideal solution:
-   *
-   * 1. Collect all tokens from both tasks
-   * 2. Perform Word association analysis on tokens
-   * 3. Retrieve texts from both tasks
-   * 4. Perform sentiment analysis on both tasks
-   * 5. Perform subject analysis on both tasks
-   * 6. Evaluate congruence:
-   *   - supporting same ideas
-   *   - organizational interests
-   * 7. Trends analysis
-   *   - Comparse each task's trend timeline
-   *   - Identify disrupting word
-   *   - Email / IPC notify admin
-   */
-  const auto description = FileUtils::ReadEnvToken(task.envfile, constants::DESCRIPTION_KEY);
-}
 
 /**
  * GetAllTermHits
