@@ -40,6 +40,7 @@ static TaskWrapper* FindNode(const TaskWrapper* node, const int32_t& id)
   throw std::invalid_argument{"Node not found"};
 }
 
+[[ maybe_unused ]]
 static bool HasPendingTasks(TaskWrapper* root)
 {
   for (auto node = root; node; node = node->child)

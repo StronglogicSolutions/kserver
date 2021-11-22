@@ -55,7 +55,7 @@ std::string readFd(int fd) {
  * @param   [in]
  * @returns [out]
  */
-[[maybe_unused]]
+[[ maybe_unused ]]
 ProcessResult qx(    std::vector<std::string> args,
                const std::string&             working_directory = "") {
 
