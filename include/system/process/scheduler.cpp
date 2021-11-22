@@ -1060,7 +1060,7 @@ Scheduler::TermEvents Scheduler::FetchTermEvents() const
 
 void Scheduler::SetIPCCommand(const uint8_t& command)
 {
-  if (m_ipc_command == constants::NO_COMMAND_INDEX)
+  if (!TimerActive() || m_ipc_command == constants::NO_COMMAND_INDEX)
   {
     m_ipc_command = command;
     StartTimer();
