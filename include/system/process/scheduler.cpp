@@ -774,12 +774,11 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
     auto node = FindNode(lists.at(pid), id);
     node->complete = true;
   };
-  const auto AllTasksComplete = [&lists]() -> bool
+  const auto AllTasksComplete = [&map]() -> bool
   {
-    for (const auto [id, root] : lists)
-      if (HasPendingTasks(root))
-        return false;
-      return true;
+    for (const auto [parent_id, task] : map)
+      if (!task.second.complete) return false;
+    return true;
   };
 
   const auto AddPostExec = [this, &applications](const std::string& id, const std::string& application_name) -> void
@@ -872,6 +871,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
 template <typename T>
 void Scheduler::PostExecWait(const int32_t& i, const T& r_)
 {
+  static const bool always_complete{true};
   int32_t r;
   if constexpr(std::is_integral<T>::value)
     r = r_;
@@ -884,7 +884,7 @@ void Scheduler::PostExecWait(const int32_t& i, const T& r_)
   const auto HasKey  = [&lists]      (const int32_t& k) -> bool { return lists.find(k) != lists.end(); };
   const auto AddRoot = [&lists, &map](const int32_t& k) -> void
   {
-    map  .insert({k, PostExecTuple{k, TaskWrapper{k, false, nullptr, nullptr}}});
+    map  .insert({k, PostExecTuple{k, TaskWrapper{k, always_complete, nullptr, nullptr}}});
     lists.insert({k, &(map.at(k).second)});
   };
   const auto AddNode = [&lists, &map](const int32_t& p, const int32_t& v) -> void
