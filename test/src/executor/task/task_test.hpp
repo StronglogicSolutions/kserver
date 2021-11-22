@@ -20,7 +20,7 @@ TEST(Task, PrepareTaskTest) {
     .files = {FileInfo{std::pair<std::string, std::string>{"testfile.txt", "1590776872"}}},
     .envfile = "",
     .execution_flags = "--description=$DESCRIPTION --media=$FILE_TYPE --header=$HEADER --user=$USER",
-    .id = 0, // default initialized value in Task struct
+    .task_id   = 0, // default initialized value in Task struct
     .completed = 0,
     .recurring = Constants::Recurring::YEARLY,
     .notify = true,
@@ -34,8 +34,7 @@ TEST(Task, PrepareTaskTest) {
   EXPECT_EQ(generic_task.datetime, expected_task.datetime);
   EXPECT_EQ(generic_task.file, expected_task.file);
   EXPECT_EQ(generic_task.execution_flags, expected_task.execution_flags);
-  EXPECT_EQ(generic_task.id, expected_task.id);
-
+  EXPECT_EQ(generic_task.id(), expected_task.id());
 }
 
 #endif // __TASK_TEST_HPP__
