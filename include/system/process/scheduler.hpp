@@ -43,7 +43,7 @@ static const char* REQUIRED_APPLICATIONS[]{
   "TW Feed",
   "TW Search",
   TW_RESEARCH_APP.c_str(),
-  NLP_APP.c_str()
+  NLP_APP        .c_str()
 };
 
 static const int8_t  REQUIRED_APPLICATION_NUM{6};
@@ -90,10 +90,16 @@ class ResearchManager;
  */
 struct TaskWrapper
 {
-  int32_t      id;
-  bool         complete;
-  TaskWrapper* parent;
-  TaskWrapper* child;
+  int32_t          id;
+  bool             complete;
+  TaskWrapper*     parent;
+  TaskWrapper*     child;
+  ProcessEventData event;
+
+  void SetEvent(ProcessEventData&& event_)
+  {
+    event = event_;
+  }
 };
 
 class Scheduler : public DeferInterface, CalendarManagerInterface
@@ -157,7 +163,7 @@ virtual std::vector<Task>         fetchTasks() override;
         std::vector<std::string>  getFlags(const T& mask);
 
 private:
-        void                      PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications);
+        void                      PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo applications);
         template <typename T = int32_t>
         void                      PostExecWait(const int32_t& i, const T& r);
         template <typename T = int32_t>

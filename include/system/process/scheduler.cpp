@@ -763,8 +763,9 @@ bool Scheduler::isKIQProcess(uint32_t mask)
 /**
  * PostExecWork
  */
-void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications)
+void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo applications)
 {
+  using namespace FileUtils;
   const auto& map          = m_postexec_map;
   const auto& lists        = m_postexec_lists;
   const bool& immediately  = false;
@@ -784,7 +785,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
 
   const auto AddPostExec = [this, &applications](const std::string& id, const std::string& application_name) -> void
   {
-    ProcessResearch(applications.second, FileUtils::ReadEnvToken(GetTask(id).envfile, constants::DESCRIPTION_KEY), application_name);
+    ProcessResearch(applications.second, ReadEnvToken(GetTask(id).envfile, constants::DESCRIPTION_KEY), application_name);
   };
 
   const auto& init_id         = applications.first;
@@ -821,13 +822,13 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
 
     for (auto&& item : items)
     {
-      const auto user       = FileUtils::ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
+      const auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
       const auto term_hits  = m_research_manager.GetTermHits(item.value);
       const auto known_term = term_hits.size();
       const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, responding_task);
       if (known_term)
-        for (const auto& hit : term_hits)
-          AddPostExec(hit.sid, "KNLP");
+        for (auto&& hit : term_hits)
+          AddPostExec(hit.sid, NLP_APP);
       else
       if (term_info.valid())
         m_message_buffer += '\n' + term_info.ToString();
@@ -860,6 +861,7 @@ void Scheduler::PostExecWork(ProcessEventData event, Scheduler::PostExecDuo appl
     KLOG("IMPLEMENTATION MISSING: Handle token comparison");
   }
 
+  m_postexec_map.at(resp_id).second.SetEvent(std::move(event));
   CompleteTask(resp_id);
 
   if (AllTasksComplete())
@@ -937,7 +939,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         {
           auto parent_id = FindPostExec(id);
           if (parent_id != INVALID_ID)
-            PostExecWork(outgoing_event, PostExecDuo{parent_id, id});
+            PostExecWork(std::move(outgoing_event), PostExecDuo{parent_id, id});
         }
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
