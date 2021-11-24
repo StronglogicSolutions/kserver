@@ -782,7 +782,13 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       if (!task.second.complete) return false;
     return true;
   };
-
+  const auto GetTokens = [](const auto& payload) -> std::vector<JSONItem>
+  {
+    std::vector<JSONItem> tokens{};
+    for (size_t i = 1; i < (payload.size() - 1); i += 2)
+      tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
+    return tokens;
+  };
   const auto AddPostExec = [this, &applications](const std::string& id, const std::string& application_name) -> void
   {
     ProcessResearch(applications.second, ReadEnvToken(GetTask(id).envfile, constants::DESCRIPTION_KEY), application_name);
@@ -811,15 +817,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   {
     using JSONItem  = KNLPResultParser::NLPItem;
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
-    std::vector<JSONItem>    items{};
 
-    if (HasPayload(event))
-      for (size_t i = 1; i < (event.payload.size() - 1); i += 2)
-        items.emplace_back(JSONItem{.type = event.payload[i], .value = event.payload[i + 1]});
 
     if (m_message_buffer.empty())
       m_message_buffer += IPC_Message_Header;
 
+    auto items = GetTokens(event.payload);
     for (auto&& item : items)
     {
       const auto user       = ReadEnvToken(initiating_task.envfile, constants::USER_KEY);
@@ -859,6 +862,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      ****************************************************
      ****************************************************/
     KLOG("IMPLEMENTATION MISSING: Handle token comparison");
+    auto current__tokens = GetTokens(event.payload);
+    auto previous_tokens = m_postexec_map.at(init_id).second.event;
   }
 
   m_postexec_map.at(resp_id).second.SetEvent(std::move(event));
