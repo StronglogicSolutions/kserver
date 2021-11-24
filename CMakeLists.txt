@@ -42,6 +42,7 @@ set(SOURCE_FILES
   "include/server/kserver.cpp"
   "include/config/config_parser.cpp"
   "include/system/process/scheduler.cpp"
+  "include/system/process/helper.cpp"
   "include/system/process/platform.cpp"
   "include/system/process/trigger.cpp"
   "include/system/process/research_manager.cpp"
