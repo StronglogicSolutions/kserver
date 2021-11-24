@@ -65,18 +65,17 @@ std::string GetExecutableCWD();
 /**
  * JSON Tools
  */
-std::string GetJSONString(std::string s);
-std::string CreateMessage(const char *data, std::string args = "");
-std::string CreateEvent(const std::string& event, int mask, std::string stdout);
-std::string CreateEvent(const std::string& event, std::vector<std::string> args);
-std::string CreateEvent(const std::string& event, int mask, std::vector<std::string> args);
-std::string CreateOperation(const char *op, std::vector<std::string> args);
-std::string GetOperation(const std::string& data);
+std::string CreateMessage       (const char *data, std::string args = "");
+std::string CreateEvent         (const std::string& event, int mask, std::string stdout);
+std::string CreateEvent         (const std::string& event, std::vector<std::string> args);
+std::string CreateEvent         (const std::string& event, int mask, std::vector<std::string> args);
+std::string CreateOperation     (const char *op, std::vector<std::string> args);
+std::string GetOperation        (const std::string& data);
 template<typename T>
-std::string GetMessage(T data);
-std::string GetEvent(std::string data);
-bool IsSessionMessageEvent(std::string event);
-bool IsCloseEvent(std::string event);
+std::string GetMessage          (T data);
+std::string GetEvent            (std::string data);
+bool IsSessionMessageEvent      (std::string event);
+bool IsCloseEvent               (std::string event);
 std::vector<std::string> GetArgs(const std::string& data);
 std::vector<std::string> GetArgs(const char* data);
 CommandMap GetArgMap(const char *data);
@@ -108,7 +107,6 @@ bool IsIPCOperation       (const std::string& data);
 bool IsStartOperation     (const std::string& data);
 bool IsStopOperation      (const std::string& data);
 bool IsAppOperation       (const std::string& data);
-bool IsNewSession         (const std::string& data);
 bool IsPing(uint8_t* buffer, ssize_t size);
 
 /**

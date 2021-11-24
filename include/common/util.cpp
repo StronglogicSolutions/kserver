@@ -19,16 +19,6 @@ std::string GetExecutableCWD()
  * JSON Tools
  */
 
-std::string GetJSONString(std::string s)
-{
-  Document d;
-  d.Parse(s.c_str());
-  StringBuffer buffer;
-  PrettyWriter<StringBuffer> writer(buffer);
-  d.Accept(writer);
-  return buffer.GetString();
-}
-
 std::string CreateMessage(const char *data, std::string args)
 {
   StringBuffer s;
@@ -414,7 +404,7 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
     return std::string{message_bytes->begin(), message_bytes->end()};
   };
 
-  uint8_t  msg_type_byte_code = *(buffer + 4);
+  const uint8_t msg_type_byte_code = *(buffer + 4);
 
   if (msg_type_byte_code == 0xFD)
     return left(std::to_string(msg_type_byte_code));
@@ -429,34 +419,24 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
           uint8_t  decode_buffer[message_byte_size];
 
     std::memcpy(decode_buffer, buffer + 5, message_byte_size);
-    assert(VerifyFlatbuffer(decode_buffer, message_byte_size));
 
-    switch (msg_type_byte_code)
+    if (VerifyFlatbuffer(decode_buffer, message_byte_size))
     {
-      case (0xFF):
-        return right(IGTaskPayload(GetIGTask(&decode_buffer)));
-      break;
-      case (0xFE):
-        return left(GetMessage(KData::GetMessage(&decode_buffer)));
-      break;
-      case (0xFC):
-        return right(TaskPayload(GetGenericTask(&decode_buffer)));
-      break;
-      default:
-        return right(std::vector<std::string>{});
+      switch (msg_type_byte_code)
+      {
+        case (0xFF):
+          return right(IGTaskPayload(GetIGTask(&decode_buffer)));
+        break;
+        case (0xFE):
+          return left(GetMessage(KData::GetMessage(&decode_buffer)));
+        break;
+        case (0xFC):
+          return right(TaskPayload(GetGenericTask(&decode_buffer)));
+        break;
+      }
     }
   }
-}
-
-bool IsNewSession(const char *data) {
-  if (*data != '\0') {
-    Document d;
-    d.Parse(data);
-    if (d.HasMember("message")) {
-      return strcmp(d["message"].GetString(), "New Session") == 0;
-    }
-  }
-  return false;
+  return right(std::vector<std::string>{});
 }
 
 namespace SystemUtils {
