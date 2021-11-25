@@ -47,13 +47,23 @@ virtual bool               read(const std::string& s) = 0;
 virtual ProcessParseResult get_result() = 0;
 };
 
-class KNLPResultParser : public ProcessParseInterface {
+class ResearchResultInterface {
 public:
-KNLPResultParser(const std::string& app_name)
+virtual ~ResearchResultInterface() {}
+static ProcessParseResult GetNOOPResult()
+{
+  return ProcessParseResult{{ProcessEventData{.event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
+}
+}; // ResearchResultInterface
+
+class NERResultParser : public ProcessParseInterface,
+                        public ResearchResultInterface {
+public:
+NERResultParser(const std::string& app_name)
 : m_app_name(app_name)
 {}
 
-virtual ~KNLPResultParser() {}
+virtual ~NERResultParser() {}
 
 struct NLPItem{
 std::string type;
@@ -88,11 +98,6 @@ virtual bool read(const std::string& s) override
   return false;
 }
 
-static ProcessParseResult GetNOOPResult()
-{
-  return ProcessParseResult{{ProcessEventData{.event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
-}
-
 virtual ProcessParseResult get_result() override
 {
   ProcessParseResult result{};
@@ -112,7 +117,120 @@ virtual ProcessParseResult get_result() override
 private:
 std::string m_app_name;
 std::vector<NLPItem> m_items;
+}; // NERResultParser
+
+class EmotionResultParser : public ProcessParseInterface,
+                            public ResearchResultInterface {
+public:
+EmotionResultParser(const std::string& app_name)
+: m_app_name(app_name)
+{}
+
+virtual ~EmotionResultParser() {}
+
+struct Emotions {
+float joy;
+float sadness;
+float surprise;
+float fear;
+float anger;
+float disgust;
 };
+struct EmoStrings {
+std::string joy;
+std::string sadness;
+std::string surprise;
+std::string fear;
+std::string anger;
+std::string disgust;
+
+std::vector<std::string> GetVector() const
+{
+  return {joy, sadness, surprise, fear, anger, disgust};
+}
+};
+struct Emotion {
+std::vector<std::string> emotions;
+EmoStrings               scores;
+};
+
+virtual bool read(const std::string& s) override
+{
+  using namespace rapidjson;
+  Document d{};
+  d.Parse(s.c_str());
+  if (!d.IsNull() && d.IsArray())
+  {
+    for (const auto& item : d.GetArray())
+    {
+      /**
+       * {
+
+        "emotions": [],
+        EmotionResultParser
+      }*/
+      Emotion emotion{};
+      if (item.IsObject())
+      {
+        for (const auto& k : item.GetObject())
+          if (strcmp(k.name.GetString(), "anger") == 0)
+            emotion.scores.anger = std::to_string(k.value.GetFloat());
+          else
+          if (strcmp(k.name.GetString(), "disgust") == 0)
+            emotion.scores.disgust = std::to_string(k.value.GetFloat());
+          else
+          if (strcmp(k.name.GetString(), "fear") == 0)
+            emotion.scores.fear = std::to_string(k.value.GetFloat());
+          else
+          if (strcmp(k.name.GetString(), "joy") == 0)
+            emotion.scores.joy = std::to_string(k.value.GetFloat());
+          else
+          if (strcmp(k.name.GetString(), "sadness") == 0)
+            emotion.scores.sadness = std::to_string(k.value.GetFloat());
+          else
+          if (strcmp(k.name.GetString(), "surprise") == 0)
+            emotion.scores.surprise = std::to_string(k.value.GetFloat());
+          else
+          if (strcmp(k.name.GetString(), "emotions") == 0)
+            for (const auto& value : k.value.GetArray())
+              emotion.emotions.emplace_back(value.GetString());
+      }
+      m_items.emplace_back(std::move(emotion));
+    }
+    return true;
+  }
+  return false;
+}
+
+virtual ProcessParseResult get_result() override
+{
+  const auto MakePayload = [this](const Emotion& e) -> std::vector<std::string>
+  {
+    std::vector<std::string> payload{m_app_name};
+    const auto&                    scores   = e.scores.GetVector();
+    const auto&                    emotions = e.emotions;
+    payload.insert(payload.end(), scores  .begin(), scores  .end());
+    payload.insert(payload.end(), emotions.begin(), emotions.end());
+    return payload;
+  };
+  ProcessParseResult result{};
+
+  KLOG("Returning {} Emotion objects", m_items.size());
+
+  if (m_items.empty()) return GetNOOPResult();
+
+  for (const auto& item : m_items)
+    result.data.emplace_back(
+      ProcessEventData{
+        .event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+        .payload = MakePayload(item)});
+  return result;
+}
+
+private:
+std::string m_app_name;
+std::vector<Emotion> m_items;
+}; // EmotionResultParser
 
 /**
  *
@@ -501,8 +619,11 @@ ProcessParseResult process(const std::string& output, KApplication app)
     if (app.name == "TW Research")
       u_parser_ptr.reset(new TWResearchParser{app.name});
     else
-    if (app.name == "KNLP")
-      u_parser_ptr.reset(new KNLPResultParser{app.name});
+    if (app.name == "KNLP - NER")
+      u_parser_ptr.reset(new NERResultParser{app.name});
+    else
+    if (app.name == "KNLP - Emotion")
+      u_parser_ptr.reset(new EmotionResultParser{app.name});
     u_parser_ptr->read(output);
 
     result = u_parser_ptr->get_result();
