@@ -973,8 +973,8 @@ void Scheduler::ResolvePending(const bool& check_timer)
 }
 
 
-template <typename T>
-int32_t Scheduler::CreateChild(const T& id, const std::string& data, const std::string& application_name)
+template <typename T, typename S>
+int32_t Scheduler::CreateChild(const T& id, const std::string& data, const S& application_name)
 { /* 4. Sentences from previous hits
     * 5. Analyze (KNLP)
     * 6. Analyze-comparison (KNLP)
@@ -1007,3 +1007,6 @@ int32_t Scheduler::CreateChild(const T& id, const std::string& data, const std::
 
   return INVALID_ID;
 };
+
+template int32_t Scheduler::CreateChild(const uint32_t& id, const std::string& data, const std::string& application_name);
+template int32_t Scheduler::CreateChild(const std::string& id, const std::string& data, const std::string& application_name);

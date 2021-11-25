@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <vector>
 #include <deque>
-
+#include <string_view>
 #include "log/logger.h"
 #include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"
@@ -37,25 +37,27 @@ struct TaskWrapper
   }
 };
 
-static int8_t IG_FEED_IDX{0x00};
-static int8_t YT_FEED_IDX{0x01};
-static int8_t TW_FEED_IDX{0x02};
-static int8_t TW_SEARCH_IDX{0x03};
+static int8_t IG_FEED_IDX    {0x00};
+static int8_t YT_FEED_IDX    {0x01};
+static int8_t TW_FEED_IDX    {0x02};
+static int8_t TW_SEARCH_IDX  {0x03};
 static int8_t TW_RESEARCH_IDX{0x04};
-static int8_t KNLP_IDX{0x05};
-static const std::string NER_ANALYSIS{"KNLP - NER"};
-static const std::string TW_RESEARCH_APP{"TW Research"};
-static const std::string EMOTION_ANALYSIS{"KNLP - Emotion"};
+static int8_t NER_IDX        {0x05};
+static int8_t EMOTION_IDX    {0x06};
 static const char* REQUIRED_APPLICATIONS[]{
   "IG Feed",
   "YT Feed",
   "TW Feed",
   "TW Search",
-  TW_RESEARCH_APP.c_str(),
-  NER_ANALYSIS   .c_str()
+  "TW Research",
+  "KNLP - NER",
+  "KNLP - Emotion"
 };
+static const int8_t           REQUIRED_APPLICATION_NUM{7};
+static const std::string TW_RESEARCH_APP {REQUIRED_APPLICATIONS[TW_RESEARCH_IDX]};
+static const std::string NER_ANALYSIS    {REQUIRED_APPLICATIONS[NER_IDX]};
+static const std::string EMOTION_ANALYSIS{REQUIRED_APPLICATIONS[EMOTION_IDX]};
 
-static const int8_t  REQUIRED_APPLICATION_NUM{6};
 static const int32_t INVALID_ID = std::numeric_limits<int32_t>::max();
 
 class DeferInterface
@@ -142,8 +144,8 @@ private:
         void                      PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo applications);
         template <typename T = int32_t>
         void                      PostExecWait(const int32_t& i, const T& r);
-        template <typename T = int32_t>
-        int32_t                   CreateChild(const T& id, const std::string& data, const std::string& application_name);
+        template <typename T = int32_t, typename S = std::string>
+        int32_t                   CreateChild(const T& id, const std::string& data, const S& application_name);
         void                      SetIPCCommand(const uint8_t& command);
         bool                      IPCNotPending() const;
 
