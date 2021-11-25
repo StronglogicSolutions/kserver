@@ -691,7 +691,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
 
   if (initiating_application == TW_RESEARCH_APP && responding_application == NER_ANALYSIS)
   {
-    using JSONItem  = KNLPResultParser::NLPItem;
+    using JSONItem  = NERResultParser::NLPItem;
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
 
     if (m_message_buffer.empty())
@@ -736,26 +736,28 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      **   - Email / IPC notify admin                   **
      ****************************************************
      ****************************************************/
-    KLOG("IMPLEMENTATION MISSING: Handle token comparison");
+    KLOG("NER parsing triggered Emotion analysis on original text for {} and {}", resp_id, init_id);
     auto id = CreateChild(init_id, responding_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS);
-              CreateChild(id,                      initiating_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS);
+              CreateChild(id,      initiating_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS);
   }
   else
   if (initiating_application == EMOTION_ANALYSIS && responding_application == EMOTION_ANALYSIS)
   {
     const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
     {
-      auto ner_parent    = *(FindParent(&child, FindMask(NER_ANALYSIS)));
-      auto root_data     = root.event.payload;  // TW Research
-      auto subchild_data = event.payload;       // Emotion Payload
-      auto child_data    = child.event.payload; // Emotion Payload
-      auto terms_data    = GetTokens(ner_parent.event.payload);
+      KLOG("Performing final analysis on research triggered by {}", root.id);
+      const auto ner_parent    = *(FindParent(&child, FindMask(NER_ANALYSIS)));
+      const auto root_data     = root.event.payload;  // TW Research
+      const auto subchild_data = event.payload;       // Emotion Payload
+      const auto child_data    = child.event.payload; // Emotion Payload
+      const auto terms_data    = GetTokens(ner_parent.event.payload);
     };
 
     const auto init_task = map.at(init_id).second;
     const auto resp_task = map.at(resp_id).second;
     const auto init_root = FindRoot(init_id);
     const auto resp_root = FindRoot(resp_id);
+
     if (init_root == resp_root && m_app_map.at(init_root->task.execution_mask) == TW_RESEARCH_APP)
       PerformAnalysis(*(init_root), init_task, resp_task);
   }
