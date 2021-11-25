@@ -46,6 +46,14 @@ bool HasPendingTasks(TaskWrapper* root)
   return false;
 };
 
+TaskWrapper* FindParent(const TaskWrapper* node, const int32_t& mask)
+{
+  auto parent = node->parent;
+  while (parent && parent->task.execution_mask != mask)
+    parent = parent->parent;
+  return parent;
+}
+
 bool AllTasksComplete (const Scheduler::PostExecMap& map)
 {
   for (const auto& [parent_id, task] : map)

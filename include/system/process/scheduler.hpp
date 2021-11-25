@@ -25,6 +25,15 @@ static const char* UNIXTIME_NOW{"extract(epoch from (now()))::int"};
 class ResearchManager;
 struct TaskWrapper
 {
+  TaskWrapper(Task&& task_, const bool complete_ = false)
+  : task    (task_),
+    id      (task.task_id),
+    complete(complete_),
+    parent  (nullptr),
+    child   (nullptr)
+  {}
+
+  Task             task;
   int32_t          id;
   bool             complete;
   TaskWrapper*     parent;
@@ -53,12 +62,13 @@ static const char* REQUIRED_APPLICATIONS[]{
   "KNLP - NER",
   "KNLP - Emotion"
 };
-static const int8_t           REQUIRED_APPLICATION_NUM{7};
+static const int8_t      REQUIRED_APPLICATION_NUM{7};
 static const std::string TW_RESEARCH_APP {REQUIRED_APPLICATIONS[TW_RESEARCH_IDX]};
 static const std::string NER_ANALYSIS    {REQUIRED_APPLICATIONS[NER_IDX]};
 static const std::string EMOTION_ANALYSIS{REQUIRED_APPLICATIONS[EMOTION_IDX]};
 
-static const int32_t INVALID_ID = std::numeric_limits<int32_t>::max();
+static const int32_t INVALID_ID   = std::numeric_limits<int32_t>::max();
+static const int32_t INVALID_MASK = std::numeric_limits<int32_t>::max();
 
 class DeferInterface
 {
@@ -141,6 +151,7 @@ virtual std::vector<Task>         fetchTasks() override;
         std::vector<std::string>  getFlags(const T& mask);
 
 private:
+        int32_t                   FindMask(const std::string& application_name);
         void                      PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo applications);
         template <typename T = int32_t>
         void                      PostExecWait(const int32_t& i, const T& r);
@@ -168,6 +179,7 @@ void           StartTimer();
 void           StopTimer();
 bool           TimerActive();
 TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);
+TaskWrapper*   FindParent(const TaskWrapper* node, const int32_t& mask);
 bool           HasPendingTasks(TaskWrapper* root);
 bool           AllTasksComplete (const Scheduler::PostExecMap& map);
 uint32_t       getAppMask(std::string name);

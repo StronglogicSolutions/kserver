@@ -668,6 +668,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
+  const auto FindRoot = [&map, &lists](const int32_t& id) -> TaskWrapper* { return lists.at(map.at(id).first); };
 
   const auto& init_id         = applications.first;
   const auto& resp_id         = applications.second;
@@ -736,14 +737,29 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      ****************************************************
      ****************************************************/
     KLOG("IMPLEMENTATION MISSING: Handle token comparison");
-    auto id = CreateChild(initiating_task.task_id, responding_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS);
+    auto id = CreateChild(init_id, responding_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS);
               CreateChild(id,                      initiating_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS);
   }
   else
   if (initiating_application == EMOTION_ANALYSIS && responding_application == EMOTION_ANALYSIS)
   {
+    const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
+    {
+      auto ner_parent    = *(FindParent(&child, FindMask(NER_ANALYSIS)));
+      auto root_data     = root.event.payload;  // TW Research
+      auto subchild_data = event.payload;       // Emotion Payload
+      auto child_data    = child.event.payload; // Emotion Payload
+      auto terms_data    = GetTokens(ner_parent.event.payload);
+    };
 
+    const auto init_task = map.at(init_id).second;
+    const auto resp_task = map.at(resp_id).second;
+    const auto init_root = FindRoot(init_id);
+    const auto resp_root = FindRoot(resp_id);
+    if (init_root == resp_root && m_app_map.at(init_root->task.execution_mask) == TW_RESEARCH_APP)
+      PerformAnalysis(*(init_root), init_task, resp_task);
   }
+
   m_postexec_map.at(resp_id).second.SetEvent(std::move(event));
   CompleteTask(resp_id);
 
@@ -767,15 +783,15 @@ void Scheduler::PostExecWait(const int32_t& i, const T& r_)
   auto& lists = m_postexec_lists;
   auto& map   = m_postexec_map;
 
-  const auto HasKey  = [&lists]      (const int32_t& k) -> bool { return lists.find(k) != lists.end(); };
-  const auto AddRoot = [&lists, &map](const int32_t& k) -> void
+  const auto HasKey  = [&lists]            (const int32_t& k) -> bool { return lists.find(k) != lists.end(); };
+  const auto AddRoot = [&lists, &map, this](const int32_t& k) -> void
   {
-    map  .insert({k, PostExecTuple{k, TaskWrapper{k, always_complete, nullptr, nullptr}}});
+    map  .insert({k, PostExecTuple{k, TaskWrapper{GetTask(k), always_complete}}});
     lists.insert({k, &(map.at(k).second)});
   };
-  const auto AddNode = [&lists, &map](const int32_t& p, const int32_t& v) -> void
+  const auto AddNode = [&lists, &map, this](const int32_t& p, const int32_t& v) -> void
   {
-    map.insert({v, PostExecTuple{p, TaskWrapper{v, false, nullptr, nullptr}}});
+    map  .insert({v, PostExecTuple{p, TaskWrapper{GetTask(v)}}});
 
     TaskWrapper* inserted_ptr = &(map.at(v).second);
     TaskWrapper* root         = lists.at(p);
@@ -1010,3 +1026,11 @@ int32_t Scheduler::CreateChild(const T& id, const std::string& data, const S& ap
 
 template int32_t Scheduler::CreateChild(const uint32_t& id, const std::string& data, const std::string& application_name);
 template int32_t Scheduler::CreateChild(const std::string& id, const std::string& data, const std::string& application_name);
+
+int32_t Scheduler::FindMask(const std::string& application_name)
+{
+  auto it = std::find_if(m_app_map.begin(), m_app_map.end(),
+    [&application_name](const ApplicationInfo& a) { return a.second == application_name; });
+  if (it != m_app_map.end())  return it->first;
+  return INVALID_MASK;
+}
