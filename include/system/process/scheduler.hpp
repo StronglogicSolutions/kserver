@@ -156,7 +156,7 @@ private:
         template <typename T = int32_t>
         void                      PostExecWait(const int32_t& i, const T& r);
         template <typename T = int32_t, typename S = std::string>
-        int32_t                   CreateChild(const T& id, const std::string& data, const S& application_name);
+        int32_t                   CreateChild(const T& id, const std::string& data, const S& application_name, const std::vector<std::string>& args = {});
         void                      SetIPCCommand(const uint8_t& command);
         bool                      IPCNotPending() const;
 

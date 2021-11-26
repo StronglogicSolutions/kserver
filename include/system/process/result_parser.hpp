@@ -16,6 +16,14 @@
 #include "log/logger.h"
 
 
+static const uint8_t JOY_INDEX      = 0x00;
+static const uint8_t SADNESS_INDEX  = 0x01;
+static const uint8_t SURPRISE_INDEX = 0x02;
+static const uint8_t FEAR_INDEX     = 0x03;
+static const uint8_t ANGER_INDEX    = 0x04;
+static const uint8_t DISGUST_INDEX  = 0x05;
+static const uint8_t EMOTION_NUM    = 0x06;
+
 static std::string url_string(const std::vector<std::string> urls)
 {
   std::string delim{};
@@ -135,6 +143,10 @@ float surprise;
 float fear;
 float anger;
 float disgust;
+std::vector<float> GetVector() const
+{
+  return {joy, sadness, surprise, fear, anger, disgust};
+}
 };
 struct EmoStrings {
 std::string joy;
@@ -149,9 +161,27 @@ std::vector<std::string> GetVector() const
   return {joy, sadness, surprise, fear, anger, disgust};
 }
 };
+
+template <typename T = Emotions>
 struct Emotion {
 std::vector<std::string> emotions;
-EmoStrings               scores;
+T                        scores;
+static Emotion<Emotions> Create(const std::vector<std::string>& v)
+{
+  auto Partition = [](const auto& v) { return std::vector<std::string>{0x01 + v.begin() + EMOTION_NUM, v.end()}; };
+  Emotion<Emotions> emotion{
+    .scores = Emotions{
+      .joy      = std::stof(v[0x01 + JOY_INDEX]),
+      .sadness  = std::stof(v[0x01 + SADNESS_INDEX]),
+      .surprise = std::stof(v[0x01 + SURPRISE_INDEX]),
+      .fear     = std::stof(v[0x01 + FEAR_INDEX]),
+      .anger    = std::stof(v[0x01 + ANGER_INDEX]),
+      .disgust  = std::stof(v[0x01 + DISGUST_INDEX])}};
+  for (const auto& e_s : Partition(v))
+    emotion.emotions.emplace_back(e_s);
+
+  return emotion;
+}
 };
 
 virtual bool read(const std::string& s) override
@@ -159,44 +189,26 @@ virtual bool read(const std::string& s) override
   using namespace rapidjson;
   Document d{};
   d.Parse(s.c_str());
-  if (!d.IsNull() && d.IsArray())
+  if (!d.HasParseError() && !d.IsNull() && d.IsObject())
   {
-    for (const auto& item : d.GetArray())
-    {
-      /**
-       * {
+    Emotion<EmoStrings> emotion{};
+    if (d.HasMember("anger"))
+      emotion.scores.anger = d["anger"].GetString();
+    if (d.HasMember("disgust"))
+      emotion.scores.disgust = d["disgust"].GetString();
+    if (d.HasMember("fear"))
+      emotion.scores.fear = d["fear"].GetString();
+    if (d.HasMember("joy"))
+      emotion.scores.joy = d["joy"].GetString();
+    if (d.HasMember("sadness"))
+      emotion.scores.sadness = d["sadness"].GetString();
+    if (d.HasMember("surprise"))
+      emotion.scores.surprise = d["surprise"].GetString();
+    if (d.HasMember("emotions"))
+      for (const auto& value : d["emotions"].GetArray())
+        emotion.emotions.emplace_back(value.GetString());
 
-        "emotions": [],
-        EmotionResultParser
-      }*/
-      Emotion emotion{};
-      if (item.IsObject())
-      {
-        for (const auto& k : item.GetObject())
-          if (strcmp(k.name.GetString(), "anger") == 0)
-            emotion.scores.anger = std::to_string(k.value.GetFloat());
-          else
-          if (strcmp(k.name.GetString(), "disgust") == 0)
-            emotion.scores.disgust = std::to_string(k.value.GetFloat());
-          else
-          if (strcmp(k.name.GetString(), "fear") == 0)
-            emotion.scores.fear = std::to_string(k.value.GetFloat());
-          else
-          if (strcmp(k.name.GetString(), "joy") == 0)
-            emotion.scores.joy = std::to_string(k.value.GetFloat());
-          else
-          if (strcmp(k.name.GetString(), "sadness") == 0)
-            emotion.scores.sadness = std::to_string(k.value.GetFloat());
-          else
-          if (strcmp(k.name.GetString(), "surprise") == 0)
-            emotion.scores.surprise = std::to_string(k.value.GetFloat());
-          else
-          if (strcmp(k.name.GetString(), "emotions") == 0)
-            for (const auto& value : k.value.GetArray())
-              emotion.emotions.emplace_back(value.GetString());
-      }
-      m_items.emplace_back(std::move(emotion));
-    }
+    m_items.emplace_back(std::move(emotion));
     return true;
   }
   return false;
@@ -204,7 +216,7 @@ virtual bool read(const std::string& s) override
 
 virtual ProcessParseResult get_result() override
 {
-  const auto MakePayload = [this](const Emotion& e) -> std::vector<std::string>
+  const auto MakePayload = [this](const Emotion<EmoStrings>& e) -> std::vector<std::string>
   {
     std::vector<std::string> payload{m_app_name};
     const auto&                    scores   = e.scores.GetVector();
@@ -228,8 +240,8 @@ virtual ProcessParseResult get_result() override
 }
 
 private:
-std::string m_app_name;
-std::vector<Emotion> m_items;
+std::string                      m_app_name;
+std::vector<Emotion<EmoStrings>> m_items;
 }; // EmotionResultParser
 
 /**
@@ -624,8 +636,8 @@ ProcessParseResult process(const std::string& output, KApplication app)
     else
     if (app.name == "KNLP - Emotion")
       u_parser_ptr.reset(new EmotionResultParser{app.name});
-    u_parser_ptr->read(output);
 
+    u_parser_ptr->read(output);
     result = u_parser_ptr->get_result();
   }
 

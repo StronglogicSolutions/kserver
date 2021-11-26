@@ -144,6 +144,7 @@ namespace StringUtils {
 template <typename T>
 void Split(const std::string &s, char delim, T result);
 std::vector<std::string> Split(const std::string &s, char delim);
+std::string Tokenize(const std::vector<std::string>& v, char delim = ' ');
 std::string DoubleSingleQuotes(const std::string& s);
 std::string sanitizeSingleQuotes(const std::string& s);
 std::string SanitizeArg(std::string s);

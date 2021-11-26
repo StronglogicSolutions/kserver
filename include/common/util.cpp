@@ -411,10 +411,10 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
 
   else
   {
-    const uint8_t  byte1 = *(buffer    ) << 0x18;
-    const uint8_t  byte2 = *(buffer + 1) << 0x10;
-    const uint8_t  byte3 = *(buffer + 2) << 0x08;
-    const uint8_t  byte4 = *(buffer + 3) << 0x00;
+    const auto     byte1 = *(buffer    ) << 0x18;
+    const auto     byte2 = *(buffer + 1) << 0x10;
+    const auto     byte3 = *(buffer + 2) << 0x08;
+    const auto     byte4 = *(buffer + 3) << 0x00;
     const uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
           uint8_t  decode_buffer[message_byte_size];
 
@@ -672,20 +672,32 @@ bool CreateTaskDirectory(const std::string& unique_id) {
 
 namespace StringUtils {
 template <typename T>
-void Split(const std::string &s, char delim, T result) {
+void Split(const std::string &s, char delim, T result)
+{
     std::istringstream iss(s);
     std::string item;
-    while (std::getline(iss, item, delim)) {
-        *result++ = item;
-    }
+    while (std::getline(iss, item, delim))
+      *result++ = item;
 }
 
-std::vector<std::string> Split(const std::string &s, char delim) {
+std::vector<std::string> Split(const std::string &s, char delim)
+{
     std::vector<std::string> v{};
-    if (!s.empty()) {
+    if (s.size())
       Split(s, delim, std::back_inserter(v));
-    }
     return v;
+}
+
+std::string Tokenize(const std::vector<std::string>& v, char delim)
+{
+  std::string s{};
+  if (v.size())
+  {
+    for (const auto& arg : v)
+      s += arg + delim;
+    s.pop_back();
+  }
+  return s;
 }
 
 std::string sanitizeSingleQuotes(const std::string& s) {

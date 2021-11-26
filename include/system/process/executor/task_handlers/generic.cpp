@@ -1,23 +1,24 @@
 #include "generic.hpp"
 
-Task GenericTaskHandler::Create(const std::string& mask,
-                                const std::string& description,
-                                const std::string& header,
-                                const std::string& user)
+Task GenericTaskHandler::Create(const std::string&              mask,
+                                const std::string&              description,
+                                const std::string&              header     ,
+                                const std::string&              user       ,
+                                const std::vector<std::string>& args       )
 {
   const std::string username = (user.empty()) ? ConfigParser::System::admin() : user;
         Task task{};
   std::vector<std::string> argv{
-    mask,                 // 0 mask
-    "",                   // 1 fileinfo
-    TimeUtils::Now(),     // 2 datetime
-    description,          // 3 description
-    "false",              // 4 is video
-    header,               // 5 header
-    username,             // 6 user
-    "0",                  // 7 recurring
-    "0",                  // 8 notify
-    ""                    // 9 runtime arguments
+    mask,                       // 0 mask
+    "",                         // 1 fileinfo
+    TimeUtils::Now(),           // 2 datetime
+    description,                // 3 description
+    "false",                    // 4 is video
+    header,                     // 5 header
+    username,                   // 6 user
+    "0",                        // 7 recurring
+    "0",                        // 8 notify
+    StringUtils::Tokenize(args) // 9 runtime arguments
   };
   GenericTaskHandler handler{};
   handler.prepareTask(argv, StringUtils::GenerateUUIDString(), &task);

@@ -664,18 +664,19 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   const auto GetTokens = [](const auto& payload) -> std::vector<JSONItem>
   {
     std::vector<JSONItem> tokens{};
-    for (size_t i = 1; i < (payload.size() - 1); i += 2)
-      tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
+    if (payload.size())
+      for (size_t i = 1; i < (payload.size() - 1); i += 2)
+        tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
   const auto FindRoot = [&map, &lists](const int32_t& id) -> TaskWrapper* { return lists.at(map.at(id).first); };
 
-  const auto& init_id         = applications.first;
-  const auto& resp_id         = applications.second;
-  const auto  initiating_task = GetTask(init_id);
-  const auto  responding_task = GetTask(resp_id);
-  const auto& init_mask       = initiating_task.execution_mask;
-  const auto& resp_mask       = responding_task.execution_mask;
+  const auto& init_id   = applications.first;
+  const auto& resp_id   = applications.second;
+  const auto  init_task = GetTask(init_id);
+  const auto  resp_task = GetTask(resp_id);
+  const auto& init_mask = init_task.execution_mask;
+  const auto& resp_mask = resp_task.execution_mask;
   try
   {
     assert(m_app_map.at(init_mask).size() && m_app_map.at(resp_mask).size());
@@ -700,13 +701,13 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     auto items = GetTokens(event.payload);
     for (auto&& item : items)
     {
-      const auto user       = initiating_task.GetToken(constants::USER_KEY);
+      const auto user       = init_task.GetToken(constants::USER_KEY);
       const auto term_hits  = m_research_manager.GetTermHits(item.value);
       const auto known_term = term_hits.size();
-      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, responding_task);
+      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
       if (known_term)
         for (auto&& hit : term_hits)
-          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_ANALYSIS);
+          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_ANALYSIS, {"entity"});
       else
       if (term_info.valid())
         m_message_buffer += '\n' + term_info.ToString();
@@ -737,8 +738,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      ****************************************************
      ****************************************************/
     KLOG("NER parsing triggered Emotion analysis on original text for {} and {}", resp_id, init_id);
-    auto id = CreateChild(init_id, responding_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS);
-              CreateChild(id,      initiating_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS);
+    auto id = CreateChild(init_id, resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS, {"emotion"});
+              CreateChild(id,      init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS, {"emotion"});
   }
   else
   if (initiating_application == EMOTION_ANALYSIS && responding_application == EMOTION_ANALYSIS)
@@ -746,11 +747,13 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
     {
       KLOG("Performing final analysis on research triggered by {}", root.id);
-      const auto ner_parent    = *(FindParent(&child, FindMask(NER_ANALYSIS)));
-      const auto root_data     = root.event.payload;  // TW Research
-      const auto subchild_data = event.payload;       // Emotion Payload
-      const auto child_data    = child.event.payload; // Emotion Payload
-      const auto terms_data    = GetTokens(ner_parent.event.payload);
+      const auto ner_parent = *(FindParent(&child, FindMask(NER_ANALYSIS)));
+      const auto root_data  = root.event.payload;  // TW Research
+      const auto sub_c_data = event.payload;       // Emotion Payload
+      const auto child_data = child.event.payload; // Emotion Payload
+      const auto terms_data = GetTokens(ner_parent.event.payload);
+      const auto child_emo  = EmotionResultParser::Emotion<EmotionResultParser::Emotions>::Create(child_data);
+      const auto sub_c_emo  = EmotionResultParser::Emotion<EmotionResultParser::Emotions>::Create(sub_c_data);
     };
 
     const auto init_task = map.at(init_id).second;
@@ -844,7 +847,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         }
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
-          CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_ANALYSIS);
+          CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_ANALYSIS, {"entity"});
         break;
         default:
           ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
@@ -992,7 +995,7 @@ void Scheduler::ResolvePending(const bool& check_timer)
 
 
 template <typename T, typename S>
-int32_t Scheduler::CreateChild(const T& id, const std::string& data, const S& application_name)
+int32_t Scheduler::CreateChild(const T& id, const std::string& data, const S& application_name, const std::vector<std::string>& args)
 { /* 4. Sentences from previous hits
     * 5. Analyze (KNLP)
     * 6. Analyze-comparison (KNLP)
@@ -1008,9 +1011,7 @@ int32_t Scheduler::CreateChild(const T& id, const std::string& data, const S& ap
   KApplication app = ProcessExecutor::GetAppInfo(-1, application_name);
   if (app.is_valid())
   {
-    Task task = GenericTaskHandler::Create(app.mask, data);
-
-    const auto new_task_id = schedule(task);
+    const auto new_task_id = schedule(GenericTaskHandler::Create(app.mask, data, "", "", args));
     if (new_task_id.size())
     {
       PostExecWait(task_id, new_task_id);
@@ -1026,8 +1027,8 @@ int32_t Scheduler::CreateChild(const T& id, const std::string& data, const S& ap
   return INVALID_ID;
 };
 
-template int32_t Scheduler::CreateChild(const uint32_t& id, const std::string& data, const std::string& application_name);
-template int32_t Scheduler::CreateChild(const std::string& id, const std::string& data, const std::string& application_name);
+template int32_t Scheduler::CreateChild(const uint32_t& id, const std::string& data, const std::string& application_name, const std::vector<std::string>& args);
+template int32_t Scheduler::CreateChild(const std::string& id, const std::string& data, const std::string& application_name, const std::vector<std::string>& args);
 
 int32_t Scheduler::FindMask(const std::string& application_name)
 {
