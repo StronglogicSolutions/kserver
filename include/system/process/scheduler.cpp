@@ -754,6 +754,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       const auto terms_data = GetTokens(ner_parent.event.payload);
       const auto child_emo  = EmotionResultParser::Emotion<EmotionResultParser::Emotions>::Create(child_data);
       const auto sub_c_emo  = EmotionResultParser::Emotion<EmotionResultParser::Emotions>::Create(sub_c_data);
+
+      /**
+       * 1. Add child tasks for sentiment analysis
+       * 2. Move PerformAnalysis() to follow result of 1.
+       * 3. Flesh out PerformAnalysis
+       */
     };
 
     const auto init_task = map.at(init_id).second;
