@@ -965,18 +965,13 @@ Scheduler::TermEvents Scheduler::FetchTermEvents() const
 
 void Scheduler::SetIPCCommand(const uint8_t& command)
 {
-  if (!TimerActive() || m_ipc_command == constants::NO_COMMAND_INDEX)
-  {
-    m_ipc_command = command;
-    StartTimer();
-  }
-  else
-    ELOG("Cannot replace current pending IPC command: {}", constants::IPC_COMMANDS[m_ipc_command]);
+  m_ipc_command = command;
+  StartTimer();
 }
 
 bool Scheduler::IPCNotPending() const
 {
-  return (m_ipc_command == constants::NO_COMMAND_INDEX);
+  return (m_ipc_command == constants::NO_COMMAND_INDEX || !TimerActive());
 }
 
 void Scheduler::ResolvePending(const bool& check_timer)
@@ -989,6 +984,7 @@ void Scheduler::ResolvePending(const bool& check_timer)
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, payload);
   m_message_buffer.clear();
   m_postexec_map  .clear();
+  m_postexec_lists.clear();
   SetIPCCommand(constants::NO_COMMAND_INDEX);
   StopTimer();
 }
