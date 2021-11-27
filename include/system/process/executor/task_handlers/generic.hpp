@@ -34,8 +34,9 @@ class GenericTaskHandler : public TaskHandler {
                            const std::string&              uuid,
                            Task*                           task_ptr = nullptr) override;
 
-  static  Task Create(const std::string& mask,
-                      const std::string& description = "",
-                      const std::string& header      = "",
-                      const std::string& user        = "");
+  static  Task Create(const std::string&              mask,
+                      const std::string&              description = "",
+                      const std::string&              header      = "",
+                      const std::string&              user        = "",
+                      const std::vector<std::string>& args        = {});
 };

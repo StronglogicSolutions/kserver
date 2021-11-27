@@ -609,28 +609,25 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
     m_message_handlers.insert({fd, FileHandler{
       [this](int fd, uint8_t* m_ptr, size_t buffer_size)
       {
-        DecodeMessage(m_ptr).leftMap([this, fd](auto decoded_message)
+        DecodeMessage(m_ptr).leftMap([this, fd](auto&& message)
         {
-          KLOG("Received message: {}", decoded_message);
-          if (IsOperation(decoded_message))
-          {
-            KLOG("Received operation");
-            handleOperation(decoded_message, fd);
-          }
+          if (message.empty())
+            ELOG("Failed to decode message");
           else
-          if (IsMessage(decoded_message))
-            sendEvent(fd,"Message Received", {"Received by KServer", "Message", GetMessage(decoded_message)});
-          return decoded_message;
+          if (IsOperation(message))
+            handleOperation(message, fd);
+          else
+          if (IsMessage(message))
+            sendEvent(fd,"Message Received", {"Received by KServer", "Message", GetMessage(message)});
+          return message;
         })
-        .rightMap([this, fd](auto task_args)
+        .rightMap([this, fd](auto&& args)
         {
-          if (!task_args.empty())
-          {
-            KLOG("Receive buffer contained schedule request");
-            handleSchedule(task_args, fd);
-          }
-
-          return task_args;
+          if (args.empty())
+            ELOG("Failed to decode message");
+          else
+            handleSchedule(args, fd);
+          return args;
         });
       },
       KEEP_HEADER

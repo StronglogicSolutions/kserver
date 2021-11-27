@@ -19,16 +19,6 @@ std::string GetExecutableCWD()
  * JSON Tools
  */
 
-std::string GetJSONString(std::string s)
-{
-  Document d;
-  d.Parse(s.c_str());
-  StringBuffer buffer;
-  PrettyWriter<StringBuffer> writer(buffer);
-  d.Accept(writer);
-  return buffer.GetString();
-}
-
 std::string CreateMessage(const char *data, std::string args)
 {
   StringBuffer s;
@@ -370,7 +360,7 @@ bool IsStartOperation(const std::string& data)      { return data == "start";   
 bool IsStopOperation (const std::string& data)      { return data == "stop";       }
 bool IsAppOperation  (const std::string& data)      { return data == "AppRequest"; }
 
-static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t size)
+static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t& size)
 {
   flatbuffers::Verifier verifier{buffer, size};
   return VerifyMessageBuffer(verifier);
@@ -384,103 +374,69 @@ bool IsPing(uint8_t* buffer, ssize_t size)
 /**
  * @brief Get the Decoded Message object
  *
- * Verifying data:
- * <code>
- *   flatbuffers::Verifier verifier{buf, size};
- *   VerifyMessageBuffer(verifier)
- * </code>
- *
  * @param   [in]  {shared_ptr<uint8_t*>}                          s_buffer_ptr
  * @returns [out] {Either<std::string, std::vector<std::string>>}
  */
 DecodedMessage DecodeMessage(uint8_t* buffer)
 {
-  uint8_t  msg_type_byte_code = *(buffer + 4);
+  const auto IGTaskPayload = [](const IGData::IGTask* task)
+  {
+    return std::vector<std::string>{
+      std::to_string(task->mask()),                task->file_info()          ->str(),
+                     task->time()         ->str(), task->description()        ->str(),
+                     task->requested_by() ->str(), task->requested_by_phrase()->str(),
+                     task->promote_share()->str(), task->link_bio()           ->str(),
+      std::to_string(task->is_video()),            task->header()             ->str(),
+                     task->user()         ->str()};
+  };
+  const auto TaskPayload = [](const GenericData::GenericTask* task)
+  {
+    return std::vector<std::string>{
+      std::to_string(task->mask()),                      task->file_info()  ->str(),
+                     task->time()->str(),                task->description()->str(),
+      std::to_string(task->is_video()),                  task->header()     ->str(),
+                     task->user()->str(), std::to_string(task->recurring()),
+      std::to_string(task->notify()),                    task->runtime()    ->str()};
+  };
+  const auto GetMessage = [](const KData::Message* message)
+  {
+    const flatbuffers::Vector<uint8_t>* message_bytes = message->data();
+    return std::string{message_bytes->begin(), message_bytes->end()};
+  };
+
+  const uint8_t msg_type_byte_code = *(buffer + 4);
 
   if (msg_type_byte_code == 0xFD)
     return left(std::to_string(msg_type_byte_code));
 
   else
   {
-    const auto byte1 = *(buffer    ) << 24;
-    const auto byte2 = *(buffer + 1) << 16;
-    const auto byte3 = *(buffer + 2) << 8;
-    const auto byte4 = *(buffer + 3);
+    const unsigned int byte1 = *(buffer    ) << 0x18;
+    const unsigned int byte2 = *(buffer + 1) << 0x10;
+    const unsigned int byte3 = *(buffer + 2) << 0x08;
+    const unsigned int byte4 = *(buffer + 3) << 0x00;
+    const int32_t      message_byte_size = byte1 | byte2 | byte3 | byte4;
+          uint8_t      decode_buffer[message_byte_size];
 
-    uint32_t message_byte_size = byte1 | byte2 | byte3 | byte4;
+    std::memcpy(decode_buffer, buffer + 5, message_byte_size);
 
-    if (msg_type_byte_code == 0xFF)
+    if (VerifyFlatbuffer(decode_buffer, message_byte_size))
     {
-      uint8_t  decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
-      if (VerifyFlatbuffer(decode_buffer, message_byte_size))
+      switch (msg_type_byte_code)
       {
-        const IGData::IGTask* ig_task = GetIGTask(&decode_buffer);
-        /**
-         * /note The specification for the order of these arguments can be found
-          * in namespace: IGTaskIndex
-          */
-        return right(std::move(
-          std::vector<std::string>{
-            std::to_string(ig_task->mask()),
-            ig_task->file_info()->str(),     ig_task->time()->str(),
-            ig_task->description()->str(),   ig_task->hashtags()->str(),
-            ig_task->requested_by()->str(),  ig_task->requested_by_phrase()->str(),
-            ig_task->promote_share()->str(), ig_task->link_bio()->str(),
-            std::to_string(ig_task->is_video()),
-            ig_task->header()->str(),        ig_task->user()->str()
-          }
-        ));
-      }
-    }
-    else
-    if (msg_type_byte_code == 0xFE)
-    {
-      uint8_t decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
-      if (VerifyFlatbuffer(decode_buffer, message_byte_size))
-      {
-        const flatbuffers::Vector<uint8_t>* message_bytes = KData::GetMessage(&decode_buffer)->data();
-        return left(std::string{message_bytes->begin(), message_bytes->end()});
-      }
-    }
-    else
-    if (msg_type_byte_code == 0xFC)
-    {
-      uint8_t decode_buffer[message_byte_size];
-      std::memcpy(decode_buffer, buffer + 5, message_byte_size);
-      if (VerifyFlatbuffer(decode_buffer, message_byte_size))
-      {
-        const GenericData::GenericTask* gen_task = GetGenericTask(&decode_buffer);
-        /**
-         * /note The specification for the order of these arguments can be found
-          * in namespace: GenericTaskIndex
-          */
-        return right(std::move(
-          std::vector<std::string>{
-            std::to_string(gen_task->mask()),
-            gen_task->file_info()->str(),          gen_task->time()->str(),
-            gen_task->description()->str(),        std::to_string(gen_task->is_video()),
-            gen_task->header()->str(),             gen_task->user()->str(),
-            std::to_string(gen_task->recurring()), std::to_string(gen_task->notify()),
-            gen_task->runtime()->str()
-          }
-        ));
+        case (0xFF):
+          return right(IGTaskPayload(GetIGTask(&decode_buffer)));
+        break;
+        case (0xFE):
+          return left(GetMessage(KData::GetMessage(&decode_buffer)));
+        break;
+        case (0xFC):
+          return right(TaskPayload(GetGenericTask(&decode_buffer)));
+        break;
       }
     }
   }
   return right(std::vector<std::string>{});
-}
-
-bool IsNewSession(const char *data) {
-  if (*data != '\0') {
-    Document d;
-    d.Parse(data);
-    if (d.HasMember("message")) {
-      return strcmp(d["message"].GetString(), "New Session") == 0;
-    }
-  }
-  return false;
 }
 
 namespace SystemUtils {
@@ -716,20 +672,32 @@ bool CreateTaskDirectory(const std::string& unique_id) {
 
 namespace StringUtils {
 template <typename T>
-void Split(const std::string &s, char delim, T result) {
+void Split(const std::string &s, char delim, T result)
+{
     std::istringstream iss(s);
     std::string item;
-    while (std::getline(iss, item, delim)) {
-        *result++ = item;
-    }
+    while (std::getline(iss, item, delim))
+      *result++ = item;
 }
 
-std::vector<std::string> Split(const std::string &s, char delim) {
+std::vector<std::string> Split(const std::string &s, char delim)
+{
     std::vector<std::string> v{};
-    if (!s.empty()) {
+    if (s.size())
       Split(s, delim, std::back_inserter(v));
-    }
     return v;
+}
+
+std::string Tokenize(const std::vector<std::string>& v, char delim)
+{
+  std::string s{};
+  if (v.size())
+  {
+    for (const auto& arg : v)
+      s += arg + delim;
+    s.pop_back();
+  }
+  return s;
 }
 
 std::string sanitizeSingleQuotes(const std::string& s) {

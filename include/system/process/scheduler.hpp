@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <vector>
 #include <deque>
-
+#include <string_view>
 #include "log/logger.h"
 #include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"
@@ -14,40 +14,61 @@
 
 #define NO_COMPLETED_VALUE 99
 
-const char TIMESTAMP_TIME_AS_TODAY[]{
-            "(extract(epoch from (TIMESTAMPTZ 'today')) + "\
-            "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
-            "60 * extract(minute from(to_timestamp(schedule.time))) + "\
-            "extract(second from (to_timestamp(schedule.time))))"};
+static const char* TIMESTAMP_TIME_AS_TODAY{
+  "(extract(epoch from (TIMESTAMPTZ 'today')) + "\
+  "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
+  "60 * extract(minute from(to_timestamp(schedule.time))) + "\
+  "extract(second from (to_timestamp(schedule.time))))"};
 
-const std::string UNIXTIME_NOW{
-  "extract(epoch from (now()))::int"
+static const char* UNIXTIME_NOW{"extract(epoch from (now()))::int"};
+
+class ResearchManager;
+struct TaskWrapper
+{
+  TaskWrapper(Task&& task_, const bool complete_ = false)
+  : task    (task_),
+    id      (task.task_id),
+    complete(complete_),
+    parent  (nullptr),
+    child   (nullptr)
+  {}
+
+  Task             task;
+  int32_t          id;
+  bool             complete;
+  TaskWrapper*     parent;
+  TaskWrapper*     child;
+  ProcessEventData event;
+
+  void SetEvent(ProcessEventData&& event_)
+  {
+    event = event_;
+  }
 };
 
- /**
-  * TODO: This should be moved elsewhere. Perhaps the Registrar
-  */
-uint32_t getAppMask(std::string name);
-
-static int8_t IG_FEED_IDX{0x00};
-static int8_t YT_FEED_IDX{0x01};
-static int8_t TW_FEED_IDX{0x02};
-static int8_t TW_SEARCH_IDX{0x03};
+static int8_t IG_FEED_IDX    {0x00};
+static int8_t YT_FEED_IDX    {0x01};
+static int8_t TW_FEED_IDX    {0x02};
+static int8_t TW_SEARCH_IDX  {0x03};
 static int8_t TW_RESEARCH_IDX{0x04};
-static int8_t KNLP_IDX{0x05};
-static const std::string NLP_APP{"KNLP"};
-static const std::string TW_RESEARCH_APP{"TW Research"};
+static int8_t NER_IDX        {0x05};
+static int8_t EMOTION_IDX    {0x06};
 static const char* REQUIRED_APPLICATIONS[]{
   "IG Feed",
   "YT Feed",
   "TW Feed",
   "TW Search",
-  TW_RESEARCH_APP.c_str(),
-  NLP_APP.c_str()
+  "TW Research",
+  "KNLP - NER",
+  "KNLP - Emotion"
 };
+static const int8_t      REQUIRED_APPLICATION_NUM{7};
+static const std::string TW_RESEARCH_APP {REQUIRED_APPLICATIONS[TW_RESEARCH_IDX]};
+static const std::string NER_ANALYSIS    {REQUIRED_APPLICATIONS[NER_IDX]};
+static const std::string EMOTION_ANALYSIS{REQUIRED_APPLICATIONS[EMOTION_IDX]};
 
-static const int8_t  REQUIRED_APPLICATION_NUM{6};
-static const int32_t INVALID_ID = std::numeric_limits<int32_t>::max();
+static const int32_t INVALID_ID   = std::numeric_limits<int32_t>::max();
+static const int32_t INVALID_MASK = std::numeric_limits<int32_t>::max();
 
 class DeferInterface
 {
@@ -64,38 +85,11 @@ class CalendarManagerInterface
 };
 
 /**
- * getIntervalSeconds
- *
- * Helper function returns the number of seconds equivalent to a recurring interval
- *
- * @param  [in]  {uint32_t}  The integer value representing a recurring interval
- * @return [out] {uint32_t}  The number of seconds equivalent to that interval
- */
-const uint32_t getIntervalSeconds(uint32_t interval);
-
-/**
- * @brief
- *
- * @param args
- * @return Task
- */
-Task args_to_task(std::vector<std::string> args);
-
-class ResearchManager;
-/**
  * Scheduler
  *
  * @class
  *
  */
-struct TaskWrapper
-{
-  int32_t      id;
-  bool         complete;
-  TaskWrapper* parent;
-  TaskWrapper* child;
-};
-
 class Scheduler : public DeferInterface, CalendarManagerInterface
 {
 public:
@@ -157,11 +151,12 @@ virtual std::vector<Task>         fetchTasks() override;
         std::vector<std::string>  getFlags(const T& mask);
 
 private:
-        void                      PostExecWork(ProcessEventData event, Scheduler::PostExecDuo applications);
+        int32_t                   FindMask(const std::string& application_name);
+        void                      PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo applications);
         template <typename T = int32_t>
         void                      PostExecWait(const int32_t& i, const T& r);
-        template <typename T = int32_t>
-        void                      ProcessResearch(const T& id, const std::string& data, const std::string& application_name);
+        template <typename T = int32_t, typename S = std::string>
+        int32_t                   CreateChild(const T& id, const std::string& data, const S& application_name, const std::vector<std::string>& args = {});
         void                      SetIPCCommand(const uint8_t& command);
         bool                      IPCNotPending() const;
 
@@ -178,3 +173,17 @@ std::string         m_message_buffer;
 uint8_t             m_ipc_command;
 
 };
+
+bool           TimerExpired();
+void           StartTimer();
+void           StopTimer();
+bool           TimerActive();
+TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);
+TaskWrapper*   FindParent(const TaskWrapper* node, const int32_t& mask);
+bool           HasPendingTasks(TaskWrapper* root);
+bool           AllTasksComplete (const Scheduler::PostExecMap& map);
+uint32_t       getAppMask(std::string name);
+const uint32_t getIntervalSeconds(uint32_t interval);
+Task           args_to_task(std::vector<std::string> args);
+bool           IsRecurringTask(const Task& task);
+uint32_t       getAppMask(std::string name);

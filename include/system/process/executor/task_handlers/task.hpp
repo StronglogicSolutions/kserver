@@ -229,12 +229,18 @@ struct Task {
     return return_string;
   }
 
-  std::string filesToString() const {
+  std::string filesToString() const
+  {
     std::string files_s{};
     for (const auto& file : filenames) files_s += file + ":";
     if (!files_s.empty())
       files_s.pop_back();
     return files_s;
+  }
+
+  std::string GetToken(const std::string& flag) const
+  {
+    return FileUtils::ReadEnvToken(envfile, flag);
   }
 
   friend std::ostream &operator<<(std::ostream &out, const Task &task) {

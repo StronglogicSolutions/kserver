@@ -16,6 +16,14 @@
 #include "log/logger.h"
 
 
+static const uint8_t JOY_INDEX      = 0x00;
+static const uint8_t SADNESS_INDEX  = 0x01;
+static const uint8_t SURPRISE_INDEX = 0x02;
+static const uint8_t FEAR_INDEX     = 0x03;
+static const uint8_t ANGER_INDEX    = 0x04;
+static const uint8_t DISGUST_INDEX  = 0x05;
+static const uint8_t EMOTION_NUM    = 0x06;
+
 static std::string url_string(const std::vector<std::string> urls)
 {
   std::string delim{};
@@ -47,13 +55,23 @@ virtual bool               read(const std::string& s) = 0;
 virtual ProcessParseResult get_result() = 0;
 };
 
-class KNLPResultParser : public ProcessParseInterface {
+class ResearchResultInterface {
 public:
-KNLPResultParser(const std::string& app_name)
+virtual ~ResearchResultInterface() {}
+static ProcessParseResult GetNOOPResult()
+{
+  return ProcessParseResult{{ProcessEventData{.event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
+}
+}; // ResearchResultInterface
+
+class NERResultParser : public ProcessParseInterface,
+                        public ResearchResultInterface {
+public:
+NERResultParser(const std::string& app_name)
 : m_app_name(app_name)
 {}
 
-virtual ~KNLPResultParser() {}
+virtual ~NERResultParser() {}
 
 struct NLPItem{
 std::string type;
@@ -88,11 +106,6 @@ virtual bool read(const std::string& s) override
   return false;
 }
 
-static ProcessParseResult GetNOOPResult()
-{
-  return ProcessParseResult{{ProcessEventData{.event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
-}
-
 virtual ProcessParseResult get_result() override
 {
   ProcessParseResult result{};
@@ -112,7 +125,124 @@ virtual ProcessParseResult get_result() override
 private:
 std::string m_app_name;
 std::vector<NLPItem> m_items;
+}; // NERResultParser
+
+class EmotionResultParser : public ProcessParseInterface,
+                            public ResearchResultInterface {
+public:
+EmotionResultParser(const std::string& app_name)
+: m_app_name(app_name)
+{}
+
+virtual ~EmotionResultParser() {}
+
+struct Emotions {
+float joy;
+float sadness;
+float surprise;
+float fear;
+float anger;
+float disgust;
+std::vector<float> GetVector() const
+{
+  return {joy, sadness, surprise, fear, anger, disgust};
+}
 };
+struct EmoStrings {
+std::string joy;
+std::string sadness;
+std::string surprise;
+std::string fear;
+std::string anger;
+std::string disgust;
+
+std::vector<std::string> GetVector() const
+{
+  return {joy, sadness, surprise, fear, anger, disgust};
+}
+};
+
+template <typename T = Emotions>
+struct Emotion {
+std::vector<std::string> emotions;
+T                        scores;
+static Emotion<Emotions> Create(const std::vector<std::string>& v)
+{
+  auto Partition = [](const auto& v) { return std::vector<std::string>{0x01 + v.begin() + EMOTION_NUM, v.end()}; };
+  Emotion<Emotions> emotion{
+    .scores = Emotions{
+      .joy      = std::stof(v[0x01 + JOY_INDEX]),
+      .sadness  = std::stof(v[0x01 + SADNESS_INDEX]),
+      .surprise = std::stof(v[0x01 + SURPRISE_INDEX]),
+      .fear     = std::stof(v[0x01 + FEAR_INDEX]),
+      .anger    = std::stof(v[0x01 + ANGER_INDEX]),
+      .disgust  = std::stof(v[0x01 + DISGUST_INDEX])}};
+  for (const auto& e_s : Partition(v))
+    emotion.emotions.emplace_back(e_s);
+
+  return emotion;
+}
+};
+
+virtual bool read(const std::string& s) override
+{
+  using namespace rapidjson;
+  Document d{};
+  d.Parse(s.c_str());
+  if (!d.HasParseError() && !d.IsNull() && d.IsObject())
+  {
+    Emotion<EmoStrings> emotion{};
+    if (d.HasMember("anger"))
+      emotion.scores.anger = d["anger"].GetString();
+    if (d.HasMember("disgust"))
+      emotion.scores.disgust = d["disgust"].GetString();
+    if (d.HasMember("fear"))
+      emotion.scores.fear = d["fear"].GetString();
+    if (d.HasMember("joy"))
+      emotion.scores.joy = d["joy"].GetString();
+    if (d.HasMember("sadness"))
+      emotion.scores.sadness = d["sadness"].GetString();
+    if (d.HasMember("surprise"))
+      emotion.scores.surprise = d["surprise"].GetString();
+    if (d.HasMember("emotions"))
+      for (const auto& value : d["emotions"].GetArray())
+        emotion.emotions.emplace_back(value.GetString());
+
+    m_items.emplace_back(std::move(emotion));
+    return true;
+  }
+  return false;
+}
+
+virtual ProcessParseResult get_result() override
+{
+  const auto MakePayload = [this](const Emotion<EmoStrings>& e) -> std::vector<std::string>
+  {
+    std::vector<std::string> payload{m_app_name};
+    const auto&                    scores   = e.scores.GetVector();
+    const auto&                    emotions = e.emotions;
+    payload.insert(payload.end(), scores  .begin(), scores  .end());
+    payload.insert(payload.end(), emotions.begin(), emotions.end());
+    return payload;
+  };
+  ProcessParseResult result{};
+
+  KLOG("Returning {} Emotion objects", m_items.size());
+
+  if (m_items.empty()) return GetNOOPResult();
+
+  for (const auto& item : m_items)
+    result.data.emplace_back(
+      ProcessEventData{
+        .event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+        .payload = MakePayload(item)});
+  return result;
+}
+
+private:
+std::string                      m_app_name;
+std::vector<Emotion<EmoStrings>> m_items;
+}; // EmotionResultParser
 
 /**
  *
@@ -501,10 +631,13 @@ ProcessParseResult process(const std::string& output, KApplication app)
     if (app.name == "TW Research")
       u_parser_ptr.reset(new TWResearchParser{app.name});
     else
-    if (app.name == "KNLP")
-      u_parser_ptr.reset(new KNLPResultParser{app.name});
-    u_parser_ptr->read(output);
+    if (app.name == "KNLP - NER")
+      u_parser_ptr.reset(new NERResultParser{app.name});
+    else
+    if (app.name == "KNLP - Emotion")
+      u_parser_ptr.reset(new EmotionResultParser{app.name});
 
+    u_parser_ptr->read(output);
     result = u_parser_ptr->get_result();
   }
 

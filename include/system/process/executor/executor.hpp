@@ -109,9 +109,8 @@ class ProcessExecutor : public ProcessManager {
 
   template <typename T = uint8_t>
   bool saveResult(uint32_t mask, T status, uint32_t time);
-
-  static KApplication GetAppInfo(const int32_t& mask = -1, const std::string& name = "");
-
+  template <typename T = std::string>
+  static KApplication GetAppInfo(const int32_t& mask = -1, const T& name = "");
 private:
   ProcessEventCallback m_callback;
   TrackedEventCallback m_tracked_callback;

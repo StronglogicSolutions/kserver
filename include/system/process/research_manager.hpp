@@ -3,7 +3,7 @@
 #include "platform.hpp"
 #include "result_parser.hpp"
 
-using JSONItem = KNLPResultParser::NLPItem;
+using JSONItem = NERResultParser::NLPItem;
 class ResearchManager
 {
 public:
