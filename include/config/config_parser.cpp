@@ -10,6 +10,8 @@ static bool init()
   if (reader.ParseError() != 0)
     reader = INIReader{"config/default.config.ini"};
   if (reader.ParseError() != 0)
+    reader = INIReader{"../config/default.config.ini"};
+  if (reader.ParseError() != 0)
     throw std::invalid_argument{"Failed to initialize config. Please create config/config.ini"};
   return true;
 }
