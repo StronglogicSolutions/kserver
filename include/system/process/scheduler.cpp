@@ -672,6 +672,43 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
+  const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
+  {
+    /****************************************************
+     *     NOTE: store tokens for comparison            *
+     *     NEXT: IMPLEMENT SOLUTION                     *
+     ****************************************************
+     ** 1. Collect all tokens from both tasks          **
+     ** 2. Perform Word association analysis on tokens **
+     ** 3. Retrieve texts from both tasks              **
+     ** 4. Perform sentiment analysis on both tasks    **
+     ** 5. Perform subject analysis on both tasks      **
+     ** 6. Evaluate congruence:                        **
+     **   - supporting same ideas                      **
+     **   - organizational interests                   **
+     ** 7. Trends analysis                             **
+     **   - Comparse each task's trend timeline        **
+     **   - Identify disrupting word                   **
+     **   - Email / IPC notify admin                   **
+     ****************************************************
+     ****************************************************/
+    using Emotion = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
+    using Terms = std::vector<JSONItem>;
+    KLOG("Performing final analysis on research triggered by {}", root.id);
+    const auto        ner_parent     = *(FindParent(&child, FindMask(NER_APP)));
+    const auto        root_data      = root.event.payload;                              // Terms Payload
+    const TaskWrapper sub_c_emo      = *(FindParent(&subchild,  FindMask(EMOTION_APP)));
+    const TaskWrapper child_c_emo    = *(FindParent(&sub_c_emo, FindMask(EMOTION_APP)));
+    const auto        sub_c_emo_data = sub_c_emo.event.payload;                         // Emotion Payload
+    const auto        child_emo_data = child_c_emo.event.payload;                       // Emotion Payload
+    const auto        sub_c_sts_data = subchild.event.payload;                          // Sentiment Payload
+    const auto        child_sts_data = child.event.payload;                             // Sentiment Payload
+    const Terms       terms_data     = GetTokens(ner_parent.event.payload);             // Terms
+    const Emotion     child_emo      = Emotion::Create(child_emo_data);                 // Emotions
+    const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);                 // Emotions
+    // const auto child_sts          = Sentiment::Create(child_emo_data);               // TODO: Implement
+    // const auto sub_c_sts          = Sentiment::Create(sub_c_emo_data);               // TODO: Implement
+  };
 
   const auto& init_id   = applications.first;
   const auto& resp_id   = applications.second;
@@ -709,7 +746,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
       if (known_term)
         for (auto&& hit : term_hits)
-          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});
+          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});     // 1. Analyze NER
       else
       if (term_info.valid())
         m_message_buffer += '\n' + term_info.ToString();
@@ -720,58 +757,18 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   }
   else
   if (initiating_application == NER_APP && responding_application == NER_APP)
-  {
-    /****************************************************
-     *     NOTE: store tokens for comparison            *
-     *     NEXT: IMPLEMENT SOLUTION                     *
-     ****************************************************
-     ** 1. Collect all tokens from both tasks          **
-     ** 2. Perform Word association analysis on tokens **
-     ** 3. Retrieve texts from both tasks              **
-     ** 4. Perform sentiment analysis on both tasks    **
-     ** 5. Perform subject analysis on both tasks      **
-     ** 6. Evaluate congruence:                        **
-     **   - supporting same ideas                      **
-     **   - organizational interests                   **
-     ** 7. Trends analysis                             **
-     **   - Comparse each task's trend timeline        **
-     **   - Identify disrupting word                   **
-     **   - Email / IPC notify admin                   **
-     ****************************************************
-     ****************************************************/
-    KLOG("NER parsing triggered Emotion analysis on original text for {} and {}", resp_id, init_id);
-    auto id = CreateChild(init_id, resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"});
-              CreateChild(id,      init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"});
-  }
+    CreateChild(                                                                                                // 2. Analyze Emotion
+      CreateChild(init_id, resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}),
+      init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"});
   else
   if (initiating_application == EMOTION_APP && responding_application == EMOTION_APP)
-    CreateChild(
+    CreateChild(                                                                                                // 3. Analyze Sentiment
       CreateChild(init_id, FindTask(resp_id).GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}),
       FindTask(init_id).GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"});
   else
   if (initiating_application == SENTIMENT_APP && responding_application == SENTIMENT_APP)
   {
-    const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
-    {
-      using Emotion = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
-      using Terms = std::vector<JSONItem>;
-      KLOG("Performing final analysis on research triggered by {}", root.id);
-      const auto        ner_parent     = *(FindParent(&child, FindMask(NER_APP)));
-      const auto        root_data      = root.event.payload;                              // Terms Payload
-      const TaskWrapper sub_c_emo      = *(FindParent(&subchild,  FindMask(EMOTION_APP)));
-      const TaskWrapper child_c_emo    = *(FindParent(&sub_c_emo, FindMask(EMOTION_APP)));
-      const auto        sub_c_emo_data = sub_c_emo.event.payload;                         // Emotion Payload
-      const auto        child_emo_data = child_c_emo.event.payload;                       // Emotion Payload
-      const auto        sub_c_sts_data = subchild.event.payload;                          // Sentiment Payload
-      const auto        child_sts_data = child.event.payload;                             // Sentiment Payload
-      const Terms       terms_data     = GetTokens(ner_parent.event.payload);             // Terms
-      const Emotion     child_emo      = Emotion::Create(child_emo_data);                 // Emotions
-      const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);                 // Emotions
-      // const auto child_sts          = Sentiment::Create(child_emo_data);               // TODO: Implement
-      // const auto sub_c_sts          = Sentiment::Create(sub_c_emo_data);               // TODO: Implement
-    };
-
-    const auto init_task = map.at(init_id).second;
+    const auto init_task = map.at(init_id).second;                                                              // 4. Final analysis
     const auto resp_task = map.at(resp_id).second;
     const auto init_root = FindRoot(init_id);
     const auto resp_root = FindRoot(resp_id);
