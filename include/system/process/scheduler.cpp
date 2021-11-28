@@ -661,7 +661,10 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     auto node = FindNode(lists.at(pid), id);
     node->complete = true;
   };
-  const auto GetTokens = [](const auto& payload) -> std::vector<JSONItem>
+
+  const auto FindRoot  = [&map, &lists](const int32_t& id) -> TaskWrapper* { return lists.at(map.at(id).first); };
+  const auto FindTask  = [&map](const int32_t& id)         -> Task         { return map.at(id).second.task; };
+  const auto GetTokens = [](const auto& payload)           -> std::vector<JSONItem>
   {
     std::vector<JSONItem> tokens{};
     if (payload.size())
@@ -669,7 +672,6 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
-  const auto FindRoot = [&map, &lists](const int32_t& id) -> TaskWrapper* { return lists.at(map.at(id).first); };
 
   const auto& init_id   = applications.first;
   const auto& resp_id   = applications.second;
@@ -690,7 +692,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   const auto& initiating_application = m_app_map.at(init_mask);
   const auto& responding_application = m_app_map.at(resp_mask);
 
-  if (initiating_application == TW_RESEARCH_APP && responding_application == NER_ANALYSIS)
+  if (initiating_application == TW_RESEARCH_APP && responding_application == NER_APP)
   {
     using JSONItem  = NERResultParser::NLPItem;
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
@@ -707,7 +709,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
       if (known_term)
         for (auto&& hit : term_hits)
-          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_ANALYSIS, {"entity"});
+          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});
       else
       if (term_info.valid())
         m_message_buffer += '\n' + term_info.ToString();
@@ -717,7 +719,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       SetIPCCommand(constants::TELEGRAM_COMMAND_INDEX);
   }
   else
-  if (initiating_application == NER_ANALYSIS && responding_application == NER_ANALYSIS)
+  if (initiating_application == NER_APP && responding_application == NER_APP)
   {
     /****************************************************
      *     NOTE: store tokens for comparison            *
@@ -738,38 +740,44 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      ****************************************************
      ****************************************************/
     KLOG("NER parsing triggered Emotion analysis on original text for {} and {}", resp_id, init_id);
-    auto id = CreateChild(init_id, resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS, {"emotion"});
-              CreateChild(id,      init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS, {"emotion"});
+    auto id = CreateChild(init_id, resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"});
+              CreateChild(id,      init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"});
   }
   else
-  if (initiating_application == EMOTION_ANALYSIS && responding_application == EMOTION_ANALYSIS)
+  if (initiating_application == EMOTION_APP && responding_application == EMOTION_APP)
+    CreateChild(
+      CreateChild(init_id, FindTask(resp_id).GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}),
+      FindTask(init_id).GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"});
+  else
+  if (initiating_application == SENTIMENT_APP && responding_application == SENTIMENT_APP)
   {
     const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
     {
+      using Emotion = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
+      using Terms = std::vector<JSONItem>;
       KLOG("Performing final analysis on research triggered by {}", root.id);
-      const auto ner_parent = *(FindParent(&child, FindMask(NER_ANALYSIS)));
-      const auto root_data  = root.event.payload;  // TW Research
-      const auto sub_c_data = event.payload;       // Emotion Payload
-      const auto child_data = child.event.payload; // Emotion Payload
-      const auto terms_data = GetTokens(ner_parent.event.payload);
-      const auto child_emo  = EmotionResultParser::Emotion<EmotionResultParser::Emotions>::Create(child_data);
-      const auto sub_c_emo  = EmotionResultParser::Emotion<EmotionResultParser::Emotions>::Create(sub_c_data);
-
-      /**
-       * 1. Add child tasks for sentiment analysis
-       * 2. Move PerformAnalysis() to follow result of 1.
-       * 3. Flesh out PerformAnalysis
-       */
+      const auto        ner_parent     = *(FindParent(&child, FindMask(NER_APP)));
+      const auto        root_data      = root.event.payload;                              // Terms Payload
+      const TaskWrapper sub_c_emo      = *(FindParent(&subchild,  FindMask(EMOTION_APP)));
+      const TaskWrapper child_c_emo    = *(FindParent(&sub_c_emo, FindMask(EMOTION_APP)));
+      const auto        sub_c_emo_data = sub_c_emo.event.payload;                         // Emotion Payload
+      const auto        child_emo_data = child_c_emo.event.payload;                       // Emotion Payload
+      const auto        sub_c_sts_data = subchild.event.payload;                          // Sentiment Payload
+      const auto        child_sts_data = child.event.payload;                             // Sentiment Payload
+      const Terms       terms_data     = GetTokens(ner_parent.event.payload);             // Terms
+      const Emotion     child_emo      = Emotion::Create(child_emo_data);                 // Emotions
+      const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);                 // Emotions
+      // const auto child_sts          = Sentiment::Create(child_emo_data);               // TODO: Implement
+      // const auto sub_c_sts          = Sentiment::Create(sub_c_emo_data);               // TODO: Implement
     };
 
     const auto init_task = map.at(init_id).second;
     const auto resp_task = map.at(resp_id).second;
     const auto init_root = FindRoot(init_id);
     const auto resp_root = FindRoot(resp_id);
-
     if (init_root == resp_root && m_app_map.at(init_root->task.execution_mask) == TW_RESEARCH_APP)
       PerformAnalysis(*(init_root), init_task, resp_task);
-  }
+  };
 
   m_postexec_map.at(resp_id).second.SetEvent(std::move(event));
   CompleteTask(resp_id);
@@ -853,7 +861,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         }
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
-          CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_ANALYSIS, {"entity"});
+          CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_APP, {"entity"});
         break;
         default:
           ELOG("Result processor returned unknown event with code {}", outgoing_event.event);

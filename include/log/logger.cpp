@@ -64,10 +64,9 @@ KLogger::~KLogger()
   delete g_instance;
 }
 
-void KLogger::init(std::string logging_level) {
-  if (g_instance == nullptr) {
-    g_instance = new KLogger(logging_level);
-  }
+void KLogger::init(std::string logging_level)
+{
+  if (g_instance == nullptr) g_instance = new KLogger(logging_level);
 }
 
 }  // namespace LOG

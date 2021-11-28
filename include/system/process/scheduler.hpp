@@ -53,6 +53,7 @@ static int8_t TW_SEARCH_IDX  {0x03};
 static int8_t TW_RESEARCH_IDX{0x04};
 static int8_t NER_IDX        {0x05};
 static int8_t EMOTION_IDX    {0x06};
+static int8_t SENTIMENT_IDX  {0x07};
 static const char* REQUIRED_APPLICATIONS[]{
   "IG Feed",
   "YT Feed",
@@ -60,12 +61,14 @@ static const char* REQUIRED_APPLICATIONS[]{
   "TW Search",
   "TW Research",
   "KNLP - NER",
-  "KNLP - Emotion"
+  "KNLP - Emotion",
+  "KNLP - Sentiment"
 };
 static const int8_t      REQUIRED_APPLICATION_NUM{7};
-static const std::string TW_RESEARCH_APP {REQUIRED_APPLICATIONS[TW_RESEARCH_IDX]};
-static const std::string NER_ANALYSIS    {REQUIRED_APPLICATIONS[NER_IDX]};
-static const std::string EMOTION_ANALYSIS{REQUIRED_APPLICATIONS[EMOTION_IDX]};
+static const std::string TW_RESEARCH_APP   {REQUIRED_APPLICATIONS[TW_RESEARCH_IDX]};
+static const std::string NER_APP           {REQUIRED_APPLICATIONS[NER_IDX]};
+static const std::string EMOTION_APP       {REQUIRED_APPLICATIONS[EMOTION_IDX]};
+static const std::string SENTIMENT_APP     {REQUIRED_APPLICATIONS[SENTIMENT_IDX]};
 
 static const int32_t INVALID_ID   = std::numeric_limits<int32_t>::max();
 static const int32_t INVALID_MASK = std::numeric_limits<int32_t>::max();
