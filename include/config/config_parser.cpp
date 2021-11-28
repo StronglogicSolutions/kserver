@@ -1,31 +1,20 @@
 #include "config_parser.hpp"
 
 namespace ConfigParser {
+static INIReader reader{"config/config.ini"};
 
-INIReader* reader_ptr = nullptr;
-INIReader reader{};
+const auto RequiredConfig = [](const std::string& arg) -> std::string { return "CONFIG REQUIRED: " + arg; };
 
-std::string requiredConfig(std::string missing_config) {
-  return "CONFIG REQUIRED: " + missing_config;
+static bool init()
+{
+  if (reader.ParseError() != 0)
+    reader = INIReader{"config/default.config.ini"};
+  if (reader.ParseError() != 0)
+    throw std::invalid_argument{"Failed to initialize config. Please create config/config.ini"};
+  return true;
 }
 
-/**
- * init  .
- */
-bool init() {
-  if (reader_ptr == nullptr) {
-    reader = INIReader{"config/config.ini"};
-    if (reader.ParseError() != 0) {
-      reader = INIReader{"config/default.config.ini"};
-    }
-    reader_ptr = &reader;
-  }
-  return reader.ParseError() == 0;
-}
-
-bool is_initialized() {
-  return reader_ptr != nullptr;
-}
+static bool initialized = init();
 
 std::string query(const std::string& section, const std::string& name)
 {
@@ -38,25 +27,25 @@ const std::string admin() { return reader.Get("system", "admin", "admin"); }
 }
 namespace Logging {
 const std::string level()     { return reader.Get("logging", "level",      "info"); }
-const std::string path()      { return reader.Get("logging", "path",       requiredConfig("[logging] path")); }
+const std::string path()      { return reader.Get("logging", "path",       RequiredConfig("[logging] path")); }
 const std::string timestamp() { return reader.Get("logging", "timestamp",  "true"); }
 } // namespace Logging
 
 namespace Database {
-const std::string pass()      { return reader.Get("database", "password",  requiredConfig("[database] password")); }
-const std::string name()      { return reader.Get("database", "name",      requiredConfig("[database] name")); }
-const std::string user()      { return reader.Get("database", "user",      requiredConfig("[database] user")); }
-const std::string port()      { return reader.Get("database", "port",      requiredConfig("[database] port")); }
-const std::string host()      { return reader.Get("database", "host",      requiredConfig("[database] host")); }
+const std::string pass()      { return reader.Get("database", "password",  RequiredConfig("[database] password")); }
+const std::string name()      { return reader.Get("database", "name",      RequiredConfig("[database] name")); }
+const std::string user()      { return reader.Get("database", "user",      RequiredConfig("[database] user")); }
+const std::string port()      { return reader.Get("database", "port",      RequiredConfig("[database] port")); }
+const std::string host()      { return reader.Get("database", "host",      RequiredConfig("[database] host")); }
 } // namespace Database
 
 namespace Process {
-const std::string executor()  { return reader.Get("process", "executor",   requiredConfig("[process] executor")); }
+const std::string executor()  { return reader.Get("process", "executor",   RequiredConfig("[process] executor")); }
 } // namespace Process
 
 namespace Email {
-std::string notification()    { return reader.Get("email", "notification", requiredConfig("[email] notification")); }
-std::string admin()           { return reader.Get("email", "admin",        requiredConfig("[email] admin")); }
+std::string notification()    { return reader.Get("email", "notification", RequiredConfig("[email] notification")); }
+std::string admin()           { return reader.Get("email", "admin",        RequiredConfig("[email] admin")); }
 } // namespace Admin
 
 namespace Platform {
@@ -65,7 +54,7 @@ std::string affiliate_content(const std::string& type)
   std::string section{"affiliate"};
   section  += '_';
   section  += type;
-  std::string value = reader.Get("platform", section, requiredConfig("[platform] " + section));
+  std::string value = reader.Get("platform", section, RequiredConfig("[platform] " + section));
   return value;
 }
 } // namespace Platform

@@ -28,10 +28,6 @@ KLogger::KLogger(const std::string& logging_level, bool add_timestamp)
 
   try
   {
-    if (!ConfigParser::is_initialized()) {
-      ConfigParser::init();
-    }
-
     auto                      console_sink       = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     spdlog::level::level_enum log_level{};
     const std::string         log_format_pattern = (add_timestamp) ?

@@ -5,19 +5,6 @@
 #include <iostream>
 
 namespace ConfigParser {
-
-extern INIReader* reader_ptr;
-extern INIReader  reader;
-
-std::string requiredConfig(std::string missing_config = "");
-
-/**
- * init  .
- */
-bool init();
-
-bool is_initialized();
-
 std::string query(const std::string& section, const std::string& name);
 
 namespace System {
