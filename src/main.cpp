@@ -2,8 +2,11 @@
 #include <request/controller.hpp>
 #include <server/kserver.hpp>
 
+static const int32_t ERROR{0x01};
+
 int main(int argc, char** argv)
 {
+  int32_t code{};
   try
   {
     kiq::LOG::KLogger::init();
@@ -17,8 +20,13 @@ int main(int argc, char** argv)
   catch (const std::exception& e)
   {
     std::cout << "Exception was caught: " << e.what() << std::endl;
-    return 1;
+    code = ERROR;
+  }
+  catch (...)
+  {
+    std::cout << "Caught unknown exception" << std::endl;
+    code = ERROR;
   }
 
-  return 0;
+  return code;
 }
