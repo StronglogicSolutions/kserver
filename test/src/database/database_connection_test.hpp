@@ -14,12 +14,11 @@ using ::testing::Return;
 
 
 DatabaseQuery g_test_query{.table = "apps",
-                                 .fields = {"name"},
-                                 .type = QueryType::SELECT,
-                                 .values = {},
-                                 .filter = {}};
+                           .fields = {"name"},
+                           .type = QueryType::SELECT,
+                           .values = {},
+                           .filter = {}};
 /** Mocks */
-
 class MockDBConnection : public DatabaseConnection {
   public:
     MockDBConnection() {}
@@ -62,9 +61,9 @@ TEST_F(MockDBFixture, MockQueryTest) {
   setConfig(
     DatabaseConfiguration{
       DatabaseCredentials {
-        ConfigParser::Database::user(),
-        ConfigParser::Database::pass(),
-        ConfigParser::Database::name()
+        config::Database::user(),
+        config::Database::pass(),
+        config::Database::name()
       },
       "127.0.0.1",
       "5432"

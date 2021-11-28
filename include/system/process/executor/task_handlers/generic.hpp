@@ -5,7 +5,7 @@
 
 #include "system/process/scheduler.hpp"
 
-
+namespace kiq {
 /**
  * GenericTaskIndex
  *
@@ -40,3 +40,4 @@ class GenericTaskHandler : public TaskHandler {
                       const std::string&              user        = "",
                       const std::vector<std::string>& args        = {});
 };
+} // ns kiq

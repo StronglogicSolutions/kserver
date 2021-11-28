@@ -1,6 +1,6 @@
 #include "config_parser.hpp"
 
-namespace ConfigParser {
+namespace kiq::config {
 static INIReader reader{"config/config.ini"};
 
 const auto RequiredConfig = [](const std::string& arg) -> std::string { return "CONFIG REQUIRED: " + arg; };
@@ -58,4 +58,5 @@ std::string affiliate_content(const std::string& type)
   return value;
 }
 } // namespace Platform
-} // namespace ConfigParser
+} // namespace config::kiq
+

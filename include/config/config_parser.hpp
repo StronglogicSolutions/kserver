@@ -4,7 +4,8 @@
 #include "INIReader.h"
 #include <iostream>
 
-namespace ConfigParser {
+namespace kiq {
+namespace config {
 std::string query(const std::string& section, const std::string& name);
 
 namespace System {
@@ -37,4 +38,5 @@ std::string admin();
 namespace Platform {
 std::string affiliate_content(const std::string& type);
 } // namespace Platform
-} // namespace ConfigParser
+} // namespace config
+} // namespace kiq

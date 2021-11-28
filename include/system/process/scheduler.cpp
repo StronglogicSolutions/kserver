@@ -2,6 +2,9 @@
 #include "executor/task_handlers/generic.hpp"
 #include "ipc/ipc.hpp"
 
+namespace kiq {
+using namespace ::constants;
+
 Scheduler::Scheduler(Database::KDB&& kdb)
 : m_kdb(std::move(kdb)),
   m_platform(nullptr),
@@ -43,7 +46,7 @@ Scheduler::Scheduler(SystemEventcallback fn)
   m_trigger(&m_kdb),
   m_app_map(FetchApplicationMap(m_kdb)),
   m_research_manager(&m_kdb, &m_platform),
-  m_ipc_command(constants::NO_COMMAND_INDEX)
+  m_ipc_command(NO_COMMAND_INDEX)
 {
   const auto AppExists = [this](const std::string& name) -> bool
   {
@@ -714,7 +717,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     }
 
     if (IPCNotPending())
-      SetIPCCommand(constants::TELEGRAM_COMMAND_INDEX);
+      SetIPCCommand(TELEGRAM_COMMAND_INDEX);
   }
   else
   if (initiating_application == NER_ANALYSIS && responding_application == NER_ANALYSIS)
@@ -977,7 +980,7 @@ void Scheduler::SetIPCCommand(const uint8_t& command)
 
 bool Scheduler::IPCNotPending() const
 {
-  return (m_ipc_command == constants::NO_COMMAND_INDEX || !TimerActive());
+  return (m_ipc_command == NO_COMMAND_INDEX || !TimerActive());
 }
 
 void Scheduler::ResolvePending(const bool& check_timer)
@@ -985,13 +988,13 @@ void Scheduler::ResolvePending(const bool& check_timer)
   if (!TimerActive() || (check_timer && !TimerExpired())) return;
 
   KLOG("Resolving pending IPC message");
-  const auto payload = {CreateOperation("ipc", {constants::IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
+  const auto payload = {CreateOperation("ipc", {IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, payload);
   m_message_buffer.clear();
   m_postexec_map  .clear();
   m_postexec_lists.clear();
-  SetIPCCommand(constants::NO_COMMAND_INDEX);
+  SetIPCCommand(NO_COMMAND_INDEX);
   StopTimer();
 }
 
@@ -1039,3 +1042,5 @@ int32_t Scheduler::FindMask(const std::string& application_name)
   if (it != m_app_map.end())  return it->first;
   return INVALID_MASK;
 }
+
+} // ns kiq

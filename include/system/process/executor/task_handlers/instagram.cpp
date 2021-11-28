@@ -1,5 +1,6 @@
 #include "instagram.hpp"
 
+namespace kiq {
 /**
  * @brief
  *
@@ -77,3 +78,4 @@ Task IGTaskHandler::prepareTask(const std::vector<std::string>& argv,
 
   return *task_ptr;
 }
+} // ns kiq

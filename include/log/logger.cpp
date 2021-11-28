@@ -1,5 +1,6 @@
 #include "logger.h"
 
+namespace kiq {
 namespace LOG {
 KLogger* g_instance;
 const LogLevelMap LogLevel{
@@ -24,7 +25,7 @@ const std::unordered_map<spdlog::level::level_enum, std::string> LogLevelStrings
 
 KLogger::KLogger(const std::string& logging_level, bool add_timestamp)
 {
-  add_timestamp = (ConfigParser::Logging::timestamp() == "true");
+  add_timestamp = (config::Logging::timestamp() == "true");
 
   try
   {
@@ -35,7 +36,7 @@ KLogger::KLogger(const std::string& logging_level, bool add_timestamp)
                                 "KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v";
 
     console_sink->set_level((logging_level.empty()) ?
-                              LogLevel.at(ConfigParser::Logging::level()) :
+                              LogLevel.at(config::Logging::level()) :
                               LogLevel.at(logging_level));
 
     console_sink->set_pattern(log_format_pattern);
@@ -66,4 +67,5 @@ void KLogger::init(std::string logging_level) {
   }
 }
 
-}  // namespace LOG
+} // namespace LOG
+} // namespace kiq

@@ -6,6 +6,7 @@
 #include "executor/environment.hpp"
 #include <unordered_map>
 
+namespace kiq {
 using TriggerPair = std::pair<std::string, std::string>;
 using TriggerMap = std::unordered_map<std::string, std::string>;
 
@@ -49,3 +50,4 @@ bool              remove(const std::string& tid);
 private:
 Database::KDB*      m_db;
 };
+} // ns kiq

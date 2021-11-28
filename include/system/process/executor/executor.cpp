@@ -1,5 +1,6 @@
 #include "executor.hpp"
 
+namespace kiq {
 namespace constants {
 const uint8_t IMMEDIATE_REQUEST = 0;
 const uint8_t SCHEDULED_REQUEST = 1;
@@ -237,3 +238,4 @@ KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const T& name)
 
 template KApplication ProcessExecutor::GetAppInfo(const int32_t& mask = -1, const std::string& name = "");
 
+} // ns kiq
