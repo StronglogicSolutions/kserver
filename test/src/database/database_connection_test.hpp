@@ -61,9 +61,9 @@ TEST_F(MockDBFixture, MockQueryTest) {
   setConfig(
     DatabaseConfiguration{
       DatabaseCredentials {
-        config::Database::user(),
-        config::Database::pass(),
-        config::Database::name()
+        kiq::config::Database::user(),
+        kiq::config::Database::pass(),
+        kiq::config::Database::name()
       },
       "127.0.0.1",
       "5432"
