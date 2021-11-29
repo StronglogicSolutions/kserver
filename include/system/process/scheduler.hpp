@@ -23,27 +23,48 @@ static const char* TIMESTAMP_TIME_AS_TODAY{
 static const char* UNIXTIME_NOW{"extract(epoch from (now()))::int"};
 
 class ResearchManager;
+struct TaskParams
+{
+TaskParams(const int32_t& id_, const std::string& data_, const std::string& name_, const std::vector<std::string>& args_)
+: id(id_),
+  data(data_),
+  name(name_),
+  args(args_)
+{}
+
+  TaskParams(const std::string& data_, const std::string& name_, const std::vector<std::string>& args_)
+: id(0),
+  data(data_),
+  name(name_),
+  args(args_)
+{}
+
+int32_t id;
+std::string data;
+std::string name;
+std::vector<std::string> args;
+};
 struct TaskWrapper
 {
-  TaskWrapper(Task&& task_, const bool complete_ = false)
-  : task    (task_),
-    id      (task.task_id),
-    complete(complete_),
-    parent  (nullptr),
-    child   (nullptr)
-  {}
+TaskWrapper(Task&& task_, const bool complete_ = false)
+: task    (task_),
+  id      (task.task_id),
+  complete(complete_),
+  parent  (nullptr),
+  child   (nullptr)
+{}
 
-  Task             task;
-  int32_t          id;
-  bool             complete;
-  TaskWrapper*     parent;
-  TaskWrapper*     child;
-  ProcessEventData event;
+Task             task;
+int32_t          id;
+bool             complete;
+TaskWrapper*     parent;
+TaskWrapper*     child;
+ProcessEventData event;
 
-  void SetEvent(ProcessEventData&& event_)
-  {
-    event = event_;
-  }
+void SetEvent(ProcessEventData&& event_)
+{
+  event = event_;
+}
 };
 
 static int8_t IG_FEED_IDX    {0x00};
@@ -75,16 +96,16 @@ static const int32_t INVALID_MASK = std::numeric_limits<int32_t>::max();
 
 class DeferInterface
 {
- public:
-  virtual std::string schedule(Task task) = 0;
-  virtual ~DeferInterface() {}
+public:
+virtual std::string schedule(Task task) = 0;
+virtual ~DeferInterface() {}
 };
 
 class CalendarManagerInterface
 {
- public:
-  virtual std::vector<Task> fetchTasks() = 0;
-  virtual ~CalendarManagerInterface() {}
+public:
+virtual std::vector<Task> fetchTasks() = 0;
+virtual ~CalendarManagerInterface() {}
 };
 
 /**

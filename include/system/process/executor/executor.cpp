@@ -194,8 +194,6 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
 template <typename T>
 KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const T& name)
 {
-  using FPair = std::pair<std::string, std::string>;
-
   if (mask == -1 && name.empty())
     throw std::invalid_argument{"Must provide mask or name"};
 
