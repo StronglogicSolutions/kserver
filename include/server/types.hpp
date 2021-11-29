@@ -3,6 +3,7 @@
 #include <string>
 #include <cstring>
 
+namespace kiq {
 static const int MAX_PACKET_SIZE = 4096;
 static const int HEADER_SIZE     = 4;
 
@@ -79,3 +80,4 @@ struct ReceivedFile {
       return out;
     }
 };
+} // ns kiq

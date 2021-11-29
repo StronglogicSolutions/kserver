@@ -2,24 +2,31 @@
 #include <request/controller.hpp>
 #include <server/kserver.hpp>
 
-using namespace KYO;
+static const int32_t ERROR{0x01};
 
 int main(int argc, char** argv)
 {
+  int32_t code{};
   try
   {
-    LOG::KLogger::init();
+    kiq::LOG::KLogger::init();
 
-    KServer server(argc, argv);
+    kiq::KServer server(argc, argv);
 
-    server.set_handler(std::move(Request::Controller{}));
+    server.set_handler(std::move(kiq::Request::Controller{}));
     server.init();
     server.run();
   }
   catch (const std::exception& e)
   {
     std::cout << "Exception was caught: " << e.what() << std::endl;
+    code = ERROR;
+  }
+  catch (...)
+  {
+    std::cout << "Caught unknown exception" << std::endl;
+    code = ERROR;
   }
 
-  return 0;
+  return code;
 }

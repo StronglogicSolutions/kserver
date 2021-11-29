@@ -25,7 +25,7 @@
 #include "system/cron.hpp"
 #include "types.hpp"
 
-namespace Request {
+namespace kiq::Request {
 enum DevTest {
   Schedule = 1,
   ExecuteTask = 2
@@ -102,4 +102,4 @@ class Controller {
   std::thread                       m_maintenance_worker;
   Database::KDB                     m_kdb;
 };
-}  // namespace Request
+}  // ns kiq::Request

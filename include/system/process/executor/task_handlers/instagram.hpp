@@ -1,5 +1,4 @@
-#ifndef __INSTAGRAM_HPP__
-#define __INSTAGRAM_HPP__
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -7,6 +6,7 @@
 #include "system/process/scheduler.hpp"
 #include "task.hpp"
 
+namespace kiq {
 /**
  * IGTaskIndex
  *
@@ -37,5 +37,4 @@ class IGTaskHandler : public TaskHandler {
                            const std::string&              uuid,
                            Task*                           task_ptr = nullptr) override;
 };
-
-#endif  // __INSTAGRAM_HPP__
+} // ns kiq

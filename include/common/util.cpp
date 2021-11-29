@@ -1,5 +1,7 @@
 #include "util.hpp"
 
+namespace kiq {
+
 static const std::string_view APP_NAME         = "kserver";
 static       int              APP_NAME_LENGTH  = 7;
 const char                    ARGUMENT_SEPARATOR{'\x1f'};
@@ -779,7 +781,7 @@ std::string RemoveTags(std::string s)
     s.begin(), s.end(),
     [](char c)
     {
-      return (c == '#' || c == '@');
+      return (c == '#' || c == '@' || c == '＠');
     }),
     s.end()
   );
@@ -914,4 +916,5 @@ std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2)
 
 template std::vector<std::string>&& vector_merge(std::vector<std::string>&& v1, std::vector<std::string>&& v2);
 
-} // namespace DataUtils
+} // ns DataUtils
+} // ns kiq

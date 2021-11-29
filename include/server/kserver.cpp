@@ -1,7 +1,7 @@
 #include "kserver.hpp"
 #include "kiqoder/file_iterator.hpp"
 
-namespace KYO {
+namespace kiq {
 
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
@@ -687,4 +687,4 @@ bool KServer::HandlingFile(int32_t fd)
   return (m_file_pending && m_file_pending_fd == fd);
 }
 
-} // namespace KYO
+} // ns kiq

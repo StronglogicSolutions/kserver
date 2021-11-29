@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+namespace kiq {
 struct KApplication {
   std::string id;
   std::string name;
@@ -27,3 +28,4 @@ struct KApplication {
     return std::vector<std::string>{name, path, data, mask};
   }
 };
+} // ns kiq

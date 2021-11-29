@@ -18,7 +18,7 @@
 
 #define IF_NOT_HANDLING_PACKETS_FOR_CLIENT(x) if (m_file_pending_fd != x)
 
-namespace KYO {
+namespace kiq {
 
 struct OutboundFile
 {
@@ -110,4 +110,4 @@ private:
   bool                      m_message_pending;
   int32_t                   m_message_pending_fd;
 };
-};     // namespace KYO
+};     // namespace kiq

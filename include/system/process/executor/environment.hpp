@@ -4,6 +4,7 @@
 #include "executor.hpp"
 #include "database/kdb.hpp"
 
+namespace kiq {
 static KApplication get_app_info(int mask)
 {
   Database::KDB kdb{}; KApplication k_app{};
@@ -155,3 +156,4 @@ std::string parseExecArguments(const std::string& env) {
 Task           m_task;
 ExecutionState m_state;
 };
+} // ns kiq

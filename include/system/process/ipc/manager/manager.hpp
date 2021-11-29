@@ -6,11 +6,12 @@
 #include <mutex>
 
 #include "log/logger.h"
-#include "system/process/ipc/ipc.hpp"
-#include "system/process/ipc/client/client.hpp"
 #include "interface/worker_interface.hpp"
 #include "server/types.hpp"
+#include "system/process/ipc/ipc.hpp"
+#include "system/process/ipc/client/client.hpp"
 
+namespace kiq {
 static const uint32_t KSERVER_IPC_DEFAULT_PORT{28473};
 
 using SystemCallback_fn_ptr = std::function<void(int, std::vector<std::string>)>;
@@ -80,7 +81,7 @@ void HandleClientMessages()
 
       switch (message_type)
       {
-        case (constants::IPC_PLATFORM_TYPE):
+        case (::constants::IPC_PLATFORM_TYPE):
         {
           platform_message*        message = static_cast<platform_message*>(it->get());
           payload.reserve(7);
@@ -96,7 +97,7 @@ void HandleClientMessages()
         }
         break;
 
-        case (constants::IPC_PLATFORM_ERROR):
+        case (::constants::IPC_PLATFORM_ERROR):
         {
           platform_error*     error_message = static_cast<platform_error*>(it->get());
           payload.resize(5);
@@ -161,3 +162,4 @@ std::mutex                             m_mutex;
 std::condition_variable                m_condition;
 bool                                   m_req_ready;
 };
+} // ns kiq

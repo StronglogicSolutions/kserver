@@ -8,6 +8,7 @@
 
 #define TIMESTAMP_LENGTH 10
 
+namespace kiq {
 using SystemEventcallback =
     std::function<void(int32_t, int32_t, const std::vector<std::string>&)>;
 
@@ -397,3 +398,4 @@ const std::string ToString() const
 }
 
 };
+} // ns kiq

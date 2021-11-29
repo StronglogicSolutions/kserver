@@ -14,6 +14,8 @@
 
 #define NO_COMPLETED_VALUE 99
 
+namespace kiq {
+
 static const char* TIMESTAMP_TIME_AS_TODAY{
   "(extract(epoch from (TIMESTAMPTZ 'today')) + "\
   "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
@@ -211,3 +213,5 @@ const uint32_t getIntervalSeconds(uint32_t interval);
 Task           args_to_task(std::vector<std::string> args);
 bool           IsRecurringTask(const Task& task);
 uint32_t       getAppMask(std::string name);
+
+} // ns kiq

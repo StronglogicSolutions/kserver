@@ -24,6 +24,8 @@ static const uint8_t ANGER_INDEX    = 0x04;
 static const uint8_t DISGUST_INDEX  = 0x05;
 static const uint8_t EMOTION_NUM    = 0x06;
 
+namespace kiq {
+
 static std::string url_string(const std::vector<std::string> urls)
 {
   std::string delim{};
@@ -727,3 +729,5 @@ ProcessParseResult process(const std::string& output, KApplication app)
 }
 
 };
+
+} // ns kiq

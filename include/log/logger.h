@@ -16,7 +16,7 @@
 #define ELOG SPDLOG_ERROR
 #define VLOG SPDLOG_TRACE
 
-namespace LOG {
+namespace kiq::LOG {
 using LogPtr = std::shared_ptr<spdlog::logger>;
 using LogLevelMap = std::map<std::string, spdlog::level::level_enum>;
 
@@ -29,4 +29,4 @@ class KLogger {
 
   static void init(std::string logging_level = "");
 };
-}  // namespace LOG
+}  // namespace kiq::LOG

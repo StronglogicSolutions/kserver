@@ -4,6 +4,7 @@
 #include <zmq.hpp>
 #include <memory>
 
+namespace kiq {
 const std::string REQ_ADDRESS{"tcp://0.0.0.0:28473"};
 const std::string REP_ADDRESS{"tcp://0.0.0.0:28474"};
 
@@ -184,3 +185,4 @@ std::string                    m_rx_msg;
 std::deque<u_ipc_msg_ptr>      m_outgoing_queue;
 bool                           m_req_ready;
 };
+} // ns kiq

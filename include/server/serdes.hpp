@@ -1,3 +1,4 @@
+namespace kiq {
 class SerializerDeserializer
 {
 public:
@@ -14,3 +15,4 @@ virtual std::vector<std::string> deserialize(std::shared_ptr<uint8_t*> s_buf_ptr
   return {};
 }
 };
+} // ns
