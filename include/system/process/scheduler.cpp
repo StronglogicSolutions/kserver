@@ -697,11 +697,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      **   - Email / IPC notify admin                   **
      ****************************************************
      ****************************************************/
-    using Emotion = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
+    using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
+    using Sentiment = SentimentResultParser::Sentiment;
     using Terms = std::vector<JSONItem>;
     KLOG("Performing final analysis on research triggered by {}", root.id);
-    const auto        ner_parent     = *(FindParent(&child, FindMask(NER_APP)));
     const auto        root_data      = root.event.payload;                                 // Terms Payload
+    const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
     const TaskWrapper sub_c_emo_tk   = *(FindParent(&subchild,     FindMask(EMOTION_APP)));
     const TaskWrapper child_c_emo_tk = *(FindParent(&sub_c_emo_tk, FindMask(EMOTION_APP)));
     const auto        sub_c_emo_data = sub_c_emo_tk.event.payload;                         // Emotion Payload
@@ -711,8 +712,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Terms       terms_data     = GetTokens(ner_parent.event.payload);                // Terms
     const Emotion     child_emo      = Emotion::Create(child_emo_data);                    // Emotions
     const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);                    // Emotions
-    // const auto child_sts          = Sentiment::Create(child_emo_data);                  // TODO: Implement
-    // const auto sub_c_sts          = Sentiment::Create(sub_c_emo_data);                  // TODO: Implement
+    const Sentiment   child_sts      = Sentiment::Create(child_sts_data);                  // Sentiment
+    const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);                  // Sentiment
   };
 
   const auto& init_id   = applications.first;
