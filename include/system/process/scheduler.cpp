@@ -746,7 +746,6 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
 
   if (initiating_application == TW_RESEARCH_APP && responding_application == NER_APP)
   {
-    using JSONItem  = NERResultParser::NLPItem;
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
 
     if (m_message_buffer.empty())
