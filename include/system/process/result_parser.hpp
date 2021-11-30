@@ -720,6 +720,9 @@ ProcessParseResult process(const std::string& output, KApplication app)
     else
     if (app.name == "KNLP - Emotion")
       u_parser_ptr.reset(new EmotionResultParser{app.name});
+    else
+    if (app.name == "KNLP - Sentiment")
+      u_parser_ptr.reset(new SentimentResultParser{app.name});
 
     u_parser_ptr->read(output);
     result = u_parser_ptr->get_result();

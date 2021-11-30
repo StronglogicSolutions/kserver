@@ -55,6 +55,14 @@ TaskWrapper* FindParent(const TaskWrapper* node, const int32_t& mask)
   return parent;
 }
 
+TaskWrapper* FindMasterRoot(const TaskWrapper* ptr)
+{
+  auto root = ptr->parent;
+  while (root->parent)
+    root = root->parent;
+  return root;
+}
+
 bool AllTasksComplete (const Scheduler::PostExecMap& map)
 {
   for (const auto& [parent_id, task] : map)

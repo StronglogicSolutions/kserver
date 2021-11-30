@@ -672,6 +672,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   };
   const auto FindRoot      = [&map, &lists](const int32_t& id) -> TaskWrapper* { return lists.at(map.at(id).first); };
   const auto FindTask      = [&map](const int32_t& id)         -> Task         { return map.at(id).second.task; };
+  const auto GetAppName    = [this](const int32_t& mask)       -> std::string  { return m_app_map.at(mask); };
   const auto GetTokens     = [](const auto& payload)           -> std::vector<JSONItem>
   {
     std::vector<JSONItem> tokens{};
@@ -704,30 +705,35 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     using Sentiment = SentimentResultParser::Sentiment;
     using Terms = std::vector<JSONItem>;
     KLOG("Performing final analysis on research triggered by {}", root.id);
-    const auto        root_data      = root.event.payload;                                 // Terms Payload
+    const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
+    const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
     const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
     const TaskWrapper sub_c_emo_tk   = *(FindParent(&subchild,     FindMask(EMOTION_APP)));
     const TaskWrapper child_c_emo_tk = *(FindParent(&sub_c_emo_tk, FindMask(EMOTION_APP)));
-    const auto        sub_c_emo_data = sub_c_emo_tk.event.payload;                         // Emotion Payload
-    const auto        child_emo_data = child_c_emo_tk.event.payload;                       // Emotion Payload
-    const auto        sub_c_sts_data = subchild.event.payload;                             // Sentiment Payload
-    const auto        child_sts_data = child.event.payload;                                // Sentiment Payload
-    const Terms       terms_data     = GetTokens(ner_parent.event.payload);                // Terms
-    const Emotion     child_emo      = Emotion::Create(child_emo_data);                    // Emotions
-    const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);                    // Emotions
-    const Sentiment   child_sts      = Sentiment::Create(child_sts_data);                  // Sentiment
-    const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);                  // Sentiment
+    const auto        ner_data       = ner_parent.event.payload;          // Terms Payload
+    const auto        sub_c_emo_data = sub_c_emo_tk.event.payload;        // Emotion Payload
+    const auto        child_emo_data = child_c_emo_tk.event.payload;      // Emotion Payload
+    const auto        sub_c_sts_data = subchild.event.payload;            // Sentiment Payload
+    const auto        child_sts_data = child.event.payload;               // Sentiment Payload
+    const Terms       terms_data     = GetTokens(ner_data);               // Terms
+    const Emotion     child_emo      = Emotion::Create(child_emo_data);   // Emotions
+    const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);   // Emotions
+    const Sentiment   child_sts      = Sentiment::Create(child_sts_data); // Sentiment
+    const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data); // Sentiment
+    KLOG("TODO: Complete analysis work");
   };
 
   const auto& init_id   = applications.first;
   const auto& resp_id   = applications.second;
-  const auto  init_task = GetTask(init_id);
-  const auto  resp_task = GetTask(resp_id);
+  const auto  init_task = FindTask(init_id);
+  const auto  resp_task = FindTask(resp_id);
   const auto& init_mask = init_task.execution_mask;
   const auto& resp_mask = resp_task.execution_mask;
+        auto& t_wrapper = m_postexec_map.at(resp_id).second;
   try
   {
     assert(m_app_map.at(init_mask).size() && m_app_map.at(resp_mask).size());
+    t_wrapper.SetEvent(std::move(event));
   }
   catch(const std::exception& e)
   {
@@ -735,8 +741,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     return;
   }
 
-  const auto& initiating_application = m_app_map.at(init_mask);
-  const auto& responding_application = m_app_map.at(resp_mask);
+  const auto& initiating_application = GetAppName(init_mask);
+  const auto& responding_application = GetAppName(resp_mask);
 
   if (initiating_application == TW_RESEARCH_APP && responding_application == NER_APP)
   {
@@ -746,7 +752,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     if (m_message_buffer.empty())
       m_message_buffer += IPC_Message_Header;
 
-    auto items = GetTokens(event.payload);
+    auto items = GetTokens(t_wrapper.event.payload);
     for (auto&& item : items)
     {
       const auto user       = init_task.GetToken(constants::USER_KEY);
@@ -766,26 +772,25 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   }
   else
   if (initiating_application == NER_APP && responding_application == NER_APP)                                  // 2. Analyze Emotion
-    SequenceTasks({{init_id, resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}},
-                   {         init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}}});
+    SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}},
+                   {         resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}}});
   else
   if (initiating_application == EMOTION_APP && responding_application == EMOTION_APP)                          // 3. Analyze Sentiment
-    SequenceTasks({{init_id, FindTask(resp_id).GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}},
-                   {         FindTask(init_id).GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}}});
+    SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}},
+                   {         resp_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}}});
   else
   if (initiating_application == SENTIMENT_APP && responding_application == SENTIMENT_APP)                      // 4. Final analysis
   {
-    const auto init_task = map.at(init_id).second;
-    const auto resp_task = map.at(resp_id).second;
-    const auto init_root = FindRoot(init_id);
-    const auto resp_root = FindRoot(resp_id);
-    if (init_root == resp_root && m_app_map.at(init_root->task.execution_mask) == TW_RESEARCH_APP)
-      PerformAnalysis(*(init_root), init_task, resp_task);
+    const auto init_node = map.at(init_id).second;
+    const auto resp_node = map.at(resp_id).second;
+    const auto init_root = FindMasterRoot(&init_node);
+    const auto resp_root = FindMasterRoot(&resp_node);
+    if (init_root == resp_root && GetAppName(init_root->task.execution_mask) == TW_RESEARCH_APP)
+      PerformAnalysis(*(init_root), init_node, resp_node);
     else
       KLOG("All tasks originating from {} have completed", init_root->id);
   };
 
-  m_postexec_map.at(resp_id).second.SetEvent(std::move(event));
   CompleteTask(resp_id);
 
   if (AllTasksComplete(m_postexec_map))
@@ -868,6 +873,7 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
           CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_APP, {"entity"});
+          m_postexec_map.at(id).second.SetEvent(std::move(outgoing_event));
         break;
         default:
           ELOG("Result processor returned unknown event with code {}", outgoing_event.event);

@@ -206,6 +206,7 @@ void           StopTimer();
 bool           TimerActive();
 TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);
 TaskWrapper*   FindParent(const TaskWrapper* node, const int32_t& mask);
+TaskWrapper*   FindMasterRoot(const TaskWrapper* ptr);
 bool           HasPendingTasks(TaskWrapper* root);
 bool           AllTasksComplete (const Scheduler::PostExecMap& map);
 uint32_t       getAppMask(std::string name);
