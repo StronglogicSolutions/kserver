@@ -6,14 +6,15 @@ static const int32_t ERROR{0x01};
 
 int main(int argc, char** argv)
 {
-  int32_t code{};
+  kiq::RuntimeConfig config = kiq::ParseRuntimeArguments(argc, argv);
+  int32_t            code{};
+
+  kiq::LOG::KLogger::Init(config.loglevel, config.timestamp);
+
   try
   {
-    kiq::LOG::KLogger::init();
 
     kiq::KServer server(argc, argv);
-
-    server.set_handler(std::move(kiq::Request::Controller{}));
     server.init();
     server.run();
   }

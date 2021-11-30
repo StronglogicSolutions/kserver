@@ -35,9 +35,8 @@ KLogger::KLogger(const std::string& logging_level, bool add_timestamp)
                                 "KLOG [%^%l%$] - %T.%e - %3!#:%-20!s%-20!!%v" :
                                 "KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v";
 
-    console_sink->set_level((logging_level.empty()) ?
-                              LogLevel.at(config::Logging::level()) :
-                              LogLevel.at(logging_level));
+    console_sink->set_level((logging_level.empty()) ? LogLevel.at(config::Logging::level()) :
+                                                      LogLevel.at(logging_level));
 
     console_sink->set_pattern(log_format_pattern);
     spdlog::      set_pattern(log_format_pattern);
@@ -61,9 +60,9 @@ KLogger::~KLogger()
   delete g_instance;
 }
 
-void KLogger::init(std::string logging_level)
+void KLogger::Init(const std::string& logging_level, bool timestamp)
 {
-  if (g_instance == nullptr) g_instance = new KLogger(logging_level);
+  if (g_instance == nullptr) g_instance = new KLogger(logging_level, timestamp);
 }
 
 } // namespace LOG

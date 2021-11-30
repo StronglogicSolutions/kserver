@@ -38,12 +38,11 @@ class KServer : public SocketListener {
    */
   KServer(int argc, char **argv);
   ~KServer();
-  void set_handler              (const Request::Controller &&handler);
-
 
 private:
-  void systemEventNotify        (int client_socket_fd, int system_event,
-                                 std::vector<std::string> args);
+  void systemEventNotify        (const int32_t&                  client_socket_fd,
+                                 const int32_t&                  system_event,
+                                 const std::vector<std::string>& args);
   void closeConnections         ();
   uint8_t getNumConnections     ();
   void onTasksReady             (int client_socket_fd, std::vector<Task> tasks) ;

@@ -154,7 +154,7 @@ std::string SanitizeJSON(std::string s);
 std::string GenerateUUIDString();
 std::string AlphaNumericOnly(std::string s);
 std::string RemoveTags(std::string s);
-std::string ToLower(std::string& s);
+std::string ToLower(std::string s);
 } // namespace StringUtils
 
 // Bit helpers

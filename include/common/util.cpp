@@ -788,7 +788,7 @@ std::string RemoveTags(std::string s)
   return s;
 }
 
-std::string ToLower(std::string& s)
+std::string ToLower(std::string s)
 {
   std::transform(s.begin(), s.end(), s.begin(), [](char c) { return tolower(c);});
   return s;

@@ -3,6 +3,7 @@
 
 namespace kiq {
 
+static const int32_t NONE_PENDING{-1};
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
  * service to KStyleYo
@@ -18,8 +19,23 @@ KServer::KServer(int argc, char **argv)
     systemEventNotify(ALL_CLIENTS, event, payload);
   }),
   m_file_pending(false),
-  m_file_pending_fd(-1)
+  m_file_pending_fd(NONE_PENDING)
   {
+    KLOG("Initializing controller");
+    m_controller.initialize(
+    [this](std::string result, int mask, std::string request_id, int client_socket_fd, bool error)
+    {
+      onProcessEvent(result, mask, request_id, client_socket_fd, error);
+    },
+    [this](int client_socket_fd, int system_event, std::vector<std::string> args)
+    {
+      systemEventNotify(client_socket_fd, system_event, args);
+    },
+    [this](int client_socket_fd, std::vector<Task> tasks)
+    {
+      onTasksReady(client_socket_fd, tasks);
+    });
+
     KLOG("Starting IPC manager");
     m_ipc_manager.start();
   }
@@ -44,8 +60,9 @@ KServer::~KServer()
  * @param[in] {std::vector<std::string>}
  *
  */
-void KServer::systemEventNotify(int client_socket_fd, int system_event,
-                        std::vector<std::string> args)
+void KServer::systemEventNotify(const int32_t&                  client_socket_fd,
+                                const int32_t&                  system_event,
+                                const std::vector<std::string>& args)
 {
   switch (system_event)
   {
@@ -230,29 +247,6 @@ void KServer::systemEventNotify(int client_socket_fd, int system_event,
       sendEvent(client_socket_fd, "Term Hits", args);
     break;
   }
-}
-
-/**
- * Request Handler
- */
-void KServer::set_handler(const Request::Controller &&handler)
-{
-  KLOG("Setting Controller");
-  m_controller = handler;
-  m_controller.initialize(
-    [this](std::string result, int mask, std::string request_id, int client_socket_fd, bool error)
-    {
-      onProcessEvent(result, mask, request_id, client_socket_fd, error);
-    },
-    [this](int client_socket_fd, int system_event, std::vector<std::string> args)
-    {
-      systemEventNotify(client_socket_fd, system_event, args);
-    },
-    [this](int client_socket_fd, std::vector<Task> tasks)
-    {
-      onTasksReady(client_socket_fd, tasks);
-    }
-  );
 }
 
 void KServer::onTasksReady(int client_socket_fd, std::vector<Task> tasks)
