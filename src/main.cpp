@@ -9,7 +9,7 @@ int main(int argc, char** argv)
   kiq::RuntimeConfig config = kiq::ParseRuntimeArguments(argc, argv);
   int32_t            code{};
 
-  kiq::LOG::KLogger::Init(config.loglevel, config.timestamp);
+  kiq::LOG::KLogger::Init(config.loglevel);
 
   try
   {

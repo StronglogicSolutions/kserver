@@ -23,31 +23,29 @@ const std::unordered_map<spdlog::level::level_enum, std::string> LogLevelStrings
 {spdlog::level::off,      "off"}
 };
 
-KLogger::KLogger(const std::string& logging_level, bool add_timestamp)
+KLogger::KLogger(const std::string& logging_level)
 {
-  add_timestamp = (config::Logging::timestamp() == "true");
+  using loglevel = spdlog::level::level_enum;
+  bool timestamp = (config::Logging::timestamp() == "true");
 
   try
   {
-    auto                      console_sink       = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    spdlog::level::level_enum log_level{};
-    const std::string         log_format_pattern = (add_timestamp) ?
-                                "KLOG [%^%l%$] - %T.%e - %3!#:%-20!s%-20!!%v" :
-                                "KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v";
+    static const auto        console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    static const loglevel    level        = LogLevel.at(logging_level);
+    static const std::string format       = (timestamp) ? "KLOG [%^%l%$] - %T.%e - %3!#:%-20!s%-20!!%v" :
+                                                          "KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v";
 
     console_sink->set_level((logging_level.empty()) ? LogLevel.at(config::Logging::level()) :
                                                       LogLevel.at(logging_level));
-
-    console_sink->set_pattern(log_format_pattern);
-    spdlog::      set_pattern(log_format_pattern);
-
+    console_sink->set_pattern(format);
+    spdlog::      set_pattern(format);
     spdlog::set_default_logger(std::make_shared<spdlog::logger>(spdlog::logger("KLOG", console_sink)));
-    spdlog::set_level(log_level);
+    spdlog::set_level(level);
     spdlog::flush_on(spdlog::level::info);
 
     g_instance = this;
 
-    KLOG("Initialized logger with level {}", LogLevelStrings.at(console_sink->level()));
+    KLOG("Logger initialized at {} level", LogLevelStrings.at(console_sink->level()));
   }
   catch (const spdlog::spdlog_ex& ex)
   {
@@ -60,9 +58,9 @@ KLogger::~KLogger()
   delete g_instance;
 }
 
-void KLogger::Init(const std::string& logging_level, bool timestamp)
+void KLogger::Init(const std::string& logging_level)
 {
-  if (g_instance == nullptr) g_instance = new KLogger(logging_level, timestamp);
+  if (g_instance == nullptr) g_instance = new KLogger(logging_level);
 }
 
 } // namespace LOG

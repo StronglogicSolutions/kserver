@@ -16,10 +16,6 @@ static RuntimeConfig ParseRuntimeArguments(int argc, char** argv)
   for (int i = 1; i < argc; i++)
   {
     std::string argument = argv[i];
-
-    if (argument.find("--timestamp") == 0)
-      config.timestamp = (StringUtils::ToLower(argument.substr(12)) == "true");
-    else
     if (argument.find("--loglevel")  == 0)
       config.loglevel = argument.substr(11);
   }

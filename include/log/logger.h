@@ -24,9 +24,9 @@ extern const LogLevelMap LogLevel;
 
 class KLogger {
  public:
-  KLogger(const std::string& logging_level, bool timestamp);
+  KLogger(const std::string& logging_level = config::Logging::level());
   ~KLogger();
 
-  static void Init(const std::string& logging_level = "", bool timestamp = true);
+  static void Init(const std::string& logging_level = "");
 };
 }  // namespace kiq::LOG
