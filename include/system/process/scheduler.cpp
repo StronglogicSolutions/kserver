@@ -760,7 +760,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
       if (known_term)
         for (auto&& hit : term_hits)
-          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});     // 1. Analyze NER
+          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});  // 1. NER
       else
       if (term_info.valid())
         m_message_buffer += '\n' + term_info.ToString();
@@ -770,15 +770,15 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       SetIPCCommand(TELEGRAM_COMMAND_INDEX);
   }
   else
-  if (initiating_application == NER_APP && responding_application == NER_APP)                                  // 2. Analyze Emotion
+  if (initiating_application == NER_APP && responding_application == NER_APP)                                // 2. Emotion
     SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}},
                    {         resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}}});
   else
-  if (initiating_application == EMOTION_APP && responding_application == EMOTION_APP)                          // 3. Analyze Sentiment
+  if (initiating_application == EMOTION_APP && responding_application == EMOTION_APP)                        // 3. Sentiment
     SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}},
                    {         resp_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}}});
   else
-  if (initiating_application == SENTIMENT_APP && responding_application == SENTIMENT_APP)                      // 4. Final analysis
+  if (initiating_application == SENTIMENT_APP && responding_application == SENTIMENT_APP)                    // 4. Final
   {
     const auto init_node = map.at(init_id).second;
     const auto resp_node = map.at(resp_id).second;
