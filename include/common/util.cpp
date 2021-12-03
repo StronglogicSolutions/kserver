@@ -776,14 +776,8 @@ std::string AlphaNumericOnly(std::string s)
 
 std::string RemoveTags(std::string s)
 {
-  s.erase(std::remove_if(
-    s.begin(), s.end(),
-    [](char c)
-    {
-      return (c == '#' || c == '@' || c == '＠');
-    }),
-    s.end()
-  );
+  static const auto filter = [](const char& c) { return (c == '#' || c == '@' || static_cast<wchar_t>(c) == wchar_t{L'＠'}); };
+  s.erase(std::remove_if(s.begin(), s.end(), filter), s.end());
   return s;
 }
 
