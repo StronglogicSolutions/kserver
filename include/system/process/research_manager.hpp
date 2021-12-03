@@ -3,6 +3,7 @@
 #include "platform.hpp"
 #include "result_parser.hpp"
 
+namespace kiq {
 using JSONItem = NERResultParser::NLPItem;
 class ResearchManager
 {
@@ -88,3 +89,4 @@ private:
 Database::KDB* m_db_ptr;
 Platform*      m_plat_ptr;
 };
+} // ns kiq

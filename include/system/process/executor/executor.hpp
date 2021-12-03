@@ -11,6 +11,7 @@
 #include "environment.hpp"
 #include "kapplication.hpp"
 
+namespace kiq {
 namespace constants {
 extern const uint8_t IMMEDIATE_REQUEST;
 extern const uint8_t SCHEDULED_REQUEST;
@@ -115,3 +116,4 @@ private:
   ProcessEventCallback m_callback;
   TrackedEventCallback m_tracked_callback;
 };
+} // ns kiq

@@ -1,5 +1,6 @@
 #include "platform.hpp"
 
+namespace kiq {
 /**
  * @brief Construct a new Platform:: Platform object
  *
@@ -138,7 +139,7 @@ PlatformPost createAffiliatePost(const std::string user, const std::string type,
 {
   static const char DO_NOT_REPOST[] = {"false"};
   const auto createAffiliateContent = [&user, &type, &post]() {
-    const std::string affiliate_content = FileUtils::ReadFile(ConfigParser::Platform::affiliate_content(type));
+    const std::string affiliate_content = FileUtils::ReadFile(config::Platform::affiliate_content(type));
     return affiliate_content + '\n' + post.content;
   };
 
@@ -476,7 +477,7 @@ void Platform::onPlatformError(const std::vector<std::string>& payload)
   const std::string& error       = payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX);
 
   ELOG("Platform error received.\nError message: {}", error);
-  SystemUtils::SendMail(ConfigParser::Email::admin(), error, ConfigParser::Email::admin());
+  SystemUtils::SendMail(config::Email::admin(), error, config::Email::admin());
 
   if (!id.empty())
   {
@@ -582,3 +583,4 @@ std::string Platform::getUser(const std::string& uid)
       return v.second;
   return "";
 }
+} // ns kiq

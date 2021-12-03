@@ -1,5 +1,6 @@
 #include "executor.hpp"
 
+namespace kiq {
 namespace constants {
 const uint8_t IMMEDIATE_REQUEST = 0;
 const uint8_t SCHEDULED_REQUEST = 1;
@@ -194,8 +195,6 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
 template <typename T>
 KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const T& name)
 {
-  using FPair = std::pair<std::string, std::string>;
-
   if (mask == -1 && name.empty())
     throw std::invalid_argument{"Must provide mask or name"};
 
@@ -237,3 +236,4 @@ KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const T& name)
 
 template KApplication ProcessExecutor::GetAppInfo(const int32_t& mask = -1, const std::string& name = "");
 
+} // ns kiq

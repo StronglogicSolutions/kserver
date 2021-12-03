@@ -3,6 +3,7 @@
 
 #define TIMESTAMP_LENGTH 10
 
+namespace kiq {
 std::string AppendExecutionFlag(std::string flag_s, const std::string& flag)
 {
   const std::string exec_flag = constants::PARAM_KEY_MAP.at(flag);
@@ -68,3 +69,4 @@ std::vector<FileInfo> parseFileInfo(std::string file_info) {
   } while (index < file_info.size());
   return info_v;
 }
+} // ns kiq

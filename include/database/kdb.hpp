@@ -13,12 +13,12 @@ class KDB {
     m_connection->setConfig(
       DatabaseConfiguration{
         DatabaseCredentials{
-          .user = ConfigParser::Database::user(),
-          .password = ConfigParser::Database::pass(),
-          .name = ConfigParser::Database::name()
+          .user     = kiq::config::Database::user(),
+          .password = kiq::config::Database::pass(),
+          .name     = kiq::config::Database::name()
         },
-        ConfigParser::Database::host(),
-        ConfigParser::Database::port()
+        kiq::config::Database::host(),
+        kiq::config::Database::port()
       }
     );
   }

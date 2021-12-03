@@ -9,7 +9,7 @@
 #include <thread>
 #include <chrono>
 
-using namespace KYO;
+using namespace kiq;
 
 const constexpr char* SERVER_TEST_PORT_ARG  = "--port=9876";
 const constexpr char* SERVER_TEST_IP_ARG    = "--ip=0.0.0.0";

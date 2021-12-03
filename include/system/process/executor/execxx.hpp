@@ -9,6 +9,7 @@
 #include <vector>
 #include <future>
 
+namespace kiq {
 namespace {
 /**
  * ProcessResult
@@ -190,4 +191,5 @@ ProcessResult qx(    std::vector<std::string> args,
 
   return result;
 }
-}  // namespace
+} // namespace (anonymous)
+} // ns kiq

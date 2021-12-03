@@ -17,18 +17,21 @@
 
 #define MAX_PACKET_SIZE 8192
 
-inline std::vector<size_t> findNullIndexes(uint8_t* data) {
+inline std::vector<size_t> findNullIndexes(uint8_t* data)
+{
   size_t index = 0;
   std::vector<size_t> indexes{};
   if (data != nullptr) {
     while (data) {
-      try {
-        if (strcmp(reinterpret_cast<char*>(data), "\0") == 0) {
+      try
+      {
+        if (strcmp(reinterpret_cast<char*>(data), "\0") == 0)
           indexes.push_back(index);
-        }
         index++;
         data++;
-      } catch (const std::exception& e) {
+      }
+      catch (const std::exception& e)
+      {
         std::cout << e.what() << std::endl;
       }
     }
@@ -49,7 +52,7 @@ static constexpr uint32_t PINGBYTE = 0xFD;
 }  // namespace TaskCode
 
 bool serverWaitingForFile(const char* data) {
-    Document d;
+    rapidjson::Document d;
     d.Parse(data);
     if (d.IsObject() && d.HasMember("message")) {
         return strcmp(d["message"].GetString(), "File Ready") == 0;
@@ -59,7 +62,7 @@ bool serverWaitingForFile(const char* data) {
 
 bool isEvent(const char* data) {
     if (*data != '\0') {
-      Document d;
+      rapidjson::Document d;
       d.Parse(data);
       if (d.HasMember("type")) {
         return strcmp(d["type"].GetString(), "event") == 0;
@@ -135,7 +138,7 @@ void handleMessages() {
 }
 
 void close() {
-  std::string stop_operation_string = CreateOperation("stop", {});
+  std::string stop_operation_string = kiq::CreateOperation("stop", {});
   // Send operation as an encoded message
   sendEncoded(stop_operation_string);
   // Clean up socket file descriptor
@@ -172,7 +175,7 @@ void start() {
 
       if (::connect(m_client_socket_fd, reinterpret_cast<sockaddr*>(&server_socket),
                     sizeof(server_socket)) != -1) {
-          std::string start_operation_string = CreateOperation("start", {});
+          std::string start_operation_string = kiq::CreateOperation("start", {});
           // Send operation as an encoded message
           sendEncoded(start_operation_string);
 
@@ -191,11 +194,11 @@ void start() {
 }
 
 void startSession() {
-  sendEncoded(CreateOperation("start", {}));
+  sendEncoded(kiq::CreateOperation("start", {}));
 }
 
 void stopSession() {
-  sendEncoded(CreateOperation("stop", {}));
+  sendEncoded(kiq::CreateOperation("stop", {}));
 }
 
 uint8_t* createTestBuffer() {
@@ -218,7 +221,7 @@ void sendMessage() {
 }
 
 void sendCustomMessage(std::string message) {
-  sendEncoded(CreateMessage(message.c_str(), ""));
+  sendEncoded(kiq::CreateMessage(message.c_str(), ""));
 }
 
 private:
@@ -231,7 +234,7 @@ void sendEncoded(std::string message) {
   auto builder = flatbuffers::FlatBufferBuilder{};
   std::vector<uint8_t>                              fb_byte_vector{message.begin(), message.end()};
   flatbuffers::Offset<flatbuffers::Vector<uint8_t>> byte_vector = builder.CreateVector(fb_byte_vector);
-  auto k_message = CreateMessage(builder, 69, byte_vector);
+  auto k_message = KData::CreateMessage(builder, 69, byte_vector);
   builder.Finish(k_message);
 
   uint32_t size = builder.GetSize();
@@ -258,7 +261,7 @@ void sendEncoded(std::string message) {
 int  m_client_socket_fd;
 bool m_raw_mode;
 std::string m_received_message;
-CommandMap                    m_commands;
+kiq::CommandMap                    m_commands;
 CommandArgMap                 m_command_arg_map;
 
 };

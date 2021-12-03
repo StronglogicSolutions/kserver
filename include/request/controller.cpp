@@ -1,6 +1,6 @@
 #include "controller.hpp"
 
-namespace Request {
+namespace kiq::Request {
 static flatbuffers::FlatBufferBuilder builder(1024);
 
 /**
@@ -718,9 +718,9 @@ void Controller::onProcessComplete(const std::string& value,
               Completed::STRINGS[status]);
 
           SystemUtils::SendMail(                                         // Email error to notification recipient
-            ConfigParser::Email::notification(),
+            config::Email::notification(),
             std::string{Messages::TASK_ERROR_EMAIL + value},
-            ConfigParser::Email::admin()
+            config::Email::admin()
           );
         }
         else
@@ -756,9 +756,9 @@ void Controller::onProcessComplete(const std::string& value,
           email_string += value;
 
           SystemUtils::SendMail(
-            ConfigParser::Email::notification(),
+            config::Email::notification(),
             email_string,
-            ConfigParser::Email::admin()
+            config::Email::admin()
           );
         }
 
@@ -803,4 +803,4 @@ void Controller::onSchedulerEvent(const int32_t&                  client_socket_
   m_system_callback_fn(client_socket_fd, event, args);
 }
 
-}  // ns Request
+}  // ns kiq::Request

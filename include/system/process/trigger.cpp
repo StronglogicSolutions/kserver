@@ -1,5 +1,6 @@
 #include "trigger.hpp"
 
+namespace kiq {
 /**
  * @brief processTriggers
  *
@@ -130,7 +131,7 @@ std::vector<Task> Trigger::process(Task* task)
 
       for (const auto& param_info : config.info.config_info_v)
       {
-        const std::string config_value = ConfigParser::query(param_info.config_section, param_info.config_name);
+        const std::string config_value = config::query(param_info.config_section, param_info.config_name);
         if (!config_value.empty())
         {
           environment_file +=
@@ -210,3 +211,4 @@ bool Trigger::add(TriggerConfig config)
 
   return !(error);
 }
+} // ns kiq

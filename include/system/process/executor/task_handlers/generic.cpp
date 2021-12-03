@@ -1,12 +1,13 @@
 #include "generic.hpp"
 
+namespace kiq {
 Task GenericTaskHandler::Create(const std::string&              mask,
                                 const std::string&              description,
                                 const std::string&              header     ,
                                 const std::string&              user       ,
                                 const std::vector<std::string>& args       )
 {
-  const std::string username = (user.empty()) ? ConfigParser::System::admin() : user;
+  const std::string username = (user.empty()) ? config::System::admin() : user;
         Task task{};
   std::vector<std::string> argv{
     mask,                       // 0 mask
@@ -106,3 +107,4 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
     return *task_ptr;
   }
 }
+} // ns kiq

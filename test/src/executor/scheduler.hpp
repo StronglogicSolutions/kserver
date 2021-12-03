@@ -10,7 +10,7 @@
  */
 
 TEST(SchedulerTest, ScheduleInvalidTaskReturnsEmptyString) {
-  GenericTaskHandler generic_task_hander{};
+  kiq::GenericTaskHandler generic_task_hander{};
   auto uuid = "38920jd93274098327489d033";
   std::vector<std::string> argv{"0", "1590776872testfile.txt|image:", "1590776872", "Test description", "1", "Test header", "test_user", "5", "1", "runtime_arg"};
   Database::KDB kdb{
@@ -22,9 +22,9 @@ TEST(SchedulerTest, ScheduleInvalidTaskReturnsEmptyString) {
       "5432"
     }
   };
-  Scheduler scheduler{std::move(kdb)};
+  kiq::Scheduler scheduler{std::move(kdb)};
 
-  Task generic_task = generic_task_hander.prepareTask(argv, uuid);
+  kiq::Task generic_task = generic_task_hander.prepareTask(argv, uuid);
   generic_task.execution_mask = 0; // invalidate task
   generic_task.execution_flags.clear(); // invalidate task
   try {

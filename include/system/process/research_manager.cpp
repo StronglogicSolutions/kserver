@@ -1,5 +1,6 @@
 #include "research_manager.hpp"
 
+namespace kiq {
 /**
  * VerifyTerm
  */
@@ -441,3 +442,4 @@ std::vector<ResearchManager::TermEvent> ResearchManager::GetAllTermEvents() cons
 
   return events;
 }
+} // ns kiq

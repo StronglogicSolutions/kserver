@@ -32,6 +32,8 @@
 #include "codec/rapidjson/stringbuffer.h"
 #include "codec/rapidjson/writer.h"
 
+namespace kiq {
+
 using namespace rapidjson;
 using namespace uuids;
 using namespace neither;
@@ -201,4 +203,5 @@ bool          NoEmptyArgs(Args&&... args)
   return true;
 }
 
-} // namespace DataUtils
+} // ns DataUtils
+} // ns kiq

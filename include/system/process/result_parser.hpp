@@ -24,6 +24,8 @@ static const uint8_t ANGER_INDEX    = 0x04;
 static const uint8_t DISGUST_INDEX  = 0x05;
 static const uint8_t EMOTION_NUM    = 0x06;
 
+namespace kiq {
+
 static std::string url_string(const std::vector<std::string> urls)
 {
   std::string delim{};
@@ -244,6 +246,88 @@ std::string                      m_app_name;
 std::vector<Emotion<EmoStrings>> m_items;
 }; // EmotionResultParser
 
+class SentimentResultParser : public ProcessParseInterface,
+                              public ResearchResultInterface {
+public:
+SentimentResultParser(const std::string& app_name)
+: m_app_name(app_name)
+{}
+
+virtual ~SentimentResultParser() {}
+
+struct Keyword
+{
+std::string  word;
+float        score;
+};
+struct Sentiment
+{
+std::string          type;
+float                score;
+std::vector<Keyword> keywords;
+
+std::vector<std::string> GetPayload() const
+{
+  std::vector<std::string> v{type, std::to_string(score)};
+  for (const Keyword& keyword : keywords)
+  {
+    v.emplace_back(keyword.word);
+    v.emplace_back(std::to_string(keyword.score));
+  }
+  return v;
+}
+
+static Sentiment Create(const std::vector<std::string>& v)
+{
+  Sentiment sentiment{v[0], std::stof(v[1])};
+  if (v.size() > 2)
+    for (size_t i = 2; i < v.size(); i += 2)
+       sentiment.keywords.emplace_back(Keyword{v[i    ], std::stof(v[i + 1])});
+  return sentiment;
+}
+};
+virtual bool read(const std::string& s) override
+{
+  using namespace rapidjson;
+  Document d{};
+  d.Parse(s.c_str());
+  if (!d.HasParseError() && !d.IsNull() && d.IsObject())
+  {
+    Sentiment sentiment{};
+    if (d.HasMember("type"))
+      sentiment.type = d["type"].GetString();
+    if (d.HasMember("score"))
+      sentiment.score = d["score"].GetFloat();
+    if (d.HasMember("keywords"))
+      for (const auto& value : d["keywords"].GetArray())
+        sentiment.keywords.emplace_back(Keyword{value["word"].GetString(), value["score"].GetFloat()});
+
+    m_items.emplace_back(std::move(sentiment));
+    return true;
+  }
+  return false;
+}
+
+virtual ProcessParseResult get_result() override
+{
+  ProcessParseResult result{};
+  KLOG("Returning {} Emotion objects", m_items.size());
+
+  if (m_items.empty()) return GetNOOPResult();
+
+  for (const auto& item : m_items)
+    result.data.emplace_back(
+      ProcessEventData{
+        .event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+        .payload = item.GetPayload()});
+  return result;
+}
+
+private:
+std::string            m_app_name;
+std::vector<Sentiment> m_items;
+}; // SentimentResultParser
+
 /**
  *
  * INSTAGRAM
@@ -410,11 +494,12 @@ virtual bool read(const std::string& s) {
         if (strcmp(k.name.GetString(), "title") == 0)
           yt_item.title = k.value.GetString();
       }
-
       m_feed_items.emplace_back(std::move(yt_item));
     }
+
     return true;
   }
+
   return false;
 }
 
@@ -430,7 +515,6 @@ virtual ProcessParseResult get_result() override {
 
     for (uint8_t i = 0; i < max_keywords; i++)
       keywords += " #" + item.keywords.at(i);
-
 
     std::string content = "New video has been uploaded. Hope you find it useful!\n"
       "https://youtube.com/watch?v=" + item.id + "\n\n" + keywords;
@@ -636,6 +720,9 @@ ProcessParseResult process(const std::string& output, KApplication app)
     else
     if (app.name == "KNLP - Emotion")
       u_parser_ptr.reset(new EmotionResultParser{app.name});
+    else
+    if (app.name == "KNLP - Sentiment")
+      u_parser_ptr.reset(new SentimentResultParser{app.name});
 
     u_parser_ptr->read(output);
     result = u_parser_ptr->get_result();
@@ -645,3 +732,5 @@ ProcessParseResult process(const std::string& output, KApplication app)
 }
 
 };
+
+} // ns kiq

@@ -6,6 +6,7 @@
 #include "executor/executor.hpp"
 #include "server/types.hpp"
 
+namespace kiq {
 std::string savePlatformEnvFile(const PlatformPost& post);
 bool        populatePlatformPost(PlatformPost& post);
 
@@ -87,3 +88,4 @@ Database::KDB       m_db;
 PlatformRequestMap  m_platform_map;
 SystemEventcallback m_event_callback;
 };
+} // ns kiq

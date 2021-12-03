@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-namespace System {
+namespace kiq::System {
 
 /*
 
@@ -111,4 +111,4 @@ class Cron : public CronInterface<Job> {
     return (listJobs().find(job_command) != std::string::npos);
   }
 };
-}  // namespace System
+}  // ns kiq::System

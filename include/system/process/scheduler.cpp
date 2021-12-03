@@ -2,6 +2,9 @@
 #include "executor/task_handlers/generic.hpp"
 #include "ipc/ipc.hpp"
 
+namespace kiq {
+using namespace ::constants;
+
 Scheduler::Scheduler(Database::KDB&& kdb)
 : m_kdb(std::move(kdb)),
   m_platform(nullptr),
@@ -43,7 +46,7 @@ Scheduler::Scheduler(SystemEventcallback fn)
   m_trigger(&m_kdb),
   m_app_map(FetchApplicationMap(m_kdb)),
   m_research_manager(&m_kdb, &m_platform),
-  m_ipc_command(constants::NO_COMMAND_INDEX)
+  m_ipc_command(NO_COMMAND_INDEX)
 {
   const auto AppExists = [this](const std::string& name) -> bool
   {
@@ -661,7 +664,16 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     auto node = FindNode(lists.at(pid), id);
     node->complete = true;
   };
-  const auto GetTokens = [](const auto& payload) -> std::vector<JSONItem>
+  const auto SequenceTasks = [this](const std::vector<TaskParams>& v)  -> void
+  {
+    int32_t id = v.front().id;
+    for (const auto& params : v)
+      id = CreateChild(id, params.data, params.name, params.args);
+  };
+  const auto FindRoot      = [&map, &lists](const int32_t& id) -> TaskWrapper* { return lists.at(map.at(id).first); };
+  const auto FindTask      = [&map](const int32_t& id)         -> Task         { return map.at(id).second.task; };
+  const auto GetAppName    = [this](const int32_t& mask)       -> std::string  { return m_app_map.at(mask); };
+  const auto GetTokens     = [](const auto& payload)           -> std::vector<JSONItem>
   {
     std::vector<JSONItem> tokens{};
     if (payload.size())
@@ -669,55 +681,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
-  const auto FindRoot = [&map, &lists](const int32_t& id) -> TaskWrapper* { return lists.at(map.at(id).first); };
-
-  const auto& init_id   = applications.first;
-  const auto& resp_id   = applications.second;
-  const auto  init_task = GetTask(init_id);
-  const auto  resp_task = GetTask(resp_id);
-  const auto& init_mask = init_task.execution_mask;
-  const auto& resp_mask = resp_task.execution_mask;
-  try
-  {
-    assert(m_app_map.at(init_mask).size() && m_app_map.at(resp_mask).size());
-  }
-  catch(const std::exception& e)
-  {
-    ELOG("Unknown application cannot be processed for post execution work. Exception: {}", e.what());
-    return;
-  }
-
-  const auto& initiating_application = m_app_map.at(init_mask);
-  const auto& responding_application = m_app_map.at(resp_mask);
-
-  if (initiating_application == TW_RESEARCH_APP && responding_application == NER_ANALYSIS)
-  {
-    using JSONItem  = NERResultParser::NLPItem;
-    static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
-
-    if (m_message_buffer.empty())
-      m_message_buffer += IPC_Message_Header;
-
-    auto items = GetTokens(event.payload);
-    for (auto&& item : items)
-    {
-      const auto user       = init_task.GetToken(constants::USER_KEY);
-      const auto term_hits  = m_research_manager.GetTermHits(item.value);
-      const auto known_term = term_hits.size();
-      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
-      if (known_term)
-        for (auto&& hit : term_hits)
-          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_ANALYSIS, {"entity"});
-      else
-      if (term_info.valid())
-        m_message_buffer += '\n' + term_info.ToString();
-    }
-
-    if (IPCNotPending())
-      SetIPCCommand(constants::TELEGRAM_COMMAND_INDEX);
-  }
-  else
-  if (initiating_application == NER_ANALYSIS && responding_application == NER_ANALYSIS)
+  const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
     /****************************************************
      *     NOTE: store tokens for comparison            *
@@ -737,35 +701,95 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      **   - Email / IPC notify admin                   **
      ****************************************************
      ****************************************************/
-    KLOG("NER parsing triggered Emotion analysis on original text for {} and {}", resp_id, init_id);
-    auto id = CreateChild(init_id, resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS, {"emotion"});
-              CreateChild(id,      init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_ANALYSIS, {"emotion"});
+    using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
+    using Sentiment = SentimentResultParser::Sentiment;
+    using Terms = std::vector<JSONItem>;
+    KLOG("Performing final analysis on research triggered by {}", root.id);
+    const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
+    const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
+    const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
+    const TaskWrapper sub_c_emo_tk   = *(FindParent(&subchild,     FindMask(EMOTION_APP)));
+    const TaskWrapper child_c_emo_tk = *(FindParent(&sub_c_emo_tk, FindMask(EMOTION_APP)));
+    const auto        ner_data       = ner_parent.event.payload;          // Terms Payload
+    const auto        sub_c_emo_data = sub_c_emo_tk.event.payload;        // Emotion Payload
+    const auto        child_emo_data = child_c_emo_tk.event.payload;      // Emotion Payload
+    const auto        sub_c_sts_data = subchild.event.payload;            // Sentiment Payload
+    const auto        child_sts_data = child.event.payload;               // Sentiment Payload
+    const Terms       terms_data     = GetTokens(ner_data);               // Terms
+    const Emotion     child_emo      = Emotion::Create(child_emo_data);   // Emotions
+    const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);   // Emotions
+    const Sentiment   child_sts      = Sentiment::Create(child_sts_data); // Sentiment
+    const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data); // Sentiment
+    KLOG("TODO: Complete analysis work");
+  };
+
+  const auto& init_id   = applications.first;
+  const auto& resp_id   = applications.second;
+  const auto  init_task = FindTask(init_id);
+  const auto  resp_task = FindTask(resp_id);
+  const auto& init_mask = init_task.execution_mask;
+  const auto& resp_mask = resp_task.execution_mask;
+        auto& t_wrapper = m_postexec_map.at(resp_id).second;
+  try
+  {
+    assert(m_app_map.at(init_mask).size() && m_app_map.at(resp_mask).size());
+    t_wrapper.SetEvent(std::move(event));
+  }
+  catch(const std::exception& e)
+  {
+    ELOG("Unknown application cannot be processed for post execution work. Exception: {}", e.what());
+    return;
+  }
+
+  const auto& initiating_application = GetAppName(init_mask);
+  const auto& responding_application = GetAppName(resp_mask);
+
+  if (initiating_application == TW_RESEARCH_APP && responding_application == NER_APP)
+  {
+    static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
+
+    if (m_message_buffer.empty())
+      m_message_buffer += IPC_Message_Header;
+
+    auto items = GetTokens(t_wrapper.event.payload);
+    for (auto&& item : items)
+    {
+      const auto user       = init_task.GetToken(constants::USER_KEY);
+      const auto term_hits  = m_research_manager.GetTermHits(item.value);
+      const auto known_term = term_hits.size();
+      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
+      if (known_term)
+        for (auto&& hit : term_hits)
+          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});  // 1. NER
+      else
+      if (term_info.valid())
+        m_message_buffer += '\n' + term_info.ToString();
+    }
+
+    if (IPCNotPending())
+      SetIPCCommand(TELEGRAM_COMMAND_INDEX);
   }
   else
-  if (initiating_application == EMOTION_ANALYSIS && responding_application == EMOTION_ANALYSIS)
+  if (initiating_application == NER_APP && responding_application == NER_APP)                                // 2. Emotion
+    SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}},
+                   {         resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}}});
+  else
+  if (initiating_application == EMOTION_APP && responding_application == EMOTION_APP)                        // 3. Sentiment
+    SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}},
+                   {         resp_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}}});
+  else
+  if (initiating_application == SENTIMENT_APP && responding_application == SENTIMENT_APP)                    // 4. Final
   {
-    const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
-    {
-      KLOG("Performing final analysis on research triggered by {}", root.id);
-      const auto ner_parent = *(FindParent(&child, FindMask(NER_ANALYSIS)));
-      const auto root_data  = root.event.payload;  // TW Research
-      const auto sub_c_data = event.payload;       // Emotion Payload
-      const auto child_data = child.event.payload; // Emotion Payload
-      const auto terms_data = GetTokens(ner_parent.event.payload);
-      const auto child_emo  = EmotionResultParser::Emotion<EmotionResultParser::Emotions>::Create(child_data);
-      const auto sub_c_emo  = EmotionResultParser::Emotion<EmotionResultParser::Emotions>::Create(sub_c_data);
-    };
+    const auto init_node = map.at(init_id).second;
+    const auto resp_node = map.at(resp_id).second;
+    const auto init_root = FindMasterRoot(&init_node);
+    const auto resp_root = FindMasterRoot(&resp_node);
+    if (init_root == resp_root && GetAppName(init_root->task.execution_mask) == TW_RESEARCH_APP)
+      PerformAnalysis(*(init_root), init_node, resp_node);
+    else
+      KLOG("All tasks originating from {} have completed", init_root->id);
+  };
 
-    const auto init_task = map.at(init_id).second;
-    const auto resp_task = map.at(resp_id).second;
-    const auto init_root = FindRoot(init_id);
-    const auto resp_root = FindRoot(resp_id);
-
-    if (init_root == resp_root && m_app_map.at(init_root->task.execution_mask) == TW_RESEARCH_APP)
-      PerformAnalysis(*(init_root), init_task, resp_task);
-  }
-
-  m_postexec_map.at(resp_id).second.SetEvent(std::move(event));
   CompleteTask(resp_id);
 
   if (AllTasksComplete(m_postexec_map))
@@ -847,7 +871,8 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
         }
         break;
         case (SYSTEM_EVENTS__PROCESS_RESEARCH):
-          CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_ANALYSIS, {"entity"});
+          CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_APP, {"entity"});
+          m_postexec_map.at(id).second.SetEvent(std::move(outgoing_event));
         break;
         default:
           ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
@@ -971,7 +996,7 @@ void Scheduler::SetIPCCommand(const uint8_t& command)
 
 bool Scheduler::IPCNotPending() const
 {
-  return (m_ipc_command == constants::NO_COMMAND_INDEX || !TimerActive());
+  return (m_ipc_command == NO_COMMAND_INDEX || !TimerActive());
 }
 
 void Scheduler::ResolvePending(const bool& check_timer)
@@ -979,16 +1004,15 @@ void Scheduler::ResolvePending(const bool& check_timer)
   if (!TimerActive() || (check_timer && !TimerExpired())) return;
 
   KLOG("Resolving pending IPC message");
-  const auto payload = {CreateOperation("ipc", {constants::IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
+  const auto payload = {CreateOperation("ipc", {IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, payload);
   m_message_buffer.clear();
   m_postexec_map  .clear();
   m_postexec_lists.clear();
-  SetIPCCommand(constants::NO_COMMAND_INDEX);
+  SetIPCCommand(NO_COMMAND_INDEX);
   StopTimer();
 }
-
 
 template <typename T, typename S>
 int32_t Scheduler::CreateChild(const T& id, const std::string& data, const S& application_name, const std::vector<std::string>& args)
@@ -1033,3 +1057,5 @@ int32_t Scheduler::FindMask(const std::string& application_name)
   if (it != m_app_map.end())  return it->first;
   return INVALID_MASK;
 }
+
+} // ns kiq

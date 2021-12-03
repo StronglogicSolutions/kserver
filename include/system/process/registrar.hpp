@@ -4,7 +4,8 @@
 #include <database/kdb.hpp>
 #include <system/process/executor/kapplication.hpp>
 
-namespace Registrar {
+
+namespace kiq::Registrar {
 namespace constants {
 const uint8_t REGISTER_NAME_INDEX = 0x01;
 const uint8_t REGISTER_PATH_INDEX = 0x02;
@@ -82,4 +83,4 @@ private:
 Database::KDB m_kdb;
 };
 
-} // namespace Registrar
+} // ns kiq::Registrar

@@ -1,5 +1,6 @@
 #include "scheduler.hpp"
 
+namespace kiq {
 using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration  = std::chrono::seconds;
 
@@ -52,6 +53,14 @@ TaskWrapper* FindParent(const TaskWrapper* node, const int32_t& mask)
   while (parent && parent->task.execution_mask != mask)
     parent = parent->parent;
   return parent;
+}
+
+TaskWrapper* FindMasterRoot(const TaskWrapper* ptr)
+{
+  auto root = ptr->parent;
+  while (root->parent)
+    root = root->parent;
+  return root;
 }
 
 bool AllTasksComplete (const Scheduler::PostExecMap& map)
@@ -128,3 +137,4 @@ bool IsRecurringTask(const Task& task)
 {
   return static_cast<uint8_t>(task.recurring) > Constants::Recurring::NO;
 }
+} // ns kiq
