@@ -384,12 +384,12 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
   const auto IGTaskPayload = [](const IGData::IGTask* task)
   {
     return std::vector<std::string>{
-      std::to_string(task->mask()),                task->file_info()          ->str(),
-                     task->time()         ->str(), task->description()        ->str(),
-                     task->requested_by() ->str(), task->requested_by_phrase()->str(),
-                     task->promote_share()->str(), task->link_bio()           ->str(),
-      std::to_string(task->is_video()),            task->header()             ->str(),
-                     task->user()         ->str()};
+      std::to_string(task->mask()),                      task->file_info()    ->str()    ,
+                     task->time()               ->str(), task->description()  ->str()    ,
+                     task->hashtags()           ->str(), task->requested_by() ->str()    ,
+                     task->requested_by_phrase()->str(), task->promote_share()->str()    ,
+                     task->link_bio()           ->str(), std::to_string(task->is_video()),
+                     task->header()             ->str(), task->user()         ->str()};
   };
   const auto TaskPayload = [](const GenericData::GenericTask* task)
   {
