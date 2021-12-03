@@ -47,7 +47,8 @@ const std::string executor()  { return reader.Get("process", "executor",   Requi
 
 namespace Email {
 std::string notification()    { return reader.Get("email", "notification", RequiredConfig("[email] notification")); }
-std::string admin()           { return reader.Get("email", "admin",        RequiredConfig("[email] admin")); }
+std::string admin()           { return reader.Get("email", "admin",        RequiredConfig("[email] admin"));        }
+std::string command()         { return reader.Get("email", "command",      RequiredConfig("[email] command"));      }
 } // namespace Admin
 
 namespace Platform {

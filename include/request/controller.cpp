@@ -709,25 +709,15 @@ void Controller::onProcessComplete(const std::string& value,
 
         if (error)
         {
-          status = (task_it->completed == Completed::FAILED) ?
-            Completed::RETRY_FAIL :                           // No retry
-            Completed::FAILED;                                // Retry
-
-          KLOG("Sending email to administrator about failed task.\nNew "
-              "Status: {}",
-              Completed::STRINGS[status]);
-
-          SystemUtils::SendMail(                                         // Email error to notification recipient
-            config::Email::notification(),
-            std::string{Messages::TASK_ERROR_EMAIL + value},
-            config::Email::admin()
-          );
+          status = (task_it->completed == Completed::FAILED) ? Completed::RETRY_FAIL :
+                                                               Completed::FAILED;
+          KLOG("Sending email to administrator about failed task.\nNew Status: {}", Completed::STRINGS[status]);
+          SystemUtils::SendMail(config::Email::notification(), Messages::TASK_ERROR_EMAIL + value);
         }
         else
         {
-          status = task_it->recurring ?
-            Completed::SCHEDULED :
-            Completed::SUCCESS;
+          status = task_it->recurring ? Completed::SCHEDULED :
+                                        Completed::SUCCESS;
           if (!m_scheduler.processTriggers(&*task_it))
             KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id(), task_it->execution_mask);
         }
@@ -755,11 +745,7 @@ void Controller::onProcessComplete(const std::string& value,
           email_string += error ? "\nError" : "\n";
           email_string += value;
 
-          SystemUtils::SendMail(
-            config::Email::notification(),
-            email_string,
-            config::Email::admin()
-          );
+          SystemUtils::SendMail(config::Email::notification(), email_string);
         }
 
         KLOG("removing completed task from memory");

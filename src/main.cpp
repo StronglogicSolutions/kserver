@@ -13,7 +13,6 @@ int main(int argc, char** argv)
 
   try
   {
-
     kiq::KServer server(argc, argv);
     server.init();
     server.run();

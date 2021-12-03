@@ -442,13 +442,12 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
 }
 
 namespace SystemUtils {
-void SendMail(std::string recipient, std::string message, std::string from) {
-  std::string sanitized = StringUtils::sanitizeSingleQuotes(message);
-  std::system(
-    std::string{
-      "echo '" + sanitized + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
-    }.c_str()
-  );
+static const char* MAIL_HEADER{"MIME-Version: 1.0\nContent-Type: text/html\n\n"};
+void SendMail(const std::string& recipient, const std::string& message, const std::string& subject)
+{
+  std::string exec_s{"echo -e 'FROM: " + config::Email::admin() + "\nSubject: " + subject + "\n" + MAIL_HEADER +
+                      StringUtils::sanitizeSingleQuotes(message) + '|' + config::Email::command() + recipient};
+  std::system(exec_s.c_str());
 }
 } // namespace SystemUtils
 

@@ -50,6 +50,7 @@ const std::string executor();
 namespace Email {
 std::string notification();
 std::string admin();
+std::string command();
 } // namespace Admin
 
 namespace Platform {
