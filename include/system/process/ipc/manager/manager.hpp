@@ -12,36 +12,30 @@
 #include "system/process/ipc/client/client.hpp"
 
 namespace kiq {
-static const uint32_t KSERVER_IPC_DEFAULT_PORT{28473};
-
 using SystemCallback_fn_ptr = std::function<void(int, std::vector<std::string>)>;
+using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
+static const uint32_t DEFAULT_PORT{std::stoi(config::Process::ipc_port())};
+const auto DefaultClient = []() -> std::pair<int32_t, IPCClient> { return {ALL_CLIENTS, IPCClient{DEFAULT_PORT}}; };
 
 class IPCManager : public Worker {
-using u_ipc_msg_ptr = ipc_message::u_ipc_msg_ptr;
 public:
 
 IPCManager(SystemCallback_fn_ptr system_event_fn)
-: m_system_event_fn{system_event_fn},
-  m_req_ready(true)
+: m_system_event_fn(system_event_fn),
+  m_req_ready(true),
+  m_clients({DefaultClient()})
 {}
 
-void process(std::string message, int32_t fd) {
+void process(std::string message, int32_t fd)
+{
   KLOG("Received outgoing IPC request");
-
-  if (m_clients.empty())
-    m_clients.insert({ALL_CLIENTS, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
-
   m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<kiq_message>(message)));
-
-  return;
 }
 
 bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
 {
   KLOG("Processing IPC message for event {}", event);
-
-  if (m_clients.empty())
-    m_clients.insert({ALL_CLIENTS, IPCClient{KSERVER_IPC_DEFAULT_PORT}});
+  bool received{true};
 
   if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED)
     m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<platform_message>(
@@ -51,10 +45,11 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
       args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
-      args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX)
-    )));
+      args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX))));
+  else
+    received = false;
 
-  return true;
+  return received;
 }
 
 void close(int32_t fd) {
@@ -70,10 +65,21 @@ void close(int32_t fd) {
 
 void HandleClientMessages()
 {
+  using Payload = std::vector<std::string>;
+  const auto GetPayload = [](platform_message* message) -> Payload
+  {
+    return Payload{message->platform(), message->id(),   message->user(), "",
+                   message->content(),  message->urls(), std::to_string(message->repost()), message->args()};
+  };
+
+  const auto GetError = [](platform_error* message) -> Payload
+  {
+    return Payload{message->name(), message->id(), message->user(), message->error(), ""};
+  };
+
   if (!m_incoming_queue.empty())
   {
     std::deque<u_ipc_msg_ptr>::iterator it = m_incoming_queue.begin();
-
     while (it != m_incoming_queue.end())
     {
       std::vector<std::string> payload{};
@@ -82,33 +88,13 @@ void HandleClientMessages()
       switch (message_type)
       {
         case (::constants::IPC_PLATFORM_TYPE):
-        {
-          platform_message*        message = static_cast<platform_message*>(it->get());
-          payload.reserve(7);
-          payload.emplace_back(message->platform());
-          payload.emplace_back(message->id());
-          payload.emplace_back(message->user());
-          payload.emplace_back(""); // time?
-          payload.emplace_back(message->content());
-          payload.emplace_back(message->urls());
-          payload.emplace_back(std::to_string(message->repost()));
-          payload.emplace_back(message->args());
-          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
-        }
+          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it->get())));
         break;
-
         case (::constants::IPC_PLATFORM_ERROR):
-        {
-          platform_error*     error_message = static_cast<platform_error*>(it->get());
-          payload.resize(5);
-          payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = error_message->name();
-          payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = error_message->id();
-          payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = error_message->user();
-          payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX)    = error_message->error();
-
-          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, payload);
-        }
+          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, GetError(static_cast<platform_error*>(it->get())));
         break;
+        default:
+          ELOG("Failed to handle unknown IPC message");
       }
       it = m_incoming_queue.erase(it);
     }
@@ -116,20 +102,21 @@ void HandleClientMessages()
 }
 
 private:
-virtual void loop() override {
-  while (m_is_running) {
-    for (auto&&[fd, client] : m_clients) {
-      try {
+virtual void loop() override
+{
+  while (m_is_running)
+  {
+    for (auto&& [fd, client] : m_clients)
+    {
+      try
+      {
         const uint8_t mask = client.Poll();
+
         if (HasRequest(mask) && client.ReceiveIPCMessage(false))
-        {
           client.ReplyIPC();
-        }
 
         if (HasReply(mask))
-        {
           client.ReceiveIPCMessage();
-        }
       }
       catch (const std::exception& e)
       {
@@ -139,14 +126,10 @@ virtual void loop() override {
 
       std::vector<u_ipc_msg_ptr> messages = client.GetMessages();
 
-      m_incoming_queue.insert(
-        m_incoming_queue.end(),
-        std::make_move_iterator(messages.begin()),
-        std::make_move_iterator(messages.end())
-      );
+      m_incoming_queue.insert(m_incoming_queue.end(), std::make_move_iterator(messages.begin()),
+                                                      std::make_move_iterator(messages.end())  );
 
       client.ProcessQueue();
-
       HandleClientMessages();
     }
 

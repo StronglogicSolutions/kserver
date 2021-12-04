@@ -45,6 +45,7 @@ const std::string host();
 
 namespace Process {
 const std::string executor();
+const std::string ipc_port();
 } // namespace Process
 
 namespace Email {
