@@ -445,8 +445,8 @@ namespace SystemUtils {
 static const char* MAIL_HEADER{"MIME-Version: 1.0\nContent-Type: text/html\n\n"};
 void SendMail(const std::string& recipient, const std::string& message, const std::string& subject)
 {
-  std::string exec_s{"echo -e 'FROM: " + config::Email::admin() + "\nSubject: " + subject + "\n" + MAIL_HEADER +
-                      StringUtils::sanitizeSingleQuotes(message) + '|' + config::Email::command() + recipient};
+  const std::string exec_s{"echo -e 'FROM: " + config::Email::admin() + "\nSubject: " + subject + "\n" + MAIL_HEADER +
+                        StringUtils::sanitizeSingleQuotes(message) + "'|" + config::Email::command() + ' ' + recipient};
   std::system(exec_s.c_str());
 }
 } // namespace SystemUtils
