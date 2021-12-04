@@ -55,6 +55,7 @@ typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
 typedef std::vector<KApplication>                        ServerData;
 typedef std::pair<std::string, std::string>              FileInfo;
 
+static const int32_t READY_STATUS{0x01};
 struct KSession {
   int fd;
   int status;

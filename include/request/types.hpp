@@ -28,7 +28,8 @@ enum RequestType {
   SCHEDULE_TASK         = 0x11,
   IPC_REQUEST           = 0x12,
   FETCH_TERM_HITS       = 0x13,
-  UNKNOWN               = 0x14
+  EXECUTE               = 0x14,
+  UNKNOWN               = 0x15
 };
 
 /**
@@ -77,6 +78,9 @@ static RequestType int_to_request_type(int byte) {
 
     case (FETCH_TERM_HITS):
       return FETCH_TERM_HITS;
+
+    case (EXECUTE):
+      return EXECUTE;
   }
   return UNKNOWN;
 }

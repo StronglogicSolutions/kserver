@@ -65,8 +65,8 @@ class Controller {
                                        const std::vector<std::string>& argv,
                                        const int32_t&                  client_socket_fd,
                                        const std::string&              uuid);
-  std::vector<KApplication> operator()(const KOperation& op);
-  void                      operator()(const uint32_t&    mask,
+  std::vector<KApplication> CreateSession();
+  void                      Execute   (const uint32_t&    mask,
                                        const std::string& request_id,
                                        const int32_t&     client_socket_fd);
   void                      process_system_event(const int32_t&                  event,

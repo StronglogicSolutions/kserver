@@ -4,6 +4,7 @@
 namespace kiq {
 
 static const int32_t NONE_PENDING{-1};
+static const char*   WELCOME_MSG{"Session started"};
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
  * service to KStyleYo
@@ -401,39 +402,25 @@ void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& 
 /**
  * Start Operation
  */
-void KServer::handleStart(std::string decoded_message, int client_socket_fd)
+void KServer::handleStart(std::string decoded_message, int client_fd)
 {
+  const auto NewSession      = [&client_fd](const uuid& id) { return KSession{client_fd, READY_STATUS, id};  };
+  const auto GetSessionData  = [this]() { return CreateMessage("New Session", m_controller.CreateSession()); };
+  const auto GetSessionInfo  = [](auto state, auto id) { return SessionInfo{{"status", std::to_string(state)},{"uuid", id}}; };
   const uuids::uuid new_uuid = uuids::uuid_system_generator{}();
   const auto        uuid_str = uuids::to_string(new_uuid);
-  m_sessions.push_back(KSession{.fd = client_socket_fd, .status = 1, .id = new_uuid});
-  KLOG("New session created for {}. Session ID: {}", client_socket_fd, uuid_str);
 
-  sendMessage(client_socket_fd, CreateMessage("New Session", m_controller("Start")));
-  sendSessionMessage(client_socket_fd,
-                     SESSION_ACTIVE,
-                     "Session started",
-                     SessionInfo{{"status", std::to_string(SESSION_ACTIVE)},{"uuid", uuid_str}});
-}
+  m_sessions.push_back(NewSession(new_uuid));
+  KLOG("New session created for {}. Session ID: {}", client_fd, uuid_str);
 
-/**
- * Execute Operation
- */
-void KServer::handleExecute(std::string decoded_message, int client_socket_fd)
-{
-  const std::vector<std::string> args = GetArgs(decoded_message);
-  if (!args.empty() && args.size() > 1)
-  {
-    const auto mask         = args.at(0);
-    const auto request_uuid = args.at(1);
-    KLOG("Execute request received.\nMask: {}  ID: {}", mask, request_uuid);
-    m_controller(std::stoi(mask), request_uuid, client_socket_fd);
-  }
+  sendMessage(client_fd, GetSessionData());
+  sendMessage(client_fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetSessionInfo(SESSION_ACTIVE, uuid_str)));
 }
 
 /**
  * File Upload Operation
  */
-void KServer::handleFileUploadRequest(int client_socket_fd)
+void KServer::WaitForFile(int client_socket_fd)
 {
   SetFilePending(client_socket_fd);
   m_controller.setHandlingData(true);
@@ -455,31 +442,18 @@ void KServer::handleOperation(std::string decoded_message, int client_socket_fd)
 {
   KOperation op = GetOperation(decoded_message);
   if (IsStartOperation(op))
-  {
-    KLOG("Start operation. TODO: Move to Controller::process_client_request()");
     handleStart(decoded_message, client_socket_fd);
-    return;
-  }
   else
   if (IsStopOperation(op))
   {
     KLOG("Stop operation. Shutting down client and closing connection. TODO: Move to Controller::process_client_request()");
     handleStop(client_socket_fd);
-    return;
-  }
-  else
-  if (IsExecuteOperation(op))
-  {
-    KLOG("Execute operation. TODO: Move to Controller::process_client_request()");
-    handleExecute(decoded_message, client_socket_fd);
-    return;
   }
   else
   if (IsFileUploadOperation(op))
   {
     KLOG("File upload operation. TODO: Move to Controller::process_client_request()");
-    handleFileUploadRequest(client_socket_fd);
-    return;
+    WaitForFile(client_socket_fd);
   }
   else
   if (IsIPCOperation(op))

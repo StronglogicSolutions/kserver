@@ -58,8 +58,7 @@ private:
   void handlePendingFile        (std::shared_ptr<uint8_t[]> s_buffer_ptr,
                                  int client_socket_fd, uint32_t size);
   void handleStart              (std::string decoded_message, int client_socket_fd);
-  void handleExecute            (std::string decoded_message, int client_socket_fd);
-  void handleFileUploadRequest  (int client_socket_fd);
+  void WaitForFile              (int client_socket_fd);
   void handleFileSend           (int32_t client_fd, const std::vector<std::string>& files);
   void handleSchedule           (std::vector<std::string> task, int client_socket_fd);
   void handleOperation          (std::string decoded_message, int client_socket_fd);

@@ -337,40 +337,35 @@ void Controller::operator()(const KOperation&               op,
  * @param[in] {KOperation} `op` The operation requested
  *
  */
-std::vector<KApplication> Controller::operator()(const KOperation& op)
+std::vector<KApplication> Controller::CreateSession()
 {
-  std::vector<KApplication>      commands{};
-  const std::string              name{"apps"};
-  const std::vector<std::string> fields{"name", "path", "data", "mask"};
-  const QueryFilter              filter{};
+  uint8_t                   i{};
+  KApplication              command{};
+  std::vector<KApplication> commands{};
+  const auto                name{"apps"};
+  const Fields              fields{"name", "path", "data", "mask"};
 
-  if (op.compare("Start") == 0)
+  for (const auto& row : m_kdb.select(name, fields, QueryFilter{}))
   {
-    uint8_t arg_idx{};
-    KApplication command{};
-
-    for (const auto& row : m_kdb.select(name, fields, filter))
-    {
-      if (row.first == "name")
-        command.name = row.second;
-        else
-        if (row.first == "mask")
-        command.mask = row.second;
-        else
-        if (row.first == "path")
-        command.path = row.second;
-        else
-        if (row.first == "data")
-        command.data = row.second;
-
-      if (arg_idx == 3)
-      {
-        arg_idx = 0;
-        commands.push_back(command);
-      }
+    if (row.first == "name")
+      command.name = row.second;
       else
-        arg_idx++;
+      if (row.first == "mask")
+      command.mask = row.second;
+      else
+      if (row.first == "path")
+      command.path = row.second;
+      else
+      if (row.first == "data")
+      command.data = row.second;
+
+    if (i == 3)
+    {
+      i = 0;
+      commands.push_back(command);
     }
+    else
+      i++;
   }
   return commands;
 }
@@ -390,10 +385,11 @@ std::vector<KApplication> Controller::operator()(const KOperation& op)
  * @param[in] {int} `client_socket_fd` The file descriptor of the client
  * making the request
  */
-void Controller::operator()(const uint32_t&    mask,
-                            const std::string& request_id,
-                            const int32_t&     client_socket_fd)
+void Controller::Execute(const uint32_t&    mask,
+                         const std::string& request_id,
+                         const int32_t&     client_socket_fd)
 {
+  KLOG("Execute request received.\nMask: {}  ID: {}", mask, request_id);
   const std::string              name{"apps"};
   const std::vector<std::string> fields{"path"};
   const QueryFilter              filter = CreateFilter("mask", std::to_string(mask));
@@ -640,6 +636,13 @@ void Controller::process_client_request(const int32_t&     client_fd,
       for (const auto& term_data : m_scheduler.FetchTermEvents())
         event_args.emplace_back(term_data.ToJSON());
       m_system_callback_fn(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
+    }
+    break;
+    case (EXECUTE):
+    {
+      const auto mask         = args.at(1);
+      const auto request_uuid = args.at(2);
+      Execute(std::stoi(mask), request_uuid, client_fd);
     }
     break;
 
