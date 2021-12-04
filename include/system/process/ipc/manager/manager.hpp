@@ -77,7 +77,7 @@ void HandleClientMessages()
     return Payload{message->name(), message->id(), message->user(), message->error(), ""};
   };
 
-  if (!m_incoming_queue.empty())
+  if (m_incoming_queue.size())
   {
     std::deque<u_ipc_msg_ptr>::iterator it = m_incoming_queue.begin();
     while (it != m_incoming_queue.end())
