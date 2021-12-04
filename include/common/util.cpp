@@ -384,12 +384,12 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
   const auto IGTaskPayload = [](const IGData::IGTask* task)
   {
     return std::vector<std::string>{
-      std::to_string(task->mask()),                task->file_info()          ->str(),
-                     task->time()         ->str(), task->description()        ->str(),
-                     task->requested_by() ->str(), task->requested_by_phrase()->str(),
-                     task->promote_share()->str(), task->link_bio()           ->str(),
-      std::to_string(task->is_video()),            task->header()             ->str(),
-                     task->user()         ->str()};
+      std::to_string(task->mask()),                      task->file_info()    ->str()    ,
+                     task->time()               ->str(), task->description()  ->str()    ,
+                     task->hashtags()           ->str(), task->requested_by() ->str()    ,
+                     task->requested_by_phrase()->str(), task->promote_share()->str()    ,
+                     task->link_bio()           ->str(), std::to_string(task->is_video()),
+                     task->header()             ->str(), task->user()         ->str()};
   };
   const auto TaskPayload = [](const GenericData::GenericTask* task)
   {
@@ -442,13 +442,12 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
 }
 
 namespace SystemUtils {
-void SendMail(std::string recipient, std::string message, std::string from) {
-  std::string sanitized = StringUtils::sanitizeSingleQuotes(message);
-  std::system(
-    std::string{
-      "echo '" + sanitized + "' | mail -s 'KServer notification\nContent-Type: text/html' -a FROM:" + from + " " + recipient
-    }.c_str()
-  );
+static const char* MAIL_HEADER{"MIME-Version: 1.0\nContent-Type: text/html\n\n"};
+void SendMail(const std::string& recipient, const std::string& message, const std::string& subject)
+{
+  const std::string exec_s{"echo -e 'FROM: " + config::Email::admin() + "\nSubject: " + subject + "\n" + MAIL_HEADER +
+                        StringUtils::sanitizeSingleQuotes(message) + "'|" + config::Email::command() + ' ' + recipient};
+  std::system(exec_s.c_str());
 }
 } // namespace SystemUtils
 
@@ -777,18 +776,12 @@ std::string AlphaNumericOnly(std::string s)
 
 std::string RemoveTags(std::string s)
 {
-  s.erase(std::remove_if(
-    s.begin(), s.end(),
-    [](char c)
-    {
-      return (c == '#' || c == '@' || c == '＠');
-    }),
-    s.end()
-  );
+  static const auto filter = [](const char& c) { return (c == '#' || c == '@' || static_cast<wchar_t>(c) == wchar_t{L'＠'}); };
+  s.erase(std::remove_if(s.begin(), s.end(), filter), s.end());
   return s;
 }
 
-std::string ToLower(std::string& s)
+std::string ToLower(std::string s)
 {
   std::transform(s.begin(), s.end(), s.begin(), [](char c) { return tolower(c);});
   return s;

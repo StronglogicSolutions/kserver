@@ -21,6 +21,7 @@
 #include <vector>
 #include <ctime>
 
+#include "config/config_parser.hpp"
 #include "system/process/executor/kapplication.hpp"
 
 #include "codec/rapidjson/document.h"
@@ -33,7 +34,6 @@
 #include "codec/rapidjson/writer.h"
 
 namespace kiq {
-
 using namespace rapidjson;
 using namespace uuids;
 using namespace neither;
@@ -118,7 +118,7 @@ using DecodedMessage = Either<std::string, std::vector<std::string>>;
 DecodedMessage DecodeMessage(uint8_t* buffer);
 
 namespace SystemUtils {
-void SendMail(std::string recipient, std::string message, std::string from);
+void SendMail(const std::string& recipient, const std::string& message, const std::string& subject = "KIQ Notification");
 }
 namespace FileUtils
 {
@@ -154,7 +154,7 @@ std::string SanitizeJSON(std::string s);
 std::string GenerateUUIDString();
 std::string AlphaNumericOnly(std::string s);
 std::string RemoveTags(std::string s);
-std::string ToLower(std::string& s);
+std::string ToLower(std::string s);
 } // namespace StringUtils
 
 // Bit helpers

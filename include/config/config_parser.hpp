@@ -1,10 +1,27 @@
 #pragma once
 
-#include <string>
+#include "common/util.hpp"
 #include "INIReader.h"
-#include <iostream>
 
 namespace kiq {
+struct RuntimeConfig {
+bool        timestamp{true};
+std::string loglevel{"trace"};
+};
+
+static RuntimeConfig ParseRuntimeArguments(int argc, char** argv)
+{
+  RuntimeConfig config{};
+
+  for (int i = 1; i < argc; i++)
+  {
+    std::string argument = argv[i];
+    if (argument.find("--loglevel")  == 0)
+      config.loglevel = argument.substr(11);
+  }
+  return config;
+}
+
 namespace config {
 std::string query(const std::string& section, const std::string& name);
 
@@ -33,6 +50,7 @@ const std::string executor();
 namespace Email {
 std::string notification();
 std::string admin();
+std::string command();
 } // namespace Admin
 
 namespace Platform {
