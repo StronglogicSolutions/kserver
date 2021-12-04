@@ -37,13 +37,12 @@ void runClient() {
   std::cout << "runClient will exit" << std::endl;
 }
 
-void runServer() {
+void runServer()
+{
   int argc = 3;
   bool test_mode_enabled = true;
   KServer kserver{argc, std::move(const_cast<char**>(SERVER_TEST_ARGS))};
   g_kserver = &kserver;
-  kserver.set_handler(std::move(Request::Controller{}));
-  std::cout << "KServer set handler" << std::endl;
   kserver.init(test_mode_enabled);
   std::cout << "KServer initialized" << std::endl;
   kserver.run();
