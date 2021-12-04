@@ -14,17 +14,17 @@
 namespace kiq {
 using SystemCallback_fn_ptr = std::function<void(int, std::vector<std::string>)>;
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
-static const uint32_t DEFAULT_PORT{std::stoi(config::Process::ipc_port())};
-const auto DefaultClient = []() -> std::pair<int32_t, IPCClient> { return {ALL_CLIENTS, IPCClient{DEFAULT_PORT}}; };
+static const uint32_t DEFAULT_PORT{static_cast<uint32_t>(std::stoul(config::Process::ipc_port()))};
 
 class IPCManager : public Worker {
 public:
 
 IPCManager(SystemCallback_fn_ptr system_event_fn)
 : m_system_event_fn(system_event_fn),
-  m_req_ready(true),
-  m_clients({DefaultClient()})
-{}
+  m_req_ready(true)
+{
+  m_clients.insert(std::pair<int32_t, IPCClient>{ALL_CLIENTS, IPCClient{DEFAULT_PORT}});
+}
 
 void process(std::string message, int32_t fd)
 {
