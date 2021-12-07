@@ -5,6 +5,8 @@ namespace kiq {
 
 static const int32_t NONE_PENDING    {-1};
 static const bool    KEEP_HEADER     {true};
+static const char*   STATUS          {"status"};
+static const char*   NEW_SESSION     {"New Session"};
 static const char*   CLOSE_SESSION   {"Close Session"};
 static const char*   WELCOME_MSG     {"Session started"};
 static const char*   GOODBYE_MSG     {"KServer is shutting down the socket connection"};
@@ -53,7 +55,8 @@ KServer::KServer(int argc, char **argv)
 KServer::~KServer()
 {
   KLOG("Server shutting down");
-  m_file_handlers.clear();
+  for (const auto& session : m_sessions)
+    OnClientExit(session.fd);
   m_controller.shutdown();
 }
 
@@ -395,8 +398,8 @@ void KServer::EnqueueFiles(const int32_t& client_fd, const std::vector<std::stri
 void KServer::InitClient(const std::string& message, const int32_t& client_fd)
 {
   auto NewSession = [&client_fd](const uuid& id)      { return KSession{client_fd, READY_STATUS, id};                        };
-  auto GetData    = [this]      ()                    { return CreateMessage("New Session", m_controller.CreateSession());   };
-  auto GetInfo    = []          (auto state, auto id) { return SessionInfo{{"status", std::to_string(state)}, {"uuid", id}}; };
+  auto GetData    = [this]      ()                    { return CreateMessage(NEW_SESSION, m_controller.CreateSession());   };
+  auto GetInfo    = []          (auto state, auto id) { return SessionInfo{{STATUS, std::to_string(state)}, {"uuid", id}}; };
   const uuids::uuid n_uuid = uuids::uuid_system_generator{}();
   const std::string uuid_s = uuids::to_string(n_uuid);
 
