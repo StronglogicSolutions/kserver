@@ -72,24 +72,12 @@ private:
   void receiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd);
   bool EraseMessageHandler      (int32_t client_socket_fd);
   bool EraseFileHandler         (int client_socket_fd);
-  void EraseOutgoingFiles       (int32_t client_fd);
+  void DeleteClientFiles        (int32_t client_fd);
   void SetFileNotPending        ();
   void SetFilePending           (int32_t fd);
   bool HandlingFile             (int32_t fd);
   void sendFile                 (int32_t client_socket_fd, const std::string& filename);
 
-  // struct file_handler_pair_hash
-  // {
-  //   template <class T1, class T2>
-  //   std::size_t operator() (const std::pair<T1, T2>& pair) const
-  //   {
-  //     return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
-  //   }
-  // };
-
-  // using FileHandlers = std::unordered_map<std::pair<int32_t, Kiqoder::FileHandler>, file_handler_pair_hash>;
-
-  // using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
   using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
 
   Request::Controller       m_controller;

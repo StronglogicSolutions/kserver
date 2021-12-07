@@ -534,7 +534,7 @@ void KServer::onConnectionClose(int client_socket_fd)
 
   EraseFileHandler   (client_socket_fd);
   EraseMessageHandler(client_socket_fd);
-  EraseOutgoingFiles (client_socket_fd);
+  DeleteClientFiles  (client_socket_fd);
 }
 
 void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
@@ -564,9 +564,9 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
     });
   };
 
-  auto handler = m_message_handlers.find(fd);
-  if (handler != m_message_handlers.end())
-    handler->second.processPacket(s_buffer_ptr.get(), size);
+  auto it = m_message_handlers.find(fd);
+  if (it != m_message_handlers.end())
+    it->second.processPacket(s_buffer_ptr.get(), size);
   else
   {
     KLOG("Creating message handler for {}", fd);
@@ -600,25 +600,23 @@ bool KServer::EraseFileHandler(int fd)
   return false;
 }
 
-void KServer::EraseOutgoingFiles(int32_t fd)
+void KServer::DeleteClientFiles(int32_t fd)
 {
-  for (auto file_it = m_outbound_files.begin(); file_it != m_outbound_files.end();)
-    if (file_it->fd == fd)
-      file_it = m_outbound_files.erase(file_it);
+  for (auto it = m_outbound_files.begin(); it != m_outbound_files.end();)
+    if (it->fd == fd)
+      it = m_outbound_files.erase(it);
     else
-      file_it++;
+      it++;
 }
 
 void KServer::SetFileNotPending()
 {
-  m_controller.setHandlingData(false);
   m_file_pending    = false;
   m_file_pending_fd = -1;
 }
 
 void KServer::SetFilePending(int32_t fd)
 {
-  m_controller.setHandlingData(true);
   m_file_pending    = true;
   m_file_pending_fd = fd;
 }
