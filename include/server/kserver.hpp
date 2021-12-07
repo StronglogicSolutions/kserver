@@ -40,43 +40,39 @@ class KServer : public SocketListener {
   ~KServer();
 
 private:
-  void systemEventNotify        (const int32_t&                  client_socket_fd,
+  void SystemEvent              (const int32_t&                  client_socket_fd,
                                  const int32_t&                  system_event,
                                  const std::vector<std::string>& args);
-  void closeConnections         ();
-  void onTasksReady             (int client_socket_fd, std::vector<Task> tasks) ;
-  void onProcessEvent           (std::string result, int mask, std::string request_id,
-                                 int client_socket_fd, bool error);
-  void sendMessage              (const int32_t& client_socket_fd, const std::string& message);
-  void sendEvent                (int client_socket_fd, std::string event,
+  void CloseConnections         ();
+  void OnTasksReady             (const int32_t& client_fd, std::vector<Task> tasks) ;
+  void OnProcessEvent           (std::string result, int mask, std::string request_id,
+                                 const int32_t& client_fd, bool error);
+  void SendMessage              (const int32_t& client_socket_fd, const std::string& message);
+  void SendEvent                (const int32_t& client_fd, std::string event,
                                  std::vector<std::string> argv);
-  void sendSessionMessage       (int client_socket_fd, int status,
-                                 std::string message = "", SessionInfo info = {});
-  void onFileHandled            (int socket_fd, uint8_t *&&f_ptr = NULL,
+  void OnFileHandled            (const int& socket_fd, uint8_t *&&f_ptr = NULL,
                                  size_t size = 0);
-  void handlePendingFile        (std::shared_ptr<uint8_t[]> s_buffer_ptr,
-                                 int client_socket_fd, uint32_t size);
-  void handleStart              (std::string decoded_message, int client_socket_fd);
-  void WaitForFile              (int client_socket_fd);
-  void handleFileSend           (int32_t client_fd, const std::vector<std::string>& files);
-  void handleSchedule           (std::vector<std::string> task, int client_socket_fd);
-  void handleOperation          (std::string decoded_message, int client_socket_fd);
-  void handleIPC                (std::string message, int32_t client_socket_fd);
-  void handleAppRequest         (int client_fd, std::string message);
-  void handleScheduleRequest    (int client_fd, std::string message);
+  void ReceiveFileData          (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
+                                 const int32_t&                    client_fd,
+                                 const size_t&                     size);
+  void InitClient               (const std::string& message, const int32_t& client_fd);
+  void WaitForFile              (const int32_t& client_fd);
+  void EnqueueFiles             (const int32_t& client_fd, const std::vector<std::string>& files);
+  void ScheduleRequest          (const std::vector<std::string>& task, const int32_t& client_fd);
+  void OperationRequest         (const std::string& message, const int32_t& client_fd);
   virtual void onMessageReceived(int                      client_socket_fd,
                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
                                  ssize_t&                 size) override;
-  void handleStop               (int client_socket_fd);
-  virtual void onConnectionClose(int client_socket_fd) override;
-  void receiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd);
-  bool EraseMessageHandler      (int32_t client_socket_fd);
-  bool EraseFileHandler         (int client_socket_fd);
-  void DeleteClientFiles        (int32_t client_fd);
+  void EndSession               (const int32_t& client_fd);
+  virtual void onConnectionClose(int32_t client_fd) override;
+  void ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd);
+  void OnClientExit             (const int32_t& client_fd);
+  void EraseFileHandler         (const int32_t& client_fd);
+  void DeleteClientFiles        (const int32_t& client_fd);
   void SetFileNotPending        ();
-  void SetFilePending           (int32_t fd);
-  bool HandlingFile             (int32_t fd);
-  void sendFile                 (int32_t client_socket_fd, const std::string& filename);
+  void SetFilePending           (const int32_t& fd);
+  bool HandlingFile             (const int32_t& fd);
+  void SendFile                 (const int32_t& client_socket_fd, const std::string& filename);
 
   using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
 

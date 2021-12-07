@@ -23,24 +23,24 @@ KServer::KServer(int argc, char **argv)
   m_ipc_manager(
   [this](int32_t event, const std::vector<std::string>& payload)
   {
-    systemEventNotify(ALL_CLIENTS, event, payload);
+    SystemEvent(ALL_CLIENTS, event, payload);
   }),
   m_file_pending(false),
   m_file_pending_fd(NONE_PENDING)
   {
     KLOG("Initializing controller");
     m_controller.initialize(
-    [this](std::string result, int mask, std::string request_id, int client_socket_fd, bool error)
+    [this](std::string result, int mask, std::string request_id, const int32_t& client_fd, bool error)
     {
-      onProcessEvent(result, mask, request_id, client_socket_fd, error);
+      OnProcessEvent(result, mask, request_id, client_fd, error);
     },
-    [this](int client_socket_fd, int system_event, std::vector<std::string> args)
+    [this](const int32_t& client_fd, int system_event, std::vector<std::string> args)
     {
-      systemEventNotify(client_socket_fd, system_event, args);
+      SystemEvent(client_fd, system_event, args);
     },
-    [this](int client_socket_fd, std::vector<Task> tasks)
+    [this](const int32_t& client_fd, std::vector<Task> tasks)
     {
-      onTasksReady(client_socket_fd, tasks);
+      OnTasksReady(client_fd, tasks);
     });
 
     KLOG("Starting IPC manager");
@@ -58,7 +58,7 @@ KServer::~KServer()
 }
 
 /**
- * systemEventNotify
+ * SystemEvent
  *
  * Handles notifications sent back to the system delivering event messages
  *
@@ -67,7 +67,7 @@ KServer::~KServer()
  * @param[in] {std::vector<std::string>}
  *
  */
-void KServer::systemEventNotify(const int32_t&                  client_socket_fd,
+void KServer::SystemEvent(const int32_t&                  client_socket_fd,
                                 const int32_t&                  system_event,
                                 const std::vector<std::string>& args)
 {
@@ -78,12 +78,12 @@ void KServer::systemEventNotify(const int32_t&                  client_socket_fd
       {
         KLOG("Maintenance worker found tasks. Sending system-wide broadcast to all clients.");
         for (const auto &session : m_sessions)
-          sendEvent(session.fd, "Scheduled Tasks Ready", args);
+          SendEvent(session.fd, "Scheduled Tasks Ready", args);
       }
       else
       {
         KLOG("Informing client {} about scheduled tasks", client_socket_fd);
-        sendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
+        SendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE:
@@ -91,42 +91,42 @@ void KServer::systemEventNotify(const int32_t&                  client_socket_fd
       {
         KLOG("Sending system-wide broadcast. There are currently no tasks ready for execution.");
         for (const auto &session : m_sessions)
-          sendEvent(session.fd, "No tasks ready", args);
+          SendEvent(session.fd, "No tasks ready", args);
       }
       else
       {
         KLOG("Informing client {} about scheduled tasks", client_socket_fd);
-        sendEvent(client_socket_fd, "No tasks ready to run", args);
+        SendEvent(client_socket_fd, "No tasks ready to run", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULER_FETCH:
       if (client_socket_fd != -1)
       {
         KLOG("Sending schedule fetch results to client {}", client_socket_fd);
-        sendEvent(client_socket_fd, "Scheduled Tasks", args);
+        SendEvent(client_socket_fd, "Scheduled Tasks", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULER_UPDATE:
       if (client_socket_fd != -1)
       {
         KLOG("Sending schedule update result to client {}", client_socket_fd);
-        sendEvent(client_socket_fd, "Schedule PUT", args);
+        SendEvent(client_socket_fd, "Schedule PUT", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS:
       if (client_socket_fd != -1)
       {
         KLOG("Sending schedule flag values to client {}", client_socket_fd);
-        sendEvent(client_socket_fd, "Schedule Tokens", args);
+        SendEvent(client_socket_fd, "Schedule Tokens", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULER_SUCCESS:
       KLOG("Task successfully scheduled");
       if (client_socket_fd == -1)
         for (const auto &session : m_sessions)
-          sendEvent(session.fd, "Task Scheduled", args);
+          SendEvent(session.fd, "Task Scheduled", args);
        else
-        sendEvent(client_socket_fd, "Task Scheduled", args);
+        SendEvent(client_socket_fd, "Task Scheduled", args);
     break;
     case SYSTEM_EVENTS__PLATFORM_NEW_POST:
     {
@@ -140,9 +140,9 @@ void KServer::systemEventNotify(const int32_t&                  client_socket_fd
 
       if (client_socket_fd == -1)
         for (const auto &session : m_sessions)
-          sendEvent(session.fd, "Platform Post", args);
+          SendEvent(session.fd, "Platform Post", args);
       else
-        sendEvent(client_socket_fd, "Platform Post", args);
+        SendEvent(client_socket_fd, "Platform Post", args);
     }
     break;
     case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
@@ -163,9 +163,9 @@ void KServer::systemEventNotify(const int32_t&                  client_socket_fd
 
       if (client_socket_fd == -1)
         for (const auto &session : m_sessions)
-          sendEvent(session.fd, "Platform Error", args);
+          SendEvent(session.fd, "Platform Error", args);
       else
-        sendEvent(client_socket_fd, "Platform Error", args);
+        SendEvent(client_socket_fd, "Platform Error", args);
     break;
     case SYSTEM_EVENTS__FILE_UPDATE:
     {
@@ -189,74 +189,74 @@ void KServer::systemEventNotify(const int32_t&                  client_socket_fd
         if (args.size() == 4 && args.at(3) == "final file")
           EraseFileHandler(client_socket_fd);
 
-        sendEvent(client_socket_fd, FILE_SUCCESS_MSG, {timestamp});
+        SendEvent(client_socket_fd, FILE_SUCCESS_MSG, {timestamp});
       }
       else
       {
         KLOG("Unable to find file");
-        sendEvent(client_socket_fd, FILE_FAIL_MSG, {timestamp});
+        SendEvent(client_socket_fd, FILE_FAIL_MSG, {timestamp});
       }
     }
     break;
     case SYSTEM_EVENTS__FILES_SEND:
     {
       const auto files = args;
-      handleFileSend(client_socket_fd, files);
-      sendEvent(client_socket_fd, "File Upload", files);
+      EnqueueFiles(client_socket_fd, files);
+      SendEvent(client_socket_fd, "File Upload", files);
     }
     break;
     case SYSTEM_EVENTS__FILES_SEND_ACK:
     {
       if (m_file_sending_fd == client_socket_fd)
-        sendEvent(client_socket_fd, "File Upload Meta", m_outbound_files.front().file.to_string_v());
+        SendEvent(client_socket_fd, "File Upload Meta", m_outbound_files.front().file.to_string_v());
     }
     break;
     case SYSTEM_EVENTS__FILES_SEND_READY:
     if (m_file_sending_fd == client_socket_fd)
     {
-      sendFile(client_socket_fd, m_outbound_files.front().file.name);
+      SendFile(client_socket_fd, m_outbound_files.front().file.name);
       m_outbound_files.pop_front();
     }
     break;
     case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED:
-      sendEvent(client_socket_fd, "Process Execution Requested", args);
+      SendEvent(client_socket_fd, "Process Execution Requested", args);
       break;
 
     case SYSTEM_EVENTS__APPLICATION_FETCH_SUCCESS:
-      sendEvent(client_socket_fd, "Application was found", args);
+      SendEvent(client_socket_fd, "Application was found", args);
       break;
 
     case SYSTEM_EVENTS__APPLICATION_FETCH_FAIL:
-      sendEvent(client_socket_fd, "Application was not found", args);
+      SendEvent(client_socket_fd, "Application was not found", args);
       break;
 
     case SYSTEM_EVENTS__REGISTRAR_SUCCESS:
-      sendEvent(client_socket_fd, "Application was registered", args);
+      SendEvent(client_socket_fd, "Application was registered", args);
       break;
 
     case SYSTEM_EVENTS__REGISTRAR_FAIL:
-      sendEvent(client_socket_fd, "Failed to register application", args);
+      SendEvent(client_socket_fd, "Failed to register application", args);
     break;
 
     case SYSTEM_EVENTS__TASK_FETCH_FLAGS:
-      sendEvent(client_socket_fd, "Application Flags", args);
+      SendEvent(client_socket_fd, "Application Flags", args);
     break;
 
     case SYSTEM_EVENTS__TASK_DATA:
-      sendEvent(client_socket_fd, "Task Data", args);
+      SendEvent(client_socket_fd, "Task Data", args);
     break;
 
     case SYSTEM_EVENTS__TASK_DATA_FINAL:
-      sendEvent(client_socket_fd, "Task Data Final", args);
+      SendEvent(client_socket_fd, "Task Data Final", args);
     break;
 
     case SYSTEM_EVENTS__TERM_HITS:
-      sendEvent(client_socket_fd, "Term Hits", args);
+      SendEvent(client_socket_fd, "Term Hits", args);
     break;
   }
 }
 
-void KServer::onTasksReady(int client_socket_fd, std::vector<Task> tasks)
+void KServer::OnTasksReady(const int32_t& client_fd, std::vector<Task> tasks)
 {
   KLOG("Scheduler has delivered {} tasks for processing", tasks.size());
 }
@@ -273,8 +273,8 @@ void KServer::onTasksReady(int client_socket_fd, std::vector<Task> tasks)
  *
  * TODO: Place results in a queue if handling file for client
  */
-void KServer::onProcessEvent(std::string result, int mask, std::string id,
-                    int client_socket_fd, bool error)
+void KServer::OnProcessEvent(std::string result, int mask, std::string id,
+                    const int32_t& client_fd, bool error)
 {
   KLOG("Received result:\n{}", result);
   std::string              process_executor_result_str{};
@@ -286,17 +286,17 @@ void KServer::onProcessEvent(std::string result, int mask, std::string id,
   if (error)
     event_args.push_back("Executed process returned an ERROR");
 
-  if (client_socket_fd == -1)
+  if (client_fd == -1)
     for (const auto &session : m_sessions)
-      sendEvent(session.fd, "Process Result", event_args);
+      SendEvent(session.fd, "Process Result", event_args);
   else
-    sendEvent(client_socket_fd, "Process Result", event_args);
+    SendEvent(client_fd, "Process Result", event_args);
 
   if (Scheduler::isKIQProcess(mask))
     m_controller.process_system_event(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));
 }
 
-void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
+void KServer::SendFile(const int32_t& client_socket_fd, const std::string& filename)
 {
   using F_Iterator = Kiqoder::FileIterator<uint8_t>;
   using P_Wrapper  = Kiqoder::FileIterator<uint8_t>::PacketWrapper;
@@ -314,7 +314,7 @@ void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
 }
 
 /**
- * sendEvent
+ * SendEvent
  *
  * Helper function for sending event messages to a client
  *
@@ -322,21 +322,13 @@ void KServer::sendFile(int32_t client_socket_fd, const std::string& filename)
  * @param[in] {std::string} event
  * @param[in] {std::vector<std::string>} argv
  */
-void KServer::sendEvent(int client_socket_fd, std::string event, std::vector<std::string> argv)
+void KServer::SendEvent(const int32_t& client_fd, std::string event, std::vector<std::string> argv)
 {
-  KLOG("Sending {} event to {}", event, client_socket_fd);
-  sendMessage(client_socket_fd, CreateEvent(event, argv));
+  KLOG("Sending {} event to {}", event, client_fd);
+  SendMessage(client_fd, CreateEvent(event, argv));
 }
 
-void KServer::sendSessionMessage(int client_socket_fd, int status, std::string message, SessionInfo info)
-{
-  std::string session_message = CreateSessionEvent(status, message, info);
-  KLOG("Sending session message to {}.\nSession info: {}", client_socket_fd, session_message);
-
-  sendMessage(client_socket_fd, session_message);
-}
-
-void KServer::sendMessage(const int32_t& client_fd, const std::string& message)
+void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
 {
   using F_Iterator = Kiqoder::FileIterator<char>;
   using P_Wrapper  = Kiqoder::FileIterator<char>::PacketWrapper;
@@ -354,7 +346,7 @@ void KServer::sendMessage(const int32_t& client_fd, const std::string& message)
 /**
  * File Transfer Completion
  */
-void KServer::onFileHandled(int socket_fd, uint8_t*&& f_ptr, size_t size)
+void KServer::OnFileHandled(const int& socket_fd, uint8_t*&& f_ptr, size_t size)
 {
   if (m_file_pending_fd != socket_fd)
     KLOG("Lost file intended for {}", socket_fd);
@@ -364,32 +356,33 @@ void KServer::onFileHandled(int socket_fd, uint8_t*&& f_ptr, size_t size)
     m_received_files.emplace_back(ReceivedFile{timestamp, socket_fd, f_ptr, size});
     KLOG("Received file from {} at {}", socket_fd, timestamp);
     SetFileNotPending();
-    sendEvent(socket_fd, "File Transfer Complete", {std::to_string(timestamp)});
+    SendEvent(socket_fd, "File Transfer Complete", {std::to_string(timestamp)});
   }
 }
 
 /**
  * Ongoing File Transfer
  */
-void KServer::handlePendingFile(std::shared_ptr<uint8_t[]> s_buffer_ptr,
-                        int client_socket_fd, uint32_t size)
+void KServer::ReceiveFileData(const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
+                              const int32_t&                    client_fd,
+                              const size_t&                     size)
 {
   using FileHandler = Kiqoder::FileHandler;
-  auto  handler     = m_file_handlers.find(client_socket_fd);
+  auto  handler     = m_file_handlers.find(client_fd);
 
   if (handler != m_file_handlers.end())
     handler->second.processPacket(s_buffer_ptr.get(), size);
   else
   {
-    KLOG("creating FileHandler for {}", client_socket_fd);
-    m_file_handlers.insert({client_socket_fd, FileHandler{
-      [this](int32_t fd, uint8_t* data, size_t size) { onFileHandled(fd, std::move(data), size); }
+    KLOG("creating FileHandler for {}", client_fd);
+    m_file_handlers.insert({client_fd, FileHandler{
+      [this](int32_t fd, uint8_t* data, size_t size) { OnFileHandled(fd, std::move(data), size); }
     }});
-    m_file_handlers.at(client_socket_fd).setID(client_socket_fd);
-    m_file_handlers.at(client_socket_fd).processPacket(s_buffer_ptr.get(), size);
+    m_file_handlers.at(client_fd).setID(client_fd);
+    m_file_handlers.at(client_fd).processPacket(s_buffer_ptr.get(), size);
   }
 }
-void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& files)
+void KServer::EnqueueFiles(const int32_t& client_fd, const std::vector<std::string>& files)
 {
   m_file_sending    = true;
   m_file_sending_fd = client_fd;
@@ -399,7 +392,7 @@ void KServer::handleFileSend(int32_t client_fd, const std::vector<std::string>& 
 /**
  * Start Operation
  */
-void KServer::handleStart(std::string decoded_message, int client_fd)
+void KServer::InitClient(const std::string& message, const int32_t& client_fd)
 {
   auto NewSession = [&client_fd](const uuid& id)      { return KSession{client_fd, READY_STATUS, id};                        };
   auto GetData    = [this]      ()                    { return CreateMessage("New Session", m_controller.CreateSession());   };
@@ -409,67 +402,38 @@ void KServer::handleStart(std::string decoded_message, int client_fd)
 
   m_sessions.push_back(NewSession(n_uuid));
   KLOG("Started session {} for {}", uuid_s, client_fd);
-  sendMessage(client_fd, GetData());
-  sendMessage(client_fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
+  SendMessage(client_fd, GetData());
+  SendMessage(client_fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
 }
 
 /**
  * File Upload Operation
  */
-void KServer::WaitForFile(int client_socket_fd)
+void KServer::WaitForFile(const int32_t& client_fd)
 {
-  SetFilePending(client_socket_fd);
-  sendMessage(client_socket_fd, CreateMessage("File Ready", ""));
+  SetFilePending(client_fd);
+  SendMessage(client_fd, CreateMessage("File Ready", ""));
 }
 
-void KServer::handleSchedule(std::vector<std::string> task, int client_socket_fd)
+void KServer::ScheduleRequest(const std::vector<std::string>& task, const int32_t& client_fd)
 {
   auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
-  sendEvent(client_socket_fd, "Processing Request", {"Schedule Task", uuid});
-  m_controller("Schedule", task, client_socket_fd, uuid);
-  KLOG("Task delivered to request handler");
+  SendEvent(client_fd, "Processing Schedule Request", {"Schedule Task", uuid});
+  m_controller("Schedule", task, client_fd, uuid);
+  KLOG("Legacy Schedule Request: delivered to controller");
 }
 
 /**
  * Operations are the processing of requests
  */
-void KServer::handleOperation(std::string decoded_message, int client_socket_fd)
+void KServer::OperationRequest(const std::string& message, const int32_t& client_fd)
 {
-  KOperation op = GetOperation(decoded_message);
-  if (IsStartOperation(op))
-    handleStart(decoded_message, client_socket_fd);
-  else
-  if (IsStopOperation(op))
-    handleStop(client_socket_fd);
-  else
-  if (IsFileUploadOperation(op))
-    WaitForFile(client_socket_fd);
-  else
-  if (IsIPCOperation(op))
-    handleIPC(decoded_message, client_socket_fd);
-  else
-  if (IsAppOperation(op))
-    handleAppRequest(client_socket_fd, decoded_message);
-  else
-  if (IsScheduleOperation(op))
-    handleScheduleRequest(client_socket_fd, decoded_message);
-  else
-    m_controller.process_client_request(client_socket_fd, decoded_message);
-}
-
-void KServer::handleIPC(std::string message, int32_t client_socket_fd)
-{
-  m_ipc_manager.process(message, client_socket_fd);
-}
-
-void KServer::handleAppRequest(int client_fd, std::string message)
-{
-  m_controller.process_client_request(client_fd, message);
-}
-
-void KServer::handleScheduleRequest(int client_fd, std::string message)
-{
-  m_controller.process_client_request(client_fd, message);
+  const KOperation op = GetOperation(message);
+  if      (IsStartOperation     (op)) InitClient(message, client_fd);
+  else if (IsStopOperation      (op)) EndSession(client_fd);
+  else if (IsFileUploadOperation(op)) WaitForFile(client_fd);
+  else if (IsIPCOperation       (op)) m_ipc_manager.process(message, client_fd);
+  else                                m_controller.process_client_request(client_fd, message);
 }
 
 /**
@@ -485,7 +449,7 @@ void KServer::onMessageReceived(int                      client_socket_fd,
   {
     std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
     if (m_file_pending)
-      handlePendingFile(s_buffer_ptr, client_socket_fd, size);
+      ReceiveFileData(s_buffer_ptr, client_socket_fd, size);
     else
     if (IsPing(s_buffer_ptr.get(), size))
     {
@@ -493,7 +457,7 @@ void KServer::onMessageReceived(int                      client_socket_fd,
       return SocketListener::sendMessage(client_socket_fd, PONG, PONG_SIZE);
     }
     else
-      receiveMessage(s_buffer_ptr, size, client_socket_fd);
+      ReceiveMessage(s_buffer_ptr, size, client_socket_fd);
   }
   catch(const std::exception& e)
   {
@@ -501,43 +465,33 @@ void KServer::onMessageReceived(int                      client_socket_fd,
   }
 }
 
-void KServer::handleStop(int client_socket_fd)
+void KServer::EndSession(const int32_t& client_fd)
 {
-  sendEvent(client_socket_fd, CLOSE_SESSION, {GOODBYE_MSG});
+  static const bool SUCCESS{0};
 
-  if (shutdown(client_socket_fd, SHUT_RD) != 0)
+  SendEvent(client_fd, CLOSE_SESSION, {GOODBYE_MSG});
+
+  if (shutdown(client_fd, SHUT_RD) != SUCCESS)
     KLOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
 
-  if (HandlingFile(client_socket_fd))
+  if (HandlingFile(client_fd))
     SetFileNotPending();
 
   auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
-    [client_socket_fd](KSession session) { return session.fd == client_socket_fd;});
+    [client_fd](KSession session) { return session.fd == client_fd;});
 
   if (it_session != m_sessions.end())
     m_sessions.erase(it_session);
 }
 
-void KServer::closeConnections()
+void KServer::CloseConnections()
 {
   for (const int& fd : m_client_connections)
-    handleStop(fd);
+    EndSession(fd);
 }
 
-void KServer::onConnectionClose(int client_socket_fd)
-{
-  KLOG("Connection closed for {}", client_socket_fd);
-  auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
-    [client_socket_fd](KSession session) { return session.fd == client_socket_fd; });
-  if (it_session != m_sessions.end())
-    m_sessions.erase(it_session);
 
-  EraseFileHandler   (client_socket_fd);
-  EraseMessageHandler(client_socket_fd);
-  DeleteClientFiles  (client_socket_fd);
-}
-
-void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
+void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
 {
   using FileHandler = Kiqoder::FileHandler;
   auto ProcessMessage = [this](int fd, uint8_t* m_ptr, size_t buffer_size)
@@ -548,10 +502,10 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
         ELOG("Failed to decode message");
       else
       if (IsOperation(message))
-        handleOperation(message, fd);
+        OperationRequest(message, fd);
       else
       if (IsMessage(message))
-        sendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
+        SendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
       return message;
     })
     .rightMap([this, fd](auto&& args)
@@ -559,7 +513,7 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       if (args.empty())
         ELOG("Failed to decode message");
       else
-        handleSchedule(args, fd);
+        ScheduleRequest(args, fd);
       return args;
     });
   };
@@ -576,37 +530,36 @@ void KServer::receiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
   }
 }
 
-bool KServer::EraseMessageHandler(int32_t client_socket_fd)
+void KServer::OnClientExit(const int32_t& client_fd)
 {
-  auto it = m_message_handlers.find(client_socket_fd);
+  auto DeleteFiles = [this](const auto& fd)
+  {
+    for (auto it = m_outbound_files.begin(); it != m_outbound_files.end();)
+    if (it->fd == fd)
+      it = m_outbound_files.erase(it);
+    else
+      it++;
+  };
+
+  auto it = m_message_handlers.find(client_fd);
   if (it != m_message_handlers.end())
   {
     m_message_handlers.erase(it);
     KLOG("Removed message handler");
-    return true;
   }
-  return false;
+
+  EraseFileHandler(client_fd);
+  DeleteFiles     (client_fd);
 }
 
-bool KServer::EraseFileHandler(int fd)
+void KServer::EraseFileHandler(const int32_t& fd)
 {
   auto it = m_file_handlers.find(fd);
   if (it != m_file_handlers.end())
   {
     m_file_handlers.erase(it);
     KLOG("Removed file handler");
-    return true;
   }
-  return false;
-}
-
-void KServer::DeleteClientFiles(int32_t fd)
-{
-  for (auto it = m_outbound_files.begin(); it != m_outbound_files.end();)
-    if (it->fd == fd)
-      it = m_outbound_files.erase(it);
-    else
-      it++;
 }
 
 void KServer::SetFileNotPending()
@@ -615,15 +568,26 @@ void KServer::SetFileNotPending()
   m_file_pending_fd = -1;
 }
 
-void KServer::SetFilePending(int32_t fd)
+void KServer::SetFilePending(const int32_t& fd)
 {
   m_file_pending    = true;
   m_file_pending_fd = fd;
 }
 
-bool KServer::HandlingFile(int32_t fd)
+bool KServer::HandlingFile(const int32_t& fd)
 {
   return (m_file_pending && m_file_pending_fd == fd);
+}
+
+void KServer::onConnectionClose(int32_t client_fd)
+{
+  KLOG("Connection closed for {}", client_fd);
+  auto it_session = std::find_if(m_sessions.begin(), m_sessions.end(),
+    [client_fd](KSession session) { return session.fd == client_fd; });
+  if (it_session != m_sessions.end())
+    m_sessions.erase(it_session);
+
+  OnClientExit(client_fd);
 }
 
 } // ns kiq
