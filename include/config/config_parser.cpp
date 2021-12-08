@@ -42,7 +42,8 @@ const std::string host()      { return reader.Get("database", "host",      Requi
 } // namespace Database
 
 namespace Process {
-const std::string executor()  { return reader.Get("process", "executor",   RequiredConfig("[process] executor")); }
+const std::string executor()  { return reader.Get("process", "executor",   RequiredConfig("[process] executor"));   }
+const std::string ipc_port()  { return reader.Get("process", "ipc_port",   "28473");                                }
 } // namespace Process
 
 namespace Email {
