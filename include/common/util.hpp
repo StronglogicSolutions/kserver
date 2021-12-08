@@ -55,6 +55,7 @@ typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
 typedef std::vector<KApplication>                        ServerData;
 typedef std::pair<std::string, std::string>              FileInfo;
 
+static const int32_t READY_STATUS{0x01};
 struct KSession {
   int fd;
   int status;
@@ -148,7 +149,7 @@ void Split(const std::string &s, char delim, T result);
 std::vector<std::string> Split(const std::string &s, char delim);
 std::string Tokenize(const std::vector<std::string>& v, char delim = ' ');
 std::string DoubleSingleQuotes(const std::string& s);
-std::string sanitizeSingleQuotes(const std::string& s);
+std::string SanitizeSingleQuotes(const std::string& s);
 std::string SanitizeArg(std::string s);
 std::string SanitizeJSON(std::string s);
 std::string GenerateUUIDString();

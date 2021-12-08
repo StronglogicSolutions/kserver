@@ -446,7 +446,7 @@ static const char* MAIL_HEADER{"MIME-Version: 1.0\nContent-Type: text/html\n\n"}
 void SendMail(const std::string& recipient, const std::string& message, const std::string& subject)
 {
   const std::string exec_s{"echo -e 'FROM: " + config::Email::admin() + "\nSubject: " + subject + "\n" + MAIL_HEADER +
-                        StringUtils::sanitizeSingleQuotes(message) + "'|" + config::Email::command() + ' ' + recipient};
+                        StringUtils::SanitizeSingleQuotes(message) + "'|" + config::Email::command() + ' ' + recipient};
   std::system(exec_s.c_str());
 }
 } // namespace SystemUtils
@@ -701,7 +701,7 @@ std::string Tokenize(const std::vector<std::string>& v, char delim)
   return s;
 }
 
-std::string sanitizeSingleQuotes(const std::string& s) {
+std::string SanitizeSingleQuotes(const std::string& s) {
   std::string o{};
 
   for (const char& c : s) {

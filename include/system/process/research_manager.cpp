@@ -13,26 +13,26 @@ static bool VerifyTerm(const std::string &term)
   static const std::vector<const char *> RejectPatterns{
     "&amp;", "Thu Feb", "Wed Feb", "Sun Nov", "Wed Nov", "@…", "Thu Oct"};
   static const std::vector<VerifyFunction> VerifyFunctions{
-      [](const std::string &s)
+    [](const std::string &s)
+    {
+      size_t i{}, x{};
+      while (i++ < 2)
       {
-        size_t i{}, x{};
-        while (i++ < 2)
-        {
-          x = s.find("@", x);
-          if (x == npos)
-            return true;
-          else
-            x++;
-        }
-        return false;
-      },
-      [](const std::string &s)
-      {
-        for (const auto &p : RejectPatterns)
-          if (s.find(p) != npos)
-            return false;
-        return true;
-      }};
+        x = s.find("@", x);
+        if (x == npos)
+          return true;
+        else
+          x++;
+      }
+      return false;
+    },
+    [](const std::string &s)
+    {
+      for (const auto &p : RejectPatterns)
+        if (s.find(p) != npos)
+          return false;
+      return true;
+    }};
 
   for (const auto &fn : VerifyFunctions)
     if (!fn(term))
@@ -368,8 +368,12 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
   {
     try
     {
-      Fields fields{"term_hit.time", "term_hit.sid", "person.name", "platform_user.name", "organization.name"};
-      return db->selectJoin("term_hit", fields, {CreateFilter("term_hit.tid", tid)}, Joins{Join{.table = "platform_user", .field = "id", .join_table = "term_hit", .join_field = "uid"}, Join{.table = "person", .field = "id", .join_table = "platform_user", .join_field = "pers_id"}, Join{.table = "affiliation", .field = "pid", .join_table = "person", .join_field = "id"}, Join{.table = "organization", .field = "id", .join_table = "affiliation", .join_field = "oid"}});
+      const Fields fields{"term_hit.time", "term_hit.sid", "person.name", "platform_user.name", "organization.name"};
+      const Joins  joins {{"platform_user", "id",  "term_hit",      "uid"},
+                          {"person",        "id",  "platform_user", "pers_id"},
+                          {"affiliation",   "pid", "person",        "id"},
+                          {"organization",  "id",  "affiliation",   "oid"}};
+      return db->selectJoin("term_hit", fields, {CreateFilter("term_hit.tid", tid)}, joins);
     }
     catch (const std::exception &e)
     {
@@ -435,8 +439,13 @@ std::string ResearchManager::AddTerm(const std::string &name, const std::string 
 std::vector<ResearchManager::TermEvent> ResearchManager::GetAllTermEvents() const
 {
   auto db = m_db_ptr;
-  Fields fields{"term_hit.id", "term.id", "term.name", "term.type", "term_hit.time", "platform_user.name", "organization.name", "person.name"};
-  const auto query = db->selectJoin("term_hit", fields, QueryFilter{}, Joins{{"platform_user", "id", "term_hit", "uid"}, {"person", "id", "platform_user", "pers_id"}, {"affiliation", "pid", "person", "id"}, {"term", "id", "term_hit", "tid"}, {"organization", "id", "affiliation", "oid"}});
+  const Fields fields{"term_hit.id", "term.id", "term.name", "term.type", "term_hit.time", "platform_user.name", "organization.name", "person.name"};
+  const Joins  joins {{"platform_user", "id", "term_hit",      "uid"},
+                      {"person",        "id", "platform_user", "pers_id"},
+                      {"affiliation",   "pid", "person",       "id"},
+                      {"term",          "id",  "term_hit",     "tid"},
+                      {"organization",  "id",  "affiliation",  "oid"}};
+  const auto query = db->selectJoin("term_hit", fields, QueryFilter{}, joins);
 
   const auto events = ParseTermEvents(query);
 

@@ -56,17 +56,17 @@ class Controller {
                                        SystemCallbackFn system_callback_fn,
                                        TaskCallbackFn   task_callback_fn);
   void                      shutdown();
-  void                      setHandlingData(const bool& is_handling);
+  void                      SetWait(const bool& wait);
 
   Scheduler                 getScheduler();
-  void                      maintenanceLoop();
+  void                      InfiniteLoop();
   void                      handlePendingTasks();
   void                      operator()(const KOperation&               op,
                                        const std::vector<std::string>& argv,
                                        const int32_t&                  client_socket_fd,
                                        const std::string&              uuid);
-  std::vector<KApplication> operator()(const KOperation& op);
-  void                      operator()(const uint32_t&    mask,
+  std::vector<KApplication> CreateSession();
+  void                      Execute   (const uint32_t&    mask,
                                        const std::string& request_id,
                                        const int32_t&     client_socket_fd);
   void                      process_system_event(const int32_t&                  event,
@@ -92,8 +92,8 @@ class Controller {
 
   std::map<int, std::vector<Task>>  m_tasks_map;
   std::mutex                        m_mutex;
-  std::condition_variable           maintenance_loop_condition;
-  std::atomic<bool>                 handling_data;
+  std::condition_variable           m_condition;
+  std::atomic<bool>                 m_wait;
   bool                              m_active;
 
   Registrar::Registrar              m_registrar;

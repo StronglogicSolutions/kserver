@@ -89,7 +89,7 @@ Controller::~Controller()
  *
  * Initializes the Controller with callbacks for sending system events and
  * process execution results. Instantiates a ProcessExecutor and provides a
- * callback. Starts a thread to perform work on the maintenance loop
+ * callback. Starts a thread to perform work on the InfiniteLoop
  *
  */
 void Controller::initialize(EventCallbackFn  event_callback_fn,
@@ -113,9 +113,9 @@ void Controller::initialize(EventCallbackFn  event_callback_fn,
   m_event_callback_fn  = event_callback_fn;
   m_task_callback_fn   = task_callback_fn;
 
-  setHandlingData(false);
-  m_maintenance_worker = std::thread(std::bind(&Controller::maintenanceLoop, this));
-  maintenance_loop_condition.notify_one();
+  m_maintenance_worker = std::thread(std::bind(&Controller::InfiniteLoop, this));
+  SetWait(false);
+
   KLOG("Initialization complete");
 }
 
@@ -125,18 +125,19 @@ void Controller::shutdown()
 }
 
 /**
- * setHandlingData
+ * SetWaiting
  *
  * Sets the `is_handling` class member
  *
  * @param[in] {bool} is_handling    Whether the system is currently receiving packets of data
  */
-void Controller::setHandlingData(const bool& is_handling)
+void Controller::SetWait(const bool& wait)
 {
-  handling_data = is_handling;
-
-  if (!is_handling)
-    maintenance_loop_condition.notify_one();
+  {
+    std::lock_guard<std::mutex> lock{m_mutex};
+    m_wait.store(wait);
+  }
+  m_condition.notify_one();
 }
 
 /**
@@ -156,22 +157,21 @@ Scheduler Controller::getScheduler()
 }
 
 /**
- * maintenanceLoop
+ * InfiniteLoop
  *
- * Maintenance work performed on a separate thread. Includs checking for
+ * Work performed on a separate thread. Includs checking for
  * scheduled tasks, invoking the process executor and delegating work to the
  * system cron.
  */
-void Controller::maintenanceLoop()
+void Controller::InfiniteLoop()
 {
-  KLOG("Beginning maintenance loop");
+  static const int32_t client_fd{ALL_CLIENTS};
+  KLOG("Worker starting");
 
   while (m_active)
   {
-    int32_t                      client_socket_fd{-1};
     std::unique_lock<std::mutex> lock(m_mutex);
-
-    maintenance_loop_condition.wait(lock, [this]() { return !handling_data; });
+    m_condition.wait(lock, [this]() { return !m_wait; });
 
     std::vector<Task> tasks = m_scheduler.fetchTasks();
     for (auto&& recurring_task : m_scheduler.fetchRecurringTasks())
@@ -182,7 +182,7 @@ void Controller::maintenanceLoop()
       std::string scheduled_times{"Scheduled time(s): "};
       KLOG("{} tasks found", tasks.size());
 
-      for (const auto &task : tasks)
+      for (const auto& task : tasks)
       {
         auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
         scheduled_times += formatted_time + " ";
@@ -191,18 +191,18 @@ void Controller::maintenanceLoop()
           task.file ? "hasFile(s)" : "", task.envfile);
       }
 
-      m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
+      m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
         {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times});
 
-      auto it = m_tasks_map.find(client_socket_fd);
+      auto it = m_tasks_map.find(client_fd);
       if (it == m_tasks_map.end())
-        m_tasks_map.insert(std::pair<int, std::vector<Task>>(client_socket_fd, tasks));
+        m_tasks_map.insert(std::pair<int, std::vector<Task>>(client_fd, tasks));
       else
         it->second.insert(it->second.end(), tasks.begin(), tasks.end());
 
       KLOG("KServer has {} {} pending execution",
-        m_tasks_map.at(client_socket_fd).size(),
-        m_tasks_map.at(client_socket_fd).size() == 1 ? "task" : "tasks");
+        m_tasks_map.at(client_fd).size(),
+        m_tasks_map.at(client_fd).size() == 1 ? "task" : "tasks");
     }
 
     if (!m_tasks_map.empty())
@@ -210,7 +210,7 @@ void Controller::maintenanceLoop()
 
     m_scheduler.processPlatform();
     m_scheduler.ResolvePending();
-    maintenance_loop_condition.wait_for(lock, std::chrono::milliseconds(20000));
+    m_condition.wait_for(lock, std::chrono::milliseconds(20000));
   }
 }
 
@@ -337,40 +337,35 @@ void Controller::operator()(const KOperation&               op,
  * @param[in] {KOperation} `op` The operation requested
  *
  */
-std::vector<KApplication> Controller::operator()(const KOperation& op)
+std::vector<KApplication> Controller::CreateSession()
 {
-  std::vector<KApplication>      commands{};
-  const std::string              name{"apps"};
-  const std::vector<std::string> fields{"name", "path", "data", "mask"};
-  const QueryFilter              filter{};
+  uint8_t                   i{};
+  KApplication              command{};
+  std::vector<KApplication> commands{};
+  const auto                name{"apps"};
+  const Fields              fields{"name", "path", "data", "mask"};
 
-  if (op.compare("Start") == 0)
+  for (const auto& row : m_kdb.select(name, fields, QueryFilter{}))
   {
-    uint8_t arg_idx{};
-    KApplication command{};
-
-    for (const auto& row : m_kdb.select(name, fields, filter))
-    {
-      if (row.first == "name")
-        command.name = row.second;
-        else
-        if (row.first == "mask")
-        command.mask = row.second;
-        else
-        if (row.first == "path")
-        command.path = row.second;
-        else
-        if (row.first == "data")
-        command.data = row.second;
-
-      if (arg_idx == 3)
-      {
-        arg_idx = 0;
-        commands.push_back(command);
-      }
+    if (row.first == "name")
+      command.name = row.second;
       else
-        arg_idx++;
+      if (row.first == "mask")
+      command.mask = row.second;
+      else
+      if (row.first == "path")
+      command.path = row.second;
+      else
+      if (row.first == "data")
+      command.data = row.second;
+
+    if (i == 3)
+    {
+      i = 0;
+      commands.push_back(command);
     }
+    else
+      i++;
   }
   return commands;
 }
@@ -390,10 +385,11 @@ std::vector<KApplication> Controller::operator()(const KOperation& op)
  * @param[in] {int} `client_socket_fd` The file descriptor of the client
  * making the request
  */
-void Controller::operator()(const uint32_t&    mask,
-                            const std::string& request_id,
-                            const int32_t&     client_socket_fd)
+void Controller::Execute(const uint32_t&    mask,
+                         const std::string& request_id,
+                         const int32_t&     client_socket_fd)
 {
+  KLOG("Execute request received.\nMask: {}  ID: {}", mask, request_id);
   const std::string              name{"apps"};
   const std::vector<std::string> fields{"path"};
   const QueryFilter              filter = CreateFilter("mask", std::to_string(mask));
@@ -640,6 +636,13 @@ void Controller::process_client_request(const int32_t&     client_fd,
       for (const auto& term_data : m_scheduler.FetchTermEvents())
         event_args.emplace_back(term_data.ToJSON());
       m_system_callback_fn(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
+    }
+    break;
+    case (EXECUTE):
+    {
+      const auto mask         = args.at(1);
+      const auto request_uuid = args.at(2);
+      Execute(std::stoi(mask), request_uuid, client_fd);
     }
     break;
 
