@@ -259,7 +259,7 @@ void KServer::SystemEvent(const int32_t&                  client_socket_fd,
   }
 }
 
-void KServer::OnTasksReady(const int32_t& client_fd, std::vector<Task> tasks)
+void KServer::OnTasksReady(const int32_t& client_fd, const std::vector<Task>& tasks)
 {
   KLOG("Scheduler has delivered {} tasks for processing", tasks.size());
 }
@@ -276,8 +276,11 @@ void KServer::OnTasksReady(const int32_t& client_fd, std::vector<Task> tasks)
  *
  * TODO: Place results in a queue if handling file for client
  */
-void KServer::OnProcessEvent(std::string result, int mask, std::string id,
-                    const int32_t& client_fd, bool error)
+void KServer::OnProcessEvent(const std::string& result,
+                             const uint32_t&    mask,
+                             const std::string& request_id,
+                             const int32_t&     client_fd,
+                             const bool&        error)
 {
   KLOG("Received result:\n{}", result);
   std::string              process_executor_result_str{};
@@ -325,7 +328,7 @@ void KServer::SendFile(const int32_t& client_socket_fd, const std::string& filen
  * @param[in] {std::string} event
  * @param[in] {std::vector<std::string>} argv
  */
-void KServer::SendEvent(const int32_t& client_fd, std::string event, std::vector<std::string> argv)
+void KServer::SendEvent(const int32_t& client_fd, const std::string& event, const std::vector<std::string>& argv)
 {
   KLOG("Sending {} event to {}", event, client_fd);
   SendMessage(client_fd, CreateEvent(event, argv));
@@ -349,17 +352,17 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
 /**
  * File Transfer Completion
  */
-void KServer::OnFileHandled(const int& socket_fd, uint8_t*&& f_ptr, size_t size)
+void KServer::OnFileHandled(const int& client_fd, uint8_t*&& f_ptr, const size_t& size)
 {
-  if (m_file_pending_fd != socket_fd)
-    KLOG("Lost file intended for {}", socket_fd);
+  if (m_file_pending_fd != client_fd)
+    KLOG("Lost file intended for {}", client_fd);
   else
   {
     const auto timestamp = TimeUtils::UnixTime();
-    m_received_files.emplace_back(ReceivedFile{timestamp, socket_fd, f_ptr, size});
-    KLOG("Received file from {} at {}", socket_fd, timestamp);
+    m_received_files.emplace_back(ReceivedFile{timestamp, client_fd, f_ptr, size});
+    KLOG("Received file from {} at {}", client_fd, timestamp);
     SetFileNotPending();
-    SendEvent(socket_fd, "File Transfer Complete", {std::to_string(timestamp)});
+    SendEvent(client_fd, "File Transfer Complete", {std::to_string(timestamp)});
   }
 }
 
@@ -494,7 +497,9 @@ void KServer::CloseConnections()
 }
 
 
-void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
+void KServer::ReceiveMessage(const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
+                             const uint32_t&                   size,
+                             const int32_t&                    client_socket_fd)
 {
   using FileHandler = Kiqoder::FileHandler;
   auto ProcessMessage = [this](int fd, uint8_t* m_ptr, size_t buffer_size)
