@@ -5,6 +5,18 @@
 namespace kiq {
 using namespace ::constants;
 
+enum class TGCommand
+{
+message = 0x00,
+poll    = 0x01
+};
+
+static const uint8_t IPC_MSG_INDEX{0x02};
+static std::vector<std::string> MakeTGPayload(const TGCommand& command, const std::string& arg)
+{
+  return {IPC_COMMANDS[TELEGRAM_COMMAND_INDEX], std::to_string(static_cast<uint8_t>(command)), arg};
+}
+
 Scheduler::Scheduler(Database::KDB&& kdb)
 : m_kdb(std::move(kdb)),
   m_platform(nullptr),
@@ -727,6 +739,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Sentiment   child_sts      = Sentiment::Create(child_sts_data); // Sentiment
     const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data); // Sentiment
     KLOG("TODO: Complete analysis work");
+    std::string       poll_s;
+    m_message_queue.emplace_back(MakeTGPayload(TGCommand::poll, poll_s));
   };
 
   const auto& init_id   = applications.first;
@@ -757,8 +771,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   {
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
 
-    if (m_message_buffer.empty())
-      m_message_buffer += IPC_Message_Header;
+    if (m_message_queue.empty())
+      m_message_queue.front() = MakeTGPayload(TGCommand::message, IPC_Message_Header);
 
     auto items = GetTokens(t_wrapper.event.payload);
     for (auto&& item : items)
@@ -774,11 +788,11 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
           CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});  // 1. NER
       else
       if (term_info.valid())
-        m_message_buffer += '\n' + term_info.ToString();
+        m_message_queue.front()[IPC_MSG_INDEX] += '\n' + term_info.ToString();
     }
 
     if (IPCNotPending())
-      SetIPCCommand(TELEGRAM_COMMAND_INDEX);
+      SetIPCCommand(TELEGRAM_COMMAND_INDEX); // TODO: Possibly not relevant
   }
   else
   if (initiating_application == NER_APP && responding_application == NER_APP)                                // 2. Emotion
@@ -1011,11 +1025,11 @@ void Scheduler::ResolvePending(const bool& check_timer)
 {
   if (!TimerActive() || (check_timer && !TimerExpired())) return;
 
-  KLOG("Resolving pending IPC message");
-  const auto payload = {CreateOperation("ipc", {IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
+  KLOG("Resolving pending IPC messages");
+  for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end();)
+    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, {CreateOperation("ipc", (*buffer))});
 
-  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, payload);
-  m_message_buffer.clear();
+  m_message_queue .clear();
   m_postexec_map  .clear();
   m_postexec_lists.clear();
   SetIPCCommand(NO_COMMAND_INDEX);

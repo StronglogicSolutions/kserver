@@ -186,6 +186,8 @@ private:
         void                      SetIPCCommand(const uint8_t& command);
         bool                      IPCNotPending() const;
 
+using MessageQueue = std::deque<std::vector<std::string>>;
+
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;
@@ -195,7 +197,7 @@ PostExecLists       m_postexec_lists;      // -> These two need to be converted 
 PostExecMap         m_postexec_map;        // -> where the root has access to a map of all the  task lists
 ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
-std::string         m_message_buffer;
+MessageQueue        m_message_queue;
 uint8_t             m_ipc_command;
 
 };
