@@ -410,7 +410,7 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
     if (DataUtils::NoEmptyArgs(id, time, person, organization, user, sid))
     {
       KLOG("Term {} has previous hit:\nPerson: {}\nOrg: {}\nTime: {}", term, person, organization, time);
-      result.emplace_back(TermHit{id, person, user, organization, time, term});
+      result.emplace_back(TermHit{id, person, user, organization, time, term, sid});
       DataUtils::ClearArgs(time, person, user, organization);
     }
   }
