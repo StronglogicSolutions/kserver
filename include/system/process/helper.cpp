@@ -9,10 +9,10 @@ static bool      timer_active;
 
 bool TimerExpired()
 {
-  static const uint32_t  TEN_MINUTES = 600;
+  static const uint32_t  TWENTY_MINUTES = 1200;
          const TimePoint now         = std::chrono::system_clock::now();
          const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
-  return (elapsed > TEN_MINUTES)  ;
+  return (elapsed > TWENTY_MINUTES)  ;
 }
 
 void StartTimer()

@@ -69,6 +69,19 @@ void SetEvent(ProcessEventData&& event_)
 }
 };
 
+struct IPCSendEvent
+{
+int32_t                  event;
+std::vector<std::string> data;
+};
+
+enum class TGCommand
+{
+message = 0x00,
+poll    = 0x01
+};
+
+
 static int8_t IG_FEED_IDX    {0x00};
 static int8_t YT_FEED_IDX    {0x01};
 static int8_t TW_FEED_IDX    {0x02};
@@ -184,9 +197,10 @@ private:
         template <typename T = int32_t, typename S = std::string>
         int32_t                   CreateChild(const T& id, const std::string& data, const S& application_name, const std::vector<std::string>& args = {});
         void                      SetIPCCommand(const uint8_t& command);
+        IPCSendEvent              MakeIPCEvent(int32_t event, const TGCommand& command, const std::string& arg);
         bool                      IPCNotPending() const;
 
-using MessageQueue = std::deque<std::vector<std::string>>;
+using MessageQueue  = std::deque<IPCSendEvent>;
 
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;

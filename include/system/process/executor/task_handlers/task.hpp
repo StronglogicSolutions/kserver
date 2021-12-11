@@ -397,5 +397,22 @@ const std::string ToString() const
                      "Method: "  + method};
 }
 
+std::vector<std::string> GetPayload() const
+{
+  std::vector<std::string> payload{};
+  payload.resize(9);
+  payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = name;
+  payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = id;
+  payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = user;
+  payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)     = time;
+  payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)  = content;
+  payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)      = urls; // concatenated string
+  payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)   = repost;
+  payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX)   = method;
+  payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX)     = args;
+
+  return payload;
+}
+
 };
 } // ns kiq

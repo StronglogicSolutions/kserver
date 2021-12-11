@@ -1,20 +1,43 @@
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
 #include "ipc/ipc.hpp"
+#include "codec/uuid.h"
 
 namespace kiq {
 using namespace ::constants;
 
-enum class TGCommand
-{
-message = 0x00,
-poll    = 0x01
-};
-
 static const uint8_t IPC_MSG_INDEX{0x02};
-static std::vector<std::string> MakeTGPayload(const TGCommand& command, const std::string& arg)
+IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, const TGCommand& command, const std::string& arg)
 {
-  return {IPC_COMMANDS[TELEGRAM_COMMAND_INDEX], std::to_string(static_cast<uint8_t>(command)), arg};
+  auto pid  = m_platform.GetPlatformID("Telegram");
+  auto user = m_platform.GetUser("", pid, true);
+  switch (event)
+  {
+    case (SYSTEM_EVENTS__KIQ_IPC_MESSAGE):
+      return IPCSendEvent{event, {std::to_string(static_cast<uint8_t>(command)), arg, user}};
+    case (SYSTEM_EVENTS__PLATFORM_POST_REQUESTED):
+    {
+      auto pid = m_platform.GetPlatformID("Telegram");
+      PlatformPost post{
+        .pid     = pid,
+        .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
+        .id      = StringUtils::GenerateUUIDString(),
+        .user    = user,
+        .time    = TimeUtils::Now(),
+        .content = "",
+        .urls    = "",
+        .repost  = "",
+        .name    = "Telegram",
+        .args    = arg,
+        .method  = "bot"
+      };
+
+      return IPCSendEvent{event, DataUtils::vector_absorb(
+        post.GetPayload(), std::to_string(static_cast<uint8_t>(command)), true)};
+    }
+    default:
+      return IPCSendEvent{};
+  }
 }
 
 Scheduler::Scheduler(Database::KDB&& kdb)
@@ -669,6 +692,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   using namespace FileUtils;
   const auto& map          = m_postexec_map;
   const auto& lists        = m_postexec_lists;
+  auto  NotScheduled = [this](auto id) { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
   auto  CompleteTask = [&map, &lists](const int32_t& id)
   {
     auto pid  = map.at(id).first;
@@ -681,11 +705,11 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     for (const auto& params : v)
       id = CreateChild(id, params.data, params.name, params.args);
   };
-  auto FindRoot   = [&map, &lists](const int32_t& id) { return lists.at(map.at(id).first); };
-  auto FindTask   = [&map](const int32_t& id)         { return map.at(id).second.task; };
-  auto GetAppName = [this](const int32_t& mask)       { return m_app_map.at(mask); };
+  auto FindRoot   = [&map, &lists](int32_t id) { return lists.at(map.at(id).first); };
+  auto FindTask   = [&map](int32_t id)         { return map.at(id).second.task; };
+  auto GetAppName = [this](int32_t mask)       { return m_app_map.at(mask); };
   auto Sanitize   = []    (JSONItem& item)            { item.value = StringUtils::RemoveTags(item.value);};
-  auto Finalize   = [&map, this, CompleteTask](const int32_t& id)
+  auto Finalize   = [&map, this, CompleteTask](int32_t id)
   {
     static const bool& immediately  = false;
     CompleteTask(id);
@@ -739,8 +763,9 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Sentiment   child_sts      = Sentiment::Create(child_sts_data); // Sentiment
     const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data); // Sentiment
     KLOG("TODO: Complete analysis work");
-    std::string       poll_s;
-    m_message_queue.emplace_back(MakeTGPayload(TGCommand::poll, poll_s));
+    std::string       payload        = CreateOperation("Bot",
+                                         {"poll", "question", "option1", "option2", "option3", "option4"});
+    m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::poll, payload));
   };
 
   const auto& init_id   = applications.first;
@@ -772,7 +797,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
 
     if (m_message_queue.empty())
-      m_message_queue.front() = MakeTGPayload(TGCommand::message, IPC_Message_Header);
+      m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__KIQ_IPC_MESSAGE, TGCommand::message, IPC_Message_Header));
 
     auto items = GetTokens(t_wrapper.event.payload);
     for (auto&& item : items)
@@ -785,10 +810,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
       if (term_hits.size())
         for (auto&& hit : term_hits)
-          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});  // 1. NER
+          if (!(hit.sid.empty()) && NotScheduled(hit.sid))
+            CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY),                      // 1. NER
+              NER_APP, {"entity"});
       else
       if (term_info.valid())
-        m_message_queue.front()[IPC_MSG_INDEX] += '\n' + term_info.ToString();
+        m_message_queue.front().data[IPC_MSG_INDEX] += '\n' + "SomeText";//term_info.ToString();
     }
 
     if (IPCNotPending())
@@ -1026,8 +1053,8 @@ void Scheduler::ResolvePending(const bool& check_timer)
   if (!TimerActive() || (check_timer && !TimerExpired())) return;
 
   KLOG("Resolving pending IPC messages");
-  for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end();)
-    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, {CreateOperation("ipc", (*buffer))});
+  for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
+    m_event_callback(ALL_CLIENTS, buffer->event, {CreateOperation("ipc", buffer->data)});
 
   m_message_queue .clear();
   m_postexec_map  .clear();
