@@ -50,8 +50,8 @@ static bool PopulatePlatformPost(PlatformPost& post)
   {
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
     post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
-    post.args    = (has_args) ?
-                     post_values.at(constants::PLATFORM_POST_ARGS_INDEX) : "";
+    post.args    = (has_args) ? CreateOperation("Bot", {post_values.at(constants::PLATFORM_POST_ARGS_INDEX)}) :
+                                "";
     return true;
   }
 
@@ -483,11 +483,7 @@ void Platform::onPlatformError(const std::vector<std::string>& payload)
  */
 void Platform::processPlatform()
 {
-  if (isProcessingPlatform())
-  {
-    KLOG("Platform requests are still being processed");
-    return;
-  }
+  if (isProcessingPlatform()) return KLOG("Platform requests are still being processed");
 
   for (auto&& platform_post : fetchPendingPlatformPosts())
   {

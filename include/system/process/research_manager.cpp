@@ -380,32 +380,24 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
   };
 
   std::vector<TermHit> result{};
-  std::string tid;
   if (!TermExists(term))
     return result;
 
-  tid = GetTerm(term);
-
+  std::string tid = GetTerm(term);
   std::string time, person, organization, user, sid, id;
-  for (const auto &value : DoQuery(tid))
+  for (const auto& value : DoQuery(tid))
   {
-    if (value.first == "term_hit.time")
-      time = value.second;
+    if (value.first == "term_hit.time")      time         = value.second;
     else
-    if (value.first == "term_hit.id")
-      id = value.second;
+    if (value.first == "term_hit.id")        id           = value.second;
     else
-    if (value.first == "term_hit.sid")
-      sid = value.second;
+    if (value.first == "term_hit.sid")       sid          = value.second;
     else
-    if (value.first == "person.name")
-      person = value.second;
+    if (value.first == "person.name")        person       = value.second;
     else
-    if (value.first == "organization.name")
-      organization = value.second;
+    if (value.first == "organization.name")  organization = value.second;
     else
-    if (value.first == "platform_user.name")
-      user = value.second;
+    if (value.first == "platform_user.name") user         = value.second;
 
     if (DataUtils::NoEmptyArgs(id, time, person, organization, user, sid))
     {

@@ -6,35 +6,36 @@
 namespace kiq {
 using namespace ::constants;
 
-static const uint8_t IPC_MSG_INDEX{0x02};
-IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, const TGCommand& command, const std::string& arg)
+static const uint8_t IPC_MSG_INDEX{0x01};
+IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
 {
-  auto pid  = m_platform.GetPlatformID("Telegram");
-  auto user = m_platform.GetUser("", pid, true);
+  using namespace DataUtils;
+  auto EventPost = [](auto pid, auto user, auto cmd, auto data = "", auto arg = "")
+  {
+    return PlatformPost{
+        pid,
+        constants::NO_ORIGIN_PLATFORM_EXISTS,
+        StringUtils::GenerateUUIDString(),
+        user,
+        TimeUtils::Now(),
+        data,
+        "",
+        "",
+        "Telegram",
+        arg,
+        "bot",
+        cmd
+    };
+  };
+        auto cmd_s   = std::to_string(static_cast<uint8_t>(command));
+  const auto pid     = m_platform.GetPlatformID("Telegram");
+  const auto user    = m_platform.GetUser("", pid, true);
+  const auto ipc_evt = EventPost(pid, user, cmd_s, data, arg);
   switch (event)
   {
     case (SYSTEM_EVENTS__KIQ_IPC_MESSAGE):
-      return IPCSendEvent{event, {std::to_string(static_cast<uint8_t>(command)), arg, user}};
     case (SYSTEM_EVENTS__PLATFORM_POST_REQUESTED):
-    {
-      auto pid = m_platform.GetPlatformID("Telegram");
-      PlatformPost post{
-        .pid     = pid,
-        .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
-        .id      = StringUtils::GenerateUUIDString(),
-        .user    = user,
-        .time    = TimeUtils::Now(),
-        .content = "",
-        .urls    = "",
-        .repost  = "",
-        .name    = "Telegram",
-        .args    = arg,
-        .method  = "bot"
-      };
-
-      return IPCSendEvent{event, DataUtils::vector_absorb(
-        post.GetPayload(), std::to_string(static_cast<uint8_t>(command)), true)};
-    }
+      return IPCSendEvent{event, ipc_evt.GetPayload()};
     default:
       return IPCSendEvent{};
   }
@@ -762,10 +763,21 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);   // Emotions
     const Sentiment   child_sts      = Sentiment::Create(child_sts_data); // Sentiment
     const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data); // Sentiment
+    const auto        hit            = (terms_data.size()) ?
+      m_research_manager.GetTermHits(terms_data.front().value).front().ToString() : "Unable to find author";
     KLOG("TODO: Complete analysis work");
-    std::string       payload        = CreateOperation("Bot",
-                                         {"poll", "question", "option1", "option2", "option3", "option4"});
-    m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::poll, payload));
+    std::string       data           = "Please rate the civilizational impact of the following statement\n";
+
+    data += child_text + '\n';
+    data += "Emotional analysis: \n";
+    data += child_emo.str() + '\n';
+    data += "Sentiment analysis: \n";
+    data += child_sts.str();
+    data += "\nKeyword hit: " + hit;
+
+    std::string       dest           = config::Process::tg_dest();
+    std::string       args           = CreateOperation("Bot", {dest, "High", "Some", "Little", "None"});
+    m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::poll, data, args));
   };
 
   const auto& init_id   = applications.first;
@@ -797,7 +809,11 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
 
     if (m_message_queue.empty())
-      m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__KIQ_IPC_MESSAGE, TGCommand::message, IPC_Message_Header));
+      m_message_queue.emplace_back(MakeIPCEvent(
+        SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
+        TGCommand::message,
+        IPC_Message_Header,
+        CreateOperation("Bot", {config::Process::tg_dest()})));
 
     auto items = GetTokens(t_wrapper.event.payload);
     for (auto&& item : items)
@@ -815,7 +831,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
               NER_APP, {"entity"});
       else
       if (term_info.valid())
-        m_message_queue.front().data[IPC_MSG_INDEX] += '\n' + "SomeText";//term_info.ToString();
+        m_message_queue.front().append_msg(term_info.ToString());
     }
 
     if (IPCNotPending())
@@ -968,14 +984,10 @@ bool Scheduler::processTriggers(Task* task_ptr)
   const std::vector<Task> tasks = m_trigger.process(task_ptr);
 
   for (const auto& task : tasks)
-  {
-    const std::string task_id = schedule(task);
-    if (task_id.empty())
+    if (schedule(task).empty())
       processed_triggers = false;
     else
       KLOG("Task {} triggered scheduling of new task with ID {}", task_ptr->id(), task.id());
-
-  }
 
   return processed_triggers;
 }
@@ -1054,7 +1066,10 @@ void Scheduler::ResolvePending(const bool& check_timer)
 
   KLOG("Resolving pending IPC messages");
   for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
-    m_event_callback(ALL_CLIENTS, buffer->event, {CreateOperation("ipc", buffer->data)});
+  {
+    const auto ipc_event = *(buffer);
+    m_event_callback(ALL_CLIENTS, ipc_event.event, ipc_event.data);
+  }
 
   m_message_queue .clear();
   m_postexec_map  .clear();

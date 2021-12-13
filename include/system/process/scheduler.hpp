@@ -73,6 +73,12 @@ struct IPCSendEvent
 {
 int32_t                  event;
 std::vector<std::string> data;
+
+void append_msg(const std::string& s)
+{
+  if (data.size() > 4)
+    data[4] += s;
+}
 };
 
 enum class TGCommand
@@ -197,7 +203,7 @@ private:
         template <typename T = int32_t, typename S = std::string>
         int32_t                   CreateChild(const T& id, const std::string& data, const S& application_name, const std::vector<std::string>& args = {});
         void                      SetIPCCommand(const uint8_t& command);
-        IPCSendEvent              MakeIPCEvent(int32_t event, const TGCommand& command, const std::string& arg);
+        IPCSendEvent              MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg = "");
         bool                      IPCNotPending() const;
 
 using MessageQueue  = std::deque<IPCSendEvent>;

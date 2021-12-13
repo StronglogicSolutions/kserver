@@ -149,6 +149,16 @@ std::vector<float> GetVector() const
 {
   return {joy, sadness, surprise, fear, anger, disgust};
 }
+
+std::string str() const
+{
+  return "Joy: " + std::to_string     (joy) + '\n' +
+         "Sadness: " + std::to_string (sadness) + '\n' +
+         "Surprise: " + std::to_string(surprise) + '\n' +
+         "Fear: " + std::to_string    (fear) + '\n' +
+         "Anger: " + std::to_string   (anger) + '\n' +
+         "Disgust: " + std::to_string (disgust) + '\n';
+}
 };
 struct EmoStrings {
 std::string joy;
@@ -161,6 +171,16 @@ std::string disgust;
 std::vector<std::string> GetVector() const
 {
   return {joy, sadness, surprise, fear, anger, disgust};
+}
+
+std::string str() const
+{
+  return "Joy: " +      joy + '\n' +
+         "Sadness: " +  sadness + '\n' +
+         "Surprise: " + surprise + '\n' +
+         "Fear: " +     fear + '\n' +
+         "Anger: " +    anger + '\n' +
+         "Disgust: " +  disgust + '\n';
 }
 };
 
@@ -183,6 +203,16 @@ static Emotion<Emotions> Create(const std::vector<std::string>& v)
     emotion.emotions.emplace_back(e_s);
 
   return emotion;
+}
+
+std::string str() const
+{
+  std::string s{};
+  s += "Emotions: ";
+  for (const auto& e : emotions) s += e + ", ";
+  s.pop_back(); s.pop_back();
+  s += "\nScores: " + scores.str();
+  return s;
 }
 };
 
@@ -259,12 +289,28 @@ struct Keyword
 {
 std::string  word;
 float        score;
+
+std::string str() const
+{
+  return "Word: " + word + '\n' + "Score: " + std::to_string(score) + '\n';
+}
 };
 struct Sentiment
 {
 std::string          type;
 float                score;
 std::vector<Keyword> keywords;
+
+std::string str() const
+{
+  std::string s{};
+  s += "Type: " + type + '\n' +
+       "Score: " + std::to_string(score) + '\n';
+  for (const auto& keyword : keywords)
+    s += keyword.str();
+
+  return s;
+}
 
 std::vector<std::string> GetPayload() const
 {
