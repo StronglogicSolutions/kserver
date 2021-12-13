@@ -780,4 +780,3 @@ ProcessParseResult process(const std::string& output, KApplication app)
 };
 
 } // ns kiq
-rb
