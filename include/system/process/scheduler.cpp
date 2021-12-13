@@ -6,7 +6,7 @@
 namespace kiq {
 using namespace ::constants;
 
-static const uint8_t IPC_MSG_INDEX{0x01};
+static const size_t QueueLimit{0x05};
 IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
 {
   using namespace DataUtils;
@@ -746,7 +746,22 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      ****************************************************/
     using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
     using Sentiment = SentimentResultParser::Sentiment;
-    using Terms = std::vector<JSONItem>;
+    using Terms     = std::vector<JSONItem>;
+    auto  QueueFull       = [this]()        { return m_message_queue.size() > QueueLimit; };
+    auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
+    {
+      std::string       data           = "Please rate the civilizational impact of the following statement\n";
+      data += text + '\n';
+      data += "Emotional analysis: \n";
+      data += emo.str() + '\n';
+      data += "Sentiment analysis: \n";
+      data += sts.str();
+      data += "\nKeyword hit: " + hit;
+      return data;
+    };
+
+    if (!QueueFull()) return;
+
     KLOG("Performing final analysis on research triggered by {}", root.id);
     const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
     const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
@@ -766,15 +781,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const auto        hit            = (terms_data.size()) ?
       m_research_manager.GetTermHits(
         StringUtils::RemoveTags(terms_data.front().value)).front().ToString() : "Unable to find author";
-    KLOG("TODO: Complete analysis work");
-    std::string       data           = "Please rate the civilizational impact of the following statement\n";
 
-    data += child_text + '\n';
-    data += "Emotional analysis: \n";
-    data += child_emo.str() + '\n';
-    data += "Sentiment analysis: \n";
-    data += child_sts.str();
-    data += "\nKeyword hit: " + hit;
+    std::string       data           = MakePollMessage(child_text, child_emo, child_sts, hit);
     std::string       poll_q         = "Rate the civilization impact:";
     std::string       dest           = config::Process::tg_dest();
     m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::message, data,

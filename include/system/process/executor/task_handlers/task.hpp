@@ -68,6 +68,7 @@ static const uint8_t     PLATFORM_PAYLOAD_METHOD_INDEX   {0x07};
 static const uint8_t     PLATFORM_PAYLOAD_ARGS_INDEX     {0x08};
 static const uint8_t     PLATFORM_PAYLOAD_CMD_INDEX      {0x09};
 static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
+static const uint8_t     PLATFORM_DEFAULT_COMMAND        {0x00};
 
        const std::string NO_ORIGIN_PLATFORM_EXISTS       {"2"};
        const std::string PLATFORM_POST_INCOMPLETE        {"0"};
@@ -377,7 +378,7 @@ std::string repost;
 std::string name;
 std::string args;
 std::string method;
-std::string cmd;
+std::string cmd{std::to_string(constants::PLATFORM_DEFAULT_COMMAND)};
 
 const bool is_valid() const
 {
