@@ -45,6 +45,7 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
       args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
+      std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX))));
   else
     received = false;

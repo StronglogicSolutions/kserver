@@ -69,6 +69,25 @@ void SetEvent(ProcessEventData&& event_)
 }
 };
 
+struct IPCSendEvent
+{
+int32_t                  event;
+std::vector<std::string> data;
+
+void append_msg(const std::string& s)
+{
+  if (data.size() > 4)
+    data[4] += s;
+}
+};
+
+enum class TGCommand
+{
+message = 0x00,
+poll    = 0x01
+};
+
+
 static int8_t IG_FEED_IDX    {0x00};
 static int8_t YT_FEED_IDX    {0x01};
 static int8_t TW_FEED_IDX    {0x02};
@@ -184,7 +203,10 @@ private:
         template <typename T = int32_t, typename S = std::string>
         int32_t                   CreateChild(const T& id, const std::string& data, const S& application_name, const std::vector<std::string>& args = {});
         void                      SetIPCCommand(const uint8_t& command);
+        IPCSendEvent              MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg = "");
         bool                      IPCNotPending() const;
+
+using MessageQueue  = std::deque<IPCSendEvent>;
 
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
@@ -195,7 +217,7 @@ PostExecLists       m_postexec_lists;      // -> These two need to be converted 
 PostExecMap         m_postexec_map;        // -> where the root has access to a map of all the  task lists
 ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
-std::string         m_message_buffer;
+MessageQueue        m_message_queue;
 uint8_t             m_ipc_command;
 
 };

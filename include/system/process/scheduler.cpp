@@ -1,9 +1,45 @@
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
 #include "ipc/ipc.hpp"
+#include "codec/uuid.h"
 
 namespace kiq {
 using namespace ::constants;
+
+static const size_t QueueLimit{0x05};
+IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
+{
+  using namespace DataUtils;
+  auto EventPost = [](auto pid, auto user, auto cmd, auto data = "", auto arg = "")
+  {
+    return PlatformPost{
+        pid,
+        constants::NO_ORIGIN_PLATFORM_EXISTS,
+        StringUtils::GenerateUUIDString(),
+        user,
+        TimeUtils::Now(),
+        data,
+        "",
+        "",
+        "Telegram",
+        arg,
+        "bot",
+        cmd
+    };
+  };
+        auto cmd_s   = std::to_string(static_cast<uint8_t>(command));
+  const auto pid     = m_platform.GetPlatformID("Telegram");
+  const auto user    = m_platform.GetUser("", pid, true);
+  const auto ipc_evt = EventPost(pid, user, cmd_s, data, arg);
+  switch (event)
+  {
+    case (SYSTEM_EVENTS__KIQ_IPC_MESSAGE):
+    case (SYSTEM_EVENTS__PLATFORM_POST_REQUESTED):
+      return IPCSendEvent{event, ipc_evt.GetPayload()};
+    default:
+      return IPCSendEvent{};
+  }
+}
 
 Scheduler::Scheduler(Database::KDB&& kdb)
 : m_kdb(std::move(kdb)),
@@ -657,6 +693,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   using namespace FileUtils;
   const auto& map          = m_postexec_map;
   const auto& lists        = m_postexec_lists;
+  auto  NotScheduled = [this](auto id) { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
   auto  CompleteTask = [&map, &lists](const int32_t& id)
   {
     auto pid  = map.at(id).first;
@@ -669,11 +706,11 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     for (const auto& params : v)
       id = CreateChild(id, params.data, params.name, params.args);
   };
-  auto FindRoot   = [&map, &lists](const int32_t& id) { return lists.at(map.at(id).first); };
-  auto FindTask   = [&map](const int32_t& id)         { return map.at(id).second.task; };
-  auto GetAppName = [this](const int32_t& mask)       { return m_app_map.at(mask); };
+  auto FindRoot   = [&map, &lists](int32_t id) { return lists.at(map.at(id).first); };
+  auto FindTask   = [&map](int32_t id)         { return map.at(id).second.task; };
+  auto GetAppName = [this](int32_t mask)       { return m_app_map.at(mask); };
   auto Sanitize   = []    (JSONItem& item)            { item.value = StringUtils::RemoveTags(item.value);};
-  auto Finalize   = [&map, this, CompleteTask](const int32_t& id)
+  auto Finalize   = [&map, this, CompleteTask](int32_t id)
   {
     static const bool& immediately  = false;
     CompleteTask(id);
@@ -709,7 +746,22 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
      ****************************************************/
     using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
     using Sentiment = SentimentResultParser::Sentiment;
-    using Terms = std::vector<JSONItem>;
+    using Terms     = std::vector<JSONItem>;
+    auto  QueueFull       = [this]()        { return m_message_queue.size() > QueueLimit; };
+    auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
+    {
+      std::string       data           = "Please rate the civilizational impact of the following statement\n";
+      data += text + '\n';
+      data += "Emotional analysis: \n";
+      data += emo.str() + '\n';
+      data += "Sentiment analysis: \n";
+      data += sts.str();
+      data += "\nKeyword hit: " + hit;
+      return data;
+    };
+
+    if (!QueueFull()) return;
+
     KLOG("Performing final analysis on research triggered by {}", root.id);
     const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
     const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
@@ -726,7 +778,17 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);   // Emotions
     const Sentiment   child_sts      = Sentiment::Create(child_sts_data); // Sentiment
     const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data); // Sentiment
-    KLOG("TODO: Complete analysis work");
+    const auto        hit            = (terms_data.size()) ?
+      m_research_manager.GetTermHits(
+        StringUtils::RemoveTags(terms_data.front().value)).front().ToString() : "Unable to find author";
+
+    std::string       data           = MakePollMessage(child_text, child_emo, child_sts, hit);
+    std::string       poll_q         = "Rate the civilization impact:";
+    std::string       dest           = config::Process::tg_dest();
+    m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::message, data,
+      CreateOperation("Bot", {config::Process::tg_dest()})));
+    m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::poll, poll_q,
+      CreateOperation("Bot", {dest, "High", "Some", "Little", "None"})));
   };
 
   const auto& init_id   = applications.first;
@@ -757,8 +819,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   {
     static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
 
-    if (m_message_buffer.empty())
-      m_message_buffer += IPC_Message_Header;
+    if (m_message_queue.empty())
+      m_message_queue.emplace_back(MakeIPCEvent(
+        SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
+        TGCommand::message,
+        IPC_Message_Header,
+        CreateOperation("Bot", {config::Process::tg_dest()})));
 
     auto items = GetTokens(t_wrapper.event.payload);
     for (auto&& item : items)
@@ -771,14 +837,16 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
       if (term_hits.size())
         for (auto&& hit : term_hits)
-          CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});  // 1. NER
+          if (!(hit.sid.empty()) && NotScheduled(hit.sid))
+            CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY),                      // 1. NER
+              NER_APP, {"entity"});
       else
       if (term_info.valid())
-        m_message_buffer += '\n' + term_info.ToString();
+        m_message_queue.front().append_msg(term_info.ToString());
     }
 
     if (IPCNotPending())
-      SetIPCCommand(TELEGRAM_COMMAND_INDEX);
+      SetIPCCommand(TELEGRAM_COMMAND_INDEX); // TODO: Possibly not relevant
   }
   else
   if (initiating_application == NER_APP && responding_application == NER_APP)                                // 2. Emotion
@@ -927,14 +995,10 @@ bool Scheduler::processTriggers(Task* task_ptr)
   const std::vector<Task> tasks = m_trigger.process(task_ptr);
 
   for (const auto& task : tasks)
-  {
-    const std::string task_id = schedule(task);
-    if (task_id.empty())
+    if (schedule(task).empty())
       processed_triggers = false;
     else
       KLOG("Task {} triggered scheduling of new task with ID {}", task_ptr->id(), task.id());
-
-  }
 
   return processed_triggers;
 }
@@ -1011,11 +1075,14 @@ void Scheduler::ResolvePending(const bool& check_timer)
 {
   if (!TimerActive() || (check_timer && !TimerExpired())) return;
 
-  KLOG("Resolving pending IPC message");
-  const auto payload = {CreateOperation("ipc", {IPC_COMMANDS[m_ipc_command], m_message_buffer, ""})};
+  KLOG("Resolving pending IPC messages");
+  for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
+  {
+    const auto ipc_event = *(buffer);
+    m_event_callback(ALL_CLIENTS, ipc_event.event, ipc_event.data);
+  }
 
-  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__KIQ_IPC_MESSAGE, payload);
-  m_message_buffer.clear();
+  m_message_queue .clear();
   m_postexec_map  .clear();
   m_postexec_lists.clear();
   SetIPCCommand(NO_COMMAND_INDEX);

@@ -50,8 +50,8 @@ static bool PopulatePlatformPost(PlatformPost& post)
   {
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
     post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
-    post.args    = (has_args) ?
-                     post_values.at(constants::PLATFORM_POST_ARGS_INDEX) : "";
+    post.args    = (has_args) ? CreateOperation("Bot", {post_values.at(constants::PLATFORM_POST_ARGS_INDEX)}) :
+                                "";
     return true;
   }
 
@@ -390,7 +390,7 @@ std::vector<PlatformPost> Platform::parsePlatformPosts(QueryValues&& result) {
       post.pid    = pid;
       post.o_pid  = o_pid;
       post.id     = id;
-      post.user   = getUser(uid);
+      post.user   = GetUser(uid);
       post.time   = time;
       post.repost = repost;
       post.name   = name;
@@ -422,29 +422,6 @@ std::vector<PlatformPost> Platform::fetchPendingPlatformPosts()
                                 .type       =  JoinType::INNER};
 
   return parsePlatformPosts(m_db.selectSimpleJoin(table, fields, filter, join));
-}
-
-/**
- * @brief
- *
- * @param platform
- * @return std::vector<std::string>
- */
-std::vector<std::string> Platform::platformToPayload(PlatformPost& platform)
-{
-  std::vector<std::string> payload{};
-  payload.resize(9);
-  payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = platform.name;
-  payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = platform.id;
-  payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = platform.user;
-  payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)     = platform.time;
-  payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)  = platform.content;
-  payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)      = platform.urls; // concatenated string
-  payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)   = platform.repost;
-  payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX)   = platform.method;
-  payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX)     = platform.args;
-
-  return payload;
 }
 
 /**
@@ -506,11 +483,7 @@ void Platform::onPlatformError(const std::vector<std::string>& payload)
  */
 void Platform::processPlatform()
 {
-  if (isProcessingPlatform())
-  {
-    KLOG("Platform requests are still being processed");
-    return;
-  }
+  if (isProcessingPlatform()) return KLOG("Platform requests are still being processed");
 
   for (auto&& platform_post : fetchPendingPlatformPosts())
   {
@@ -520,7 +493,7 @@ void Platform::processPlatform()
             platform_post.name, platform_post.id, platform_post.user, platform_post.content);
 
       m_platform_map.insert({{platform_post.pid, platform_post.id}, PlatformPostState::PROCESSING});
-      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, platformToPayload(platform_post));
+      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, platform_post.GetPayload());
     }
     else
       ELOG("Failed to retrieve values for {} platform post with id {}", platform_post.name, platform_post.id);
@@ -576,11 +549,26 @@ std::string Platform::getUserID(const std::string& pid, const std::string& name)
  * @param uid
  * @return std::string
  */
-std::string Platform::getUser(const std::string& uid)
+std::string Platform::GetUser(const std::string& uid, const std::string& pid, bool use_default)
 {
-  for (const auto& v : m_db.select("platform_user", {"name"}, CreateFilter("id", uid)))
+  auto        table  = "platform_user";
+  Fields      fields = {"name"};
+  QueryFilter filter;
+
+  if (uid.size())
+    filter = CreateFilter("id", uid);
+  else
+  if (use_default && pid.size())
+  {
+    filter = CreateFilter("pid", pid, "type", "official");
+  }
+  else
+    return "";
+
+  for (const auto& v : m_db.select(table, fields, filter))
     if (v.first == "name")
       return v.second;
+
   return "";
 }
 } // ns kiq

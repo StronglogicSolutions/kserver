@@ -66,7 +66,9 @@ static const uint8_t     PLATFORM_PAYLOAD_URL_INDEX      {0x05}; // concatenated
 static const uint8_t     PLATFORM_PAYLOAD_REPOST_INDEX   {0x06};
 static const uint8_t     PLATFORM_PAYLOAD_METHOD_INDEX   {0x07};
 static const uint8_t     PLATFORM_PAYLOAD_ARGS_INDEX     {0x08};
+static const uint8_t     PLATFORM_PAYLOAD_CMD_INDEX      {0x09};
 static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
+static const uint8_t     PLATFORM_DEFAULT_COMMAND        {0x00};
 
        const std::string NO_ORIGIN_PLATFORM_EXISTS       {"2"};
        const std::string PLATFORM_POST_INCOMPLETE        {"0"};
@@ -376,6 +378,7 @@ std::string repost;
 std::string name;
 std::string args;
 std::string method;
+std::string cmd{std::to_string(constants::PLATFORM_DEFAULT_COMMAND)};
 
 const bool is_valid() const
 {
@@ -395,6 +398,31 @@ const std::string ToString() const
                      "Name: "    + name   + '\n' +
                      "Args: "    + args   + '\n' +
                      "Method: "  + method};
+}
+
+std::vector<std::string> GetPayload() const
+{
+  /**
+   * TODO: Args need to be JSON string:
+   *
+   * const auto  args  = kbot::keleqram::GetArgs(request.args);
+     const auto  dest  = args[0];
+     const auto  type  = args[1];
+  */
+  std::vector<std::string> payload{};
+  payload.resize(10);
+  payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = name;
+  payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = id;
+  payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = user;
+  payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)     = time;
+  payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX)  = content;
+  payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX)      = urls;
+  payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX)   = repost;
+  payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX)   = method;
+  payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX)     = args;
+  payload.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)      = cmd;
+
+  return payload;
 }
 
 };

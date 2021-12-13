@@ -65,12 +65,12 @@ void                      onPlatformError(const std::vector<std::string>& payloa
 void                      processPlatform();
 std::string               GetPlatformID(const std::string& name);
 std::string               GetPlatformID(uint32_t mask);
+std::string               GetUser  (const std::string& uid, const std::string& pid = "", bool use_default = false);
 
 private:
 std::vector<std::string>  fetchRepostIDs(const std::string& pid);
 std::vector<PlatformPost> fetchPendingPlatformPosts();
 std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result);
-std::vector<std::string>  platformToPayload(PlatformPost& platform);
 bool                      savePlatformPost(PlatformPost       post,
                                            const std::string& status = constants::PLATFORM_POST_COMPLETE);
 const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post);
@@ -81,7 +81,6 @@ bool                      userExists(const std::string& pid, const std::string& 
 std::string               addUser(const std::string& pid, const std::string& name, const std::string& type
 = "default");
 std::string               getUserID(const std::string& pid, const std::string& name);
-std::string               getUser  (const std::string& uid);
 
 // Members
 Database::KDB       m_db;

@@ -11,7 +11,6 @@
 
 #include "interface/socket_listener.hpp"
 #include "log/logger.h"
-#include "codec/uuid.h"
 #include "kiqoder/kiqoder.hpp"
 #include "request/controller.hpp"
 #include "system/process/ipc/manager/manager.hpp"
