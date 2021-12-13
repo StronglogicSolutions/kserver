@@ -764,7 +764,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Sentiment   child_sts      = Sentiment::Create(child_sts_data); // Sentiment
     const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data); // Sentiment
     const auto        hit            = (terms_data.size()) ?
-      m_research_manager.GetTermHits(terms_data.front().value).front().ToString() : "Unable to find author";
+      m_research_manager.GetTermHits(
+        StringUtils::RemoveTags(terms_data.front().value)).front().ToString() : "Unable to find author";
     KLOG("TODO: Complete analysis work");
     std::string       data           = "Please rate the civilizational impact of the following statement\n";
 
@@ -774,10 +775,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     data += "Sentiment analysis: \n";
     data += child_sts.str();
     data += "\nKeyword hit: " + hit;
-
+    std::string       poll_q         = "Rate the civilization impact:";
     std::string       dest           = config::Process::tg_dest();
-    std::string       args           = CreateOperation("Bot", {dest, "High", "Some", "Little", "None"});
-    m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::poll, data, args));
+    m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::message, data,
+      CreateOperation("Bot", {config::Process::tg_dest()})));
+    m_message_queue.emplace_back(MakeIPCEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, TGCommand::poll, poll_q,
+      CreateOperation("Bot", {dest, "High", "Some", "Little", "None"})));
   };
 
   const auto& init_id   = applications.first;
