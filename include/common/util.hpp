@@ -179,7 +179,7 @@ std::string time_as_today(std::string unixtime);
 namespace DataUtils
 {
 template <typename T>
-const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front = false);
+const std::vector<T> VAbsorb(std::vector<T>&& v, T&& u, bool to_front = false);
 template <typename T>
 std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2);
 template <typename ...Args>
@@ -203,6 +203,13 @@ bool          NoEmptyArgs(Args&&... args)
       return false;
   return true;
 }
-
+template <typename... Args>
+bool ClearIfNoEmpty(Args&& ...args);
+bool ClearIfNoEmpty(std::string&&);
+template <typename... Args>
+bool ClearIfNoEmpty(Args&&... args)
+{
+  return ((args.empty(), ...));
+}
 } // ns DataUtils
 } // ns kiq

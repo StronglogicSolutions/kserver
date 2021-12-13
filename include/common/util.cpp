@@ -354,8 +354,8 @@ bool IsOperation(const std::string& data)
 return false;
 }
 
-bool IsExecuteOperation(const std::string& data)    { return data == "Execute"; }
-bool IsScheduleOperation(const std::string& data)   { return data == "Schedule"; }
+bool IsExecuteOperation(const std::string& data)    { return data == "Execute";    }
+bool IsScheduleOperation(const std::string& data)   { return data == "Schedule";   }
 bool IsFileUploadOperation(const std::string& data) { return data == "FileUpload"; }
 bool IsIPCOperation(const std::string& data)        { return data == "ipc";        }
 bool IsStartOperation(const std::string& data)      { return data == "start";      }
@@ -877,7 +877,7 @@ std::string time_as_today(std::string unixtime) {
 
 namespace DataUtils {
 template <typename T>
-const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front)
+const std::vector<T> VAbsorb(std::vector<T>&& v, T&& u, bool to_front)
 {
   std::vector<T> c_v{};
   c_v.reserve(v.size() + 1);
@@ -898,7 +898,7 @@ const std::vector<T> vector_absorb(std::vector<T>&& v, T&& u, bool to_front)
   return c_v;
 }
 
-template const std::vector<std::string> vector_absorb(std::vector<std::string>&& v, std::string&& u, bool to_front);
+template const std::vector<std::string> VAbsorb(std::vector<std::string>&& v, std::string&& u, bool to_front);
 
 template <typename T>
 std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2)
