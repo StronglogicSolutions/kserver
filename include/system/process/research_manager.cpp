@@ -4,7 +4,7 @@ namespace kiq {
 /**
  * VerifyTerm
  */
-static bool VerifyTerm(const std::string &term)
+bool VerifyTerm(const std::string &term)
 {
   using SearchFromStart = bool;
   using VerifyFunction = std::function<bool(const std::string &)>;
@@ -36,7 +36,10 @@ static bool VerifyTerm(const std::string &term)
 
   for (const auto &fn : VerifyFunctions)
     if (!fn(term))
+    {
+      KLOG("Term {} was rejected", term);
       return false;
+    }
 
   return true;
 }
@@ -273,8 +276,7 @@ std::string ResearchManager::SaveTermHit(const JSONItem& term, const std::string
  */
 bool ResearchManager::TermHasHits(const std::string &term)
 {
-  const auto value = StringUtils::RemoveTags(term);
-  return (TermExists(value) && GetTermHits(value).size()); // TODO: we need a simpler method for getting hit #
+  return (GetTermHits(term).size()); // TODO: we need a simpler method for getting hit #
 }
 
 /**
@@ -329,31 +331,25 @@ std::string ResearchManager::TermEvent::ToJSON() const
 ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task)
 {
   TermEvent event{};
+  event.term = term.value;
+  event.type = term.type;
+  event.user = user;
 
-  if (VerifyTerm(term.value))
+  if (HasBasePlatform(app))
   {
-    term.value = StringUtils::RemoveTags(term.value);
-    event.term = term.value;
-    event.type = term.type;
-    event.user = user;
-    if (HasBasePlatform(app))
+    const auto pid = m_plat_ptr->GetPlatformID(GetBasePlatform(app));
+    if (!pid.empty())
     {
-      const auto pid = m_plat_ptr->GetPlatformID(GetBasePlatform(app));
-      if (!pid.empty())
+      const auto identity = GetIdentity(user, pid);
+      if (!identity.id.empty())
       {
-        const auto identity = GetIdentity(user, pid);
-        if (!identity.id.empty())
-        {
-          event.id           = SaveTermHit(term, identity.id, task.id());
-          event.organization = identity.organization;
-          event.person       = GetPersonForUID(identity.id).name;
-          event.time         = TimeUtils::FormatTimestamp(TimeUtils::UnixTime());
-        }
+        event.id           = SaveTermHit(term, identity.id, task.id());
+        event.organization = identity.organization;
+        event.person       = GetPersonForUID(identity.id).name;
+        event.time         = TimeUtils::FormatTimestamp(TimeUtils::UnixTime());
       }
     }
   }
-  else
-    KLOG("Term {} was rejected", term.value);
 
   return event;
 }
@@ -368,7 +364,8 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
   {
     try
     {
-      const Fields fields{"term_hit.time", "term_hit.sid", "person.name", "platform_user.name", "organization.name"};
+      const Fields fields{"term_hit.id", "term_hit.time",      "term_hit.sid",
+                          "person.name", "platform_user.name", "organization.name"};
       const Joins  joins {{"platform_user", "id",  "term_hit",      "uid"},
                           {"person",        "id",  "platform_user", "pers_id"},
                           {"affiliation",   "pid", "person",        "id"},
@@ -389,11 +386,14 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
 
   tid = GetTerm(term);
 
-  std::string time, person, organization, user, sid;
+  std::string time, person, organization, user, sid, id;
   for (const auto &value : DoQuery(tid))
   {
     if (value.first == "term_hit.time")
       time = value.second;
+    else
+    if (value.first == "term_hit.id")
+      id = value.second;
     else
     if (value.first == "term_hit.sid")
       sid = value.second;
@@ -407,10 +407,10 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
     if (value.first == "platform_user.name")
       user = value.second;
 
-    if (DataUtils::NoEmptyArgs(time, person, organization, user, sid))
+    if (DataUtils::NoEmptyArgs(id, time, person, organization, user, sid))
     {
       KLOG("Term {} has previous hit:\nPerson: {}\nOrg: {}\nTime: {}", term, person, organization, time);
-      result.emplace_back(TermHit{person, user, organization, time, term});
+      result.emplace_back(TermHit{id, person, user, organization, time, term});
       DataUtils::ClearArgs(time, person, user, organization);
     }
   }

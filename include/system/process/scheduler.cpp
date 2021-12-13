@@ -657,23 +657,29 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   using namespace FileUtils;
   const auto& map          = m_postexec_map;
   const auto& lists        = m_postexec_lists;
-  const bool& immediately  = false;
-  const auto  CompleteTask = [&map, &lists](const int32_t& id) -> void
+  auto  CompleteTask = [&map, &lists](const int32_t& id)
   {
     auto pid  = map.at(id).first;
     auto node = FindNode(lists.at(pid), id);
     node->complete = true;
   };
-  const auto SequenceTasks = [this](const std::vector<TaskParams>& v)  -> void
+  auto SequenceTasks = [this](const std::vector<TaskParams>& v)
   {
     int32_t id = v.front().id;
     for (const auto& params : v)
       id = CreateChild(id, params.data, params.name, params.args);
   };
-  const auto FindRoot      = [&map, &lists](const int32_t& id) -> TaskWrapper* { return lists.at(map.at(id).first); };
-  const auto FindTask      = [&map](const int32_t& id)         -> Task         { return map.at(id).second.task; };
-  const auto GetAppName    = [this](const int32_t& mask)       -> std::string  { return m_app_map.at(mask); };
-  const auto GetTokens     = [](const auto& payload)           -> std::vector<JSONItem>
+  auto FindRoot   = [&map, &lists](const int32_t& id) { return lists.at(map.at(id).first); };
+  auto FindTask   = [&map](const int32_t& id)         { return map.at(id).second.task; };
+  auto GetAppName = [this](const int32_t& mask)       { return m_app_map.at(mask); };
+  auto Sanitize   = []    (JSONItem& item)            { item.value = StringUtils::RemoveTags(item.value);};
+  auto Finalize   = [&map, this, CompleteTask](const int32_t& id)
+  {
+    static const bool& immediately  = false;
+    CompleteTask(id);
+    if (AllTasksComplete(map)) ResolvePending(immediately);
+  };
+  auto GetTokens  = [](const auto& payload)
   {
     std::vector<JSONItem> tokens{};
     if (payload.size())
@@ -681,7 +687,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
-  const auto PerformAnalysis = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
+  auto Analyze   = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
     /****************************************************
      *     NOTE: store tokens for comparison            *
@@ -730,6 +736,9 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   const auto& init_mask = init_task.execution_mask;
   const auto& resp_mask = resp_task.execution_mask;
         auto& t_wrapper = m_postexec_map.at(resp_id).second;
+
+  if (event.payload.empty()) return Finalize(resp_id);
+
   try
   {
     assert(m_app_map.at(init_mask).size() && m_app_map.at(resp_mask).size());
@@ -754,11 +763,13 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     auto items = GetTokens(t_wrapper.event.payload);
     for (auto&& item : items)
     {
+      if (!VerifyTerm(item.value)) continue;
+
+      Sanitize(item);
       const auto user       = init_task.GetToken(constants::USER_KEY);
       const auto term_hits  = m_research_manager.GetTermHits(item.value);
-      const auto known_term = term_hits.size();
       const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
-      if (known_term)
+      if (term_hits.size())
         for (auto&& hit : term_hits)
           CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY), NER_APP, {"entity"});  // 1. NER
       else
@@ -785,15 +796,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const auto init_root = FindMasterRoot(&init_node);
     const auto resp_root = FindMasterRoot(&resp_node);
     if (init_root == resp_root && GetAppName(init_root->task.execution_mask) == TW_RESEARCH_APP)
-      PerformAnalysis(*(init_root), init_node, resp_node);
+      Analyze(*(init_root), init_node, resp_node);
     else
       KLOG("All tasks originating from {} have completed", init_root->id);
   };
 
-  CompleteTask(resp_id);
-
-  if (AllTasksComplete(m_postexec_map))
-    ResolvePending(immediately);
+  Finalize(resp_id);
 }
 
 /**

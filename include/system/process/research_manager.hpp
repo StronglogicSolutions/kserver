@@ -5,6 +5,9 @@
 
 namespace kiq {
 using JSONItem = NERResultParser::NLPItem;
+
+bool VerifyTerm(const std::string &term);
+
 class ResearchManager
 {
 public:
