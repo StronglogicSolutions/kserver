@@ -210,7 +210,7 @@ void Controller::InfiniteLoop()
 
     m_scheduler.processPlatform();
     m_scheduler.ResolvePending();
-    m_condition.wait_for(lock, std::chrono::milliseconds(20000));
+    m_condition.wait_for(lock, std::chrono::milliseconds(500));
   }
 }
 
@@ -476,7 +476,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
       auto         id          = m_registrar.add(application);
       (!id.empty()) ?
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-          DataUtils::vector_absorb(std::move(application.vector()), std::move(id))) :
+          DataUtils::VAbsorb(std::move(application.vector()), std::move(id))) :
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL, application.vector());
       break;
     }
@@ -487,9 +487,9 @@ void Controller::process_client_request(const int32_t&     client_fd,
       auto         name        = m_registrar.remove(application);
       (!name.empty()) ?
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-          DataUtils::vector_absorb(std::move(application.vector()),  std::move(std::string{"Application was deleted"}))) :
+          DataUtils::VAbsorb(std::move(application.vector()),  std::move(std::string{"Application was deleted"}))) :
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL,
-          DataUtils::vector_absorb(std::move(application.vector()), std::move(std::string{"Failed to delete application"})));
+          DataUtils::VAbsorb(std::move(application.vector()), std::move(std::string{"Failed to delete application"})));
       break;
     }
 
@@ -558,7 +558,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
       Task task = m_scheduler.GetTask(id);
       if (task.validate())
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
-          DataUtils::vector_absorb(std::move(FileUtils::ReadFlagTokens(task.envfile, task.execution_flags)),
+          DataUtils::VAbsorb(std::move(FileUtils::ReadFlagTokens(task.envfile, task.execution_flags)),
                                     std::move(id)));
       break;
     }
@@ -610,7 +610,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
 
     case (TASK_FLAGS):
       m_system_callback_fn(client_fd, SYSTEM_EVENTS__TASK_FETCH_FLAGS,
-        DataUtils::vector_absorb(std::move(m_scheduler.getFlags(args.at(1))),
+        DataUtils::VAbsorb(std::move(m_scheduler.getFlags(args.at(1))),
                                   std::move(args.at(1))));
     break;
 
