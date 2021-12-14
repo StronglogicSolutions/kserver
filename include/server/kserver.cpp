@@ -55,8 +55,7 @@ KServer::KServer(int argc, char **argv)
 KServer::~KServer()
 {
   KLOG("Server shutting down");
-  for (const auto& [fd, session] : m_sessions)
-    OnClientExit(fd);
+  CloseConnections();
   m_controller.shutdown();
 }
 
@@ -476,6 +475,7 @@ void KServer::SendPong(int32_t client_fd)
   SocketListener::sendMessage(client_fd, PONG, PONG_SIZE);
   m_sessions.at(client_fd).tx += PONG_SIZE;
 }
+
 void KServer::EndSession(const int32_t& client_fd)
 {
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
@@ -484,7 +484,7 @@ void KServer::EndSession(const int32_t& client_fd)
   const std::string stats = GetStats(m_sessions.at(client_fd));
 
   SendEvent(client_fd, CLOSE_SESSION, {GOODBYE_MSG, stats});
-  KLOG("Shutting down session for client {}.\nStatistics:\n{}", stats);
+  KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, stats);
 
   if (shutdown(client_fd, SHUT_RD) != SUCCESS)
     KLOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
@@ -492,16 +492,15 @@ void KServer::EndSession(const int32_t& client_fd)
   if (HandlingFile(client_fd))
     SetFileNotPending();
 
-  auto it_session = m_sessions.find(client_fd);
-
-  if (it_session != m_sessions.end())
-    m_sessions.erase(it_session);
+  m_sessions.at(client_fd).status = SESSION_INACTIVE;
+  OnClientExit(client_fd);
 }
 
 void KServer::CloseConnections()
 {
   for (const int& fd : m_client_connections)
-    EndSession(fd);
+    if (m_sessions.at(fd).status == SESSION_ACTIVE)
+      EndSession(fd);
 }
 
 
@@ -530,7 +529,6 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
         ScheduleRequest(args, fd);
       return args;
     });
-
     m_sessions.at(fd).rx += buffer_size;
   };
 
@@ -598,9 +596,7 @@ bool KServer::HandlingFile(const int32_t& fd)
 void KServer::onConnectionClose(int32_t client_fd)
 {
   KLOG("Connection closed for {}", client_fd);
-  auto it_session = m_sessions.find(client_fd);
-  if (it_session != m_sessions.end()) m_sessions.erase(it_session);
-  OnClientExit(client_fd);
+  EndSession(client_fd);
 }
 
 } // ns kiq
