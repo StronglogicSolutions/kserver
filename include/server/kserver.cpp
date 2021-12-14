@@ -493,7 +493,6 @@ void KServer::EndSession(const int32_t& client_fd)
     SetFileNotPending();
 
   m_sessions.at(client_fd).status = SESSION_INACTIVE;
-  OnClientExit(client_fd);
 }
 
 void KServer::CloseConnections()
@@ -529,9 +528,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
         ScheduleRequest(args, fd);
       return args;
     });
-    m_sessions.at(fd).rx += buffer_size;
   };
-
   auto it = m_message_handlers.find(fd);
   if (it != m_message_handlers.end())
     it->second.processPacket(s_buffer_ptr.get(), size);
@@ -542,6 +539,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
     m_message_handlers.at(fd).setID(fd);
     m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
   }
+  m_sessions.at(fd).rx += size;
 }
 
 void KServer::OnClientExit(const int32_t& client_fd)
@@ -596,7 +594,7 @@ bool KServer::HandlingFile(const int32_t& fd)
 void KServer::onConnectionClose(int32_t client_fd)
 {
   KLOG("Connection closed for {}", client_fd);
-  EndSession(client_fd);
+  OnClientExit(client_fd);
 }
 
 } // ns kiq
