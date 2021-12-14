@@ -479,7 +479,7 @@ void KServer::SendPong(int32_t client_fd)
 void KServer::EndSession(const int32_t& client_fd)
 {
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
-                                                     "\nTX: " + std::to_string(session.rx); };
+                                                     "\nTX: " + std::to_string(session.tx); };
   static const bool SUCCESS{0};
   const std::string stats = GetStats(m_sessions.at(client_fd));
 
