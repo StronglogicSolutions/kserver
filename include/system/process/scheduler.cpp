@@ -760,7 +760,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       return data;
     };
 
-    if (!QueueFull()) return;
+    if (QueueFull()) return;
 
     KLOG("Performing final analysis on research triggered by {}", root.id);
     const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
