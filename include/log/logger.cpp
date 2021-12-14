@@ -33,7 +33,7 @@ KLogger::KLogger(const std::string& logging_level)
     static const auto        console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     static const loglevel    level        = LogLevel.at(logging_level);
     static const std::string format       = (timestamp) ? "KLOG [%^%l%$] - %T.%e - %3!#:%-20!s%-20!!%v" :
-                                                          "KLOG [%^%l%$] - %3!#:%-20!s%-20!!%v";
+                                                          "KLOG [%^%l%$] - %3!#:%-20!s%-22!!%v";
 
     console_sink->set_level((logging_level.empty()) ? LogLevel.at(config::Logging::level()) :
                                                       LogLevel.at(logging_level));
