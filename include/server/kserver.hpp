@@ -59,28 +59,29 @@ private:
   void EnqueueFiles             (const int32_t& client_fd, const std::vector<std::string>& files);
   void ScheduleRequest          (const std::vector<std::string>& task, const int32_t& client_fd);
   void OperationRequest         (const std::string& message, const int32_t& client_fd);
-  virtual void onMessageReceived(int                      client_socket_fd,
+  virtual void onMessageReceived(int                      client_fd,
                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
                                  ssize_t&                 size) override;
   void EndSession               (const int32_t& client_fd);
   virtual void onConnectionClose(int32_t client_fd) override;
-  void ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_socket_fd);
+  void ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_fd);
   void OnClientExit             (const int32_t& client_fd);
   void EraseFileHandler         (const int32_t& client_fd);
   void DeleteClientFiles        (const int32_t& client_fd);
   void SetFileNotPending        ();
-  void SetFilePending           (const int32_t& fd);
-  bool HandlingFile             (const int32_t& fd);
-  void SendFile                 (const int32_t& client_socket_fd, const std::string& filename);
+  void SetFilePending           (const int32_t& client_fd);
+  bool HandlingFile             (const int32_t& client_fd);
+  void SendFile                 (const int32_t& client_fd, const std::string& filename);
+  void SendPong                 (int32_t client_fd);
 
   using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
-
+  using Sessions     = std::unordered_map<int32_t, KSession>;
   Request::Controller       m_controller;
   IPCManager                m_ipc_manager;
   std::vector<int>          m_client_connections;
   FileHandlers              m_file_handlers;
   FileHandlers              m_message_handlers;
-  std::vector<KSession>     m_sessions;
+  Sessions                  m_sessions;
   std::vector<ReceivedFile> m_received_files;
   std::deque <OutboundFile> m_outbound_files;
   bool                      m_file_pending;

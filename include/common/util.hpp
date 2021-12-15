@@ -57,9 +57,11 @@ typedef std::pair<std::string, std::string>              FileInfo;
 
 static const int32_t READY_STATUS{0x01};
 struct KSession {
-  int fd;
-  int status;
-  uuid id;
+  int32_t  fd;
+  int32_t  status;
+  uuid     id;
+  uint32_t tx{0};
+  uint32_t rx{0};
 };
 
 std::string GetCWD();

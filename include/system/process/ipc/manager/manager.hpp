@@ -94,6 +94,9 @@ void HandleClientMessages()
         case (::constants::IPC_PLATFORM_ERROR):
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, GetError(static_cast<platform_error*>(it->get())));
         break;
+        case (::constants::IPC_OK_TYPE):
+          KLOG("Received IPC OK");
+        break;
         default:
           ELOG("Failed to handle unknown IPC message");
       }
