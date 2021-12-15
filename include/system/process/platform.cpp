@@ -441,11 +441,11 @@ bool Platform::isProcessingPlatform()
 }
 
 /**
- * @brief onPlatformError
+ * @brief OnPlatformError
  *
  * @param [in] {std::vector<std::string>} payload
  */
-void Platform::onPlatformError(const std::vector<std::string>& payload)
+void Platform::OnPlatformError(const std::vector<std::string>& payload)
 {
   const std::string& name        = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
   const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);

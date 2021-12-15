@@ -67,15 +67,21 @@ void close(int32_t fd) {
 void HandleClientMessages()
 {
   using Payload = std::vector<std::string>;
-  const auto GetPayload = [](platform_message* message) -> Payload
+  auto GetPayload = [](platform_message* message) -> Payload
   {
     return Payload{message->platform(), message->id(),   message->user(), "",
                    message->content(),  message->urls(), std::to_string(message->repost()), message->args()};
   };
 
-  const auto GetError = [](platform_error* message) -> Payload
+  auto GetError = [](platform_error* message)     -> Payload
   {
     return Payload{message->name(), message->id(), message->user(), message->error(), ""};
+  };
+
+  auto GetRequest = [](platform_request* message) -> Payload
+  {
+    return Payload{message->platform(), message->id(),   message->user(),
+                   message->content(),  message->args()};
   };
 
   if (m_incoming_queue.size())
@@ -90,6 +96,9 @@ void HandleClientMessages()
       {
         case (::constants::IPC_PLATFORM_TYPE):
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it->get())));
+        break;
+        case (::constants::IPC_PLATFORM_REQUEST):
+          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_REQUEST, GetRequest(static_cast<platform_request*>(it->get())));
         break;
         case (::constants::IPC_PLATFORM_ERROR):
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, GetError(static_cast<platform_error*>(it->get())));

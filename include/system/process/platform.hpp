@@ -61,7 +61,7 @@ class Platform
 public:
 explicit Platform(SystemEventcallback fn);
 bool                      savePlatformPost(std::vector<std::string> payload);
-void                      onPlatformError(const std::vector<std::string>& payload);
+void                      OnPlatformError(const std::vector<std::string>& payload);
 void                      processPlatform();
 std::string               GetPlatformID(const std::string& name);
 std::string               GetPlatformID(uint32_t mask);

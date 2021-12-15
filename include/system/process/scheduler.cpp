@@ -975,9 +975,35 @@ bool Scheduler::savePlatformPost(std::vector<std::string> payload)
  *
  * @param payload
  */
-void Scheduler::onPlatformError(const std::vector<std::string>& payload)
+void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
 {
-  m_platform.onPlatformError(payload);
+  /**
+   * {message->platform(),
+   *  message->id(),
+   *  message->user(),
+      message->content(),
+      message->args()};
+  */
+ auto platform = payload[0];
+ auto id       = payload[1];
+ auto user     = payload[3];
+ auto message  = payload[4];
+ auto args     = payload[5];
+
+ if (message == "poll created")
+ {
+   (void)("Schedule closing of poll");
+ }
+}
+
+/**
+ * @brief
+ *
+ * @param payload
+ */
+void Scheduler::OnPlatformError(const std::vector<std::string>& payload)
+{
+  m_platform.OnPlatformError(payload);
 }
 
 /**

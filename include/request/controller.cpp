@@ -427,14 +427,15 @@ void Controller::process_system_event(const int32_t&                  event,
 {
   switch (event)
   {
+    case (SYSTEM_EVENTS__PLATFORM_REQUEST):
+      m_scheduler.
+    break;
     case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
       m_scheduler.savePlatformPost(payload);
-      break;
-
+    break;
     case (SYSTEM_EVENTS__PLATFORM_ERROR):
-      m_scheduler.onPlatformError(payload);
-      break;
-
+      m_scheduler.OnPlatformError(payload);
+    break;
     case (SYSTEM_EVENTS__PROCESS_COMPLETE):
     {
       const std::string output =           payload.at(EVENT_PROCESS_OUTPUT_INDEX);

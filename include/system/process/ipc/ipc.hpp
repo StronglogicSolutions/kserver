@@ -15,10 +15,11 @@
  */
 
 namespace constants {
-static const uint8_t IPC_OK_TYPE       {0x00};
-static const uint8_t IPC_KIQ_MESSAGE   {0x01};
-static const uint8_t IPC_PLATFORM_TYPE {0x02};
-static const uint8_t IPC_PLATFORM_ERROR{0x03};
+static const uint8_t IPC_OK_TYPE         {0x00};
+static const uint8_t IPC_KIQ_MESSAGE     {0x01};
+static const uint8_t IPC_PLATFORM_TYPE   {0x02};
+static const uint8_t IPC_PLATFORM_ERROR  {0x03};
+static const uint8_t IPC_PLATFORM_REQUEST{0x04};
 
 namespace index {
 static const uint8_t EMPTY    = 0x00;
@@ -28,6 +29,7 @@ static const uint8_t ID       = 0x03;
 static const uint8_t USER     = 0x04;
 static const uint8_t DATA     = 0x05;
 static const uint8_t URLS     = 0x06;
+static const uint8_t REQ_ARGS = 0x06;
 static const uint8_t REPOST   = 0x07;
 static const uint8_t ARGS     = 0x08;
 static const uint8_t CMD      = 0x09;
@@ -278,6 +280,77 @@ const uint32_t cmd() const
 
 };
 
+class platform_request : public ipc_message
+{
+public:
+platform_request(const std::string& platform, const std::string& id, const std::string& user, const std::string& data, const std::string& args)
+{
+  m_frames = {
+    byte_buffer{},
+    byte_buffer{constants::IPC_PLATFORM_REQUEST},
+    byte_buffer{platform.data(), platform.data() + platform.size()},
+    byte_buffer{id.data(), id.data() + id.size()},
+    byte_buffer{user.data(), user.data() + user.size()},
+    byte_buffer{data.data(), data.data() + data.size()},
+    byte_buffer{args.data(), args.data() + args.size()}
+  };
+}
+
+platform_request(const std::vector<byte_buffer>& data)
+{
+  m_frames = {
+    byte_buffer{},
+    byte_buffer{data.at(constants::index::TYPE)},
+    byte_buffer{data.at(constants::index::PLATFORM)},
+    byte_buffer{data.at(constants::index::ID)},
+    byte_buffer{data.at(constants::index::USER)},
+    byte_buffer{data.at(constants::index::DATA)},
+    byte_buffer{data.at(constants::index::REQ_ARGS)}
+  };
+}
+
+const std::string platform() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::PLATFORM).data()),
+    m_frames.at(constants::index::PLATFORM).size()
+  };
+}
+
+const std::string id() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::ID).data()),
+    m_frames.at(constants::index::ID).size()
+  };
+}
+
+const std::string user() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::USER).data()),
+    m_frames.at(constants::index::USER).size()
+  };
+}
+
+const std::string content() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::DATA).data()),
+    m_frames.at(constants::index::DATA).size()
+  };
+}
+
+const std::string args() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::REQ_ARGS).data()),
+    m_frames.at(constants::index::REQ_ARGS).size()
+  };
+}
+
+};
+
 static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message::byte_buffer>&& data)
 {
    uint8_t message_type = *(data.at(constants::index::TYPE).data());
@@ -292,7 +365,9 @@ static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message:
       return std::make_unique<kiq_message>(data);
     case (constants::IPC_PLATFORM_ERROR):
       return std::make_unique<platform_error>(data);
+    case (constants::IPC_PLATFORM_REQUEST):
+      return std::make_unique<platform_request>(data);
+    default:
+      return nullptr;
    }
-
-   return nullptr;
 }
