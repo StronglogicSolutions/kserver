@@ -571,4 +571,12 @@ std::string Platform::GetUser(const std::string& uid, const std::string& pid, bo
 
   return "";
 }
+
+std::string Platform::GetPlatform(const std::string& pid)
+{
+  for (const auto& value :m_db.select("platform", {"name"}, CreateFilter("id", pid)))
+    if (value.first == "name")
+      return value.second;
+  return "";
+}
 } // ns kiq

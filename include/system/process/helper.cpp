@@ -1,35 +1,6 @@
 #include "scheduler.hpp"
 
 namespace kiq {
-using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
-using  Duration  = std::chrono::seconds;
-
-static TimePoint time_point;
-static bool      timer_active;
-
-bool TimerExpired()
-{
-  static const uint32_t  TWENTY_MINUTES = 1200;
-         const TimePoint now         = std::chrono::system_clock::now();
-         const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
-  return (elapsed > TWENTY_MINUTES)  ;
-}
-
-void StartTimer()
-{
-  time_point   = std::chrono::system_clock::now();
-  timer_active = true;
-}
-
-void StopTimer()
-{
-  timer_active = false;
-}
-
-bool TimerActive()
-{
-  return timer_active;
-}
 
 TaskWrapper* FindNode(const TaskWrapper* node, const int32_t& id)
 {

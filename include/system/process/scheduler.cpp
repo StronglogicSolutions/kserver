@@ -986,13 +986,15 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
   */
  auto platform = payload[0];
  auto id       = payload[1];
- auto user     = payload[3];
- auto message  = payload[4];
- auto args     = payload[5];
+ auto user     = payload[2];
+ auto message  = payload[3];
+ auto args     = payload[4];
 
  if (message == "poll created")
  {
    (void)("Schedule closing of poll");
+   (void)("Schedule needs to be IPC message or Process");
+   ScheduleIPC({platform, message, args}); // message = command & args = unique ID for poll
  }
 }
 
@@ -1089,17 +1091,17 @@ Scheduler::TermEvents Scheduler::FetchTermEvents() const
 void Scheduler::SetIPCCommand(const uint8_t& command)
 {
   m_ipc_command = command;
-  StartTimer();
+  timer.start();
 }
 
 bool Scheduler::IPCNotPending() const
 {
-  return (m_ipc_command == NO_COMMAND_INDEX || !TimerActive());
+  return (m_ipc_command == NO_COMMAND_INDEX || !timer.active());
 }
 
 void Scheduler::ResolvePending(const bool& check_timer)
 {
-  if (!TimerActive() || (check_timer && !TimerExpired())) return;
+  if (check_timer && (!timer.active() || !timer.expired())) return;
 
   KLOG("Resolving pending IPC messages");
   for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
@@ -1112,7 +1114,7 @@ void Scheduler::ResolvePending(const bool& check_timer)
   m_postexec_map  .clear();
   m_postexec_lists.clear();
   SetIPCCommand(NO_COMMAND_INDEX);
-  StopTimer();
+  timer.stop();
 }
 
 template <typename T, typename S>
@@ -1157,6 +1159,41 @@ int32_t Scheduler::FindMask(const std::string& application_name)
     [&application_name](const ApplicationInfo& a) { return a.second == application_name; });
   if (it != m_app_map.end())  return it->first;
   return INVALID_MASK;
+}
+
+std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
+{
+  auto platform = v[0];
+  auto command  = v[1];
+  auto data     = v[2];
+  return m_kdb.insert("ipc", {"pid", "command", "data"}, {m_platform.GetPlatformID(platform), command, data}, "id");
+}
+
+void Scheduler::FetchIPC()
+{
+  const auto table = "ipc";
+  const Fields fields = {"pid", "command", "data"};
+  const auto   filter = QueryComparisonFilter{{"time", "<", TimeUtils::Now()}};
+  const auto query = m_kdb.select(table, fields, filter);
+
+  std::string pid, data, command;
+  for (const auto& value : query)
+  {
+    if (value.first == "pid")
+      pid = value.second;
+    else
+    if (value.first == "command")
+      command = value.second;
+    else
+    if (value.first == "data")
+      data = value.second;
+
+    if (DataUtils::NoEmptyArgs(pid, command, data))
+    {
+      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, {m_platform.GetPlatform(pid), command, data});
+      DataUtils::ClearArgs(time, command);
+    }
+  }
 }
 
 } // ns kiq

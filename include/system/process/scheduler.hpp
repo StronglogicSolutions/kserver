@@ -155,6 +155,8 @@ using TermEvents      = std::vector<ResearchManager::TermEvent>;
 virtual ~Scheduler() override;
 
 virtual std::string               schedule(Task task) override;
+        std::string               ScheduleIPC(const std::vector<std::string>& v);
+        void                      FetchIPC();
 
         Task                      parseTask(QueryValues&& result);
         std::vector<Task>         parseTasks(QueryValues&& result,
@@ -207,6 +209,7 @@ private:
         IPCSendEvent              MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg = "");
         bool                      IPCNotPending() const;
 
+
 using MessageQueue  = std::deque<IPCSendEvent>;
 
 SystemEventcallback m_event_callback;
@@ -221,12 +224,9 @@ ResearchManager     m_research_manager;
 MessageQueue        m_message_queue;
 uint8_t             m_ipc_command;
 
+static Timer        timer;
 };
 
-bool           TimerExpired();
-void           StartTimer();
-void           StopTimer();
-bool           TimerActive();
 TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);
 TaskWrapper*   FindParent(const TaskWrapper* node, const int32_t& mask);
 TaskWrapper*   FindMasterRoot(const TaskWrapper* ptr);
