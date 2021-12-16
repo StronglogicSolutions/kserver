@@ -85,6 +85,7 @@ class Controller {
   void onSchedulerEvent(const int32_t&                  client_socket_fd,
                         const int32_t&                  event,
                         const std::vector<std::string>& args = {});
+  void Status() const;
 
   EventCallbackFn                   m_event_callback_fn;
   SystemCallbackFn                  m_system_callback_fn;
@@ -101,5 +102,10 @@ class Controller {
   Scheduler                         m_scheduler;
   std::thread                       m_maintenance_worker;
   Database::KDB                     m_kdb;
+
+  uint32_t                          m_ps_exec_count;
+  uint32_t                          m_client_rq_count;
+  uint32_t                          m_system_rq_count;
+  uint32_t                          m_err_count;
 };
 }  // ns kiq::Request

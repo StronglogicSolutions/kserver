@@ -149,18 +149,21 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
     break;
     case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
       if (args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
-        m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, args);
+        m_ipc_manager.ReceiveEvent(system_event, args);
       else
         m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
     break;
     case SYSTEM_EVENTS__PLATFORM_REQUEST:
-      m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_REQUEST, args);
+      m_controller.process_system_event(system_event, args);
+    break;
+    case SYSTEM_EVENTS__PLATFORM_EVENT:
+      m_ipc_manager.ReceiveEvent(system_event, args);
     break;
     case SYSTEM_EVENTS__KIQ_IPC_MESSAGE:
         m_ipc_manager.process(args.front(), client_fd);
     break;
     case SYSTEM_EVENTS__PLATFORM_ERROR:
-      m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
+      m_controller.process_system_event(system_event, args);
       ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
 
       if (client_fd == ALL_CLIENTS)

@@ -48,6 +48,19 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
       std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX))));
   else
+  if (event == SYSTEM_EVENTS__PLATFORM_EVENT)
+  {
+    m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<platform_message>(
+      args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),  // populated
+      args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),        // none
+      args.at(constants::PLATFORM_PAYLOAD_USER_INDEX),      // none
+      args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),   // content = command?
+      args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),       // none
+      args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y", // false
+      std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)), // not sure
+      args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX))));     // poll ID
+  }
+  else
     received = false;
 
   return received;
