@@ -1009,12 +1009,12 @@ void Scheduler::OnPlatformError(const std::vector<std::string>& payload)
 }
 
 /**
- * @brief processPlatform
+ * @brief ProcessPlatform
  *
  */
-void Scheduler::processPlatform()
+void Scheduler::ProcessPlatform()
 {
-  m_platform.processPlatform();
+  m_platform.ProcessPlatform();
 }
 
 bool Scheduler::processTriggers(Task* task_ptr)
@@ -1178,7 +1178,7 @@ std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
   return m_kdb.insert("ipc", fields, values, "id");
 }
 
-void Scheduler::FetchIPC()
+void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
   using namespace StringUtils;
@@ -1187,10 +1187,10 @@ void Scheduler::FetchIPC()
   static const auto   no_urls   = constants::NO_URLS;
   static const auto   no_cmd    = std::to_string(std::numeric_limits<uint32_t>::max());
   static const auto   table     = "ipc";
-  static const Fields fields    = {"pid", "command", "data"};
+  static const Fields fields    = {"pid", "command", "data", "time"};
          const QueryComparisonFilter   filter{{"time", "<", TimeUtils::Now()}};
          const auto   query     = m_kdb.select(table, fields, filter);
-  std::string  pid, data, command;
+  std::string  pid, data, command, time;
 
   for (const auto& value : query)
   {
@@ -1202,18 +1202,22 @@ void Scheduler::FetchIPC()
     else
     if (value.first == "data")
       data = value.second;
+    else
+    if (value.first == "time")
+      time = value.second;
 
-    if (NoEmptyArgs(pid, command, data))
+    if (NoEmptyArgs(pid, command, data, time))
     {
       const auto    id         = GenerateUUIDString();
       const auto    platform   = m_platform.GetPlatform(pid);
       const auto    user       = m_platform.GetUser("", pid, true);
       const auto    cmd_code   = std::to_string(IPC_CMD_CODES.at(command));
-      const Payload payload      {platform, id, user, command, no_urls, no_repost, cmd_code, data};
+      const auto    args       = CreateOperation("bot", {config::Process::tg_dest(), data});
+      const Payload payload      {platform, id, user, time, command, no_urls, no_repost, "bot", args, cmd_code};
 
       m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
 
-      ClearArgs(pid, command, data);
+      ClearArgs(pid, command, data, time);
     }
   }
 }

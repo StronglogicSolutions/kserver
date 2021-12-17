@@ -475,9 +475,9 @@ pqxx::result DatabaseConnection::performSelect(T query)
 {
   pqxx::connection connection(getConnectionString().c_str());
   pqxx::work worker(connection);
-  #ifndef NDEBUG
-    std::cout << "Select query: \n" << selectStatement(query) << std::endl;
-  #endif
+  // #ifndef NDEBUG
+  //   std::cout << "Select query: \n" << selectStatement(query) << std::endl;
+  // #endif
   pqxx::result pqxx_result = worker.exec(selectStatement(query));
   worker.commit();
 

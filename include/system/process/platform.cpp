@@ -481,7 +481,7 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
  * @brief
  *
  */
-void Platform::processPlatform()
+void Platform::ProcessPlatform()
 {
   if (isProcessingPlatform()) return KLOG("Platform requests are still being processed");
 

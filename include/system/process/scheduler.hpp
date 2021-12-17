@@ -83,14 +83,16 @@ void append_msg(const std::string& s)
 
 enum class TGCommand
 {
-message = 0x00,
-poll    = 0x01
+message   = 0x00,
+poll      = 0x01,
+poll_stop = 0x02
 };
 
-static std::unordered_map<std::string, uint8_t> IPC_CMD_CODES
+static std::unordered_map<std::string, uint32_t> IPC_CMD_CODES
 {
-{"message", static_cast<uint8_t>(TGCommand::message)},
-{"poll",    static_cast<uint8_t>(TGCommand::poll)}
+{"message",      static_cast<uint32_t>(TGCommand::message)},
+{"poll",         static_cast<uint32_t>(TGCommand::poll)},
+{"poll stop",    static_cast<uint32_t>(TGCommand::poll_stop)},
 };
 
 
@@ -162,7 +164,7 @@ virtual ~Scheduler() override;
 
 virtual std::string               schedule(Task task) override;
         std::string               ScheduleIPC(const std::vector<std::string>& v);
-        void                      FetchIPC();
+        void                      ProcessIPC();
 
         Task                      parseTask(QueryValues&& result);
         std::vector<Task>         parseTasks(QueryValues&& result,
@@ -191,7 +193,7 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      handleProcessOutput(const std::string& output, const int32_t mask, int32_t id);
         static bool               isKIQProcess(uint32_t mask);
 
-        void                      processPlatform();
+        void                      ProcessPlatform();
         bool                      savePlatformPost(std::vector<std::string> payload);
         void                      OnPlatformError(const std::vector<std::string>& payload);
         void                      OnPlatformRequest(const std::vector<std::string>& payload);
