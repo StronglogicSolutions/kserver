@@ -5,7 +5,7 @@
 
 namespace kiq {
 using namespace ::constants;
-
+static Timer timer;
 static const size_t QueueLimit{0x05};
 IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
 {
@@ -1171,12 +1171,18 @@ std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
 
 void Scheduler::FetchIPC()
 {
-  const auto table = "ipc";
-  const Fields fields = {"pid", "command", "data"};
-  const auto   filter = QueryComparisonFilter{{"time", "<", TimeUtils::Now()}};
-  const auto query = m_kdb.select(table, fields, filter);
+  using namespace DataUtils;
+  using namespace StringUtils;
+  using Payload = std::vector<std::string>;
+  static const auto   no_repost = constants::NO_REPOST;
+  static const auto   no_urls   = constants::NO_URLS;
+  static const auto   no_cmd    = std::to_string(std::numeric_limits<uint32_t>::max());
+  static const auto   table     = "ipc";
+  static const Fields fields    = {"pid", "command", "data"};
+         const QueryComparisonFilter   filter{{"time", "<", TimeUtils::Now()}};
+         const auto   query     = m_kdb.select(table, fields, filter);
+  std::string  pid, data, command;
 
-  std::string pid, data, command;
   for (const auto& value : query)
   {
     if (value.first == "pid")
@@ -1188,10 +1194,17 @@ void Scheduler::FetchIPC()
     if (value.first == "data")
       data = value.second;
 
-    if (DataUtils::NoEmptyArgs(pid, command, data))
+    if (NoEmptyArgs(pid, command, data))
     {
-      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, {m_platform.GetPlatform(pid), command, data});
-      DataUtils::ClearArgs(time, command);
+      const auto    id         = GenerateUUIDString();
+      const auto    platform   = m_platform.GetPlatform(pid);
+      const auto    user       = m_platform.GetUser("", pid, true);
+      const auto    cmd_code   = std::to_string(IPC_CMD_CODES.at(command));
+      const Payload payload      {platform, id, user, command, no_urls, no_repost, cmd_code, data};
+
+      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
+
+      ClearArgs(pid, command, data);
     }
   }
 }

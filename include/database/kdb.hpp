@@ -69,26 +69,26 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
   }
 }
 
-  QueryValues select(std::string table, Fields fields,
-                     QueryComparisonFilter filter = {}) {
-    try {
-      QueryResult result = m_connection->query(
-        ComparisonSelectQuery{
-          .table = table,
-          .fields = fields,
-          .values = {},
-          .filter = filter
-        });
-      return result.values;
+QueryValues select(std::string table, Fields fields,
+                    QueryComparisonFilter filter = {}) {
+  try {
+    QueryResult result = m_connection->query(
+      ComparisonSelectQuery{
+        .table = table,
+        .fields = fields,
+        .values = {},
+        .filter = filter
+      });
+    return result.values;
 
-    } catch (const pqxx::sql_error &e) {
-      ELOG("Exception caught: {}", e.what());
-      throw e;
-    } catch (const std::exception &e) {
-      ELOG("Exception caught: {}", e.what());
-      throw e;
-    }
+  } catch (const pqxx::sql_error &e) {
+    ELOG("Exception caught: {}", e.what());
+    throw e;
+  } catch (const std::exception &e) {
+    ELOG("Exception caught: {}", e.what());
+    throw e;
   }
+}
 
   QueryValues selectCompare(std::string table, Fields fields,
                             std::vector<CompFilter> filter = {}) {

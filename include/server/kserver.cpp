@@ -23,7 +23,7 @@ static const char*   FILE_FAIL_MSG   {"File Save Failure"};
 KServer::KServer(int argc, char **argv)
 : SocketListener(argc, argv),
   m_ipc_manager(
-  [this](int32_t event, const std::vector<std::string>& payload)
+  [this](int32_t event, const std::vector<std::string>& payload) -> void
   {
     SystemEvent(ALL_CLIENTS, event, payload);
   }),

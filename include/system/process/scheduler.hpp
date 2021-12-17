@@ -87,6 +87,12 @@ message = 0x00,
 poll    = 0x01
 };
 
+static std::unordered_map<std::string, uint8_t> IPC_CMD_CODES
+{
+{"message", static_cast<uint8_t>(TGCommand::message)},
+{"poll",    static_cast<uint8_t>(TGCommand::poll)}
+};
+
 
 static int8_t IG_FEED_IDX    {0x00};
 static int8_t YT_FEED_IDX    {0x01};
@@ -223,8 +229,6 @@ ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
 MessageQueue        m_message_queue;
 uint8_t             m_ipc_command;
-
-static Timer        timer;
 };
 
 TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);

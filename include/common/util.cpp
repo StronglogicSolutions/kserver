@@ -17,9 +17,7 @@ std::string GetExecutableCWD()
   return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
 }
 
-static const uint32_t  TWENTY_MINUTES = 1200;
-
-Timer::Timer(const int64_t duration_ = TWENTY_MINUTES)
+Timer::Timer(const int64_t duration_)
 : duration(duration_)
 {}
 

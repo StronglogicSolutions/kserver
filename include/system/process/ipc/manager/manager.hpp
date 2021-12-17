@@ -12,7 +12,7 @@
 #include "system/process/ipc/client/client.hpp"
 
 namespace kiq {
-using SystemCallback_fn_ptr = std::function<void(int, std::vector<std::string>)>;
+using SystemCallback_fn_ptr = std::function<void(int32_t, const std::vector<std::string>&)>;
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
 static const uint32_t DEFAULT_PORT{static_cast<uint32_t>(std::stoul(config::Process::ipc_port()))};
 
