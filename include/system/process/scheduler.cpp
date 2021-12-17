@@ -1161,12 +1161,21 @@ int32_t Scheduler::FindMask(const std::string& application_name)
   return INVALID_MASK;
 }
 
+/**
+ * ScheduleIPC
+ * NOTE: All scheduled IPC commands will run in ONE HOUR's time
+ */
 std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
 {
-  auto platform = v[0];
-  auto command  = v[1];
-  auto data     = v[2];
-  return m_kdb.insert("ipc", {"pid", "command", "data"}, {m_platform.GetPlatformID(platform), command, data}, "id");
+  auto GetTime = [](const auto interval) { return (std::stoi(TimeUtils::Now()) + getIntervalSeconds(interval)); };
+  const auto   platform        = v[0];
+  const auto   command         = v[1];
+  const auto   data            = v[2];
+  const auto   time            = std::to_string(GetTime(Constants::Recurring::HOURLY));
+  const Fields fields          = {"pid",                             "command", "data", "time"};
+  const Values values          = {m_platform.GetPlatformID(platform), command,   data,   time};
+
+  return m_kdb.insert("ipc", fields, values, "id");
 }
 
 void Scheduler::FetchIPC()
