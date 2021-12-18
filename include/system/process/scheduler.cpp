@@ -974,6 +974,7 @@ bool Scheduler::savePlatformPost(std::vector<std::string> payload)
  */
 void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
 {
+//  auto ErrorMessage = [](auto p, auto e, auto c) -> void { }
  const auto platform = payload[0];
  const auto id       = payload[1];
  const auto user     = payload[2];
@@ -987,7 +988,9 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
  else
  if (message == REQUEST_PROCESS_POLL_RESULT)
  {
-   const auto result = m_result_processor.process(message, PlatformIPC{platform, TGCommand::poll_result});
+   if (!OnIPCReceived(id)) return ELOG("Unable to match unknown IPC response {} from {}", id, platform);
+
+   const auto result = m_result_processor.process(message, PlatformIPC{platform, TGCommand::poll_result, id});
    for (const ProcessEventData& event : result.events)
      switch (event.code)
      {
@@ -1008,15 +1011,6 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
 void Scheduler::OnPlatformError(const std::vector<std::string>& payload)
 {
   m_platform.OnPlatformError(payload);
-}
-
-/**
- * @brief ProcessPlatform
- *
- */
-void Scheduler::ProcessPlatform()
-{
-  m_platform.ProcessPlatform();
 }
 
 bool Scheduler::processTriggers(Task* task_ptr)
@@ -1182,13 +1176,11 @@ std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
 void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
-  using namespace StringUtils;
-  using Payload = std::vector<std::string>;
-  static const auto   no_repost = constants::NO_REPOST;
-  static const auto   no_urls   = constants::NO_URLS;
-  static const auto   no_cmd    = std::to_string(std::numeric_limits<uint32_t>::max());
   static const auto   table     = "ipc";
   static const Fields fields    = {"pid", "command", "data", "time"};
+
+  if (!IPCResponseReceived()) return;
+
          const QueryComparisonFilter   filter{{"time", "<", TimeUtils::Now()}};
          const auto   query     = m_kdb.select(table, fields, filter);
   std::string  pid, data, command, time;
@@ -1209,18 +1201,47 @@ void Scheduler::ProcessIPC()
 
     if (NoEmptyArgs(pid, command, data, time))
     {
-      const auto    id         = GenerateUUIDString();
-      const auto    platform   = m_platform.GetPlatform(pid);
-      const auto    user       = m_platform.GetUser("", pid, true);
-      const auto    cmd_code   = std::to_string(IPC_CMD_CODES.at(command));
-      const auto    args       = CreateOperation("bot", {config::Process::tg_dest(), data});
-      const Payload payload      {platform, id, user, time, command, no_urls, no_repost, "bot", args, cmd_code};
-
-      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
-
-      ClearArgs(pid, command, data, time);
+      SendIPCRequest(pid, command, data, time);
+      ClearArgs     (pid, command, data, time);
     }
   }
+
+  m_platform.ProcessPlatform();
+}
+
+void Scheduler::SendIPCRequest(const std::string& pid, const std::string& command, const std::string& data, const std::string& time)
+{
+  using namespace StringUtils;
+  using Payload = std::vector<std::string>;
+  static const auto no_repost = constants::NO_REPOST;
+  static const auto no_urls   = constants::NO_URLS;
+  static const auto no_cmd    = std::to_string(std::numeric_limits<uint32_t>::max());
+  const auto    id       = GenerateUUIDString();
+  const auto    platform = m_platform.GetPlatform(pid);
+  const auto    user     = m_platform.GetUser("", pid, true);
+  const auto    code_s   = std::to_string(IPC_CMD_CODES.at(command));
+  const auto    args     = CreateOperation("bot", {config::Process::tg_dest(), data});
+  const Payload payload  = {platform, id, user, time, command, no_urls, no_repost, "bot", args, code_s};
+
+  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
+
+  m_dispatched_ipc.insert({id, PlatformIPC{platform, GetIPCCommand(code_s), id}});
+}
+
+bool Scheduler::IPCResponseReceived() const
+{
+  for (const auto& [id, request] : m_dispatched_ipc)
+    if (!request.complete) return false;
+  return true;
+}
+
+bool Scheduler::OnIPCReceived(const std::string& id)
+{
+  auto it = m_dispatched_ipc.find(id);
+  if (it == m_dispatched_ipc.end())
+    return false;
+  it->second.complete = true;
+  return true;
 }
 
 } // ns kiq

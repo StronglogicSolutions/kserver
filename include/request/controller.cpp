@@ -208,7 +208,6 @@ void Controller::InfiniteLoop()
     if (!m_tasks_map.empty())
       handlePendingTasks();
 
-    m_scheduler.ProcessPlatform();
     m_scheduler.ProcessIPC();
     m_scheduler.ResolvePending();
     m_condition.wait_for(lock, std::chrono::milliseconds(5000));

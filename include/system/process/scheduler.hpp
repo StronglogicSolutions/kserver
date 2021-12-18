@@ -128,8 +128,6 @@ using ApplicationInfo = std::pair<int32_t, std::string>;
 using ApplicationMap  = std::unordered_map<int32_t, std::string>;
 using TermEvents      = std::vector<ResearchManager::TermEvent>;
 
-
-
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
 
@@ -166,7 +164,6 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      handleProcessOutput(const std::string& output, const int32_t mask, int32_t id);
         static bool               isKIQProcess(uint32_t mask);
 
-        void                      ProcessPlatform();
         bool                      savePlatformPost(std::vector<std::string> payload);
         void                      OnPlatformError(const std::vector<std::string>& payload);
         void                      OnPlatformRequest(const std::vector<std::string>& payload);
@@ -189,9 +186,13 @@ private:
         void                      SetIPCCommand(const uint8_t& command);
         IPCSendEvent              MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg = "");
         bool                      IPCNotPending() const;
+        void                      SendIPCRequest(const std::string& pid, const std::string& command, const std::string& data, const std::string& time);
+        bool                      IPCResponseReceived() const;
+        bool                      OnIPCReceived(const std::string& id);
 
 
 using MessageQueue  = std::deque<IPCSendEvent>;
+using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;
 
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
@@ -204,6 +205,7 @@ ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
 MessageQueue        m_message_queue;
 uint8_t             m_ipc_command;
+DispatchedIPC       m_dispatched_ipc;
 };
 
 TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);
