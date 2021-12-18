@@ -13,6 +13,7 @@
 #include "codec/rapidjson/writer.h"
 
 #include "server/types.hpp"
+#include "ipc/ipc_structs.hpp"
 #include "log/logger.h"
 
 
@@ -41,12 +42,12 @@ static std::string url_string(const std::vector<std::string> urls)
 }
 
 struct ProcessEventData {
-int32_t                  event;
+int32_t                  code;
 std::vector<std::string> payload;
 };
 
 struct ProcessParseResult {
-std::vector<ProcessEventData> data;
+std::vector<ProcessEventData> events;
 };
 
 
@@ -62,7 +63,7 @@ public:
 virtual ~ResearchResultInterface() {}
 static ProcessParseResult GetNOOPResult()
 {
-  return ProcessParseResult{{ProcessEventData{.event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
+  return ProcessParseResult{{ProcessEventData{.code =SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
 }
 }; // ResearchResultInterface
 
@@ -117,9 +118,9 @@ virtual ProcessParseResult get_result() override
   if (m_items.empty()) return GetNOOPResult();
 
   for (const auto& item : m_items)
-    result.data.emplace_back(
+    result.events.emplace_back(
       ProcessEventData{
-        .event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+        .code =SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
         .payload = std::vector<std::string>{m_app_name, item.type, item.value}});
   return result;
 }
@@ -264,9 +265,9 @@ virtual ProcessParseResult get_result() override
   if (m_items.empty()) return GetNOOPResult();
 
   for (const auto& item : m_items)
-    result.data.emplace_back(
+    result.events.emplace_back(
       ProcessEventData{
-        .event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+        .code =SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
         .payload = MakePayload(item)});
   return result;
 }
@@ -362,9 +363,9 @@ virtual ProcessParseResult get_result() override
   if (m_items.empty()) return GetNOOPResult();
 
   for (const auto& item : m_items)
-    result.data.emplace_back(
+    result.events.emplace_back(
       ProcessEventData{
-        .event = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+        .code =SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
         .payload = item.GetPayload()});
   return result;
 }
@@ -452,9 +453,9 @@ virtual ProcessParseResult get_result() override {
 
   for (const auto& item : m_feed_items)
   {
-    result.data.emplace_back(
+    result.events.emplace_back(
       ProcessEventData{
-        .event = SYSTEM_EVENTS__PLATFORM_NEW_POST,
+        .code =SYSTEM_EVENTS__PLATFORM_NEW_POST,
         .payload = std::vector<std::string>{
           m_app_name,
           item.id,
@@ -565,9 +566,9 @@ virtual ProcessParseResult get_result() override {
     std::string content = "New video has been uploaded. Hope you find it useful!\n"
       "https://youtube.com/watch?v=" + item.id + "\n\n" + keywords;
 
-    result.data.emplace_back(
+    result.events.emplace_back(
       ProcessEventData{
-        .event = SYSTEM_EVENTS__PLATFORM_NEW_POST,
+        .code =SYSTEM_EVENTS__PLATFORM_NEW_POST,
         .payload = std::vector<std::string>{
           m_app_name,
           item.id,
@@ -688,7 +689,7 @@ static ProcessEventData ReadEventData(const TWFeedItem& item, const std::string&
   content += "\nRetweets: " + item.retweets;
 
   return ProcessEventData{
-    .event = event,
+    .code =event,
     .payload = std::vector<std::string>{
       app_name,
       item.id,
@@ -707,7 +708,7 @@ virtual ProcessParseResult get_result() override
   ProcessParseResult result{};
   KLOG("Returning {} TW Feed items", m_feed_items.size());
   for (const auto& item : m_feed_items)
-    result.data.emplace_back(TWFeedResultParser::ReadEventData(item, m_app_name, SYSTEM_EVENTS__PLATFORM_NEW_POST));
+    result.events.emplace_back(TWFeedResultParser::ReadEventData(item, m_app_name, SYSTEM_EVENTS__PLATFORM_NEW_POST));
 
   return result;
 }
@@ -731,50 +732,145 @@ virtual ~TWResearchParser() override {}
     ProcessParseResult result{};
     KLOG("Returning {} TW Feed items", m_feed_items.size());
     for (const auto& item : m_feed_items)
-      result.data.emplace_back(TWFeedResultParser::ReadEventData(item, m_app_name, SYSTEM_EVENTS__PROCESS_RESEARCH));
+      result.events.emplace_back(TWFeedResultParser::ReadEventData(item, m_app_name, SYSTEM_EVENTS__PROCESS_RESEARCH));
 
     return result;
   }
 };
+
+struct TGVoteItem
+{
+std::string option;
+int64_t     value;
+};
+
+class PollResultParser : public ProcessParseInterface {
+public:
+PollResultParser()
+: m_app_name{"TelegramPollResult"}
+{}
+
+virtual ~PollResultParser() override {}
+/**
+ * @brief
+ *
+ * @param s
+ * @return true
+ * @return false
+ *
+ * NOTE: We only take the first media item (the full sized one, from Instagram)
+ */
+virtual bool read(const std::string& s) {
+  using namespace rapidjson;
+  Document d{};
+
+  if (!(d.Parse(s.c_str())
+         .HasParseError()) &&
+      !(d.IsNull()) && d.IsArray())
+  {
+    for (const auto& item : d.GetArray())
+    {
+      TGVoteItem vote{};
+      if (item.IsObject())
+      {
+        for (const auto& k : item.GetObject())
+        {
+          if (strcmp(k.name.GetString(), "option") == 0)
+            vote.option = k.value.GetString();
+          else
+          if (strcmp(k.name.GetString(), "value") == 0)
+            vote.value  = k.value.GetInt64();
+        }
+      }
+      m_items.emplace_back(std::move(vote));
+    }
+    return true;
+  }
+  return false;
+}
+
+virtual ProcessParseResult get_result() override {
+  ProcessParseResult result{};
+
+  KLOG("Returning {} votes", m_items.size());
+
+  for (const auto& item : m_items)
+  {
+    result.events.emplace_back(
+      ProcessEventData{
+        .code    = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+        .payload = std::vector<std::string>{
+          m_app_name,
+          item.option,
+          std::to_string(item.value)
+        }
+      }
+    );
+  }
+
+  return result;
+}
+
+private:
+std::vector<TGVoteItem> m_items;
+std::string             m_app_name;
+};
+
 
 class ResultProcessor {
 public:
 ResultProcessor()
 {}
 
-ProcessParseResult process(const std::string& output, KApplication app)
+template <typename T>
+ProcessParseResult process(const std::string& output, const T& agent)
 {
-  ProcessParseResult result;
+  std::unique_ptr<ProcessParseInterface> u_parser_ptr;
+  ProcessParseResult                     result;
 
-  if (app.is_kiq)
+  if constexpr (std::is_same_v<T, KApplication>)
   {
-    std::unique_ptr<ProcessParseInterface> u_parser_ptr;
-    if (app.name == "IG Feed")
-      u_parser_ptr.reset(new IGFeedResultParser{app.name});
+    const KApplication& app = agent;
+    if (app.is_kiq)
+    {
+      if (app.name == "IG Feed")
+        u_parser_ptr.reset(new IGFeedResultParser{app.name});
+      else
+      if (app.name == "YT Feed")
+        u_parser_ptr.reset(new YTFeedResultParser{app.name});
+      else
+      if (app.name == "TW Feed" || app.name == "TW Search")
+        u_parser_ptr.reset(new TWFeedResultParser{app.name});
+      else
+      if (app.name == "TW Research")
+        u_parser_ptr.reset(new TWResearchParser{app.name});
+      else
+      if (app.name == "KNLP - NER")
+        u_parser_ptr.reset(new NERResultParser{app.name});
+      else
+      if (app.name == "KNLP - Emotion")
+        u_parser_ptr.reset(new EmotionResultParser{app.name});
+      else
+      if (app.name == "KNLP - Sentiment")
+        u_parser_ptr.reset(new SentimentResultParser{app.name});
+    }
     else
-    if (app.name == "YT Feed")
-      u_parser_ptr.reset(new YTFeedResultParser{app.name});
-    else
-    if (app.name == "TW Feed" || app.name == "TW Search")
-      u_parser_ptr.reset(new TWFeedResultParser{app.name});
-    else
-    if (app.name == "TW Research")
-      u_parser_ptr.reset(new TWResearchParser{app.name});
-    else
-    if (app.name == "KNLP - NER")
-      u_parser_ptr.reset(new NERResultParser{app.name});
-    else
-    if (app.name == "KNLP - Emotion")
-      u_parser_ptr.reset(new EmotionResultParser{app.name});
-    else
-    if (app.name == "KNLP - Sentiment")
-      u_parser_ptr.reset(new SentimentResultParser{app.name});
+      ELOG("Could not process result from unknown application");
+  }
+  else
+  if constexpr (std::is_same_v<T, PlatformIPC>)
+  {
+    const PlatformIPC& ipc = agent;
 
-    u_parser_ptr->read(output);
-    result = u_parser_ptr->get_result();
+    switch (ipc.command)
+    {
+      case (TGCommand::poll_result):
+        u_parser_ptr.reset(new PollResultParser{});
+    }
   }
 
-  return result;
+  u_parser_ptr->read(output);
+  return u_parser_ptr->get_result();
 }
 
 };

@@ -930,32 +930,29 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
 {
   ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::GetAppInfo(mask));
 
-  if (!result.data.empty())
-  {
-    for (auto&& outgoing_event : result.data)
-      switch (outgoing_event.event)
+  for (auto&& outgoing_event : result.events)
+    switch (outgoing_event.code)
+    {
+      case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
+        outgoing_event.payload.emplace_back(FileUtils::ReadEnvToken(GetTask(id).envfile, constants::HEADER_KEY));
+        m_event_callback(ALL_CLIENTS, outgoing_event.code, outgoing_event.payload);
+      break;
+      case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
       {
-        case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
-          outgoing_event.payload.emplace_back(FileUtils::ReadEnvToken(GetTask(id).envfile, constants::HEADER_KEY));
-          m_event_callback(ALL_CLIENTS, outgoing_event.event, outgoing_event.payload);
-        break;
-        case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
-        {
-          auto parent_id = FindPostExec(id);
-          if (parent_id != INVALID_ID)
-            PostExecWork(std::move(outgoing_event), PostExecDuo{parent_id, id});
-        }
-        break;
-        case (SYSTEM_EVENTS__PROCESS_RESEARCH):
-          CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_APP, {"entity"});
-          m_postexec_map.at(id).second.SetEvent(std::move(outgoing_event));
-        break;
-        default:
-          ELOG("Result processor returned unknown event with code {}", outgoing_event.event);
+        auto parent_id = FindPostExec(id);
+        if (parent_id != INVALID_ID)
+          PostExecWork(std::move(outgoing_event), PostExecDuo{parent_id, id});
       }
-    return true;
-  }
-  return false;
+      break;
+      case (SYSTEM_EVENTS__PROCESS_RESEARCH):
+        CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_APP, {"entity"});
+        m_postexec_map.at(id).second.SetEvent(std::move(outgoing_event));
+      break;
+      default:
+        ELOG("Result processor returned unknown event with code {}", outgoing_event.code);
+    }
+
+  return !(result.events.empty());
 }
 
 /**
@@ -977,24 +974,29 @@ bool Scheduler::savePlatformPost(std::vector<std::string> payload)
  */
 void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
 {
-  /**
-   * {message->platform(),
-   *  message->id(),
-   *  message->user(),
-      message->content(),
-      message->args()};
-  */
- auto platform = payload[0];
- auto id       = payload[1];
- auto user     = payload[2];
- auto message  = payload[3];
- auto args     = payload[4];
+ const auto platform = payload[0];
+ const auto id       = payload[1];
+ const auto user     = payload[2];
+ const auto message  = payload[3];
+ const auto args     = payload[4];
 
- if (message == "poll created")
+ KLOG("Platform request from {}", platform);
+
+ if (message == REQUEST_SCHEDULE_POLL_STOP)
+   ScheduleIPC({platform, message, args});
+ else
+ if (message == REQUEST_PROCESS_POLL_RESULT)
  {
-   (void)("Schedule closing of poll");
-   (void)("Schedule needs to be IPC message or Process");
-   ScheduleIPC({platform, message, args}); // message = command & args = unique ID for poll
+   const auto result = m_result_processor.process(message, PlatformIPC{platform, TGCommand::poll_result});
+   for (const ProcessEventData& event : result.events)
+     switch (event.code)
+     {
+       case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
+         KLOG("CREATE AI TRAINING TASK AND SCHEDULE");
+       break;
+       default:
+         ELOG("Unable to complete processing result from {} IPC request: Unknown event with code {}", platform, event.code);
+     }
  }
 }
 
@@ -1019,10 +1021,9 @@ void Scheduler::ProcessPlatform()
 
 bool Scheduler::processTriggers(Task* task_ptr)
 {
-  bool                    processed_triggers{true};
-  const std::vector<Task> tasks = m_trigger.process(task_ptr);
+  bool processed_triggers = true;
 
-  for (const auto& task : tasks)
+  for (const auto& task : m_trigger.process(task_ptr))
     if (schedule(task).empty())
       processed_triggers = false;
     else

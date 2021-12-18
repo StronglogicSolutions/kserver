@@ -69,33 +69,6 @@ void SetEvent(ProcessEventData&& event_)
 }
 };
 
-struct IPCSendEvent
-{
-int32_t                  event;
-std::vector<std::string> data;
-
-void append_msg(const std::string& s)
-{
-  if (data.size() > 4)
-    data[4] += s;
-}
-};
-
-enum class TGCommand
-{
-message   = 0x00,
-poll      = 0x01,
-poll_stop = 0x02
-};
-
-static std::unordered_map<std::string, uint32_t> IPC_CMD_CODES
-{
-{"message",      static_cast<uint32_t>(TGCommand::message)},
-{"poll",         static_cast<uint32_t>(TGCommand::poll)},
-{"poll stop",    static_cast<uint32_t>(TGCommand::poll_stop)},
-};
-
-
 static int8_t IG_FEED_IDX    {0x00};
 static int8_t YT_FEED_IDX    {0x01};
 static int8_t TW_FEED_IDX    {0x02};
