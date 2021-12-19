@@ -763,8 +763,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     if (QueueFull()) return;
 
     KLOG("Performing final analysis on research triggered by {}", root.id);
-    const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
-    const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
+    const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY); // TODO: no duplicate polls
+    const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY); // TODO: no duplicate polls
     const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
     const TaskWrapper sub_c_emo_tk   = *(FindParent(&subchild,     FindMask(EMOTION_APP)));
     const TaskWrapper child_c_emo_tk = *(FindParent(&sub_c_emo_tk, FindMask(EMOTION_APP)));
@@ -968,13 +968,14 @@ bool Scheduler::savePlatformPost(std::vector<std::string> payload)
 }
 
 /**
- * @brief
+ * OnPlatformRequest
  *
  * @param payload
+ *
+ * TODO: Consider using IPC message types through event system
  */
 void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
 {
-//  auto ErrorMessage = [](auto p, auto e, auto c) -> void { }
  const auto platform = payload[0];
  const auto id       = payload[1];
  const auto user     = payload[2];
@@ -988,9 +989,10 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
  else
  if (message == REQUEST_PROCESS_POLL_RESULT)
  {
-   if (!OnIPCReceived(id)) return ELOG("Unable to match unknown IPC response {} from {}", id, platform);
+   if (!OnIPCReceived(id))
+     return ELOG("Unable to match unknown IPC response {} from {}", id, platform);
 
-   const auto result = m_result_processor.process(message, PlatformIPC{platform, TGCommand::poll_result, id});
+   const auto result = m_result_processor.process(args, PlatformIPC{platform, TGCommand::poll_result, id});
    for (const ProcessEventData& event : result.events)
      switch (event.code)
      {
@@ -1162,7 +1164,7 @@ int32_t Scheduler::FindMask(const std::string& application_name)
  */
 std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
 {
-  auto GetTime = [](const auto interval) { return (std::stoi(TimeUtils::Now()) + getIntervalSeconds(interval)); };
+  auto GetTime = [](const auto interval) { return (std::stoi(TimeUtils::Now()) + 180); };
   const auto   platform        = v[0];
   const auto   command         = v[1];
   const auto   data            = v[2];
@@ -1225,7 +1227,7 @@ void Scheduler::SendIPCRequest(const std::string& pid, const std::string& comman
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
 
-  m_dispatched_ipc.insert({id, PlatformIPC{platform, GetIPCCommand(code_s), id}});
+  m_dispatched_ipc.insert({id, PlatformIPC{platform, GetIPCCommand(command), id}});
 }
 
 bool Scheduler::IPCResponseReceived() const

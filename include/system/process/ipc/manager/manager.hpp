@@ -99,12 +99,13 @@ void HandleClientMessages()
 
   if (m_incoming_queue.size())
   {
+    KLOG("Incoming IPC queue");
     std::deque<u_ipc_msg_ptr>::iterator it = m_incoming_queue.begin();
     while (it != m_incoming_queue.end())
     {
       std::vector<std::string> payload{};
       const uint8_t            message_type = it->get()->type();
-
+      KLOG("Received {}", ::constants::IPC_MESSAGE_NAMES.at(message_type));
       switch (message_type)
       {
         case (::constants::IPC_PLATFORM_TYPE):
@@ -117,7 +118,7 @@ void HandleClientMessages()
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, GetError(static_cast<platform_error*>(it->get())));
         break;
         case (::constants::IPC_OK_TYPE):
-          KLOG("Received IPC OK");
+          VLOG("IPC OK");
         break;
         default:
           ELOG("Failed to handle unknown IPC message");
