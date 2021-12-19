@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <vector>
 #include <deque>
-#include <string_view>
+#include <unordered_set>
 #include "log/logger.h"
 #include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"
@@ -15,14 +15,11 @@
 #define NO_COMPLETED_VALUE 99
 
 namespace kiq {
-
-static const char* TIMESTAMP_TIME_AS_TODAY{
-  "(extract(epoch from (TIMESTAMPTZ 'today')) + "\
-  "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
-  "60 * extract(minute from(to_timestamp(schedule.time))) + "\
-  "extract(second from (to_timestamp(schedule.time))))"};
-
-static const char* UNIXTIME_NOW{"extract(epoch from (now()))::int"};
+static const char* TIMESTAMP_TIME_AS_TODAY{"(extract(epoch from (TIMESTAMPTZ 'today')) + "\
+                                           "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
+                                           "60 * extract(minute from(to_timestamp(schedule.time))) + "\
+                                           "extract(second from (to_timestamp(schedule.time))))"};
+static const char* UNIXTIME_NOW           {"extract(epoch from (now()))::int"};
 
 class ResearchManager;
 struct TaskParams
@@ -193,6 +190,7 @@ private:
 
 using MessageQueue  = std::deque<IPCSendEvent>;
 using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;
+using ResearchPolls = std::unordered_set<int32_t>;
 
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
@@ -206,6 +204,7 @@ ResearchManager     m_research_manager;
 MessageQueue        m_message_queue;
 uint8_t             m_ipc_command;
 DispatchedIPC       m_dispatched_ipc;
+ResearchPolls       m_research_polls;     // -> should become responsibility of Research Manager (along with much more)
 };
 
 TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);
