@@ -741,7 +741,7 @@ virtual ~TWResearchParser() override {}
 struct TGVoteItem
 {
 std::string option;
-int64_t     value;
+int64_t     votes;
 };
 
 class PollResultParser : public ProcessParseInterface {
@@ -764,8 +764,7 @@ virtual bool read(const std::string& s) {
   using namespace rapidjson;
   Document d{};
 
-  if (!(d.Parse(s.c_str())
-         .HasParseError()) &&
+  if (!(d.Parse(s.c_str()).HasParseError()) &&
       !(d.IsNull()) && d.IsArray())
   {
     for (const auto& item : d.GetArray())
@@ -779,7 +778,7 @@ virtual bool read(const std::string& s) {
             vote.option = k.value.GetString();
           else
           if (strcmp(k.name.GetString(), "value") == 0)
-            vote.value  = k.value.GetInt64();
+            vote.votes  = k.value.GetInt64();
         }
       }
       m_items.emplace_back(std::move(vote));
@@ -789,26 +788,17 @@ virtual bool read(const std::string& s) {
   return false;
 }
 
-virtual ProcessParseResult get_result() override {
-  ProcessParseResult result{};
+virtual ProcessParseResult get_result() override
+{
+  auto MakePayload = [](const auto& name, const auto& v)
+  { std::vector<std::string> payload{name};
+    for (const auto& i : v) { payload.emplace_back(i.option); payload.emplace_back(std::to_string(i.votes)); }
+    return payload;
+  };
 
-  KLOG("Returning {} votes", m_items.size());
-
-  for (const auto& item : m_items)
-  {
-    result.events.emplace_back(
-      ProcessEventData{
-        .code    = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
-        .payload = std::vector<std::string>{
-          m_app_name,
-          item.option,
-          std::to_string(item.value)
-        }
-      }
-    );
-  }
-
-  return result;
+  KLOG("Returning vote result with {} options", m_items.size());
+  return ProcessParseResult{{ProcessEventData{.code = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
+                                              .payload = MakePayload(m_app_name, m_items)}}};
 }
 
 private:
