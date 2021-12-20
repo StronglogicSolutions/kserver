@@ -72,6 +72,9 @@ std::string filterStatement(T filter)
   if constexpr (std::is_same_v<T, CompFilter>)
     filter_string += filter.a + filter.sign + filter.b;
   else
+  if constexpr (std::is_same_v<T, QueryComparisonFilter>)
+    filter_string += std::get<0>(filter[0]) + std::get<1>(filter[0]) + std::get<2>(filter[0]);
+  else
   if constexpr (std::is_same_v<T, QueryFilter>)
   {
     std::string delim{};
@@ -388,6 +391,16 @@ std::string selectStatement(T query)
       return stmt;
     }
     else
+    if constexpr (
+      std::is_same_v<T, MultiVariantFilterSelect<std::vector<std::variant<QueryComparisonFilter, QueryFilter>>>>)
+    {
+      std::string stmt{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + filter_string +
+                       getVariantFilterStatement<QueryComparisonFilter, QueryFilter>(filter)};
+      if (query.order.has_value()) stmt += orderStatement(query.order);
+      if (query.limit.has_value()) stmt += limitStatement(query.limit.count);
+      return stmt;
+    }
+    else
     if constexpr (std::is_same_v<T, JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>>)
     {
       filter_string += getVariantFilterStatement(filter);
@@ -580,6 +593,9 @@ template QueryResult DatabaseConnection::query(
   MultiVariantFilterSelect<std::vector<std::variant<CompBetweenFilter, QueryFilter>>>);
 
 template QueryResult DatabaseConnection::query(
+  MultiVariantFilterSelect<std::vector<std::variant<QueryComparisonFilter, QueryFilter>>>);
+
+template QueryResult DatabaseConnection::query(
   JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter>>>);
 
 template QueryResult DatabaseConnection::query(
@@ -594,39 +610,42 @@ template QueryResult DatabaseConnection::query(
 template QueryResult DatabaseConnection::query(
   JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>);
 
-std::string DatabaseConnection::query(InsertReturnQuery query) {
+template QueryResult DatabaseConnection::query<ComparisonSelectQuery>(ComparisonSelectQuery);
+
+std::string DatabaseConnection::query(InsertReturnQuery query)
+{
   std::string returning = query.returning;
   pqxx::result pqxx_result = performInsert(query, returning);
 
-  if (!pqxx_result.empty()) {
-    auto row = pqxx_result.at(0);
-    if (!row.empty()) {
-      auto return_value = row.at(0).as<std::string>();
-      return return_value;
-    }
-  }
-  return "";
-}
-
-std::string DatabaseConnection::query(UpdateReturnQuery query) {
-  std::string returning = query.returning;
-
-  pqxx::result pqxx_result = performUpdate(query, returning);
-  if (!pqxx_result.empty()) {
-    auto row = pqxx_result.at(0);
-    if (!row.empty()) {
+  if (!pqxx_result.empty())
+  {
+    const auto row = pqxx_result.at(0);
+    if (!row.empty())
       return row.at(0).as<std::string>();
-    }
   }
   return "";
 }
 
-pqxx::connection DatabaseConnection::getConnection() {
-  std::string connectionString{("dbname = " + m_config.credentials.name +
-                                " user = " + m_config.credentials.user +
-                                " password = " + m_config.credentials.password +
-                                " hostaddr = " + m_config.address + " port " +
-                                m_config.port)};
+std::string DatabaseConnection::query(UpdateReturnQuery query)
+{
+  const std::string  returning   = query.returning;
+  const pqxx::result pqxx_result = performUpdate(query, returning);
+
+  if (!pqxx_result.empty())
+  {
+    const auto row = pqxx_result.at(0);
+    if (!row.empty())
+      return row.at(0).as<std::string>();
+  }
+  return "";
+}
+
+pqxx::connection DatabaseConnection::getConnection()
+{
+  std::string connectionString{ "dbname = "   + m_config.credentials.name     +
+                               " user = "     + m_config.credentials.user     +
+                               " password = " + m_config.credentials.password +
+                               " hostaddr = " + m_config.address + " port "   + m_config.port};
   return pqxx::connection(connectionString);
 }
 

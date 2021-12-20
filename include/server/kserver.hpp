@@ -44,8 +44,8 @@ private:
                                  const std::vector<std::string>& args);
   void CloseConnections         ();
   void OnTasksReady             (const int32_t& client_fd, std::vector<Task> tasks) ;
-  void OnProcessEvent           (std::string result, int mask, std::string request_id,
-                                 const int32_t& client_fd, bool error);
+  void OnProcessEvent           (const std::string& result, int32_t mask, const std::string& id,
+                                 int32_t client_fd, bool error);
   void SendMessage              (const int32_t& client_socket_fd, const std::string& message);
   void SendEvent                (const int32_t& client_fd, std::string event,
                                  std::vector<std::string> argv);

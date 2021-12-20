@@ -67,7 +67,8 @@ struct KSession {
 struct Timer {
 using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration  = std::chrono::seconds;
-Timer(const int64_t duration_);
+static const uint32_t TWENTY_MINUTES = 1200;
+Timer(const int64_t duration_ = TWENTY_MINUTES);
 bool expired() const;
 void start();
 void stop();

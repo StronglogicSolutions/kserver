@@ -171,13 +171,15 @@ template bool ProcessExecutor::saveResult(uint32_t, int,     uint32_t);
 template bool ProcessExecutor::saveResult(uint32_t, uint8_t, uint32_t);
 template bool ProcessExecutor::saveResult(uint32_t, char,    uint32_t);
 
-void ProcessExecutor::executeTask(int client_socket_fd, Task task) {
-  KLOG("Executing task");
+void ProcessExecutor::executeTask(int client_socket_fd, Task task)
+{
+  KLOG("Executing task {}", task.task_id);
 
   Environment environment{};
   environment.setTask(task);
 
-  if (environment.prepareRuntime()) {
+  if (environment.prepareRuntime())
+  {
     ExecutionState exec_state = environment.get();
     request(
       exec_state.path,

@@ -29,20 +29,22 @@ class IPCClient
 public:
 using u_ipc_msg_ptr = ipc_message::u_ipc_msg_ptr;
 
-explicit IPCClient(uint32_t port)
+explicit IPCClient(uint32_t port)  // TODO: this has to be changed
 : m_context{1},
   m_rep_socket{m_context, ZMQ_REP},
   m_req_socket{m_context, ZMQ_REQ}
-  {
-    ResetSocket();
-  }
+{
+  ResetSocket();
+}
 
-void ResetSocket() {
+void ResetSocket()
+{
   m_req_socket.connect(REQ_ADDRESS);
   m_rep_socket.bind(REP_ADDRESS);
 }
 
-bool SendMessage(std::string message) {
+bool SendMessage(std::string message)
+{
   zmq::message_t ipc_msg{message.size()};
   memcpy(ipc_msg.data(), message.data(), message.size());
   zmq::send_result_t result = m_req_socket.send(std::move(ipc_msg), zmq::send_flags::none);
@@ -74,6 +76,7 @@ bool SendIPCMessage(u_ipc_msg_ptr message, const bool use_req = false)
 
 bool ReplyIPC()
 {
+  VLOG("Sending REPLY");
   return SendIPCMessage(std::move(std::make_unique<okay_message>()));
 }
 
@@ -121,11 +124,14 @@ bool ReceiveIPCMessage(const bool use_req = true)
 
   if (ipc_message != nullptr)
   {
+    VLOG("Client received {} message", ::constants::IPC_MESSAGE_NAMES.at(ipc_message->type()));
     m_rx_msgs.emplace_back(std::move(ipc_message));
     m_req_ready = (use_req) ? true : m_req_ready;
+
     return true;
   }
 
+  ELOG("Client failed to receive message");
   return false;
 }
 

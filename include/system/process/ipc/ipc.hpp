@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 /**
 
             ┌───────────────────────────────────────────────────────────┐
@@ -20,6 +21,14 @@ static const uint8_t IPC_KIQ_MESSAGE     {0x01};
 static const uint8_t IPC_PLATFORM_TYPE   {0x02};
 static const uint8_t IPC_PLATFORM_ERROR  {0x03};
 static const uint8_t IPC_PLATFORM_REQUEST{0x04};
+
+static const std::unordered_map<uint8_t, const char*> IPC_MESSAGE_NAMES{
+  {IPC_OK_TYPE,          "IPC_OK_TYPE"},
+  {IPC_KIQ_MESSAGE,      "IPC_KIQ_MESSAGE"},
+  {IPC_PLATFORM_TYPE,    "IPC_PLATFORM_TYPE"},
+  {IPC_PLATFORM_ERROR,   "IPC_PLATFORM_ERROR"},
+  {IPC_PLATFORM_REQUEST, "IPC_PLATFORM_REQUEST"}
+};
 
 namespace index {
 static const uint8_t EMPTY    = 0x00;

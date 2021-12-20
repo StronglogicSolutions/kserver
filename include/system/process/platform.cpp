@@ -481,7 +481,7 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
  * @brief
  *
  */
-void Platform::processPlatform()
+void Platform::ProcessPlatform()
 {
   if (isProcessingPlatform()) return KLOG("Platform requests are still being processed");
 
@@ -569,6 +569,14 @@ std::string Platform::GetUser(const std::string& uid, const std::string& pid, bo
     if (v.first == "name")
       return v.second;
 
+  return "";
+}
+
+std::string Platform::GetPlatform(const std::string& pid)
+{
+  for (const auto& value :m_db.select("platform", {"name"}, CreateFilter("id", pid)))
+    if (value.first == "name")
+      return value.second;
   return "";
 }
 } // ns kiq

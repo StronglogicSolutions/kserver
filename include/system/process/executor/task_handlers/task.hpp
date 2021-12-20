@@ -85,6 +85,8 @@ static const uint8_t     FETCH_TASK_MAX_ID_INDEX         {0x04};
 static const uint8_t     FETCH_TASK_ORDER_INDEX          {0x05};
 
        const std::string SHOULD_REPOST                   {"true"};
+static const std::string NO_REPOST                       {"false"};
+static const std::string NO_URLS                         {""};
        const std::string PLATFORM_PROCESS_METHOD         {"process"};
        const std::string VIDEO_TYPE_ARGUMENT             {"video\""};
        const std::string IMAGE_TYPE_ARGUMENT             {"image\""};

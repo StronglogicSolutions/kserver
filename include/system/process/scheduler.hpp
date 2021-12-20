@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <vector>
 #include <deque>
-#include <string_view>
+#include <unordered_set>
 #include "log/logger.h"
 #include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"
@@ -15,14 +15,11 @@
 #define NO_COMPLETED_VALUE 99
 
 namespace kiq {
-
-static const char* TIMESTAMP_TIME_AS_TODAY{
-  "(extract(epoch from (TIMESTAMPTZ 'today')) + "\
-  "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
-  "60 * extract(minute from(to_timestamp(schedule.time))) + "\
-  "extract(second from (to_timestamp(schedule.time))))"};
-
-static const char* UNIXTIME_NOW{"extract(epoch from (now()))::int"};
+static const char* TIMESTAMP_TIME_AS_TODAY{"(extract(epoch from (TIMESTAMPTZ 'today')) + "\
+                                           "3600 * extract(hour from(to_timestamp(schedule.time))) + "\
+                                           "60 * extract(minute from(to_timestamp(schedule.time))) + "\
+                                           "extract(second from (to_timestamp(schedule.time))))"};
+static const char* UNIXTIME_NOW           {"extract(epoch from (now()))::int"};
 
 class ResearchManager;
 struct TaskParams
@@ -68,25 +65,6 @@ void SetEvent(ProcessEventData&& event_)
   event = event_;
 }
 };
-
-struct IPCSendEvent
-{
-int32_t                  event;
-std::vector<std::string> data;
-
-void append_msg(const std::string& s)
-{
-  if (data.size() > 4)
-    data[4] += s;
-}
-};
-
-enum class TGCommand
-{
-message = 0x00,
-poll    = 0x01
-};
-
 
 static int8_t IG_FEED_IDX    {0x00};
 static int8_t YT_FEED_IDX    {0x01};
@@ -147,14 +125,14 @@ using ApplicationInfo = std::pair<int32_t, std::string>;
 using ApplicationMap  = std::unordered_map<int32_t, std::string>;
 using TermEvents      = std::vector<ResearchManager::TermEvent>;
 
-
-
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
 
 virtual ~Scheduler() override;
 
 virtual std::string               schedule(Task task) override;
+        std::string               ScheduleIPC(const std::vector<std::string>& v);
+        void                      ProcessIPC();
 
         Task                      parseTask(QueryValues&& result);
         std::vector<Task>         parseTasks(QueryValues&& result,
@@ -183,7 +161,6 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      handleProcessOutput(const std::string& output, const int32_t mask, int32_t id);
         static bool               isKIQProcess(uint32_t mask);
 
-        void                      processPlatform();
         bool                      savePlatformPost(std::vector<std::string> payload);
         void                      OnPlatformError(const std::vector<std::string>& payload);
         void                      OnPlatformRequest(const std::vector<std::string>& payload);
@@ -206,8 +183,15 @@ private:
         void                      SetIPCCommand(const uint8_t& command);
         IPCSendEvent              MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg = "");
         bool                      IPCNotPending() const;
+        void                      SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time);
+        bool                      IPCResponseReceived() const;
+        bool                      OnIPCReceived(const std::string& id);
+
 
 using MessageQueue  = std::deque<IPCSendEvent>;
+using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;
+using ResearchPolls = std::unordered_set<int32_t>;
+using TermIDs       = std::unordered_set<int32_t>;
 
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
@@ -220,13 +204,11 @@ ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
 MessageQueue        m_message_queue;
 uint8_t             m_ipc_command;
-
+DispatchedIPC       m_dispatched_ipc;
+ResearchPolls       m_research_polls;     // -> should become responsibility of Research Manager (along with much more)
+TermIDs             m_term_ids;           // -> same as above
 };
 
-bool           TimerExpired();
-void           StartTimer();
-void           StopTimer();
-bool           TimerActive();
 TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);
 TaskWrapper*   FindParent(const TaskWrapper* node, const int32_t& mask);
 TaskWrapper*   FindMasterRoot(const TaskWrapper* ptr);

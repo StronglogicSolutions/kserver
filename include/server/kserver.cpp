@@ -23,7 +23,7 @@ static const char*   FILE_FAIL_MSG   {"File Save Failure"};
 KServer::KServer(int argc, char **argv)
 : SocketListener(argc, argv),
   m_ipc_manager(
-  [this](int32_t event, const std::vector<std::string>& payload)
+  [this](int32_t event, const std::vector<std::string>& payload) -> void
   {
     SystemEvent(ALL_CLIENTS, event, payload);
   }),
@@ -278,10 +278,10 @@ void KServer::OnTasksReady(const int32_t& client_fd, std::vector<Task> tasks)
  *
  * TODO: Place results in a queue if handling file for client
  */
-void KServer::OnProcessEvent(std::string result, int mask, std::string id,
-                    const int32_t& client_fd, bool error)
+void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std::string& id,
+                             int32_t client_fd, bool error)
 {
-  KLOG("Received result:\n{}", result);
+  VLOG("Task {} completed with result:\n{}", id, result);
   std::string              process_executor_result_str{};
   std::vector<std::string> event_args{};
 
