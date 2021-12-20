@@ -191,6 +191,7 @@ private:
 using MessageQueue  = std::deque<IPCSendEvent>;
 using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;
 using ResearchPolls = std::unordered_set<int32_t>;
+using TermIDs       = std::unordered_set<int32_t>;
 
 SystemEventcallback m_event_callback;
 Database::KDB       m_kdb;
@@ -205,6 +206,7 @@ MessageQueue        m_message_queue;
 uint8_t             m_ipc_command;
 DispatchedIPC       m_dispatched_ipc;
 ResearchPolls       m_research_polls;     // -> should become responsibility of Research Manager (along with much more)
+TermIDs             m_term_ids;           // -> same as above
 };
 
 TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);

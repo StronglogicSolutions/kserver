@@ -724,6 +724,15 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
+  auto Enqueue   = [this](const auto& term_info)
+  {
+    const auto id = std::stoi(term_info.id);
+    if (m_term_ids.find(id) == m_term_ids.end())
+    {
+      m_message_queue.front().append_msg(term_info.ToString());
+      m_term_ids.insert(id);
+    }
+  };
   auto Analyze   = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
     /****************************************************
@@ -838,7 +847,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
               NER_APP, {"entity"});
       else
       if (term_info.valid())
-        m_message_queue.front().append_msg(term_info.ToString());
+        Enqueue(term_info);
     }
 
     if (IPCNotPending())
