@@ -183,7 +183,7 @@ private:
         void                      SetIPCCommand(const uint8_t& command);
         IPCSendEvent              MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg = "");
         bool                      IPCNotPending() const;
-        void                      SendIPCRequest(const std::string& pid, const std::string& command, const std::string& data, const std::string& time);
+        void                      SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time);
         bool                      IPCResponseReceived() const;
         bool                      OnIPCReceived(const std::string& id);
 

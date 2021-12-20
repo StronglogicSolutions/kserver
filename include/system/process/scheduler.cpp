@@ -998,7 +998,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
  * @param payload
  */
 void Scheduler::OnPlatformError(const std::vector<std::string>& payload)
-{
+{ // TODO: Check ID and resolve pending IPC failures
   m_platform.OnPlatformError(payload);
 }
 
@@ -1166,16 +1166,19 @@ void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
   static const auto   table     = "ipc";
-  static const Fields fields    = {"pid", "command", "data", "time"};
+  static const Fields fields    = {"id", "pid", "command", "data", "time"};
 
   if (!IPCResponseReceived()) return;
 
          const QueryComparisonFilter   filter{{"time", "<", TimeUtils::Now()}};
          const auto   query     = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(table, fields, {filter, CreateFilter("status", "0")});
-  std::string  pid, data, command, time;
+  std::string  id, pid, data, command, time;
 
   for (const auto& value : query)
   {
+    if (value.first == "id")
+      id = value.second;
+    else
     if (value.first == "pid")
       pid = value.second;
     else
@@ -1188,9 +1191,9 @@ void Scheduler::ProcessIPC()
     if (value.first == "time")
       time = value.second;
 
-    if (NoEmptyArgs(pid, command, data, time))
+    if (NoEmptyArgs(id, pid, command, data, time))
     {
-      SendIPCRequest(pid, command, data, time);
+      SendIPCRequest(id, pid, command, data, time);
       ClearArgs     (pid, command, data, time);
     }
   }
@@ -1198,23 +1201,23 @@ void Scheduler::ProcessIPC()
   m_platform.ProcessPlatform();
 }
 
-void Scheduler::SendIPCRequest(const std::string& pid, const std::string& command, const std::string& data, const std::string& time)
+void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time)
 {
   using namespace StringUtils;
   using Payload = std::vector<std::string>;
   static const auto no_repost = constants::NO_REPOST;
   static const auto no_urls   = constants::NO_URLS;
   static const auto no_cmd    = std::to_string(std::numeric_limits<uint32_t>::max());
-  const auto    id       = GenerateUUIDString();
+  const auto    uuid     = GenerateUUIDString();
   const auto    platform = m_platform.GetPlatform(pid);
   const auto    user     = m_platform.GetUser("", pid, true);
   const auto    code_s   = std::to_string(IPC_CMD_CODES.at(command));
   const auto    args     = CreateOperation("bot", {config::Process::tg_dest(), data});
-  const Payload payload  = {platform, id, user, time, command, no_urls, no_repost, "bot", args, code_s};
+  const Payload payload  = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
 
-  m_dispatched_ipc.insert({id, PlatformIPC{platform, GetIPCCommand(command), id}});
+  m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
 }
 
 bool Scheduler::IPCResponseReceived() const
@@ -1224,14 +1227,14 @@ bool Scheduler::IPCResponseReceived() const
   return true;
 }
 
-bool Scheduler::OnIPCReceived(const std::string& id)
+bool Scheduler::OnIPCReceived(const std::string& uuid)
 {
   auto UpdateStatus = [this](auto id) { m_kdb.update("ipc", {"status"}, {"1"}, CreateFilter("id", id)); };
-  auto it = m_dispatched_ipc.find(id);
+  auto it = m_dispatched_ipc.find(uuid);
   if (it == m_dispatched_ipc.end())
     return false;
   it->second.complete = true;
-  UpdateStatus(id);
+  UpdateStatus(it->second.id);
   return true;
 }
 
