@@ -735,24 +735,6 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   };
   auto Analyze   = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
-    /****************************************************
-     *     NOTE: store tokens for comparison            *
-     *     NEXT: IMPLEMENT SOLUTION                     *
-     ****************************************************
-     ** 1. Collect all tokens from both tasks          **
-     ** 2. Perform Word association analysis on tokens **
-     ** 3. Retrieve texts from both tasks              **
-     ** 4. Perform sentiment analysis on both tasks    **
-     ** 5. Perform subject analysis on both tasks      **
-     ** 6. Evaluate congruence:                        **
-     **   - supporting same ideas                      **
-     **   - organizational interests                   **
-     ** 7. Trends analysis                             **
-     **   - Comparse each task's trend timeline        **
-     **   - Identify disrupting word                   **
-     **   - Email / IPC notify admin                   **
-     ****************************************************
-     ****************************************************/
     using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
     using Sentiment = SentimentResultParser::Sentiment;
     using Terms     = std::vector<JSONItem>;
@@ -1189,7 +1171,7 @@ void Scheduler::ProcessIPC()
   if (!IPCResponseReceived()) return;
 
          const QueryComparisonFilter   filter{{"time", "<", TimeUtils::Now()}};
-         const auto   query     = m_kdb.select(table, fields, filter);
+         const auto   query     = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(table, fields, {filter, CreateFilter("status", "0")});
   std::string  pid, data, command, time;
 
   for (const auto& value : query)
@@ -1244,10 +1226,12 @@ bool Scheduler::IPCResponseReceived() const
 
 bool Scheduler::OnIPCReceived(const std::string& id)
 {
+  auto UpdateStatus = [this](auto id) { m_kdb.update("ipc", {"status"}, {"1"}, CreateFilter("id", id)); };
   auto it = m_dispatched_ipc.find(id);
   if (it == m_dispatched_ipc.end())
     return false;
   it->second.complete = true;
+  UpdateStatus(id);
   return true;
 }
 

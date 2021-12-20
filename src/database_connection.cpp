@@ -72,6 +72,9 @@ std::string filterStatement(T filter)
   if constexpr (std::is_same_v<T, CompFilter>)
     filter_string += filter.a + filter.sign + filter.b;
   else
+  if constexpr (std::is_same_v<T, QueryComparisonFilter>)
+    filter_string += std::get<0>(filter[0]) + std::get<1>(filter[0]) + std::get<2>(filter[0]);
+  else
   if constexpr (std::is_same_v<T, QueryFilter>)
   {
     std::string delim{};
@@ -388,6 +391,16 @@ std::string selectStatement(T query)
       return stmt;
     }
     else
+    if constexpr (
+      std::is_same_v<T, MultiVariantFilterSelect<std::vector<std::variant<QueryComparisonFilter, QueryFilter>>>>)
+    {
+      std::string stmt{"SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + filter_string +
+                       getVariantFilterStatement<QueryComparisonFilter, QueryFilter>(filter)};
+      if (query.order.has_value()) stmt += orderStatement(query.order);
+      if (query.limit.has_value()) stmt += limitStatement(query.limit.count);
+      return stmt;
+    }
+    else
     if constexpr (std::is_same_v<T, JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>>>)
     {
       filter_string += getVariantFilterStatement(filter);
@@ -578,6 +591,9 @@ template QueryResult DatabaseConnection::query(
 
 template QueryResult DatabaseConnection::query(
   MultiVariantFilterSelect<std::vector<std::variant<CompBetweenFilter, QueryFilter>>>);
+
+template QueryResult DatabaseConnection::query(
+  MultiVariantFilterSelect<std::vector<std::variant<QueryComparisonFilter, QueryFilter>>>);
 
 template QueryResult DatabaseConnection::query(
   JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter>>>);

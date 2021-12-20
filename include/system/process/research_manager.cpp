@@ -401,7 +401,7 @@ std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::st
 
     if (DataUtils::NoEmptyArgs(id, time, person, organization, user, sid))
     {
-      KLOG("Term {} has previous hit:\nPerson: {}\nOrg: {}\nTime: {}", term, person, organization, time);
+      KLOG("Term {} has previous hit: Person: {} - Time: {}", term, person, time);
       result.emplace_back(TermHit{id, person, user, organization, time, term, sid});
       DataUtils::ClearArgs(time, person, user, organization);
     }
@@ -417,17 +417,6 @@ std::string ResearchManager::AddTerm(const std::string &name, const std::string 
   return m_db_ptr->insert("term", {"name", "type"}, {name, type}, "id");
 }
 
-
-/**
- * GetAllTermHits
- * id
-   user
-   person
-   organization
-   term
-   type
-   time
- */
 std::vector<ResearchManager::TermEvent> ResearchManager::GetAllTermEvents() const
 {
   auto db = m_db_ptr;
