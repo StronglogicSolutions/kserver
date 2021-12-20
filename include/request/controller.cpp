@@ -427,14 +427,15 @@ void Controller::process_system_event(const int32_t&                  event,
 {
   switch (event)
   {
+    case (SYSTEM_EVENTS__PLATFORM_REQUEST):
+      m_scheduler.OnPlatformRequest(payload);
+    break;
     case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
       m_scheduler.savePlatformPost(payload);
-      break;
-
+    break;
     case (SYSTEM_EVENTS__PLATFORM_ERROR):
-      m_scheduler.onPlatformError(payload);
-      break;
-
+      m_scheduler.OnPlatformError(payload);
+    break;
     case (SYSTEM_EVENTS__PROCESS_COMPLETE):
     {
       const std::string output =           payload.at(EVENT_PROCESS_OUTPUT_INDEX);
@@ -443,6 +444,7 @@ void Controller::process_system_event(const int32_t&                  event,
     }
     break;
   }
+  m_system_rq_count++;
 }
 
 /**
@@ -650,8 +652,8 @@ void Controller::process_client_request(const int32_t&     client_fd,
       [[ fallthrough ]];
     default:
       ELOG("Controller could not process unknown client request: {}", type);
-    break;
   }
+  m_client_rq_count++;
 }
 
 /**
@@ -716,6 +718,7 @@ void Controller::onProcessComplete(const std::string& value,
                                                                Completed::FAILED;
           KLOG("Sending email to administrator about failed task.\nNew Status: {}", Completed::STRINGS[status]);
           SystemUtils::SendMail(config::Email::notification(), Messages::TASK_ERROR_EMAIL + value);
+          m_err_count++;
         }
         else
         {
@@ -723,6 +726,7 @@ void Controller::onProcessComplete(const std::string& value,
                                         Completed::SUCCESS;
           if (!m_scheduler.processTriggers(&*task_it))
             KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id(), task_it->execution_mask);
+          m_ps_exec_count++;
         }
 
         task_it->completed = status;                            // Update status
@@ -790,6 +794,12 @@ void Controller::onSchedulerEvent(const int32_t&                  client_socket_
                                   const std::vector<std::string>& args)
 {
   m_system_callback_fn(client_socket_fd, event, args);
+}
+
+void Controller::Status() const
+{
+  VLOG("Processes Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
+        m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count);
 }
 
 }  // ns kiq::Request

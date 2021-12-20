@@ -64,19 +64,19 @@ KServer::~KServer()
  *
  * Handles notifications sent back to the system delivering event messages
  *
- * @param[in] {int} client_socket_fd
+ * @param[in] {int} client_fd
  * @param[in] {int} system_event
  * @param[in] {std::vector<std::string>}
  *
  */
-void KServer::SystemEvent(const int32_t&                  client_socket_fd,
+void KServer::SystemEvent(const int32_t&                  client_fd,
                                 const int32_t&                  system_event,
                                 const std::vector<std::string>& args)
 {
   switch (system_event)
   {
     case SYSTEM_EVENTS__SCHEDULED_TASKS_READY:
-      if (client_socket_fd == ALL_CLIENTS)
+      if (client_fd == ALL_CLIENTS)
       {
         KLOG("Maintenance worker found tasks");
         for (const auto& [fd, session] : m_sessions)
@@ -84,12 +84,12 @@ void KServer::SystemEvent(const int32_t&                  client_socket_fd,
       }
       else
       {
-        KLOG("Informing client {} about scheduled tasks", client_socket_fd);
-        SendEvent(client_socket_fd, "Scheduled Tasks Ready", args);
+        KLOG("Informing client {} about scheduled tasks", client_fd);
+        SendEvent(client_fd, "Scheduled Tasks Ready", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE:
-      if (client_socket_fd == ALL_CLIENTS)
+      if (client_fd == ALL_CLIENTS)
       {
         KLOG("There are currently no tasks ready for execution.");
         for (const auto& [fd, session] : m_sessions)
@@ -97,38 +97,38 @@ void KServer::SystemEvent(const int32_t&                  client_socket_fd,
       }
       else
       {
-        KLOG("Informing client {} about scheduled tasks", client_socket_fd);
-        SendEvent(client_socket_fd, "No tasks ready to run", args);
+        KLOG("Informing client {} about scheduled tasks", client_fd);
+        SendEvent(client_fd, "No tasks ready to run", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULER_FETCH:
-      if (client_socket_fd != ALL_CLIENTS)
+      if (client_fd != ALL_CLIENTS)
       {
-        KLOG("Sending schedule fetch results to client {}", client_socket_fd);
-        SendEvent(client_socket_fd, "Scheduled Tasks", args);
+        KLOG("Sending schedule fetch results to client {}", client_fd);
+        SendEvent(client_fd, "Scheduled Tasks", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULER_UPDATE:
-      if (client_socket_fd != ALL_CLIENTS)
+      if (client_fd != ALL_CLIENTS)
       {
-        KLOG("Sending schedule update result to client {}", client_socket_fd);
-        SendEvent(client_socket_fd, "Schedule PUT", args);
+        KLOG("Sending schedule update result to client {}", client_fd);
+        SendEvent(client_fd, "Schedule PUT", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS:
-      if (client_socket_fd != ALL_CLIENTS)
+      if (client_fd != ALL_CLIENTS)
       {
-        KLOG("Sending schedule flag values to client {}", client_socket_fd);
-        SendEvent(client_socket_fd, "Schedule Tokens", args);
+        KLOG("Sending schedule flag values to client {}", client_fd);
+        SendEvent(client_fd, "Schedule Tokens", args);
       }
     break;
     case SYSTEM_EVENTS__SCHEDULER_SUCCESS:
       KLOG("Task successfully scheduled");
-      if (client_socket_fd == ALL_CLIENTS)
+      if (client_fd == ALL_CLIENTS)
         for (const auto& [fd, session] : m_sessions)
           SendEvent(fd, "Task Scheduled", args);
        else
-        SendEvent(client_socket_fd, "Task Scheduled", args);
+        SendEvent(client_fd, "Task Scheduled", args);
     break;
     case SYSTEM_EVENTS__PLATFORM_NEW_POST:
     {
@@ -140,41 +140,47 @@ void KServer::SystemEvent(const int32_t&                  client_socket_fd,
       for (const auto& arg : args)
         outgoing_args.emplace_back(arg);
 
-      if (client_socket_fd == ALL_CLIENTS)
+      if (client_fd == ALL_CLIENTS)
         for (const auto& [fd, session] : m_sessions)
           SendEvent(fd, "Platform Post", args);
       else
-        SendEvent(client_socket_fd, "Platform Post", args);
+        SendEvent(client_fd, "Platform Post", args);
     }
     break;
     case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
       if (args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
-        m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, args);
+        m_ipc_manager.ReceiveEvent(system_event, args);
       else
         m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
     break;
+    case SYSTEM_EVENTS__PLATFORM_REQUEST:
+      m_controller.process_system_event(system_event, args);
+    break;
+    case SYSTEM_EVENTS__PLATFORM_EVENT:
+      m_ipc_manager.ReceiveEvent(system_event, args);
+    break;
     case SYSTEM_EVENTS__KIQ_IPC_MESSAGE:
-        m_ipc_manager.process(args.front(), client_socket_fd);
+        m_ipc_manager.process(args.front(), client_fd);
     break;
     case SYSTEM_EVENTS__PLATFORM_ERROR:
-      m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
+      m_controller.process_system_event(system_event, args);
       ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
 
-      if (client_socket_fd == ALL_CLIENTS)
+      if (client_fd == ALL_CLIENTS)
         for (const auto& [fd, session] : m_sessions)
           SendEvent(fd, "Platform Error", args);
       else
-        SendEvent(client_socket_fd, "Platform Error", args);
+        SendEvent(client_fd, "Platform Error", args);
     break;
     case SYSTEM_EVENTS__FILE_UPDATE:
     {
       const auto timestamp = args.at(1);
-      KLOG("Updating information file information for client {}'s file received at {}", client_socket_fd, timestamp);
+      KLOG("Updating information file information for client {}'s file received at {}", client_fd, timestamp);
 
       auto received_file = std::find_if(m_received_files.begin(), m_received_files.end(),
-        [client_socket_fd, timestamp](const ReceivedFile &file)
+        [client_fd, timestamp](const ReceivedFile &file)
         {
-          return (file.client_fd                 == client_socket_fd &&
+          return (file.client_fd                 == client_fd &&
                   std::to_string(file.timestamp) == timestamp);
         });
 
@@ -186,71 +192,71 @@ void KServer::SystemEvent(const int32_t&                  client_socket_fd,
         m_received_files.erase(received_file);
 
         if (args.size() > 3 && args.at(3) == "final file")
-          EraseFileHandler(client_socket_fd);
+          EraseFileHandler(client_fd);
 
-        SendEvent(client_socket_fd, FILE_SUCCESS_MSG, {timestamp});
+        SendEvent(client_fd, FILE_SUCCESS_MSG, {timestamp});
       }
       else
       {
         ELOG("Unable to find file");
-        SendEvent(client_socket_fd, FILE_FAIL_MSG, {timestamp});
+        SendEvent(client_fd, FILE_FAIL_MSG, {timestamp});
       }
     }
     break;
     case SYSTEM_EVENTS__FILES_SEND:
     {
       const auto files = args;
-      EnqueueFiles(client_socket_fd, files);
-      SendEvent(client_socket_fd, "File Upload", files);
+      EnqueueFiles(client_fd, files);
+      SendEvent(client_fd, "File Upload", files);
     }
     break;
     case SYSTEM_EVENTS__FILES_SEND_ACK:
     {
-      if (m_file_sending_fd == client_socket_fd)
-        SendEvent(client_socket_fd, "File Upload Meta", m_outbound_files.front().file.to_string_v());
+      if (m_file_sending_fd == client_fd)
+        SendEvent(client_fd, "File Upload Meta", m_outbound_files.front().file.to_string_v());
     }
     break;
     case SYSTEM_EVENTS__FILES_SEND_READY:
-    if (m_file_sending_fd == client_socket_fd)
+    if (m_file_sending_fd == client_fd)
     {
-      SendFile(client_socket_fd, m_outbound_files.front().file.name);
+      SendFile(client_fd, m_outbound_files.front().file.name);
       m_outbound_files.pop_front();
     }
     break;
     case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED:
-      SendEvent(client_socket_fd, "Process Execution Requested", args);
+      SendEvent(client_fd, "Process Execution Requested", args);
       break;
 
     case SYSTEM_EVENTS__APPLICATION_FETCH_SUCCESS:
-      SendEvent(client_socket_fd, "Application was found", args);
+      SendEvent(client_fd, "Application was found", args);
       break;
 
     case SYSTEM_EVENTS__APPLICATION_FETCH_FAIL:
-      SendEvent(client_socket_fd, "Application was not found", args);
+      SendEvent(client_fd, "Application was not found", args);
       break;
 
     case SYSTEM_EVENTS__REGISTRAR_SUCCESS:
-      SendEvent(client_socket_fd, "Application was registered", args);
+      SendEvent(client_fd, "Application was registered", args);
       break;
 
     case SYSTEM_EVENTS__REGISTRAR_FAIL:
-      SendEvent(client_socket_fd, "Failed to register application", args);
+      SendEvent(client_fd, "Failed to register application", args);
     break;
 
     case SYSTEM_EVENTS__TASK_FETCH_FLAGS:
-      SendEvent(client_socket_fd, "Application Flags", args);
+      SendEvent(client_fd, "Application Flags", args);
     break;
 
     case SYSTEM_EVENTS__TASK_DATA:
-      SendEvent(client_socket_fd, "Task Data", args);
+      SendEvent(client_fd, "Task Data", args);
     break;
 
     case SYSTEM_EVENTS__TASK_DATA_FINAL:
-      SendEvent(client_socket_fd, "Task Data Final", args);
+      SendEvent(client_fd, "Task Data Final", args);
     break;
 
     case SYSTEM_EVENTS__TERM_HITS:
-      SendEvent(client_socket_fd, "Term Hits", args);
+      SendEvent(client_fd, "Term Hits", args);
     break;
   }
 }
@@ -267,7 +273,7 @@ void KServer::OnTasksReady(const int32_t& client_fd, std::vector<Task> tasks)
  *
  * param[in] {std::string} result
  * param[in] {int} mask
- * param[in] {int} client_socket_fd
+ * param[in] {int} client_fd
  * param[in] {bool} error
  *
  * TODO: Place results in a queue if handling file for client
@@ -318,7 +324,7 @@ void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
  *
  * Helper function for sending event messages to a client
  *
- * @param[in] {int} client_socket_fd
+ * @param[in] {int} client_fd
  * @param[in] {std::string} event
  * @param[in] {std::vector<std::string>} argv
  */
