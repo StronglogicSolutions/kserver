@@ -69,10 +69,10 @@ using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration  = std::chrono::seconds;
 static const uint32_t TWENTY_MINUTES = 1200;
 Timer(const int64_t duration_ = TWENTY_MINUTES);
+bool active() const;
 bool expired() const;
 void start();
 void stop();
-bool active() const;
 
 private:
 TimePoint time_point;

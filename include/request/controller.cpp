@@ -13,7 +13,11 @@ static flatbuffers::FlatBufferBuilder builder(1024);
 Controller::Controller()
 : m_active(true),
   m_executor(nullptr),
-  m_scheduler(getScheduler())
+  m_scheduler(getScheduler()),
+  m_ps_exec_count(0),
+  m_client_rq_count(0),
+  m_system_rq_count(0),
+  m_err_count(0)
 {}
 
 /**
@@ -45,7 +49,8 @@ Controller::Controller(const Controller &r)
  *
  * The copy assignment operator
  */
-Controller& Controller::operator=(const Controller &handler) {
+Controller& Controller::operator=(const Controller &handler)
+{
   this->m_executor  = nullptr;
   return *this;
 }
@@ -166,8 +171,9 @@ Scheduler Controller::getScheduler()
 void Controller::InfiniteLoop()
 {
   static const int32_t client_fd{ALL_CLIENTS};
+  static       Timer   timer{};
   KLOG("Worker starting");
-
+  timer.start();
   while (m_active)
   {
     std::unique_lock<std::mutex> lock(m_mutex);
@@ -205,9 +211,13 @@ void Controller::InfiniteLoop()
         m_tasks_map.at(client_fd).size() == 1 ? "task" : "tasks");
     }
 
-    if (!m_tasks_map.empty())
-      handlePendingTasks();
+    if (m_tasks_map.size()) handlePendingTasks();
 
+    if (timer.expired())
+    {
+      Status();
+      timer.start();
+    }
     m_scheduler.ProcessIPC();
     m_scheduler.ResolvePending();
     m_condition.wait_for(lock, std::chrono::milliseconds(5000));
@@ -224,17 +234,13 @@ void Controller::handlePendingTasks()
   if (m_tasks_map.size())
   {
     std::vector<std::future<void>> futures{};
-    futures.reserve(m_tasks_map.size() * m_tasks_map.begin()->second.size());
 
     for (const auto &client_tasks : m_tasks_map)
       if (!client_tasks.second.empty())
         for (const auto &task : client_tasks.second)
-          futures.push_back(std::async(
-            std::launch::deferred, &ProcessExecutor::executeTask,
-            std::ref(*(m_executor)), client_tasks.first, task));
-
-    for (auto& future : futures)
-      future.get();
+          futures.push_back(std::async(std::launch::deferred,
+            &ProcessExecutor::executeTask, std::ref(*(m_executor)), client_tasks.first, task));
+    for (auto&& future : futures) future.get();
   }
 }
 
@@ -246,15 +252,14 @@ void Controller::handlePendingTasks()
  *
  * Processes requests to schedule a task
  *
- * @param[in] {KOperation} `op` The operation requested
- * @param[in] {std::vector<std::string>} `argv` The task
- * @param[in] {int} `client_socket_fd` The client socket file descriptor
- * @param[in] {std::string> `uuid` The unique universal identifier to
- * distinguish the task
+ * @param[in] {KOperation}               `op`        The operation requested
+ * @param[in] {std::vector<std::string>} `argv`      The task
+ * @param[in] {int}                      `client_fd` The client socket file descriptor
+ * @param[in] {std::string>              `uuid`      The unique universal identifier
  */
 void Controller::operator()(const KOperation&               op,
                             const std::vector<std::string>& argv,
-                            const int32_t&                  client_socket_fd,
+                            const int32_t&                  client_fd,
                             const std::string&              uuid)
 {
   if (op != "Schedule" || argv.empty()) return;
@@ -290,7 +295,7 @@ void Controller::operator()(const KOperation&               op,
       if (file_index == task.files.size() - 1)
         callback_args.push_back("final file");
 
-      m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__FILE_UPDATE, callback_args);
+      m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILE_UPDATE, callback_args);
     }
 
     if (task.validate())
@@ -312,7 +317,7 @@ void Controller::operator()(const KOperation&               op,
         for (auto&& file : task.files)         // Add filenames
           callback_args.emplace_back(file.first);
 
-        m_system_callback_fn(client_socket_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, callback_args);
+        m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, callback_args);
       }
       else
         KLOG("Task with UUID {} was validated, but scheduling failed", uuid);
@@ -798,8 +803,8 @@ void Controller::onSchedulerEvent(const int32_t&                  client_socket_
 
 void Controller::Status() const
 {
-  VLOG("Processes Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
-        m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count);
+  VLOG("Controller Status Update\nProcesses Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
+    m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count);
 }
 
 }  // ns kiq::Request

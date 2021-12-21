@@ -21,6 +21,11 @@ Timer::Timer(const int64_t duration_)
 : duration(duration_)
 {}
 
+bool Timer::active() const
+{
+  return timer_active;
+}
+
 bool Timer::expired() const
 {
          const TimePoint now         = std::chrono::system_clock::now();
@@ -39,10 +44,6 @@ void Timer::stop()
   timer_active = false;
 }
 
-bool Timer::active() const
-{
-  return timer_active;
-}
 
 
 /**
