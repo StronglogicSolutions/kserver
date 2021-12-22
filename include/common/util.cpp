@@ -397,9 +397,9 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t& size)
   return VerifyMessageBuffer(verifier);
 }
 
-bool IsPing(uint8_t* buffer, ssize_t size)
+bool IsPing(const std::string& data)
 {
-  return (size > 4) && (*(buffer + 4) == 0xFD);
+  return (data == "253");
 }
 
 /**

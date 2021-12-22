@@ -1,0 +1,8 @@
+namespace KData;
+
+table Message {
+  id: int;
+  data: [ubyte];
+}
+
+root_type Message;

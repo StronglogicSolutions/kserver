@@ -128,7 +128,7 @@ bool IsIPCOperation       (const std::string& data);
 bool IsStartOperation     (const std::string& data);
 bool IsStopOperation      (const std::string& data);
 bool IsAppOperation       (const std::string& data);
-bool IsPing(uint8_t* buffer, ssize_t size);
+bool IsPing               (const std::string& data);
 
 /**
  * General

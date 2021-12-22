@@ -190,7 +190,7 @@ void Controller::InfiniteLoop()
 
       for (const auto& task : tasks)
       {
-        auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
+        const auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
         scheduled_times += formatted_time + " ";
         KLOG("Task info: Time: {} - Mask: {}\n Args: {}\n {}",
           formatted_time, std::to_string(task.execution_mask),
@@ -218,10 +218,13 @@ void Controller::InfiniteLoop()
       Status();
       timer.start();
     }
+
     m_scheduler.ProcessIPC();
     m_scheduler.ResolvePending();
     m_condition.wait_for(lock, std::chrono::milliseconds(5000));
   }
+
+  SystemUtils::SendMail(config::System::admin(), "Worker loop has ended");
 }
 
 /**
@@ -231,17 +234,28 @@ void Controller::InfiniteLoop()
  */
 void Controller::handlePendingTasks()
 {
-  if (m_tasks_map.size())
+  auto MakeError = [](const char* e_msg) { return fmt::format("Exception caught while executing process: {}", e_msg); };
+  try
   {
-    std::vector<std::future<void>> futures{};
+    if (m_tasks_map.size())
+    {
+      std::vector<std::future<void>> futures{};
 
-    for (const auto &client_tasks : m_tasks_map)
-      if (!client_tasks.second.empty())
-        for (const auto &task : client_tasks.second)
-          futures.push_back(std::async(std::launch::deferred,
-            &ProcessExecutor::executeTask, std::ref(*(m_executor)), client_tasks.first, task));
-    for (auto&& future : futures) future.get();
+      for (const auto &client_tasks : m_tasks_map)
+        if (!client_tasks.second.empty())
+          for (const auto &task : client_tasks.second)
+            futures.push_back(std::async(std::launch::deferred,
+              &ProcessExecutor::executeTask, std::ref(*(m_executor)), client_tasks.first, task));
+      for (auto&& future : futures) future.get();
+    }
   }
+  catch(const std::exception& e)
+  {
+    const auto error = MakeError(e.what());
+    ELOG(error);
+    SystemUtils::SendMail(config::System::admin(), error);
+  }
+
 }
 
 /**
@@ -285,15 +299,12 @@ void Controller::operator()(const KOperation&               op,
       generic_task_handler.prepareTask(argv, uuid, &task);
     }
 
-    uint8_t file_index{0};
-
     for (const auto &file_info : task.files)
     {
       KLOG("Task file: {}", file_info.first);
       std::vector<std::string> callback_args{file_info.first, file_info.second, uuid};
 
-      if (file_index == task.files.size() - 1)
-        callback_args.push_back("final file");
+      if (task.files.size() == 1) callback_args.push_back("final file");
 
       m_system_callback_fn(client_fd, SYSTEM_EVENTS__FILE_UPDATE, callback_args);
     }
@@ -314,8 +325,7 @@ void Controller::operator()(const KOperation&               op,
           std::to_string(task.files.size())    // File number
         });
 
-        for (auto&& file : task.files)         // Add filenames
-          callback_args.emplace_back(file.first);
+        for (auto&& file : task.files) callback_args.emplace_back(file.first);
 
         m_system_callback_fn(client_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, callback_args);
       }
