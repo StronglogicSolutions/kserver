@@ -116,6 +116,7 @@ void Controller::initialize(ProcessCallbackFn process_callback_fn,
 
   m_process_event      = process_callback_fn;
   m_system_event       = system_callback_fn;
+  m_server_status      = status_callback_fn;
   m_maintenance_worker = std::thread(std::bind(&Controller::InfiniteLoop, this));
 
   SetWait(false);

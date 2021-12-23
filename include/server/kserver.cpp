@@ -596,4 +596,15 @@ void KServer::onConnectionClose(int32_t client_fd)
   OnClientExit(client_fd);
 }
 
+void KServer::Status                   () const
+{
+  size_t tx_bytes{}, rx_bytes{};
+  for (const auto& [fd, session] : m_sessions)
+  {
+    tx_bytes += session.tx;
+    rx_bytes += session.rx;
+  }
+
+  VLOG("Server Status\nSent {} bytes\nRecv {} bytes", tx_bytes, rx_bytes);
+}
 } // ns kiq
