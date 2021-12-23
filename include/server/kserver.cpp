@@ -462,12 +462,6 @@ void KServer::onMessageReceived(int                      client_fd,
     if (m_file_pending)
       ReceiveFileData(s_buffer_ptr, client_fd, size);
     else
-    if (IsPing(s_buffer_ptr.get(), size))
-    {
-      KLOG("Client {} - keepalive", client_fd);
-      return SendPong(client_fd);
-    }
-    else
       ReceiveMessage(s_buffer_ptr, size, client_fd);
   }
   catch(const std::exception& e)
@@ -478,6 +472,7 @@ void KServer::onMessageReceived(int                      client_fd,
 
 void KServer::SendPong(int32_t client_fd)
 {
+  KLOG("Client {} - keepalive", client_fd);
   SocketListener::sendMessage(client_fd, PONG, PONG_SIZE);
   m_sessions.at(client_fd).tx += PONG_SIZE;
 }
@@ -486,7 +481,7 @@ void KServer::EndSession(const int32_t& client_fd)
 {
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
                                                      "\nTX: " + std::to_string(session.tx); };
-  static const bool SUCCESS{0};
+  static const int SUCCESS{0};
   const std::string stats = GetStats(m_sessions.at(client_fd));
 
   SendEvent(client_fd, CLOSE_SESSION, {GOODBYE_MSG, stats});
@@ -518,6 +513,9 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
     {
       if (message.empty())
         ELOG("Failed to decode message");
+      else
+      if (IsPing(message))
+        SendPong(fd);
       else
       if (IsOperation(message))
         OperationRequest(message, fd);

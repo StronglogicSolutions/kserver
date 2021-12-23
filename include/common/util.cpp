@@ -21,6 +21,11 @@ Timer::Timer(const int64_t duration_)
 : duration(duration_)
 {}
 
+bool Timer::active() const
+{
+  return timer_active;
+}
+
 bool Timer::expired() const
 {
          const TimePoint now         = std::chrono::system_clock::now();
@@ -39,10 +44,6 @@ void Timer::stop()
   timer_active = false;
 }
 
-bool Timer::active() const
-{
-  return timer_active;
-}
 
 
 /**
@@ -396,9 +397,9 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t& size)
   return VerifyMessageBuffer(verifier);
 }
 
-bool IsPing(uint8_t* buffer, ssize_t size)
+bool IsPing(const std::string& data)
 {
-  return (size > 4) && (*(buffer + 4) == 0xFD);
+  return (data == "253");
 }
 
 /**
