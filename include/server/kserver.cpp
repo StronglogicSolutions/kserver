@@ -43,6 +43,10 @@ KServer::KServer(int argc, char **argv)
     [this](const int32_t& client_fd, std::vector<Task> tasks)
     {
       OnTasksReady(client_fd, tasks);
+    },
+    [this]()
+    {
+      Status();
     });
 
     KLOG("Starting IPC manager");
@@ -70,8 +74,8 @@ KServer::~KServer()
  *
  */
 void KServer::SystemEvent(const int32_t&                  client_fd,
-                                const int32_t&                  system_event,
-                                const std::vector<std::string>& args)
+                          const int32_t&                  system_event,
+                          const std::vector<std::string>& args)
 {
   switch (system_event)
   {

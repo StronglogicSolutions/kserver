@@ -1165,31 +1165,26 @@ std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
 void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
-  static const auto   table     = "ipc";
-  static const Fields fields    = {"id", "pid", "command", "data", "time"};
+  static const auto   table  = "ipc";
+  static const Fields fields = {"id", "pid", "command", "data", "time"};
 
   if (!IPCResponseReceived()) return;
 
-         const QueryComparisonFilter   filter{{"time", "<", TimeUtils::Now()}};
-         const auto   query     = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(table, fields, {filter, CreateFilter("status", "0")});
+  const auto   filter = QueryComparisonFilter{{"time", "<", TimeUtils::Now()}};
+  const auto   query  = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(
+                          table, fields, {filter, CreateFilter("status", "0")});
   std::string  id, pid, data, command, time;
-
   for (const auto& value : query)
   {
-    if (value.first == "id")
-      id = value.second;
+    if (value.first == "id")      id = value.second;
     else
-    if (value.first == "pid")
-      pid = value.second;
+    if (value.first == "pid")     pid = value.second;
     else
-    if (value.first == "command")
-      command = value.second;
+    if (value.first == "command") command = value.second;
     else
-    if (value.first == "data")
-      data = value.second;
+    if (value.first == "data")    data = value.second;
     else
-    if (value.first == "time")
-      time = value.second;
+    if (value.first == "time")    time = value.second;
 
     if (NoEmptyArgs(id, pid, command, data, time))
     {

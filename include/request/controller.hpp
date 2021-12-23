@@ -42,6 +42,7 @@ class Controller {
  using EventCallbackFn  = std::function<void(std::string, int, std::string, int, bool)>;
  using SystemCallbackFn = std::function<void(int, int, std::vector<std::string>)>;
  using TaskCallbackFn   = std::function<void(int, std::vector<Task>)>;
+ using StatusCallbackFn = std::function<void(void)>;
 
  public:
   Controller();
@@ -54,7 +55,8 @@ class Controller {
 
   void                      initialize(EventCallbackFn  event_callback_fn,
                                        SystemCallbackFn system_callback_fn,
-                                       TaskCallbackFn   task_callback_fn);
+                                       TaskCallbackFn   task_callback_fn,
+                                       StatusCallbackFn status_callback_fn);
   void                      shutdown();
   void                      SetWait(const bool& wait);
 
@@ -87,8 +89,8 @@ class Controller {
                         const std::vector<std::string>& args = {});
   void Status() const;
 
-  EventCallbackFn                   m_event_callback_fn;
-  SystemCallbackFn                  m_system_callback_fn;
+  EventCallbackFn                   m_system_event;
+  SystemCallbackFn                  m_process_event;
   TaskCallbackFn                    m_task_callback_fn;
 
   std::map<int, std::vector<Task>>  m_tasks_map;

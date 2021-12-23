@@ -73,6 +73,17 @@ private:
   bool HandlingFile             (const int32_t& client_fd);
   void SendFile                 (const int32_t& client_fd, const std::string& filename);
   void SendPong                 (int32_t client_fd);
+  void Status                   () const
+  {
+    size_t tx_bytes{}, rx_bytes{};
+    for (const auto& [fd, session] : m_sessions)
+    {
+      tx_bytes += session.tx;
+      rx_bytes += session.rx;
+    }
+
+    VLOG("Server Status\nSent {} bytes\nRecv {} bytes", tx_bytes, rx_bytes);
+  }
 
   using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
   using Sessions     = std::unordered_map<int32_t, KSession>;
