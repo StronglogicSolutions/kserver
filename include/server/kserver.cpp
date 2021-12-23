@@ -40,9 +40,9 @@ KServer::KServer(int argc, char **argv)
     {
       SystemEvent(client_fd, system_event, args);
     },
-    [this](const int32_t& client_fd, std::vector<Task> tasks)
+    [this]()
     {
-      OnTasksReady(client_fd, tasks);
+      Status();
     });
 
     KLOG("Starting IPC manager");
@@ -70,8 +70,8 @@ KServer::~KServer()
  *
  */
 void KServer::SystemEvent(const int32_t&                  client_fd,
-                                const int32_t&                  system_event,
-                                const std::vector<std::string>& args)
+                          const int32_t&                  system_event,
+                          const std::vector<std::string>& args)
 {
   switch (system_event)
   {
@@ -259,11 +259,6 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
       SendEvent(client_fd, "Term Hits", args);
     break;
   }
-}
-
-void KServer::OnTasksReady(const int32_t& client_fd, std::vector<Task> tasks)
-{
-  KLOG("Scheduler has delivered {} tasks for processing", tasks.size());
 }
 
 /**
@@ -601,4 +596,15 @@ void KServer::onConnectionClose(int32_t client_fd)
   OnClientExit(client_fd);
 }
 
+void KServer::Status                   () const
+{
+  size_t tx_bytes{}, rx_bytes{};
+  for (const auto& [fd, session] : m_sessions)
+  {
+    tx_bytes += session.tx;
+    rx_bytes += session.rx;
+  }
+
+  VLOG("Server Status\nSent {} bytes\nRecv {} bytes", tx_bytes, rx_bytes);
+}
 } // ns kiq

@@ -39,9 +39,9 @@ using namespace KData;
  * Handles incoming requests coming from the KY_GUI Application
  */
 class Controller {
- using EventCallbackFn  = std::function<void(std::string, int, std::string, int, bool)>;
- using SystemCallbackFn = std::function<void(int, int, std::vector<std::string>)>;
- using TaskCallbackFn   = std::function<void(int, std::vector<Task>)>;
+ using ProcessCallbackFn = std::function<void(std::string, int, std::string, int, bool)>;
+ using SystemCallbackFn  = std::function<void(int, int, std::vector<std::string>)>;
+ using StatusCallbackFn  = std::function<void(void)>;
 
  public:
   Controller();
@@ -52,9 +52,9 @@ class Controller {
   ~Controller();
 
 
-  void                      initialize(EventCallbackFn  event_callback_fn,
+  void                      initialize(ProcessCallbackFn  event_callback_fn,
                                        SystemCallbackFn system_callback_fn,
-                                       TaskCallbackFn   task_callback_fn);
+                                       StatusCallbackFn status_callback_fn);
   void                      shutdown();
   void                      SetWait(const bool& wait);
 
@@ -87,9 +87,9 @@ class Controller {
                         const std::vector<std::string>& args = {});
   void Status() const;
 
-  EventCallbackFn                   m_event_callback_fn;
-  SystemCallbackFn                  m_system_callback_fn;
-  TaskCallbackFn                    m_task_callback_fn;
+  ProcessCallbackFn                 m_process_event;
+  SystemCallbackFn                  m_system_event;
+  StatusCallbackFn                  m_server_status;
 
   std::map<int, std::vector<Task>>  m_tasks_map;
   std::mutex                        m_mutex;

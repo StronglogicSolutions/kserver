@@ -43,7 +43,6 @@ private:
                                  const int32_t&                  system_event,
                                  const std::vector<std::string>& args);
   void CloseConnections         ();
-  void OnTasksReady             (const int32_t& client_fd, std::vector<Task> tasks) ;
   void OnProcessEvent           (const std::string& result, int32_t mask, const std::string& id,
                                  int32_t client_fd, bool error);
   void SendMessage              (const int32_t& client_socket_fd, const std::string& message);
@@ -73,6 +72,7 @@ private:
   bool HandlingFile             (const int32_t& client_fd);
   void SendFile                 (const int32_t& client_fd, const std::string& filename);
   void SendPong                 (int32_t client_fd);
+  void Status                   () const;
 
   using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
   using Sessions     = std::unordered_map<int32_t, KSession>;
