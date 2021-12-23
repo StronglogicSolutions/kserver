@@ -170,7 +170,7 @@ Scheduler Controller::getScheduler()
 void Controller::InfiniteLoop()
 {
   static const int32_t client_fd{ALL_CLIENTS};
-  static       Timer   timer{};
+  static       Timer   timer{Timer::TEN_MINUTES};
   KLOG("Worker starting");
   timer.start();
   while (m_active)
