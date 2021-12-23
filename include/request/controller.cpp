@@ -97,10 +97,9 @@ Controller::~Controller()
  * callback. Starts a thread to perform work on the InfiniteLoop
  *
  */
-void Controller::initialize(EventCallbackFn  event_callback_fn,
-                            SystemCallbackFn system_callback_fn,
-                            TaskCallbackFn   task_callback_fn,
-                            StatusCallbackFn status_callback_fn)
+void Controller::initialize(ProcessCallbackFn process_callback_fn,
+                            SystemCallbackFn  system_callback_fn,
+                            StatusCallbackFn  status_callback_fn)
 {
   const bool scheduled_task{true};
   m_executor = new ProcessExecutor();
@@ -115,13 +114,11 @@ void Controller::initialize(EventCallbackFn  event_callback_fn,
     }
   );
 
-  m_process_event = system_callback_fn;
-  m_system_event  = event_callback_fn;
-  m_task_callback_fn   = task_callback_fn;
-
+  m_process_event      = process_callback_fn;
+  m_system_event       = system_callback_fn;
   m_maintenance_worker = std::thread(std::bind(&Controller::InfiniteLoop, this));
-  SetWait(false);
 
+  SetWait(false);
   KLOG("Initialization complete");
 }
 
@@ -198,7 +195,7 @@ void Controller::InfiniteLoop()
           task.file ? "hasFile(s)" : "", task.envfile);
       }
 
-      m_process_event(client_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
+      m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
         {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times});
 
       auto it = m_tasks_map.find(client_fd);
@@ -307,7 +304,7 @@ void Controller::operator()(const KOperation&               op,
 
       if (task.files.size() == 1) callback_args.push_back("final file");
 
-      m_process_event(client_fd, SYSTEM_EVENTS__FILE_UPDATE, callback_args);
+      m_system_event(client_fd, SYSTEM_EVENTS__FILE_UPDATE, callback_args);
     }
 
     if (task.validate())
@@ -328,7 +325,7 @@ void Controller::operator()(const KOperation&               op,
 
         for (auto&& file : task.files) callback_args.emplace_back(file.first);
 
-        m_process_event(client_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, callback_args);
+        m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, callback_args);
       }
       else
         KLOG("Task with UUID {} was validated, but scheduling failed", uuid);
@@ -422,7 +419,7 @@ void Controller::Execute(const uint32_t&    mask,
 
   for (const auto &row : m_kdb.select(name, fields, filter))
   {
-    m_process_event(client_socket_fd,
+    m_system_event(client_socket_fd,
                           SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
                           {"PROCESS RUNNER - Process execution requested for applications with mask " + std::to_string(mask),
                           request_id});
@@ -480,7 +477,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
     case(RequestType::GET_APPLICATION):
     {
       KApplication application = Registrar::args_to_application(args);
-        m_process_event(client_fd,
+        m_system_event(client_fd,
           (m_registrar.find(Registrar::args_to_application(args))) ?
             SYSTEM_EVENTS__REGISTRAR_SUCCESS :
             SYSTEM_EVENTS__REGISTRAR_FAIL,
@@ -493,9 +490,9 @@ void Controller::process_client_request(const int32_t&     client_fd,
       KApplication application = Registrar::args_to_application(args);
       auto         id          = m_registrar.add(application);
       (!id.empty()) ?
-        m_process_event(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+        m_system_event(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS,
           DataUtils::VAbsorb(std::move(application.vector()), std::move(id))) :
-        m_process_event(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL, application.vector());
+        m_system_event(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL, application.vector());
       break;
     }
 
@@ -504,9 +501,9 @@ void Controller::process_client_request(const int32_t&     client_fd,
       KApplication application = Registrar::args_to_application(args);
       auto         name        = m_registrar.remove(application);
       (!name.empty()) ?
-        m_process_event(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS,
+        m_system_event(client_fd, SYSTEM_EVENTS__REGISTRAR_SUCCESS,
           DataUtils::VAbsorb(std::move(application.vector()),  std::move(std::string{"Application was deleted"}))) :
-        m_process_event(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL,
+        m_system_event(client_fd, SYSTEM_EVENTS__REGISTRAR_FAIL,
           DataUtils::VAbsorb(std::move(application.vector()), std::move(std::string{"Failed to delete application"})));
       break;
     }
@@ -542,19 +539,19 @@ void Controller::process_client_request(const int32_t&     client_fd,
         payload.emplace_back(               task.filesToString());
         if (!(++i % TASKS_PER_EVENT))
         {
-          m_process_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
+          m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
           payload.clear();
           payload.emplace_back("Schedule more");
         }
       }
 
       if (!payload.empty())
-        m_process_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
+        m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
 
       const auto size = tasks.size();
       KLOG("Fetched {} scheduled tasks for client", size);
 
-      m_process_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
+      m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
     }
     break;
     case (RequestType::UPDATE_SCHEDULE):
@@ -564,7 +561,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
       bool               save_success = m_scheduler.update(recvd_task);
       bool               env_updated  = m_scheduler.updateEnvfile(task_id, recvd_task.envfile);
 
-      m_process_event(client_fd, SYSTEM_EVENTS__SCHEDULER_UPDATE, {task_id, (save_success) ? "Success" : "Failure"});
+      m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_UPDATE, {task_id, (save_success) ? "Success" : "Failure"});
 
       if (!env_updated)
         KLOG("Failed to update envfile while handling update for task {}", task_id);
@@ -575,7 +572,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
       auto id = args.at(constants::PAYLOAD_ID_INDEX);
       Task task = m_scheduler.GetTask(id);
       if (task.validate())
-        m_process_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
+        m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
           DataUtils::VAbsorb(std::move(FileUtils::ReadFlagTokens(task.envfile, task.execution_flags)),
                                     std::move(id)));
       break;
@@ -603,8 +600,8 @@ void Controller::process_client_request(const int32_t&     client_fd,
         }
       }
 
-      m_process_event(client_fd, SYSTEM_EVENTS__TASK_DATA,       payload);
-      m_process_event(client_fd, SYSTEM_EVENTS__TASK_DATA_FINAL, {});
+      m_system_event(client_fd, SYSTEM_EVENTS__TASK_DATA,       payload);
+      m_system_event(client_fd, SYSTEM_EVENTS__TASK_DATA_FINAL, {});
       break;
     }
 
@@ -622,12 +619,12 @@ void Controller::process_client_request(const int32_t&     client_fd,
         event_args.emplace_back("Failed to create trigger");
         event_type = SYSTEM_EVENTS__TRIGGER_ADD_FAIL;
       }
-      m_process_event(client_fd, event_type, event_args);
+      m_system_event(client_fd, event_type, event_args);
       break;
     }
 
     case (TASK_FLAGS):
-      m_process_event(client_fd, SYSTEM_EVENTS__TASK_FETCH_FLAGS,
+      m_system_event(client_fd, SYSTEM_EVENTS__TASK_FETCH_FLAGS,
         DataUtils::VAbsorb(std::move(m_scheduler.getFlags(args.at(1))),
                                   std::move(args.at(1))));
     break;
@@ -636,16 +633,16 @@ void Controller::process_client_request(const int32_t&     client_fd,
     {
       auto files = m_scheduler.getFiles(std::vector<std::string>{args.begin() + 1, args.end()});
       if (!files.empty())
-        m_process_event(client_fd, SYSTEM_EVENTS__FILES_SEND, FileMetaData::MetaDataToPayload(files));
+        m_system_event(client_fd, SYSTEM_EVENTS__FILES_SEND, FileMetaData::MetaDataToPayload(files));
     }
     break;
 
     case (FETCH_FILE_ACK):
-      m_process_event(client_fd, SYSTEM_EVENTS__FILES_SEND_ACK, {});
+      m_system_event(client_fd, SYSTEM_EVENTS__FILES_SEND_ACK, {});
     break;
 
     case (FETCH_FILE_READY):
-      m_process_event(client_fd, SYSTEM_EVENTS__FILES_SEND_READY, {});
+      m_system_event(client_fd, SYSTEM_EVENTS__FILES_SEND_READY, {});
     break;
 
     case (FETCH_TERM_HITS):
@@ -653,7 +650,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
       std::vector<std::string> event_args{};
       for (const auto& term_data : m_scheduler.FetchTermEvents())
         event_args.emplace_back(term_data.ToJSON());
-      m_process_event(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
+      m_system_event(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
     }
     break;
     case (EXECUTE):
@@ -700,7 +697,7 @@ void Controller::onProcessComplete(const std::string& value,
   KLOG("Process complete notification for client {}'s request {}",
     client_socket_fd, id);
 
-  m_system_event( // Inform system of process result
+  m_process_event( // Inform system of process result
     value,
     mask,
     id,
@@ -809,11 +806,12 @@ void Controller::onSchedulerEvent(const int32_t&                  client_socket_
                                   const int32_t&                  event,
                                   const std::vector<std::string>& args)
 {
-  m_process_event(client_socket_fd, event, args);
+  m_system_event(client_socket_fd, event, args);
 }
 
 void Controller::Status() const
 {
+  m_server_status();
   VLOG("Controller Status Update\nProcesses Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
     m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count);
 }

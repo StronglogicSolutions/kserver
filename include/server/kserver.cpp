@@ -40,10 +40,6 @@ KServer::KServer(int argc, char **argv)
     {
       SystemEvent(client_fd, system_event, args);
     },
-    [this](const int32_t& client_fd, std::vector<Task> tasks)
-    {
-      OnTasksReady(client_fd, tasks);
-    },
     [this]()
     {
       Status();
@@ -263,11 +259,6 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
       SendEvent(client_fd, "Term Hits", args);
     break;
   }
-}
-
-void KServer::OnTasksReady(const int32_t& client_fd, std::vector<Task> tasks)
-{
-  KLOG("Scheduler has delivered {} tasks for processing", tasks.size());
 }
 
 /**
