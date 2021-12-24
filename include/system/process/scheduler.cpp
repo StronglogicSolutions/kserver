@@ -716,7 +716,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     CompleteTask(id);
     if (AllTasksComplete(map)) ResolvePending(immediately);
   };
-  auto GetTokens  = [](const auto& payload)
+  auto GetTokens = [](const auto& payload)
   {
     std::vector<JSONItem> tokens{};
     if (payload.size())
@@ -724,31 +724,31 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
-  auto Enqueue   = [this](const auto& term_info)
+  auto OnTermEvent = [this](const ResearchManager::TermEvent& term_info)
   {
-    const auto id = std::stoi(term_info.id);
-    if (m_term_ids.find(id) == m_term_ids.end())
+    const auto tid = std::stoi(term_info.tid);
+    if (m_term_ids.find(tid) == m_term_ids.end())
     {
       m_message_queue.front().append_msg(term_info.ToString());
-      m_term_ids.insert(id);
+      m_term_ids.insert(tid);
     }
   };
-  auto Analyze   = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
+  auto Analyze = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
     using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
     using Sentiment = SentimentResultParser::Sentiment;
     using Terms     = std::vector<JSONItem>;
-    auto  QueueFull       = [this]()        { return m_message_queue.size() > QueueLimit; };
-    auto  PollExists      = [this](auto id) { return m_research_polls.find(id) != m_research_polls.end(); };
+    using Hits      = std::vector<ResearchManager::TermHit>;
+    auto  QueueFull       = [this]()               { return m_message_queue.size() > QueueLimit; };
+    auto  PollExists      = [this](const auto& id) { return m_research_polls.find(id) != m_research_polls.end(); };
     auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
     {
-      return "Please rate the civilizational impact of the following statement\n" + text + '\n' +
-             "Emotional analysis: \n" + emo.str() + '\n' + "Sentiment analysis: \n" + sts.str() +"\nKeyword hit: " + hit;
+      return "Please rate the civilizational impact of the following statement:\n\n\"" + text +
+             "\"\n\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
     };
     static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
 
-    if (QueueFull())          return VLOG("Outbound IPC queue is full");
-    if (PollExists(child.id)) return VLOG("Poll already planned for {}", child.id);
+    if (QueueFull()) return VLOG("Outbound IPC queue is full");
 
     KLOG("Performing final analysis on research triggered by {}", root.id);
     const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
@@ -764,18 +764,24 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Terms       terms_data     = GetTokens(ner_data);
     const Emotion     child_emo      = Emotion::Create(child_emo_data);
     const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);
-    const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
+     const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
     const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
-    const auto        hit            = (terms_data.size()) ?
-      m_research_manager.GetTermHits(
-        StringUtils::RemoveTags(terms_data.front().value)).front().ToString() : "Unable to find author";
-    std::string       data           = MakePollMessage(child_text, child_emo, child_sts, hit);
-    std::string       poll_q         = "Rate the civilization impact:";
-    std::string       dest           = config::Process::tg_dest();
-    m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::message, data, CreateOperation("Bot", {dest})));
-    m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::poll, poll_q,  CreateOperation("Bot",
-                                               {dest, "High", "Some", "Little", "None"})));
-    m_research_polls.insert(child.id);
+    const Hits        hits           = m_research_manager.GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
+
+    for (const ResearchManager::TermHit& hit : hits)
+    {
+      if (!PollExists(hit.id))
+      {
+        std::string data   = MakePollMessage(child_text, child_emo, child_sts, hit.ToString());
+        std::string poll_q = "Rate the civilization impact:";
+        std::string dest   = config::Process::tg_dest();
+        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::message, data, CreateOperation("Bot", {dest})));
+        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::poll, poll_q,  CreateOperation("Bot",
+                                                  {dest, "High", "Some", "Little", "None"})));
+        m_research_polls.insert(hit.id);
+        return; // Limit to one
+      }
+    }
   };
 
   const auto& init_id   = applications.first;
@@ -821,15 +827,15 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       Sanitize(item);
       const auto user       = init_task.GetToken(constants::USER_KEY);
       const auto term_hits  = m_research_manager.GetTermHits(item.value);
-      const auto term_info  = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
+      const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
       if (term_hits.size())
         for (auto&& hit : term_hits)
           if (!(hit.sid.empty()) && NotScheduled(hit.sid))
             CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY),                      // 1. NER
               NER_APP, {"entity"});
       else
-      if (term_info.valid())
-        Enqueue(term_info);
+      if (term_event.valid())
+        OnTermEvent(term_event);
     }
 
     if (IPCNotPending())

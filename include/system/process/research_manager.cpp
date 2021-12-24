@@ -344,6 +344,7 @@ ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, con
       if (!identity.id.empty())
       {
         event.id           = SaveTermHit(term, identity.id, task.id());
+        event.tid          = GetTerm(term.value);
         event.organization = identity.organization;
         event.person       = GetPersonForUID(identity.id).name;
         event.time         = TimeUtils::FormatTimestamp(TimeUtils::UnixTime());
