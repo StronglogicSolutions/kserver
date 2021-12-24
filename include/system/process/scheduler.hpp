@@ -190,7 +190,7 @@ private:
 
 using MessageQueue  = std::deque<IPCSendEvent>;
 using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;
-using ResearchPolls = std::unordered_set<int32_t>;
+using ResearchPolls = std::unordered_set<std::string>;
 using TermIDs       = std::unordered_set<int32_t>;
 
 SystemEventcallback m_event_callback;
@@ -198,8 +198,8 @@ Database::KDB       m_kdb;
 ResultProcessor     m_result_processor;
 Platform            m_platform;
 Trigger             m_trigger;
-PostExecLists       m_postexec_lists;      // -> These two need to be converted to a single class
-PostExecMap         m_postexec_map;        // -> where the root has access to a map of all the  task lists
+PostExecLists       m_postexec_lists;     // -> These two need to be converted to a single class
+PostExecMap         m_postexec_map;       // -> where the root has access to a map of all the  task lists
 ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
 MessageQueue        m_message_queue;

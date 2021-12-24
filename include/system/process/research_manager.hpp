@@ -44,6 +44,7 @@ std::string organization;
 std::string term;
 std::string type;
 std::string time;
+std::string tid;
 
 bool        valid() const;
 std::string ToString(const bool verbose = false) const;
