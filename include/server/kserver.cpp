@@ -468,8 +468,7 @@ void KServer::onMessageReceived(int                      client_fd,
 void KServer::SendPong(int32_t client_fd)
 {
   KLOG("Client {} - keepalive", client_fd);
-  SocketListener::sendMessage(client_fd, PONG, PONG_SIZE);
-  m_sessions.at(client_fd).tx += PONG_SIZE;
+  SendMessage(client_fd, PONG);
 }
 
 void KServer::EndSession(const int32_t& client_fd)
