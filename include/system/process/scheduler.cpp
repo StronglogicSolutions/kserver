@@ -744,7 +744,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
     {
       return "Please rate the civilizational impact of the following statement:\n\n\"" + text +
-             "\"\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
+             "\"\n\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
     };
     static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
 
@@ -764,7 +764,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Terms       terms_data     = GetTokens(ner_data);
     const Emotion     child_emo      = Emotion::Create(child_emo_data);
     const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);
-    const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
+     const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
     const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
     const Hits        hits           = m_research_manager.GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
 
