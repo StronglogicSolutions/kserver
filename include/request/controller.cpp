@@ -191,9 +191,7 @@ void Controller::InfiniteLoop()
       {
         const auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
         scheduled_times += formatted_time + " ";
-        KLOG("Task info: Time: {} - Mask: {}\n Args: {}\n {}",
-          formatted_time, std::to_string(task.execution_mask),
-          task.file ? "hasFile(s)" : "", task.envfile);
+        KLOG("Task - Time: {} - Mask: {}\nEnv: {}", formatted_time, task.execution_mask, task.envfile);
       }
 
       m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
