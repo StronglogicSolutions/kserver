@@ -62,6 +62,11 @@ struct KSession {
   uuid     id;
   uint32_t tx{0};
   uint32_t rx{0};
+
+  bool active() const
+  {
+    return (status == SESSION_ACTIVE);
+  }
 };
 
 struct Timer {
