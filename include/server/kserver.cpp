@@ -329,7 +329,7 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
     SocketListener::sendMessage(client_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 
-  m_sessions.at(client_fd).tx += size;
+  m_sessions.at(client_fd).tx += iterator.GetBytesRead();
 }
 
 /**
@@ -547,10 +547,6 @@ void KServer::OnClientExit(const int32_t& client_fd)
     else
       it++;
   };
-
-  auto it = m_message_handlers.find(client_fd);
-  if (it != m_message_handlers.end())
-    m_message_handlers.erase(it);
 
   EraseFileHandler(client_fd);
   DeleteFiles     (client_fd);
