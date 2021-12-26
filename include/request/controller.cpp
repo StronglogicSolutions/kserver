@@ -536,7 +536,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
         payload.emplace_back(std::to_string(task.notify));
         payload.emplace_back(               task.runtime);
         payload.emplace_back(               task.filesToString());
-        if (!(++i % TASKS_PER_EVENT))
+        if (!(++i % TASKS_PER_EVENT))                              // TODO: Do this as a single payload
         {
           m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
           payload.clear();
