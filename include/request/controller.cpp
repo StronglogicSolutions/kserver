@@ -570,13 +570,13 @@ void Controller::process_client_request(const int32_t&     client_fd,
 
     case (RequestType::FETCH_TASK_DATA):
     {
-      std::vector<std::string> payload{};
-      const std::vector<Task>  tasks =
-        m_scheduler.fetchTasks(args.at(constants::FETCH_TASK_MASK_INDEX),
-                                args.at(constants::FETCH_TASK_DATE_RANGE_INDEX),
-                                args.at(constants::FETCH_TASK_ROW_COUNT_INDEX),
-                                args.at(constants::FETCH_TASK_MAX_ID_INDEX),
-                                args.at(constants::FETCH_TASK_ORDER_INDEX));
+      Payload payload{};
+      const std::vector<Task>  tasks = m_scheduler.fetchTasks(
+        args.at(constants::FETCH_TASK_MASK_INDEX),
+        args.at(constants::FETCH_TASK_DATE_RANGE_INDEX),
+        args.at(constants::FETCH_TASK_ROW_COUNT_INDEX),
+        args.at(constants::FETCH_TASK_MAX_ID_INDEX),
+        args.at(constants::FETCH_TASK_ORDER_INDEX));
 
       payload.emplace_back(std::to_string(tasks.size()));
 
@@ -597,9 +597,9 @@ void Controller::process_client_request(const int32_t&     client_fd,
 
     case (RequestType::TRIGGER_CREATE):
     {
-      auto result = m_scheduler.addTrigger(args);
-      std::vector<std::string> event_args{}; int32_t event_type{};
-      if (result)
+      Payload    event_args{};
+      int32_t    event_type{};
+      if (m_scheduler.addTrigger(args))
       {
         event_args.insert(event_args.end(), {"Trigger Created", args.at(1), args.at(2)});
         event_type = SYSTEM_EVENTS__TRIGGER_ADD_SUCCESS;
@@ -615,8 +615,7 @@ void Controller::process_client_request(const int32_t&     client_fd,
 
     case (TASK_FLAGS):
       m_system_event(client_fd, SYSTEM_EVENTS__TASK_FETCH_FLAGS,
-        DataUtils::VAbsorb(std::move(m_scheduler.getFlags(args.at(1))),
-                                  std::move(args.at(1))));
+        DataUtils::VAbsorb(std::move(m_scheduler.getFlags(args.at(1))), std::move(args.at(1))));
     break;
 
     case (FETCH_FILE):
@@ -637,18 +636,14 @@ void Controller::process_client_request(const int32_t&     client_fd,
 
     case (FETCH_TERM_HITS):
     {
-      std::vector<std::string> event_args{};
+      Payload event_args{};
       for (const auto& term_data : m_scheduler.FetchTermEvents())
         event_args.emplace_back(term_data.ToJSON());
       m_system_event(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
     }
     break;
     case (EXECUTE):
-    {
-      const auto mask         = args.at(1);
-      const auto request_uuid = args.at(2);
-      Execute(std::stoi(mask), request_uuid, client_fd);
-    }
+      Execute(std::stoi(args.at(1)), args.at(2), client_fd);
     break;
 
     case (RequestType::UNKNOWN):
