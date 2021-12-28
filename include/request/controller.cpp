@@ -468,7 +468,21 @@ void Controller::process_system_event(const int32_t&                  event,
 void Controller::process_client_request(const int32_t&     client_fd,
                                         const std::string& message)
 {
-  std::vector<std::string> args = GetArgs(message);
+  using Payload = std::vector<std::string>;
+  auto ReadTask = [](const auto& name, const Task& task, Payload& payload)
+  {
+    payload.emplace_back(               task.id());
+    payload.emplace_back(               name);
+    payload.emplace_back(               task.datetime);
+    payload.emplace_back(               task.execution_flags);
+    payload.emplace_back(std::to_string(task.completed));
+    payload.emplace_back(std::to_string(task.recurring));
+    payload.emplace_back(std::to_string(task.notify));
+    payload.emplace_back(               task.runtime);
+    payload.emplace_back(               task.filesToString());
+  };
+
+  Payload     args = GetArgs(message);
   RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
   switch (type)
@@ -508,48 +522,25 @@ void Controller::process_client_request(const int32_t&     client_fd,
     }
 
     case (RequestType::UPDATE_APPLICATION):
-    {
       KLOG("Must implement UPDATE_APPLICATION");
-      break;
-    }
+    break;
 
     case (RequestType::FETCH_SCHEDULE):
     {
+      static const uint8_t AVERAGE_TASK_SIZE = 9;
+      std::vector<Task>    tasks             = m_scheduler.fetchAllTasks();
+      const auto           size              = tasks.size();
+      uint8_t              i{0};
+      uint8_t              TASKS_PER_EVENT{4};
+      Payload              payload{"Schedule"};
+
       KLOG("Processing schedule fetch request");
-      const uint8_t AVERAGE_TASK_SIZE = 9;
-      uint8_t       i{0};
-      uint8_t       TASKS_PER_EVENT{4};
-      std::vector<Task> tasks = m_scheduler.fetchAllTasks();
-      std::vector<std::string> payload{};
-      payload.reserve((tasks.size() * AVERAGE_TASK_SIZE) + 2);
-      payload.emplace_back("Schedule");
-
-      for (const auto& task : tasks)
-      {
-        KApplication app = m_executor->GetAppInfo(task.execution_mask);
-        payload.emplace_back(task.id());
-        payload.emplace_back(               app.name);
-        payload.emplace_back(               task.datetime);
-        payload.emplace_back(               task.execution_flags);
-        payload.emplace_back(std::to_string(task.completed));
-        payload.emplace_back(std::to_string(task.recurring));
-        payload.emplace_back(std::to_string(task.notify));
-        payload.emplace_back(               task.runtime);
-        payload.emplace_back(               task.filesToString());
-        if (!(++i % TASKS_PER_EVENT))                              // TODO: Do this as a single payload
-        {
-          m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
-          payload.clear();
-          payload.emplace_back("Schedule more");
-        }
-      }
-
-      if (!payload.empty())
-        m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
-
-      const auto size = tasks.size();
       KLOG("Fetched {} scheduled tasks for client", size);
 
+      for (const auto& task : tasks)
+        ReadTask(m_executor->GetAppInfo(task.execution_mask).name, task, payload);
+
+      m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
       m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
     }
     break;
