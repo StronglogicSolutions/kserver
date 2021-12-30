@@ -272,8 +272,7 @@ void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std:
     event_args.push_back("Executed process returned an ERROR");
 
   if (client_fd == ALL_CLIENTS)
-    for (const auto& [fd, session] : m_sessions)
-      SendEvent(fd, "Process Result", event_args);
+    Broadcast("Process Result", event_args);
   else
     SendEvent(client_fd, "Process Result", event_args);
 
