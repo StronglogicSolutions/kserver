@@ -955,9 +955,9 @@ bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mas
  * @return true
  * @return false
  */
-bool Scheduler::savePlatformPost(std::vector<std::string> payload)
+bool Scheduler::SavePlatformPost(std::vector<std::string> payload)
 {
-  return m_platform.savePlatformPost(payload);
+  return m_platform.SavePlatformPost(payload);
 }
 
 /**

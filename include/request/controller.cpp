@@ -445,7 +445,7 @@ void Controller::process_system_event(const int32_t&                  event,
       m_scheduler.OnPlatformRequest(payload);
     break;
     case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
-      m_scheduler.savePlatformPost(payload);
+      m_scheduler.SavePlatformPost(payload);
     break;
     case (SYSTEM_EVENTS__PLATFORM_ERROR):
       m_scheduler.OnPlatformError(payload);

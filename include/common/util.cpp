@@ -120,6 +120,27 @@ std::string CreateEvent(const std::string& event, int mask, std::vector<std::str
   return s.GetString();
 }
 
+std::vector<std::string> GetJSONArray(const std::string& s)
+{
+  Document                 d;
+  std::vector<std::string> v;
+  if (d.Parse(s.c_str()).HasParseError() && d.IsArray())
+    for (const auto& arg : d.GetArray())
+      v.emplace_back(arg.GetString());
+  return v;
+}
+
+std::string ToJSONArray(const std::vector<std::string>& args)
+{
+  StringBuffer s;
+  Writer<StringBuffer, Document::EncodingType, ASCII<>> w(s);
+  w.StartArray();
+  for (const auto &arg : args)
+      w.String(arg.c_str());
+  w.EndArray();
+  return s.GetString();
+}
+
 std::string CreateOperation(const char *op, std::vector<std::string> args)
 {
   StringBuffer s;
@@ -131,11 +152,9 @@ std::string CreateOperation(const char *op, std::vector<std::string> args)
   w.String(op);
   w.Key("args");
   w.StartArray();
-  if (!args.empty()) {
-    for (const auto &arg : args) {
+  if (!args.empty())
+    for (const auto &arg : args)
       w.String(arg.c_str());
-    }
-  }
   w.EndArray();
   w.EndObject();
   return s.GetString();

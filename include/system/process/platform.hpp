@@ -7,7 +7,7 @@
 #include "server/types.hpp"
 
 namespace kiq {
-std::string savePlatformEnvFile(const PlatformPost& post);
+std::string SavePlatformEnvFile(const PlatformPost& post);
 bool        populatePlatformPost(PlatformPost& post);
 
 static const std::vector<std::string> PLATFORM_KEYS{
@@ -60,7 +60,7 @@ class Platform
 {
 public:
 explicit Platform(SystemEventcallback fn);
-bool                      savePlatformPost(std::vector<std::string> payload);
+bool                      SavePlatformPost(std::vector<std::string> payload);
 void                      OnPlatformError(const std::vector<std::string>& payload);
 void                      ProcessPlatform();
 std::string               GetPlatform(const std::string& pid);
@@ -69,19 +69,19 @@ std::string               GetPlatformID(uint32_t mask);
 std::string               GetUser  (const std::string& uid, const std::string& pid = "", bool use_default = false);
 
 private:
-std::vector<std::string>  fetchRepostIDs(const std::string& pid);
-std::vector<PlatformPost> fetchPendingPlatformPosts();
-std::vector<PlatformPost> parsePlatformPosts(QueryValues&& result);
-bool                      savePlatformPost(PlatformPost       post,
+std::vector<std::string>  FetchRepostIDs(const std::string& pid);
+std::vector<PlatformPost> FetchPendingPlatformPosts();
+std::vector<PlatformPost> ParsePlatformPosts(QueryValues&& result);
+bool                      SavePlatformPost(PlatformPost       post,
                                            const std::string& status = constants::PLATFORM_POST_COMPLETE);
-const std::vector<PlatformPost> createAffiliatePosts(const PlatformPost& post);
-bool                      updatePostStatus(const PlatformPost& post, const std::string& status);
-bool                      postAlreadyExists(const PlatformPost& post);
-bool                      isProcessingPlatform();
-bool                      userExists(const std::string& pid, const std::string& name);
-std::string               addUser(const std::string& pid, const std::string& name, const std::string& type
+const std::vector<PlatformPost> MakeAffiliatePosts(const PlatformPost& post);
+bool                      UpdatePostStatus(const PlatformPost& post, const std::string& status);
+bool                      PostAlreadyExists(const PlatformPost& post);
+bool                      IsProcessingPlatform();
+bool                      UserExists(const std::string& pid, const std::string& name);
+std::string               AddUser(const std::string& pid, const std::string& name, const std::string& type
 = "default");
-std::string               getUserID(const std::string& pid, const std::string& name);
+std::string               GetUID(const std::string& pid, const std::string& name);
 
 // Members
 Database::KDB       m_db;
