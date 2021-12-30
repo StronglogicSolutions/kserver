@@ -7,8 +7,8 @@
 #include "server/types.hpp"
 
 namespace kiq {
-std::string SavePlatformEnvFile(const PlatformPost& post);
-bool        populatePlatformPost(PlatformPost& post);
+std::string SavePlatformEnv(const PlatformPost& post);
+bool        PopulatePost(PlatformPost& post);
 
 static const std::vector<std::string> PLATFORM_KEYS{
   "pid"

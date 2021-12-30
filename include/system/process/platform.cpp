@@ -40,16 +40,16 @@ std::string SavePlatformEnvFile(const PlatformPost& post)
  */
 static bool PopulatePlatformPost(PlatformPost& post)
 {
+  using namespace FileUtils;
   const std::string              env_path    = "data/" + post.time + post.id + post.pid + "/v.env";
-  const std::vector<std::string> post_values = FileUtils::ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
+  const std::vector<std::string> post_values = ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
   const size_t                   size        = post_values.size();
   const bool                     has_args    = (size == 3);
   if (size > 1)
   {
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
     post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
-    post.args    = (has_args) ? CreateOperation("Bot", GetJSONArray(post_values.at(constants::PLATFORM_POST_ARGS_INDEX))) :
-                                "";
+    post.args    = (has_args) ? CreateOperation("Bot", GetJSONArray(ReadEnvToken(env_path, "args", true))) : "";
     return true;
   }
 
@@ -568,7 +568,7 @@ std::string Platform::GetUser(const std::string& uid, const std::string& pid, bo
 
 std::string Platform::GetPlatform(const std::string& pid)
 {
-  for (const auto& value :m_db.select("platform", {"name"}, CreateFilter("id", pid)))
+  for (const auto& value : m_db.select("platform", {"name"}, CreateFilter("id", pid)))
     if (value.first == "name")
       return value.second;
   return "";

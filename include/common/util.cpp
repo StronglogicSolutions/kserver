@@ -124,7 +124,7 @@ std::vector<std::string> GetJSONArray(const std::string& s)
 {
   Document                 d;
   std::vector<std::string> v;
-  if (d.Parse(s.c_str()).HasParseError() && d.IsArray())
+  if (!(d.Parse(s.c_str()).HasParseError()) && d.IsArray())
     for (const auto& arg : d.GetArray())
       v.emplace_back(arg.GetString());
   return v;
@@ -570,6 +570,13 @@ static void trim_outer_whitespace(std::string& s)
   if (s.back()  == ' ') s.pop_back();
 }
 
+static std::string trim_outer_quotes(std::string& s)
+{
+  if (s.front() == '"') s.erase(s.begin());
+  if (s.back()  == '"') s.pop_back();
+  return s;
+}
+
 static std::string SanitizeToken(std::string& s)
 {
   remove_double_quotes(s);
@@ -629,7 +636,7 @@ std::string CreateEnvFile(std::unordered_map<std::string, std::string>&& key_pai
   return environment_file;
 }
 
-std::string ReadEnvToken(const std::string& env_file_path, const std::string& token_key)
+std::string ReadEnvToken(const std::string& env_file_path, const std::string& token_key, bool is_json)
 {
   std::string run_arg_s{};
   std::string env = ReadEnvFile(env_file_path);
@@ -643,7 +650,7 @@ std::string ReadEnvToken(const std::string& env_file_path, const std::string& to
       run_arg_s  = sub_s.substr(0, end);
     }
   }
-  return SanitizeToken(run_arg_s);
+  return (is_json) ? trim_outer_quotes(run_arg_s) : SanitizeToken(run_arg_s);
 }
 
 bool WriteEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
