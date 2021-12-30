@@ -92,6 +92,7 @@ std::string GetExecutableCWD();
 /**
  * JSON Tools
  */
+std::string ToJSONArray         (const std::vector<std::string>&);
 std::string CreateMessage       (const char *data, std::string args = "");
 std::string CreateEvent         (const std::string& event, int mask, std::string stdout);
 std::string CreateEvent         (const std::string& event, std::vector<std::string> args);
@@ -103,6 +104,7 @@ std::string GetMessage          (T data);
 std::string GetEvent            (std::string data);
 bool IsSessionMessageEvent      (std::string event);
 bool IsCloseEvent               (std::string event);
+std::vector<std::string> GetJSONArray(const std::string& s);
 std::vector<std::string> GetArgs(const std::string& data);
 std::vector<std::string> GetArgs(const char* data);
 CommandMap GetArgMap(const char *data);
