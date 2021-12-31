@@ -228,11 +228,6 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const PlatformPost&
  */
 bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
 {
-  auto GetPlatformArgs = [this](std::string pid, std::string args)
-  {
-    return (GetPlatform(pid) == "Telegram") ? ToJSONArray({config::Process::tg_dest(), args}) : ToJSONArray({args});
-  };
-
   if (PostAlreadyExists(post)) return UpdatePostStatus(post, status);
 
   KLOG("Saving platform post:\n{}", post.ToString());
@@ -247,7 +242,7 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
 
   if (result && MustRepost(post.repost) && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
   {
-    for (auto&& platform_id : FetchRepostIDs(post.pid))
+    for (const auto& platform_id : FetchRepostIDs(post.pid))
     {
       const PlatformPost repost{
         .pid     = platform_id,
@@ -259,7 +254,7 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
         .urls    = post.urls,
         .repost  = post.repost,
         .name    = post.name,
-        .args    = GetPlatformArgs(platform_id, post.args),
+        .args    = ToJSONArray({post.args}),
         .method  = post.method
       };
       SavePlatformPost(repost, constants::PLATFORM_POST_INCOMPLETE);

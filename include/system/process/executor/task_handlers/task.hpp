@@ -90,6 +90,7 @@ static const std::string NO_URLS                         {""};
        const std::string PLATFORM_PROCESS_METHOD         {"process"};
        const std::string VIDEO_TYPE_ARGUMENT             {"video\""};
        const std::string IMAGE_TYPE_ARGUMENT             {"image\""};
+static const std::string GENERIC_HEADER                  {"Generic Task"};
        const char        LINE_BREAK                      {'\n'};
 
 static const char* DESCRIPTION_KEY        {"DESCRIPTION"};
@@ -115,7 +116,6 @@ static const std::unordered_map<std::string, std::string> PARAM_KEY_MAP{
   {PROMOTE_SHARE_KEY,       "--promote_share"},
   {DIRECT_MESSAGE_KEY,      "--direct_message"}
 };
-
 static const char INSTAGRAM_DIRECT_MESSAGE[]{"IG DM"};
 static const char INSTAGRAM_FEED[]{"IG Feed"};
 static const char YOUTUBE_FEED[]{"YT Feed"};

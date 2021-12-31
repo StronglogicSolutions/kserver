@@ -921,13 +921,19 @@ void Scheduler::PostExecWait(const int32_t& i, const T& r_)
 
 bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
 {
+  auto GetValidArgument = [this](const auto& id)
+  {
+    const auto value = FileUtils::ReadEnvToken(GetTask(id).envfile, constants::HEADER_KEY);
+    return (value != constants::GENERIC_HEADER) ? value : "";
+  };
+
   ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::GetAppInfo(mask));
 
   for (auto&& outgoing_event : result.events)
     switch (outgoing_event.code)
     {
       case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
-        outgoing_event.payload.emplace_back(FileUtils::ReadEnvToken(GetTask(id).envfile, constants::HEADER_KEY));
+        outgoing_event.payload.emplace_back(GetValidArgument(id));
         m_event_callback(ALL_CLIENTS, outgoing_event.code, outgoing_event.payload);
       break;
       case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
