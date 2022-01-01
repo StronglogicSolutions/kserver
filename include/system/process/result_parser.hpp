@@ -689,7 +689,7 @@ static ProcessEventData ReadEventData(const TWFeedItem& item, const std::string&
   content += "\nRetweets: " + item.retweets;
 
   return ProcessEventData{
-    .code =event,
+    .code    = event,
     .payload = std::vector<std::string>{
       app_name,
       item.id,

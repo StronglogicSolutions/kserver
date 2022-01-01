@@ -40,16 +40,16 @@ std::string SavePlatformEnvFile(const PlatformPost& post)
  */
 static bool PopulatePlatformPost(PlatformPost& post)
 {
+  using namespace FileUtils;
   const std::string              env_path    = "data/" + post.time + post.id + post.pid + "/v.env";
-  const std::vector<std::string> post_values = FileUtils::ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
+  const std::vector<std::string> post_values = ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
   const size_t                   size        = post_values.size();
   const bool                     has_args    = (size == 3);
   if (size > 1)
   {
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
     post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
-    post.args    = (has_args) ? CreateOperation("Bot", GetJSONArray(post_values.at(constants::PLATFORM_POST_ARGS_INDEX))) :
-                                "";
+    post.args    = (has_args) ? CreateOperation("Bot", GetJSONArray(ReadEnvToken(env_path, "args", true))) : "";
     return true;
   }
 
@@ -228,11 +228,6 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const PlatformPost&
  */
 bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
 {
-  auto GetPlatformArgs = [this](std::string pid, std::string args)
-  {
-    return (GetPlatform(pid) == "Telegram") ? ToJSONArray({config::Process::tg_dest(), args}) : ToJSONArray({args});
-  };
-
   if (PostAlreadyExists(post)) return UpdatePostStatus(post, status);
 
   KLOG("Saving platform post:\n{}", post.ToString());
@@ -247,7 +242,7 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
 
   if (result && MustRepost(post.repost) && (post.o_pid == constants::NO_ORIGIN_PLATFORM_EXISTS))
   {
-    for (auto&& platform_id : FetchRepostIDs(post.pid))
+    for (const auto& platform_id : FetchRepostIDs(post.pid))
     {
       const PlatformPost repost{
         .pid     = platform_id,
@@ -259,7 +254,7 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
         .urls    = post.urls,
         .repost  = post.repost,
         .name    = post.name,
-        .args    = GetPlatformArgs(platform_id, post.args),
+        .args    = ToJSONArray({post.args}),
         .method  = post.method
       };
       SavePlatformPost(repost, constants::PLATFORM_POST_INCOMPLETE);
@@ -568,7 +563,7 @@ std::string Platform::GetUser(const std::string& uid, const std::string& pid, bo
 
 std::string Platform::GetPlatform(const std::string& pid)
 {
-  for (const auto& value :m_db.select("platform", {"name"}, CreateFilter("id", pid)))
+  for (const auto& value : m_db.select("platform", {"name"}, CreateFilter("id", pid)))
     if (value.first == "name")
       return value.second;
   return "";

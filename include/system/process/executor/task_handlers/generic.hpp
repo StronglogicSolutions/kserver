@@ -25,8 +25,8 @@ namespace GenericTaskIndex {
 }
 
 const std::string GENERIC_TASK_EXECUTION_FLAGS{"--description=$DESCRIPTION "\
-                                                "--media=$FILE_TYPE "\
-                                                "--header=$HEADER --user=$USER"};
+                                               "--media=$FILE_TYPE "\
+                                               "--header=$HEADER --user=$USER"};
 
 class GenericTaskHandler : public TaskHandler {
  public:

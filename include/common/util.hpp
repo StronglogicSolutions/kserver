@@ -156,7 +156,7 @@ void                     SaveFile(     const std::string& env_file_string, const
 std::string              SaveEnvFile(  const std::string& env_file_string, const std::string& unique_id);
 std::string              ReadEnvFile(  const std::string& env_file_path, bool relative_path = false);
 std::string              ReadRunArgs(  const std::string& env_file_path);
-std::string              ReadEnvToken( const std::string& env_file_path, const std::string& token_key);
+std::string              ReadEnvToken( const std::string& env_file_path, const std::string& token_key, bool is_json = false);
 bool                     WriteEnvToken(const std::string& env_file_path,
                                        const std::string& token_key,
                                        const std::string& token_value);
