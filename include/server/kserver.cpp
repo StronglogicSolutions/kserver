@@ -290,10 +290,10 @@ void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
   while (iterator.has_data())
   {
     P_Wrapper packet = iterator.next();
-    VLOG("Sending file packet with size {}", packet.size);
     SocketListener::sendMessage(client_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 
+  VLOG("Sent {} file bytes",     iterator.GetBytesRead());
   m_sessions.at(client_fd).tx += iterator.GetBytesRead();
   m_file_sending = false;
 }
