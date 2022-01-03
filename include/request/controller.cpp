@@ -13,7 +13,13 @@ static flatbuffers::FlatBufferBuilder builder(1024);
 Controller::Controller()
 : m_active(true),
   m_executor(nullptr),
-  m_scheduler(getScheduler()),
+  m_scheduler(
+    [this](const int32_t&                  client_socket_fd,
+           const int32_t&                  event,
+           const std::vector<std::string>& args)
+  {
+    onSchedulerEvent(client_socket_fd, event, args);
+  }),
   m_ps_exec_count(0),
   m_client_rq_count(0),
   m_system_rq_count(0),
@@ -90,14 +96,14 @@ Controller::~Controller()
 }
 
 /**
- * initialize
+ * Initialize
  *
  * Initializes the Controller with callbacks for sending system events and
  * process execution results. Instantiates a ProcessExecutor and provides a
  * callback. Starts a thread to perform work on the InfiniteLoop
  *
  */
-void Controller::initialize(ProcessCallbackFn process_callback_fn,
+void Controller::Initialize(ProcessCallbackFn process_callback_fn,
                             SystemCallbackFn  system_callback_fn,
                             StatusCallbackFn  status_callback_fn)
 {
@@ -123,7 +129,7 @@ void Controller::initialize(ProcessCallbackFn process_callback_fn,
   KLOG("Initialization complete");
 }
 
-void Controller::shutdown()
+void Controller::Shutdown()
 {
   m_active = false;
 }
@@ -142,22 +148,6 @@ void Controller::SetWait(const bool& wait)
     m_wait.store(wait);
   }
   m_condition.notify_one();
-}
-
-/**
- * getScheduler
- *
- * @returns [out] {Scheduler}  New instance of Scheduler
- */
-Scheduler Controller::getScheduler()
-{
-  return Scheduler{
-    [this](const int32_t&                  client_socket_fd,
-           const int32_t&                  event,
-           const std::vector<std::string>& args)
-  {
-    onSchedulerEvent(client_socket_fd, event, args);
-  }};
 }
 
 /**
@@ -208,7 +198,7 @@ void Controller::InfiniteLoop()
         m_tasks_map.at(client_fd).size() == 1 ? "task" : "tasks");
     }
 
-    if (m_tasks_map.size()) handlePendingTasks();
+    if (m_tasks_map.size()) HandlePendingTasks();
 
     if (timer.expired())
     {
@@ -225,11 +215,11 @@ void Controller::InfiniteLoop()
 }
 
 /**
- * handlePendingTasks
+ * HandlePendingTasks
  *
  * Iterates pending tasks and requests their execution
  */
-void Controller::handlePendingTasks()
+void Controller::HandlePendingTasks()
 {
   auto MakeError = [](const char* e_msg) { return fmt::format("Exception caught while executing process: {}", e_msg); };
   try
@@ -428,12 +418,12 @@ void Controller::Execute(const uint32_t&    mask,
 }
 
 /**
- * @brief process_system_events
+ * @brief ProcessSystemEvent
  *
  * @param [in] {int32_t}                  event
  * @param [in] {std::vector<std::string>> payload
  */
-void Controller::process_system_event(const int32_t&                  event,
+void Controller::ProcessSystemEvent(const int32_t&                  event,
                                       const std::vector<std::string>& payload,
                                       const int32_t& id)
 {
@@ -460,12 +450,12 @@ void Controller::process_system_event(const int32_t&                  event,
 }
 
 /**
- * process_client_request
+ * ProcessClientRequest
  *
  * @param [in] {int32_t}     client_fd The client socket file descripqqqQQQr
  * @param [in] {std::string} message
  */
-void Controller::process_client_request(const int32_t&     client_fd,
+void Controller::ProcessClientRequest(const int32_t&     client_fd,
                                         const std::string& message)
 {
   using Payload = std::vector<std::string>;

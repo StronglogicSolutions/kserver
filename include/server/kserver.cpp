@@ -31,7 +31,7 @@ KServer::KServer(int argc, char **argv)
   m_file_pending_fd(NONE_PENDING)
   {
     KLOG("Initializing controller");
-    m_controller.initialize(
+    m_controller.Initialize(
     [this](std::string result, int mask, std::string request_id, const int32_t& client_fd, bool error)
     {
       OnProcessEvent(result, mask, request_id, client_fd, error);
@@ -56,7 +56,7 @@ KServer::~KServer()
 {
   KLOG("Server shutting down");
   CloseConnections();
-  m_controller.shutdown();
+  m_controller.Shutdown();
 }
 
 /**
@@ -120,7 +120,7 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
     case SYSTEM_EVENTS__PLATFORM_NEW_POST:
     {
       KLOG("Platform Post event received");
-      m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_NEW_POST, args);
+      m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST, args);
 
       std::vector<std::string> outgoing_args{};
       outgoing_args.reserve(args.size());
@@ -137,10 +137,10 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
       if (args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
         m_ipc_manager.ReceiveEvent(system_event, args);
       else
-        m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
+        m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_ERROR, args);
     break;
     case SYSTEM_EVENTS__PLATFORM_REQUEST:
-      m_controller.process_system_event(system_event, args);
+      m_controller.ProcessSystemEvent(system_event, args);
     break;
     case SYSTEM_EVENTS__PLATFORM_EVENT:
       m_ipc_manager.ReceiveEvent(system_event, args);
@@ -149,7 +149,7 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
         m_ipc_manager.process(args.front(), client_fd);
     break;
     case SYSTEM_EVENTS__PLATFORM_ERROR:
-      m_controller.process_system_event(system_event, args);
+      m_controller.ProcessSystemEvent(system_event, args);
       ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
 
       if (client_fd == ALL_CLIENTS)
@@ -277,7 +277,7 @@ void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std:
     SendEvent(client_fd, "Process Result", event_args);
 
   if (Scheduler::isKIQProcess(mask))
-    m_controller.process_system_event(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));
+    m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));
 }
 
 void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
@@ -423,7 +423,7 @@ void KServer::OperationRequest(const std::string& message, const int32_t& client
   else if (IsStopOperation      (op)) EndSession(client_fd);
   else if (IsFileUploadOperation(op)) WaitForFile(client_fd);
   else if (IsIPCOperation       (op)) m_ipc_manager.process(message, client_fd);
-  else                                m_controller.process_client_request(client_fd, message);
+  else                                m_controller.ProcessClientRequest(client_fd, message);
 }
 
 /**
