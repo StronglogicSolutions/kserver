@@ -706,10 +706,10 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     for (const auto& params : v)
       id = CreateChild(id, params.data, params.name, params.args);
   };
-  auto FindRoot   = [&map, &lists](int32_t id) { return lists.at(map.at(id).first); };
-  auto FindTask   = [&map](int32_t id)         { return map.at(id).second.task; };
-  auto GetAppName = [this](int32_t mask)       { return m_app_map.at(mask); };
-  auto Sanitize   = []    (JSONItem& item)            { item.value = StringUtils::RemoveTags(item.value);};
+  auto FindRoot   = [&map, &lists](int32_t id) { return lists.at(map.at(id).first);                };
+  auto FindTask   = [&map](int32_t id)         { return map.at(id).second.task;                    };
+  auto GetAppName = [this](int32_t mask)       { return m_app_map.at(mask);                        };
+  auto Sanitize   = []    (JSONItem& item)     { item.value = StringUtils::RemoveTags(item.value); };
   auto Finalize   = [&map, this, CompleteTask](int32_t id)
   {
     static const bool& immediately  = false;
@@ -733,7 +733,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
       m_term_ids.insert(tid);
     }
   };
-  auto Analyze = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
+  auto AnalyzeTW = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
     using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
     using Sentiment = SentimentResultParser::Sentiment;
@@ -857,7 +857,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const auto init_root = FindMasterRoot(&init_node);
     const auto resp_root = FindMasterRoot(&resp_node);
     if (init_root == resp_root && GetAppName(init_root->task.execution_mask) == TW_RESEARCH_APP)
-      Analyze(*(init_root), init_node, resp_node);
+      AnalyzeTW(*(init_root), init_node, resp_node);
     else
       KLOG("All tasks originating from {} have completed", init_root->id);
   };
@@ -919,7 +919,7 @@ void Scheduler::PostExecWait(const int32_t& i, const T& r_)
  * @return false
  */
 
-bool Scheduler::handleProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
+bool Scheduler::OnProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
 {
   auto GetValidArgument = [this](const auto& id)
   {
@@ -975,11 +975,11 @@ bool Scheduler::SavePlatformPost(std::vector<std::string> payload)
  */
 void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
 {
- const auto platform = payload[0];
- const auto id       = payload[1];
- const auto user     = payload[2];
- const auto message  = payload[3];
- const auto args     = payload[4];
+ const auto& platform = payload[0];
+ const auto& id       = payload[1];
+ const auto& user     = payload[2];
+ const auto& message  = payload[3];
+ const auto& args     = payload[4];
 
  KLOG("Platform request from {}", platform);
 
@@ -1053,9 +1053,8 @@ bool Scheduler::addTrigger(const std::vector<std::string>& payload)
       config.token_value = payload.at(4);
 
       for (int i = 0; i < map_num; i++)
-        config.info.map.insert({
-          payload.at((TRIGGER_MAP_NUM_INDEX + i + 1)),
-          payload.at((TRIGGER_MAP_NUM_INDEX + i + 2))});
+        config.info.map.insert({payload.at((TRIGGER_MAP_NUM_INDEX + i + 1)),
+                                payload.at((TRIGGER_MAP_NUM_INDEX + i + 2))});
 
       for (int i = 0; i < config_num; i++)
         config.info.config_info_v.emplace_back(
@@ -1141,7 +1140,7 @@ int32_t Scheduler::CreateChild(const T& id, const std::string& data, const S& ap
       ELOG("Failed to schedule {} task", app.name);
   }
   else
-    ELOG("Application \"{}\" not found", application_name);
+    ELOG("Application not found: {}", application_name);
 
   return INVALID_ID;
 };
@@ -1163,7 +1162,7 @@ int32_t Scheduler::FindMask(const std::string& application_name)
  */
 std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
 {
-  auto GetTime = [](const auto interval) { return (std::stoi(TimeUtils::Now()) + 180); };
+  auto GetTime = [](const auto& interval) { return (std::stoi(TimeUtils::Now()) + interval); };
   const auto   platform        = v[0];
   const auto   command         = v[1];
   const auto   data            = v[2];
@@ -1215,12 +1214,12 @@ void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, co
   static const auto no_repost = constants::NO_REPOST;
   static const auto no_urls   = constants::NO_URLS;
   static const auto no_cmd    = std::to_string(std::numeric_limits<uint32_t>::max());
-  const auto    uuid     = GenerateUUIDString();
-  const auto    platform = m_platform.GetPlatform(pid);
-  const auto    user     = m_platform.GetUser("", pid, true);
-  const auto    code_s   = std::to_string(IPC_CMD_CODES.at(command));
-  const auto    args     = CreateOperation("bot", {config::Process::tg_dest(), data});
-  const Payload payload  = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
+  const auto        uuid      = GenerateUUIDString();
+  const auto        platform  = m_platform.GetPlatform(pid);
+  const auto        user      = m_platform.GetUser("", pid, true);
+  const auto        code_s    = std::to_string(IPC_CMD_CODES.at(command));
+  const auto        args      = CreateOperation("bot", {config::Process::tg_dest(), data});
+  const Payload     payload   = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
 

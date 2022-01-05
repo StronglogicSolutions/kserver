@@ -77,17 +77,13 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
   {
     case SYSTEM_EVENTS__SCHEDULED_TASKS_READY:
       KLOG("Maintenance worker found tasks");
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("Scheduled Tasks Ready", args);
-      else
-        SendEvent(client_fd, "Scheduled Tasks Ready", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("Scheduled Tasks Ready", args) : SendEvent(client_fd, "Scheduled Tasks Ready", args);
     break;
     case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE:
       KLOG("There are currently no tasks ready for execution.");
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("No tasks ready", args);
-      else
-        SendEvent(client_fd, "No tasks ready", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("No tasks ready", args)        : SendEvent(client_fd, "No tasks ready", args);
     break;
     case SYSTEM_EVENTS__SCHEDULER_FETCH:
       if (client_fd != ALL_CLIENTS)
@@ -112,10 +108,8 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
     break;
     case SYSTEM_EVENTS__SCHEDULER_SUCCESS:
       KLOG("Task successfully scheduled");
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("Task Scheduled", args);
-       else
-        SendEvent(client_fd, "Task Scheduled", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("Task Scheduled", args) : SendEvent(client_fd, "Task Scheduled", args);
     break;
     case SYSTEM_EVENTS__PLATFORM_NEW_POST:
     {
@@ -127,10 +121,8 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
       for (const auto& arg : args)
         outgoing_args.emplace_back(arg);
 
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("Platform Post", args);
-      else
-        SendEvent(client_fd, "Platform Post", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("Platform Post", args) : SendEvent(client_fd, "Platform Post", args);
     }
     break;
     case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
@@ -152,10 +144,8 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
       m_controller.ProcessSystemEvent(system_event, args);
       ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
 
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("Platform Error", args);
-      else
-        SendEvent(client_fd, "Platform Error", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("Platform Error", args) : SendEvent(client_fd, "Platform Error", args);
     break;
     case SYSTEM_EVENTS__FILE_UPDATE:
     {
@@ -271,10 +261,8 @@ void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std:
   if (error)
     event_args.push_back("Executed process returned an ERROR");
 
-  if (client_fd == ALL_CLIENTS)
-    Broadcast("Process Result", event_args);
-  else
-    SendEvent(client_fd, "Process Result", event_args);
+  (client_fd == ALL_CLIENTS) ?
+    Broadcast("Process Result", event_args) : SendEvent(client_fd, "Process Result", event_args);
 
   if (Scheduler::isKIQProcess(mask))
     m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));

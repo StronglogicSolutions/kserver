@@ -442,7 +442,7 @@ void Controller::ProcessSystemEvent(const int32_t&                  event,
     {
       const std::string output =           payload.at(EVENT_PROCESS_OUTPUT_INDEX);
       const int32_t     mask   = std::stoi(payload.at(EVENT_PROCESS_MASK_INDEX));
-      m_scheduler.handleProcessOutput(output, mask, id);
+      m_scheduler.OnProcessOutput(output, mask, id);
     }
     break;
   }
