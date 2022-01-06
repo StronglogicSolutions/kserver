@@ -91,9 +91,10 @@ static std::vector<ResearchManager::TermEvent> ParseTermEvents(const QueryValues
  * ResearchManager
  * @consructor
  */
-ResearchManager::ResearchManager(Database::KDB *db_ptr, Platform *plat_ptr)
-    : m_db_ptr(db_ptr),
-      m_plat_ptr(plat_ptr)
+ResearchManager::ResearchManager(Database::KDB *db_ptr, Platform *plat_ptr, MaskFn mask_fn)
+: m_db_ptr(db_ptr),
+  m_plat_ptr(plat_ptr),
+  m_mask_fn(mask_fn)
 {
 }
 
@@ -432,5 +433,67 @@ std::vector<ResearchManager::TermEvent> ResearchManager::GetAllTermEvents() cons
   const auto events = ParseTermEvents(query);
 
   return events;
+}
+
+ResearchManager::StudyRequests
+ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, const TaskWrapper& subchild)
+{
+  using namespace FileUtils;
+  auto GetTokens = [](const auto& payload)
+  {
+    std::vector<JSONItem> tokens{};
+    if (payload.size())
+      for (size_t i = 1; i < (payload.size() - 1); i += 2)
+        tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
+    return tokens;
+  };
+  auto FindMask = m_mask_fn;
+  // auto AnalyzeTW = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
+
+  using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
+  using Sentiment = SentimentResultParser::Sentiment;
+  using Terms     = std::vector<JSONItem>;
+  using Hits      = std::vector<ResearchManager::TermHit>;
+  // auto  QueueFull       = [this]()               { return m_message_queue.size() > QueueLimit; };
+  // auto  PollExists      = [this](const auto& id) { return m_research_polls.find(id) != m_research_polls.end(); };
+  auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
+  {
+    return "Please rate the civilizational impact of the following statement:\n\n\"" + text +
+            "\"\n\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
+  };
+  static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
+
+  ResearchManager::StudyRequests requests{};
+
+  KLOG("Performing final analysis on research triggered by {}", root.id);
+  const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
+  const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
+  const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
+  const TaskWrapper sub_c_emo_tk   = *(FindParent(&subchild,     FindMask(EMOTION_APP)));
+  const TaskWrapper child_c_emo_tk = *(FindParent(&sub_c_emo_tk, FindMask(EMOTION_APP)));
+  const auto        ner_data       = ner_parent.event.payload;
+  const auto        sub_c_emo_data = sub_c_emo_tk.event.payload;
+  const auto        child_emo_data = child_c_emo_tk.event.payload;
+  const auto        sub_c_sts_data = subchild.event.payload;
+  const auto        child_sts_data = child.event.payload;
+  const Terms       terms_data     = GetTokens(ner_data);
+  const Emotion     child_emo      = Emotion::Create(child_emo_data);
+  const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);
+  const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
+  const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
+  const Hits        hits           = GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
+
+  for (const ResearchManager::TermHit& hit : hits)
+  {
+    std::string data   = MakePollMessage(child_text, child_emo, child_sts, hit.ToString());
+    std::string poll_q = "Rate the civilization impact:";
+    requests.emplace_back(
+      ResearchRequest{
+        .hit  = hit,
+        .data = data,
+        .type = Study::poll
+    });
+  }
+  return requests;
 }
 } // ns kiq

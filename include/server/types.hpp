@@ -64,21 +64,18 @@ static constexpr const char* const PING = "253";
 static constexpr const char* const PONG = "PONG";
 static constexpr size_t PONG_SIZE = 4;
 
-// // TODO: Create an implementation file, or move this to utilities
-// inline bool IsPing(std::string s) {
-//   return s.size() == 3 && strcmp(s.c_str(), PING) == 0;
-// }
 struct ReceivedFile {
-  int timestamp;
-  int client_fd;
-  uint8_t *f_ptr;
-  size_t size;
+int timestamp;
+int client_fd;
+uint8_t *f_ptr;
+size_t size;
 
-  friend std::ostream &operator<<(std::ostream &out, const ReceivedFile& file) {
-      out << "Timestamp: " << file.timestamp
-          << "\nClient: " << file.client_fd
-          << "\nSize: " << file.size << std::endl;
-      return out;
-    }
+friend std::ostream &operator<<(std::ostream &out, const ReceivedFile& file)
+{
+  out << "Timestamp: " << file.timestamp
+      << "\nClient: " << file.client_fd
+      << "\nSize: " << file.size << std::endl;
+  return out;
+}
 };
 } // ns kiq

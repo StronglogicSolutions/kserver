@@ -45,7 +45,7 @@ Scheduler::Scheduler(Database::KDB&& kdb)
 : m_kdb(std::move(kdb)),
   m_platform(nullptr),
   m_trigger(nullptr),
-  m_research_manager(&m_kdb, &m_platform)
+  m_research_manager(&m_kdb, &m_platform, [this](const auto& name) { return FindMask(name); })
 {
   KLOG("Scheduler instantiated for testing");
 }
@@ -81,7 +81,7 @@ Scheduler::Scheduler(SystemEventcallback fn)
   m_platform(fn),
   m_trigger(&m_kdb),
   m_app_map(FetchApplicationMap(m_kdb)),
-  m_research_manager(&m_kdb, &m_platform),
+  m_research_manager(&m_kdb, &m_platform, [this](const auto& name) { return FindMask(name); }),
   m_ipc_command(NO_COMMAND_INDEX)
 {
   const auto AppExists = [this](const std::string& name) -> bool
@@ -764,7 +764,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     const Terms       terms_data     = GetTokens(ner_data);
     const Emotion     child_emo      = Emotion::Create(child_emo_data);
     const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);
-     const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
+    const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
     const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
     const Hits        hits           = m_research_manager.GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
 

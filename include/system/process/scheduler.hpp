@@ -43,52 +43,6 @@ std::string data;
 std::string name;
 std::vector<std::string> args;
 };
-struct TaskWrapper
-{
-TaskWrapper(Task&& task_, const bool complete_ = false)
-: task    (task_),
-  id      (task.task_id),
-  complete(complete_),
-  parent  (nullptr),
-  child   (nullptr)
-{}
-
-Task             task;
-int32_t          id;
-bool             complete;
-TaskWrapper*     parent;
-TaskWrapper*     child;
-ProcessEventData event;
-
-void SetEvent(ProcessEventData&& event_)
-{
-  event = event_;
-}
-};
-
-static int8_t IG_FEED_IDX    {0x00};
-static int8_t YT_FEED_IDX    {0x01};
-static int8_t TW_FEED_IDX    {0x02};
-static int8_t TW_SEARCH_IDX  {0x03};
-static int8_t TW_RESEARCH_IDX{0x04};
-static int8_t NER_IDX        {0x05};
-static int8_t EMOTION_IDX    {0x06};
-static int8_t SENTIMENT_IDX  {0x07};
-static const char* REQUIRED_APPLICATIONS[]{
-  "IG Feed",
-  "YT Feed",
-  "TW Feed",
-  "TW Search",
-  "TW Research",
-  "KNLP - NER",
-  "KNLP - Emotion",
-  "KNLP - Sentiment"
-};
-static const int8_t      REQUIRED_APPLICATION_NUM{7};
-static const std::string TW_RESEARCH_APP   {REQUIRED_APPLICATIONS[TW_RESEARCH_IDX]};
-static const std::string NER_APP           {REQUIRED_APPLICATIONS[NER_IDX]};
-static const std::string EMOTION_APP       {REQUIRED_APPLICATIONS[EMOTION_IDX]};
-static const std::string SENTIMENT_APP     {REQUIRED_APPLICATIONS[SENTIMENT_IDX]};
 
 static const int32_t INVALID_ID   = std::numeric_limits<int32_t>::max();
 static const int32_t INVALID_MASK = std::numeric_limits<int32_t>::max();
@@ -209,9 +163,6 @@ ResearchPolls       m_research_polls;     // -> should become responsibility of 
 TermIDs             m_term_ids;           // -> same as above
 };
 
-TaskWrapper*   FindNode(const TaskWrapper* node, const int32_t& id);
-TaskWrapper*   FindParent(const TaskWrapper* node, const int32_t& mask);
-TaskWrapper*   FindMasterRoot(const TaskWrapper* ptr);
 bool           HasPendingTasks(TaskWrapper* root);
 bool           AllTasksComplete (const Scheduler::PostExecMap& map);
 uint32_t       getAppMask(std::string name);
@@ -219,5 +170,4 @@ const uint32_t getIntervalSeconds(uint32_t interval);
 Task           args_to_task(std::vector<std::string> args);
 bool           IsRecurringTask(const Task& task);
 uint32_t       getAppMask(std::string name);
-
 } // ns kiq

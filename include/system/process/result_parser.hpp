@@ -41,16 +41,6 @@ static std::string url_string(const std::vector<std::string> urls)
   return result;
 }
 
-struct ProcessEventData {
-int32_t                  code;
-std::vector<std::string> payload;
-};
-
-struct ProcessParseResult {
-std::vector<ProcessEventData> events;
-};
-
-
 class ProcessParseInterface {
 public:
 virtual ~ProcessParseInterface() {}

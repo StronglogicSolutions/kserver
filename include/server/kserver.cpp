@@ -291,8 +291,8 @@ void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
  *
  * Helper function for sending event messages to a client
  *
- * @param[in] {int} client_fd
- * @param[in] {std::string} event
+ * @param[in] {int32_t}                  client_fd
+ * @param[in] {std::string}              event
  * @param[in] {std::vector<std::string>} argv
  */
 void KServer::SendEvent(const int32_t& client_fd, const std::string& event, const std::vector<std::string>& argv)
@@ -331,8 +331,8 @@ void KServer::OnFileHandled(const int& socket_fd, uint8_t*&& f_ptr, size_t size)
     const auto timestamp = TimeUtils::UnixTime();
     m_received_files.emplace_back(ReceivedFile{timestamp, socket_fd, f_ptr, size});
     KLOG("Received file from {} at {}", socket_fd, timestamp);
-    SetFileNotPending();
     SendEvent(socket_fd, "File Transfer Complete", {std::to_string(timestamp)});
+    SetFileNotPending();
   }
 }
 
@@ -395,7 +395,7 @@ void KServer::WaitForFile(const int32_t& client_fd)
 
 void KServer::ScheduleRequest(const std::vector<std::string>& task, const int32_t& client_fd)
 {
-  auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
+  const auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
   SendEvent(client_fd, "Processing Schedule Request", {"Schedule Task", uuid});
   m_controller("Schedule", task, client_fd, uuid);
   KLOG("Legacy Schedule Request: delivered to controller");
@@ -426,9 +426,8 @@ void KServer::onMessageReceived(int                      client_fd,
   try
   {
     std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
-    if (m_file_pending)
-      ReceiveFileData(s_buffer_ptr, client_fd, size);
-    else
+    (m_file_pending) ?
+      ReceiveFileData(s_buffer_ptr, client_fd, size) :
       ReceiveMessage(s_buffer_ptr, size, client_fd);
   }
   catch(const std::exception& e)
@@ -497,10 +496,8 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
     })
     .rightMap([this, fd](auto&& args)
     {
-      if (args.empty())
-        ELOG("Failed to decode message");
-      else
-        ScheduleRequest(args, fd);
+      (args.size()) ? ScheduleRequest(args, fd) :
+                      ELOG("Failed to decode message");
       return args;
     });
   };

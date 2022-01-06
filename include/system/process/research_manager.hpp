@@ -2,16 +2,24 @@
 
 #include "platform.hpp"
 #include "result_parser.hpp"
+#include "helper.hpp"
 
 namespace kiq {
 using JSONItem = NERResultParser::NLPItem;
 
 bool VerifyTerm(const std::string &term);
 
+enum class Study
+{
+poll = 0x00,
+};
+
+using MaskFn = std::function<int32_t(const std::string&)>;
+
 class ResearchManager
 {
 public:
-ResearchManager(Database::KDB* db_ptr, Platform* plat_ptr);
+ResearchManager(Database::KDB* db_ptr, Platform* plat_ptr, MaskFn mask_fn);
 struct Person{
 std::string id;
 std::string name;
@@ -53,6 +61,15 @@ std::string ToJSON()                             const;
 static std::string NToString(const std::vector<TermEvent>& events);
 };
 
+struct ResearchRequest
+{
+TermHit hit;
+std::string data;
+Study type;
+};
+
+using StudyRequests = std::vector<ResearchRequest>;
+
 std::string            AddTermHit(const std::string& tid,
                                   const std::string& uid,
                                   const std::string& pid,
@@ -88,9 +105,12 @@ bool                   PersonExists(const std::string& name) const;
 bool                   UserExists(const std::string& name = "", const std::string& id = "") const;
 bool                   TermExists(const std::string& name) const;
 bool                   TermHasHits(const std::string& term);
+StudyRequests          AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, const TaskWrapper& subchild);
+
 
 private:
 Database::KDB* m_db_ptr;
 Platform*      m_plat_ptr;
+MaskFn         m_mask_fn;
 };
 } // ns kiq
