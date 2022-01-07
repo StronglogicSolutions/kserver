@@ -696,8 +696,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   auto  NotScheduled = [this](auto id) { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
   auto  CompleteTask = [&map, &lists](const int32_t& id)
   {
-    auto pid  = map.at(id).first;
-    auto node = FindNode(lists.at(pid), id);
+    auto pid       = map.at(id).first;
+    auto node      = FindNode(lists.at(pid), id);
     node->complete = true;
   };
   auto SequenceTasks = [this](const std::vector<TaskParams>& v)
@@ -790,15 +790,15 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         IPC_Message_Header,
         CreateOperation("Bot", {config::Process::tg_dest()})));
 
-    auto items = GetTokens(t_wrapper.event.payload);
-    for (auto&& item : items)
+    const auto time = FindMasterRoot(&t_wrapper)->event.payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
+    for (auto&& item : GetTokens(t_wrapper.event.payload))
     {
       if (!VerifyTerm(item.value)) continue;
 
       Sanitize(item);
       const auto user       = init_task.GetToken(constants::USER_KEY);
       const auto term_hits  = m_research_manager.GetTermHits(item.value);
-      const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
+      const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task, time);
       if (term_hits.size())
         for (auto&& hit : term_hits)
           if (!(hit.sid.empty()) && NotScheduled(hit.sid))
@@ -914,7 +914,7 @@ bool Scheduler::OnProcessOutput(const std::string& output, const int32_t mask, c
           PostExecWork(std::move(outgoing_event), PostExecDuo{parent_id, id});
       }
       break;
-      case (SYSTEM_EVENTS__PROCESS_RESEARCH):
+      case (SYSTEM_EVENTS__PROCESS_RESEARCH): // TODO: We need to parse date
         CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_APP, {"entity"});
         m_postexec_map.at(id).second.SetEvent(std::move(outgoing_event));
       break;

@@ -181,13 +181,12 @@ std::string ResearchManager::AddTermHit(const std::string &tid, const std::strin
 /**
  * GetTerm
  */
-std::string ResearchManager::GetTerm(const std::string &term)
+std::string ResearchManager::GetTerm(const std::string &term) const
 {
-  std::string id{};
   for (const auto &row : m_db_ptr->select("term", {"id"}, CreateFilter("name", term)))
     if (row.first == "id")
-      id = row.second;
-  return id;
+      return row.second;
+  return "";
 }
 
 /**
@@ -277,7 +276,7 @@ std::string ResearchManager::SaveTermHit(const JSONItem& term, const std::string
  */
 bool ResearchManager::TermHasHits(const std::string &term)
 {
-  return (GetTermHits(term).size()); // TODO: we need a simpler method for getting hit #
+  return (GetTermHits(term).size()); // TODO: we need a simpler method for getting hit
 }
 
 /**
@@ -329,14 +328,14 @@ std::string ResearchManager::TermEvent::ToJSON() const
 /**
  * RecordtermEvent
  */
-ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task)
+ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task, const std::string& time)
 {
   TermEvent event{};
   event.term = term.value;
   event.type = term.type;
   event.user = user;
 
-  if (HasBasePlatform(app))
+  if (!TermHitExists(term.value, time) && HasBasePlatform(app))
   {
     const auto pid = m_plat_ptr->GetPlatformID(GetBasePlatform(app));
     if (!pid.empty())
@@ -348,7 +347,7 @@ ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, con
         event.tid          = GetTerm(term.value);
         event.organization = identity.organization;
         event.person       = GetPersonForUID(identity.id).name;
-        event.time         = TimeUtils::FormatTimestamp(TimeUtils::UnixTime());
+        event.time         = time;
       }
     }
   }
@@ -491,5 +490,15 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
         .type  = Study::poll});
   }
   return requests;
+}
+
+bool ResearchManager::TermHitExists(const std::string& term, const std::string& time) const
+{
+  auto db    = m_db_ptr;
+  auto query = db->select("term_hit", {"id"}, CreateFilter("tid", GetTerm(term), "time", time));
+  for (const auto& value : query)
+    if (value.first == "id")
+     return true;
+  return false;
 }
 } // ns kiq

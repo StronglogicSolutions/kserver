@@ -88,7 +88,7 @@ void                   FindPeople();
 void                   FindOrganizations();
 void                   FindAffiliations();
 
-std::string            GetTerm(const std::string& term);
+std::string            GetTerm(const std::string& term) const;
 std::string            GetPerson(const std::string& name);
 Person                 GetPersonForUID(const std::string& uid);
 Identity               GetIdentity(const std::string& name, const std::string& pid);
@@ -99,13 +99,14 @@ void                   GetOrganization();
 void                   GetAffiliation();
 
 std::string            SaveTermHit(const JSONItem& term, const std::string& uid, const std::string& sid);
-TermEvent              RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task);
+TermEvent              RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task, const std::string& time);
 
 bool                   OrganizationExists(const std::string& name) const;
 bool                   PersonExists(const std::string& name) const;
 bool                   UserExists(const std::string& name = "", const std::string& id = "") const;
 bool                   TermExists(const std::string& name) const;
 bool                   TermHasHits(const std::string& term);
+bool                   TermHitExists(const std::string& term, const std::string& time) const;
 StudyRequests          AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, const TaskWrapper& subchild);
 
 
