@@ -612,13 +612,13 @@ virtual ~TWFeedResultParser() override {}
 
 virtual bool read(const std::string& s)
 {
-  using namespace rapidjson;
+  rapidjson::Document d{};
 
-  Document d{};
-  d.Parse(s.c_str());
-  if (!d.IsNull() && d.IsArray())
+  if (d.Parse(s.c_str()).HasParseError())
+    ELOG("Error parsing JSON: {}", GetParseError_En(d.GetParseError()));
+  else
+  if (d.IsArray())
   {
-
     for (const auto& item : d.GetArray())
     {
       TWFeedItem tw_item{};
