@@ -53,7 +53,7 @@ public:
 virtual ~ResearchResultInterface() {}
 static ProcessParseResult GetNOOPResult()
 {
-  return ProcessParseResult{{ProcessEventData{.code =SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
+  return ProcessParseResult{{ProcessEventData{.code = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
 }
 }; // ResearchResultInterface
 
@@ -612,10 +612,12 @@ virtual ~TWFeedResultParser() override {}
 
 virtual bool read(const std::string& s)
 {
+  auto GetJSONError = [](auto& d)                { return GetParseError_En(d.GetParseError()); };
+  auto ParseOK      = [](auto& d, const auto& s) { return d.Parse(s.c_str()).HasParseError();  };
   rapidjson::Document d{};
 
-  if (d.Parse(s.c_str()).HasParseError())
-    ELOG("Error parsing JSON: {}", GetParseError_En(d.GetParseError()));
+  if (!ParseOK(d, s))
+    ELOG("Error parsing JSON: {}", GetJSONError(d));
   else
   if (d.IsArray())
   {
