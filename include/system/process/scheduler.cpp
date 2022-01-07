@@ -735,50 +735,21 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   };
   auto AnalyzeTW = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
-    using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
-    using Sentiment = SentimentResultParser::Sentiment;
-    using Terms     = std::vector<JSONItem>;
-    using Hits      = std::vector<ResearchManager::TermHit>;
     auto  QueueFull       = [this]()               { return m_message_queue.size() > QueueLimit; };
     auto  PollExists      = [this](const auto& id) { return m_research_polls.find(id) != m_research_polls.end(); };
-    auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
-    {
-      return "Please rate the civilizational impact of the following statement:\n\n\"" + text +
-             "\"\n\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
-    };
-    static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
 
     if (QueueFull()) return VLOG("Outbound IPC queue is full");
 
-    KLOG("Performing final analysis on research triggered by {}", root.id);
-    const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
-    const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
-    const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
-    const TaskWrapper sub_c_emo_tk   = *(FindParent(&subchild,     FindMask(EMOTION_APP)));
-    const TaskWrapper child_c_emo_tk = *(FindParent(&sub_c_emo_tk, FindMask(EMOTION_APP)));
-    const auto        ner_data       = ner_parent.event.payload;
-    const auto        sub_c_emo_data = sub_c_emo_tk.event.payload;
-    const auto        child_emo_data = child_c_emo_tk.event.payload;
-    const auto        sub_c_sts_data = subchild.event.payload;
-    const auto        child_sts_data = child.event.payload;
-    const Terms       terms_data     = GetTokens(ner_data);
-    const Emotion     child_emo      = Emotion::Create(child_emo_data);
-    const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);
-    const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
-    const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
-    const Hits        hits           = m_research_manager.GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
-
-    for (const ResearchManager::TermHit& hit : hits)
+    static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
+    for (const ResearchManager::ResearchRequest& request : m_research_manager.AnalyzeTW(root, child, subchild))
     {
-      if (!PollExists(hit.id))
+      if (!PollExists(request.hit.id))
       {
-        std::string data   = MakePollMessage(child_text, child_emo, child_sts, hit.ToString());
-        std::string poll_q = "Rate the civilization impact:";
         std::string dest   = config::Process::tg_dest();
-        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::message, data, CreateOperation("Bot", {dest})));
-        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::poll, poll_q,  CreateOperation("Bot",
+        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::message, request.data,  CreateOperation("Bot", {dest})));
+        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::poll,    request.title, CreateOperation("Bot",
                                                   {dest, "High", "Some", "Little", "None"})));
-        m_research_polls.insert(hit.id);
+        m_research_polls.insert(request.hit.id);
         return; // Limit to one
       }
     }

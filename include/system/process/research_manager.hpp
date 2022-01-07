@@ -65,6 +65,7 @@ struct ResearchRequest
 {
 TermHit hit;
 std::string data;
+std::string title;
 Study type;
 };
 

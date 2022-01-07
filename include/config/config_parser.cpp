@@ -25,43 +25,41 @@ std::string query(const std::string& section, const std::string& name)
 }
 
 namespace System {
-const std::string admin() { return reader.Get("system", "admin", "admin"); }
+const std::string admin()        { return reader.Get("system", "admin", "admin"); }
 }
 namespace Logging {
-const std::string level()     { return reader.Get("logging", "level",      "info"); }
-const std::string path()      { return reader.Get("logging", "path",       RequiredConfig("[logging] path")); }
-const std::string timestamp() { return reader.Get("logging", "timestamp",  "true"); }
+const std::string level()        { return reader.Get("logging", "level",      "info"); }
+const std::string path()         { return reader.Get("logging", "path",       RequiredConfig("[logging] path")); }
+const std::string timestamp()    { return reader.Get("logging", "timestamp",  "true"); }
 } // namespace Logging
 
 namespace Database {
-const std::string pass()      { return reader.Get("database", "password",  RequiredConfig("[database] password")); }
-const std::string name()      { return reader.Get("database", "name",      RequiredConfig("[database] name")); }
-const std::string user()      { return reader.Get("database", "user",      RequiredConfig("[database] user")); }
-const std::string port()      { return reader.Get("database", "port",      RequiredConfig("[database] port")); }
-const std::string host()      { return reader.Get("database", "host",      RequiredConfig("[database] host")); }
+const std::string pass()         { return reader.Get("database", "password",  RequiredConfig("[database] password")); }
+const std::string name()         { return reader.Get("database", "name",      RequiredConfig("[database] name")); }
+const std::string user()         { return reader.Get("database", "user",      RequiredConfig("[database] user")); }
+const std::string port()         { return reader.Get("database", "port",      RequiredConfig("[database] port")); }
+const std::string host()         { return reader.Get("database", "host",      RequiredConfig("[database] host")); }
 } // namespace Database
 
 namespace Process {
-const std::string executor()  { return reader.Get("process", "executor",   RequiredConfig("[process] executor"));   }
-const std::string ipc_port()  { return reader.Get("process", "ipc_port",   "28473");                                }
-const std::string tg_dest ()  { return reader.Get("process", "tg_dest",    "-1");                                   }
+const std::string executor()     { return reader.Get("process", "executor",   RequiredConfig("[process] executor"));   }
+const std::string ipc_port()     { return reader.Get("process", "ipc_port",   "28473");                                }
+const std::string tg_dest ()     { return reader.Get("process", "tg_dest",    "-1");                                   }
 } // namespace Process
 
 namespace Email {
-std::string notification()    { return reader.Get("email", "notification", RequiredConfig("[email] notification")); }
-std::string admin()           { return reader.Get("email", "admin",        RequiredConfig("[email] admin"));        }
-std::string command()         { return reader.Get("email", "command",      RequiredConfig("[email] command"));      }
+const std::string notification() { return reader.Get("email", "notification", RequiredConfig("[email] notification")); }
+const std::string admin()        { return reader.Get("email", "admin",        RequiredConfig("[email] admin"));        }
+const std::string command()      { return reader.Get("email", "command",      RequiredConfig("[email] command"));      }
 } // namespace Admin
 
 namespace Platform {
-std::string affiliate_content(const std::string& type)
+const std::string affiliate_content(const std::string& type)
 {
-  std::string section{"affiliate"};
-  section  += '_';
-  section  += type;
-  std::string value = reader.Get("platform", section, RequiredConfig("[platform] " + section));
+  std::string key{"affiliate_" + type};
+  std::string value = reader.Get("platform", key, RequiredConfig("[platform] " + key));
   return value;
 }
+const std::string default_user() { return reader.Get("platform", "default_user", "");                                  }
 } // namespace Platform
 } // namespace config::kiq
-

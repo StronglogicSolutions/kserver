@@ -439,7 +439,18 @@ ResearchManager::StudyRequests
 ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, const TaskWrapper& subchild)
 {
   using namespace FileUtils;
-  auto GetTokens = [](const auto& payload)
+  using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
+  using Sentiment = SentimentResultParser::Sentiment;
+  using Terms     = std::vector<JSONItem>;
+  using Hits      = std::vector<ResearchManager::TermHit>;
+
+  auto  FindMask        = m_mask_fn;
+  auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
+  {
+    return "Please rate the civilizational impact of the following statement:\n\n\"" + text +
+            "\"\n\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
+  };
+  auto  GetTokens       = [](const auto& payload)
   {
     std::vector<JSONItem> tokens{};
     if (payload.size())
@@ -447,21 +458,6 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
         tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
     return tokens;
   };
-  auto FindMask = m_mask_fn;
-  // auto AnalyzeTW = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
-
-  using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
-  using Sentiment = SentimentResultParser::Sentiment;
-  using Terms     = std::vector<JSONItem>;
-  using Hits      = std::vector<ResearchManager::TermHit>;
-  // auto  QueueFull       = [this]()               { return m_message_queue.size() > QueueLimit; };
-  // auto  PollExists      = [this](const auto& id) { return m_research_polls.find(id) != m_research_polls.end(); };
-  auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
-  {
-    return "Please rate the civilizational impact of the following statement:\n\n\"" + text +
-            "\"\n\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
-  };
-  static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
 
   ResearchManager::StudyRequests requests{};
 
@@ -489,10 +485,10 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
     std::string poll_q = "Rate the civilization impact:";
     requests.emplace_back(
       ResearchRequest{
-        .hit  = hit,
-        .data = data,
-        .type = Study::poll
-    });
+        .hit   = hit,
+        .data  = data,
+        .title = poll_q,
+        .type  = Study::poll});
   }
   return requests;
 }

@@ -50,13 +50,14 @@ const std::string tg_dest ();
 } // namespace Process
 
 namespace Email {
-std::string notification();
-std::string admin();
-std::string command();
+const std::string notification();
+const std::string admin();
+const std::string command();
 } // namespace Admin
 
 namespace Platform {
-std::string affiliate_content(const std::string& type);
+const std::string affiliate_content(const std::string& type);
+const std::string default_user();
 } // namespace Platform
 } // namespace config
 } // namespace kiq
