@@ -228,12 +228,7 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const PlatformPost&
  */
 bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
 {
-  auto GetValidUser = [this](auto o_pid, auto name)
-  {
-    const auto platform = GetPlatform(o_pid);
-    KLOG("Getting valid user for platform: {}", platform);
-    return (platform == "TW Search") ? config::Platform::default_user() : name;
-  };
+  auto GetValidUser = [this](auto o_pid, auto name) { return (GetPlatform(o_pid) == "TW Search") ? config::Platform::default_user() : name; };
 
   if (PostAlreadyExists(post)) return UpdatePostStatus(post, status);
 
@@ -255,12 +250,12 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
         .pid     = platform_id,
         .o_pid   = post.pid,
         .id      = post.id,
-        .user    = post.user,
+        .user    = GetValidUser(post.pid, post.name),
         .time    = post.time,
         .content = post.content,
         .urls    = post.urls,
         .repost  = post.repost,
-        .name    = GetValidUser(post.pid, post.name),
+        .name    = post.name,
         .args    = ToJSONArray({post.args}),
         .method  = post.method
       };
