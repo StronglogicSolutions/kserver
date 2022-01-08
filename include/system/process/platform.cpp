@@ -229,7 +229,11 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const PlatformPost&
 bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
 {
   auto GetValidUser = [this](auto o_pid, auto name)
-  { return (GetPlatform(o_pid) == "TW Search") ? config::Platform::default_user() : name; };
+  {
+    const auto platform = GetPlatform(o_pid);
+    KLOG("Getting valid user for platform: {}", platform);
+    return (platform == "TW Search") ? config::Platform::default_user() : name;
+  };
 
   if (PostAlreadyExists(post)) return UpdatePostStatus(post, status);
 
