@@ -612,8 +612,8 @@ virtual ~TWFeedResultParser() override {}
 
 virtual bool read(const std::string& s)
 {
-  auto GetJSONError = [](auto& d)                { return GetParseError_En(d.GetParseError()); };
-  auto ParseOK      = [](auto& d, const auto& s) { return !(d.Parse(s.c_str()).HasParseError());  };
+  auto GetJSONError = [](auto& d)                { return GetParseError_En(d.GetParseError());   };
+  auto ParseOK      = [](auto& d, const auto& s) { return !(d.Parse(s.c_str()).HasParseError()); };
   rapidjson::Document d{};
 
   if (!ParseOK(d, s))

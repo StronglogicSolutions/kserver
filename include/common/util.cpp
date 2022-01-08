@@ -895,13 +895,13 @@ std::string Now()
   return std::to_string(UnixTime());
 }
 
-int UnixTime() {
-  return std::chrono::duration_cast<std::chrono::seconds>(
-    std::chrono::system_clock::now().time_since_epoch()
-  ).count();
+int UnixTime()
+{
+  return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-std::string FormatTimestamp(int unixtime) {
+std::string FormatTimestamp(int unixtime)
+{
   char               buf[80];
   const  std::time_t time = static_cast<std::time_t>(unixtime);
   struct tm          ts   = *(localtime(&time));
@@ -909,7 +909,8 @@ std::string FormatTimestamp(int unixtime) {
   return std::string{buf};
 }
 
-std::string FormatTimestamp(std::string unixtime) {
+std::string FormatTimestamp(const std::string& unixtime)
+{
   char               buf[80];
   const  std::time_t time = static_cast<std::time_t>(std::stoi(unixtime));
   struct tm          ts   = *(localtime(&time));
@@ -917,7 +918,17 @@ std::string FormatTimestamp(std::string unixtime) {
   return std::string{buf};
 }
 
-std::string time_as_today(std::string unixtime) {
+std::string DatabaseTime(const std::string& unixtime)
+{
+  char               buf[80];
+  const  std::time_t time = static_cast<std::time_t>(std::stoi(unixtime));
+  struct tm          ts   = *(localtime(&time));
+  std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &ts);
+  return std::string{buf};
+}
+
+std::string time_as_today(const std::string& unixtime)
+{
   const std::time_t time = static_cast<std::time_t>(stoi(unixtime));
   const std::time_t now  = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   struct tm         ts   = *localtime(&time);

@@ -335,7 +335,7 @@ ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, con
   event.type = term.type;
   event.user = user;
 
-  if (!TermHitExists(term.value, time) && HasBasePlatform(app))
+  if (!TermHitExists(term.value, TimeUtils::DatabaseTime(time)) && HasBasePlatform(app))
   {
     const auto pid = m_plat_ptr->GetPlatformID(GetBasePlatform(app));
     if (!pid.empty())
