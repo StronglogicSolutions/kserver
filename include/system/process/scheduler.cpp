@@ -7,6 +7,8 @@ namespace kiq {
 using namespace ::constants;
 static Timer timer;
 static const size_t QueueLimit{0x05};
+static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
+
 IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
 {
   using namespace DataUtils;
@@ -716,13 +718,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     CompleteTask(id);
     if (AllTasksComplete(map)) ResolvePending(immediately);
   };
-  auto GetTokens = [](const auto& payload)
+  auto GetTokens = [](const auto& p)
   {
-    std::vector<JSONItem> tokens{};
-    if (payload.size())
-      for (size_t i = 1; i < (payload.size() - 1); i += 2)
-        tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
-    return tokens;
+    std::vector<JSONItem> v{};
+      for (size_t i = 1; i < (p.size() - 1); i += 2)
+        v.emplace_back(JSONItem{p[i], p[i + 1]});
+    return v;
   };
   auto OnTermEvent = [this](const ResearchManager::TermEvent& term_info)
   {
@@ -781,8 +782,6 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
 
   if (initiating_application == TW_RESEARCH_APP && responding_application == NER_APP)
   {
-    static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
-
     if (m_message_queue.empty())
       m_message_queue.emplace_back(MakeIPCEvent(
         SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
