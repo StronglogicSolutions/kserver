@@ -438,8 +438,8 @@ ResearchManager::StudyRequests
 ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, const TaskWrapper& subchild)
 {
   using namespace FileUtils;
-  using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
-  using Sentiment = SentimentResultParser::Sentiment;
+  using Emotion   = Emotion<Emotions>;
+  using Sentiment = Sentiment;
   using Terms     = std::vector<JSONItem>;
   using Hits      = std::vector<ResearchManager::TermHit>;
 

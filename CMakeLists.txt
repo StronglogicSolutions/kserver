@@ -46,6 +46,7 @@ set(SOURCE_FILES
   "include/system/process/helper.cpp"
   "include/system/process/platform.cpp"
   "include/system/process/trigger.cpp"
+  "include/system/process/result_parser.cpp"
   "include/system/process/research_manager.cpp"
   "include/system/process/executor/executor.cpp"
   "include/system/process/executor/task_handlers/task.cpp"
@@ -98,4 +99,4 @@ target_include_directories(${PROJECT_NAME}_lib PRIVATE
   "third_party"
 )
 
-add_subdirectory(test)
+#add_subdirectory(test)

@@ -2,7 +2,7 @@
 
 #include <string>
 #include <cstring>
-
+#include <ostream>
 namespace kiq {
 static const int MAX_PACKET_SIZE = 4096;
 static const int HEADER_SIZE     = 4;

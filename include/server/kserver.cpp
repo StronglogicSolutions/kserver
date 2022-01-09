@@ -378,7 +378,7 @@ void KServer::InitClient(const std::string& message, const int32_t& client_fd)
   const uuids::uuid n_uuid = uuids::uuid_system_generator{}();
   const std::string uuid_s = uuids::to_string(n_uuid);
 
-  m_sessions.emplace(client_fd, NewSession(n_uuid));
+  m_sessions.init(client_fd, NewSession(n_uuid));
   KLOG("Started session {} for {}", uuid_s, client_fd);
   SendMessage(client_fd, GetData());
   SendMessage(client_fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
@@ -447,21 +447,15 @@ void KServer::EndSession(const int32_t& client_fd, bool close_socket)
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
                                                      "\nTX: " + std::to_string(session.tx); };
   static const int SUCCESS{0};
-  const std::string stats = GetStats(m_sessions.at(client_fd));
-  KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, stats);
+  KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
 
   if (HandlingFile(client_fd))
     SetFileNotPending();
 
   m_sessions.at(client_fd).status = SESSION_INACTIVE;
 
-  if (close_socket)
-  {
-    SendEvent(client_fd, CLOSE_SESSION, {GOODBYE_MSG, stats});
-
-    if (shutdown(client_fd, SHUT_RD) != SUCCESS)
-      KLOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
-  }
+  if (close_socket && (shutdown(client_fd, SHUT_RD) != SUCCESS))
+    KLOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
 
   OnClientExit(client_fd);
 }
