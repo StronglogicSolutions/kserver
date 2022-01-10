@@ -454,8 +454,12 @@ void KServer::EndSession(const int32_t& client_fd, bool close_socket)
 
   m_sessions.at(client_fd).status = SESSION_INACTIVE;
 
-  if (close_socket && (shutdown(client_fd, SHUT_RD) != SUCCESS))
-    KLOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
+  if (close_socket)
+  {
+    VLOG("Calling shutdown on fd {}", client_fd);
+    if (shutdown(client_fd, SHUT_RD) != SUCCESS)
+      ELOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
+  }
 
   OnClientExit(client_fd);
 }
