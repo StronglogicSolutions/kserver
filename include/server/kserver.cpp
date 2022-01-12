@@ -475,6 +475,7 @@ void KServer::CloseConnections()
 void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
 {
   using FileHandler = Kiqoder::FileHandler;
+  auto TrackDataStats = [this](int fd, size_t size) { if (m_sessions.has(fd)) m_sessions.at(fd).rx += size; };
   auto ProcessMessage = [this](int fd, uint8_t* m_ptr, size_t buffer_size)
   {
     DecodeMessage(m_ptr).leftMap([this, fd](auto&& message)
@@ -499,17 +500,26 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       return args;
     });
   };
-  auto it = m_message_handlers.find(fd);
-  if (it != m_message_handlers.end())
-    it->second.processPacket(s_buffer_ptr.get(), size);
-  else
+
+  try
   {
-    KLOG("Creating message handler for {}", fd);
-    m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
-    m_message_handlers.at(fd).setID(fd);
-    m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
+    auto it = m_message_handlers.find(fd);
+    if (it != m_message_handlers.end())
+      it->second.processPacket(s_buffer_ptr.get(), size);
+    else
+    {
+      KLOG("Creating message handler for {}", fd);
+      m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
+      m_message_handlers.at(fd).setID(fd);
+      m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
+    }
+    TrackDataStats(fd, size);
   }
-  m_sessions.at(fd).rx += size;
+  catch(const std::exception& e)
+  {
+    ELOG("Exception caught while processing client message: {}", e.what());
+    throw;
+  }
 }
 
 void KServer::Broadcast(const std::string& event, const std::vector<std::string>& argv)

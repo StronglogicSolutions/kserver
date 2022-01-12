@@ -19,13 +19,13 @@ static void socket_send(int32_t client_socket_fd, const T* data, ssize_t size)
     {
       while (bytes_sent < size)
         bytes_sent += send(client_socket_fd,
-                          data + bytes_sent, // ptr
-                          size - bytes_sent, // bytes
-                          flags);
+                           data + bytes_sent, // ptr
+                           size - bytes_sent, // bytes
+                           flags);
     }
     catch(const std::exception& e)
     {
-      throw e;
+      throw;
     }
   }
 }

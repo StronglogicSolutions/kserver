@@ -44,6 +44,11 @@ SessionMap::Sessions::const_iterator find(int32_t fd) const
   return m_sessions.find(fd);
 }
 
+bool has(int32_t fd) const
+{
+  return (find(fd) != m_sessions.end());
+}
+
 void init(int32_t fd, const KSession& new_session)
 {
   if (m_sessions.find(fd) == m_sessions.end())
