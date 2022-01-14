@@ -453,13 +453,13 @@ void KServer::EndSession(const int32_t& client_fd, bool active_socket)
 
   if (HandlingFile(client_fd))
     SetFileNotPending();
-  OnClientExit(client_fd);
 
   if (active_socket)
   {
     VLOG("Calling shutdown on fd {}", client_fd);
     if (shutdown(client_fd, SHUT_RD) != SUCCESS)
       ELOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
+    OnClientExit(client_fd);
   }
 }
 
