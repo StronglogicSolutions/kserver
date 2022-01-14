@@ -77,7 +77,7 @@ target_link_libraries(
   zmq ${CMAKE_THREAD_LIBS_INIT}
 )
 
-target_link_libraries(
+#target_link_libraries(
   ${PROJECT_NAME}_lib
   PRIVATE
   ${LISTENERLIB}
@@ -94,9 +94,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
   "third_party"
 )
 
-target_include_directories(${PROJECT_NAME}_lib PRIVATE
+#target_include_directories(${PROJECT_NAME}_lib PRIVATE
   "include"
   "third_party"
 )
 
-#add_subdirectory(test)
+add_subdirectory(test)
