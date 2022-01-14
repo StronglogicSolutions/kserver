@@ -111,7 +111,8 @@ private:
   void     EndSession               (const int32_t& client_fd, bool active_socket = true);
   void     ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_fd);
   void     OnClientExit             (const int32_t& client_fd);
-  void     EraseHandlers            (const int32_t& client_fd);
+  void     EraseMessageHandler      (const int32_t& client_fd);
+  void     EraseFileHandler         (const int32_t& client_fd);
   void     DeleteClientFiles        (const int32_t& client_fd);
   void     SetFileNotPending        ();
   void     SetFilePending           (const int32_t& client_fd);

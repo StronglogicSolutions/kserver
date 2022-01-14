@@ -539,11 +539,12 @@ void KServer::OnClientExit(const int32_t& client_fd)
       it++;
   };
 
-  EraseHandlers(client_fd);
-  DeleteFiles  (client_fd);
+  EraseMessageHandler(client_fd);
+  EraseFileHandler   (client_fd);
+  DeleteFiles        (client_fd);
 }
 
-void KServer::EraseHandlers(const int32_t& fd)
+void KServer::EraseFileHandler(const int32_t& fd)
 {
   auto it = m_file_handlers.find(fd);
   if (it != m_file_handlers.end())
@@ -551,8 +552,11 @@ void KServer::EraseHandlers(const int32_t& fd)
     m_file_handlers.erase(it);
     KLOG("Removed file handler");
   }
+}
 
-       it = m_message_handlers.find(fd);
+void KServer::EraseMessageHandler(const int32_t& fd)
+{
+  auto it = m_message_handlers.find(fd);
   if (it != m_message_handlers.end())
   {
     m_message_handlers.erase(it);
