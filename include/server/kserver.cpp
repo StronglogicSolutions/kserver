@@ -378,7 +378,7 @@ void KServer::InitClient(const std::string& message, const int32_t& client_fd)
   const uuids::uuid n_uuid = uuids::uuid_system_generator{}();
   const std::string uuid_s = uuids::to_string(n_uuid);
 
-  m_sessions.emplace(client_fd, NewSession(n_uuid));
+  m_sessions.init(client_fd, NewSession(n_uuid));
   KLOG("Started session {} for {}", uuid_s, client_fd);
   SendMessage(client_fd, GetData());
   SendMessage(client_fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
@@ -447,8 +447,7 @@ void KServer::EndSession(const int32_t& client_fd, bool close_socket)
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
                                                      "\nTX: " + std::to_string(session.tx); };
   static const int SUCCESS{0};
-  const std::string stats = GetStats(m_sessions.at(client_fd));
-  KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, stats);
+  KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
 
   if (HandlingFile(client_fd))
     SetFileNotPending();
@@ -457,10 +456,9 @@ void KServer::EndSession(const int32_t& client_fd, bool close_socket)
 
   if (close_socket)
   {
-    SendEvent(client_fd, CLOSE_SESSION, {GOODBYE_MSG, stats});
-
+    VLOG("Calling shutdown on fd {}", client_fd);
     if (shutdown(client_fd, SHUT_RD) != SUCCESS)
-      KLOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
+      ELOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
   }
 
   OnClientExit(client_fd);
@@ -477,6 +475,7 @@ void KServer::CloseConnections()
 void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
 {
   using FileHandler = Kiqoder::FileHandler;
+  auto TrackDataStats = [this](int fd, size_t size) { if (m_sessions.has(fd)) m_sessions.at(fd).rx += size; };
   auto ProcessMessage = [this](int fd, uint8_t* m_ptr, size_t buffer_size)
   {
     DecodeMessage(m_ptr).leftMap([this, fd](auto&& message)
@@ -501,17 +500,26 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       return args;
     });
   };
-  auto it = m_message_handlers.find(fd);
-  if (it != m_message_handlers.end())
-    it->second.processPacket(s_buffer_ptr.get(), size);
-  else
+
+  try
   {
-    KLOG("Creating message handler for {}", fd);
-    m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
-    m_message_handlers.at(fd).setID(fd);
-    m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
+    auto it = m_message_handlers.find(fd);
+    if (it != m_message_handlers.end())
+      it->second.processPacket(s_buffer_ptr.get(), size);
+    else
+    {
+      KLOG("Creating message handler for {}", fd);
+      m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
+      m_message_handlers.at(fd).setID(fd);
+      m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
+    }
+    TrackDataStats(fd, size);
   }
-  m_sessions.at(fd).rx += size;
+  catch(const std::exception& e)
+  {
+    ELOG("Exception caught while processing client message: {}", e.what());
+    throw;
+  }
 }
 
 void KServer::Broadcast(const std::string& event, const std::vector<std::string>& argv)

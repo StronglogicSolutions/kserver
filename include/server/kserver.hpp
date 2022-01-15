@@ -25,6 +25,47 @@ struct OutboundFile
   FileMetaData file;
 };
 
+struct SessionMap
+{
+public:
+using Sessions     = std::unordered_map<int32_t, KSession>;
+SessionMap::Sessions::const_iterator begin() const
+{
+  return m_sessions.begin();
+}
+
+SessionMap::Sessions::const_iterator end() const
+{
+  return m_sessions.end();
+}
+
+SessionMap::Sessions::const_iterator find(int32_t fd) const
+{
+  return m_sessions.find(fd);
+}
+
+bool has(int32_t fd) const
+{
+  return (find(fd) != m_sessions.end());
+}
+
+void init(int32_t fd, const KSession& new_session)
+{
+  if (m_sessions.find(fd) == m_sessions.end())
+    m_sessions.emplace(fd, new_session);
+  else
+    m_sessions[fd] = new_session;
+}
+
+KSession& at(int32_t fd)
+{
+  return m_sessions.at(fd);
+}
+
+private:
+
+Sessions m_sessions;
+};
 
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
@@ -40,7 +81,7 @@ class KServer : public SocketListener {
 
 private:
   using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
-  using Sessions     = std::unordered_map<int32_t, KSession>;
+
 
   virtual void onMessageReceived(int                      client_fd,
                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
@@ -86,7 +127,7 @@ private:
   std::vector<int>          m_client_connections;
   FileHandlers              m_file_handlers;
   FileHandlers              m_message_handlers;
-  Sessions                  m_sessions;
+  SessionMap                m_sessions;
   std::vector<ReceivedFile> m_received_files;
   std::deque <OutboundFile> m_outbound_files;
   bool                      m_file_pending;
