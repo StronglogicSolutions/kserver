@@ -80,7 +80,6 @@ target_link_libraries(
 target_link_libraries(
   ${PROJECT_NAME}_lib
   PRIVATE
-  ${LISTENERLIB}
   ${UUID}
   ${PQXX_LIB}
   ${PQ_LIB}
@@ -99,4 +98,4 @@ target_include_directories(${PROJECT_NAME}_lib PRIVATE
   "third_party"
 )
 
-#add_subdirectory(test)
+add_subdirectory(test)

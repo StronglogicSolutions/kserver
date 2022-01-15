@@ -442,26 +442,21 @@ void KServer::SendPong(int32_t client_fd)
   SendMessage(client_fd, PONG);
 }
 
-void KServer::EndSession(const int32_t& client_fd, bool close_socket)
+void KServer::EndSession(const int32_t& client_fd)
 {
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
                                                      "\nTX: " + std::to_string(session.tx); };
   static const int SUCCESS{0};
   KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
 
+  m_sessions.at(client_fd).status = SESSION_INACTIVE;
+
   if (HandlingFile(client_fd))
     SetFileNotPending();
 
-  m_sessions.at(client_fd).status = SESSION_INACTIVE;
-
-  if (close_socket)
-  {
-    VLOG("Calling shutdown on fd {}", client_fd);
-    if (shutdown(client_fd, SHUT_RD) != SUCCESS)
-      ELOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
-  }
-
-  OnClientExit(client_fd);
+  VLOG("Calling shutdown on fd {}", client_fd);
+  if (shutdown(client_fd, SHUT_RD) != SUCCESS)
+    ELOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
 }
 
 void KServer::CloseConnections()
@@ -540,8 +535,9 @@ void KServer::OnClientExit(const int32_t& client_fd)
       it++;
   };
 
-  EraseFileHandler(client_fd);
-  DeleteFiles     (client_fd);
+  EraseMessageHandler(client_fd);
+  EraseFileHandler   (client_fd);
+  DeleteFiles        (client_fd);
 }
 
 void KServer::EraseFileHandler(const int32_t& fd)
@@ -551,6 +547,16 @@ void KServer::EraseFileHandler(const int32_t& fd)
   {
     m_file_handlers.erase(it);
     KLOG("Removed file handler");
+  }
+}
+
+void KServer::EraseMessageHandler(const int32_t& fd)
+{
+  auto it = m_message_handlers.find(fd);
+  if (it != m_message_handlers.end())
+  {
+    m_message_handlers.erase(it);
+    KLOG("Removed message handler");
   }
 }
 
@@ -573,11 +579,10 @@ bool KServer::HandlingFile(const int32_t& fd)
 
 void KServer::onConnectionClose(int32_t client_fd)
 {
-  static const bool close_socket{false};
-
   KLOG("Connection closed for {}", client_fd);
   if (GetSession(client_fd).active())
-    EndSession(client_fd, close_socket);
+    EndSession(client_fd);
+  OnClientExit(client_fd);
 }
 
 KSession KServer::GetSession(const int32_t& client_fd) const
