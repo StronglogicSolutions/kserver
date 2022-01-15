@@ -158,7 +158,7 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      updateRecurring(Task* task);
         bool                      updateEnvfile(const std::string& id, const std::string& env);
 
-        bool                      handleProcessOutput(const std::string& output, const int32_t mask, int32_t id);
+        bool                      OnProcessOutput(const std::string& output, const int32_t mask, int32_t id);
         static bool               isKIQProcess(uint32_t mask);
 
         bool                      SavePlatformPost(std::vector<std::string> payload);

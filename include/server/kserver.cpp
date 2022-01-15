@@ -31,7 +31,7 @@ KServer::KServer(int argc, char **argv)
   m_file_pending_fd(NONE_PENDING)
   {
     KLOG("Initializing controller");
-    m_controller.initialize(
+    m_controller.Initialize(
     [this](std::string result, int mask, std::string request_id, const int32_t& client_fd, bool error)
     {
       OnProcessEvent(result, mask, request_id, client_fd, error);
@@ -56,7 +56,7 @@ KServer::~KServer()
 {
   KLOG("Server shutting down");
   CloseConnections();
-  m_controller.shutdown();
+  m_controller.Shutdown();
 }
 
 /**
@@ -77,17 +77,13 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
   {
     case SYSTEM_EVENTS__SCHEDULED_TASKS_READY:
       KLOG("Maintenance worker found tasks");
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("Scheduled Tasks Ready", args);
-      else
-        SendEvent(client_fd, "Scheduled Tasks Ready", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("Scheduled Tasks Ready", args) : SendEvent(client_fd, "Scheduled Tasks Ready", args);
     break;
     case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE:
       KLOG("There are currently no tasks ready for execution.");
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("No tasks ready", args);
-      else
-        SendEvent(client_fd, "No tasks ready", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("No tasks ready", args)        : SendEvent(client_fd, "No tasks ready", args);
     break;
     case SYSTEM_EVENTS__SCHEDULER_FETCH:
       if (client_fd != ALL_CLIENTS)
@@ -112,35 +108,31 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
     break;
     case SYSTEM_EVENTS__SCHEDULER_SUCCESS:
       KLOG("Task successfully scheduled");
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("Task Scheduled", args);
-       else
-        SendEvent(client_fd, "Task Scheduled", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("Task Scheduled", args) : SendEvent(client_fd, "Task Scheduled", args);
     break;
     case SYSTEM_EVENTS__PLATFORM_NEW_POST:
     {
       KLOG("Platform Post event received");
-      m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_NEW_POST, args);
+      m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST, args);
 
       std::vector<std::string> outgoing_args{};
       outgoing_args.reserve(args.size());
       for (const auto& arg : args)
         outgoing_args.emplace_back(arg);
 
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("Platform Post", args);
-      else
-        SendEvent(client_fd, "Platform Post", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("Platform Post", args) : SendEvent(client_fd, "Platform Post", args);
     }
     break;
     case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
       if (args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
         m_ipc_manager.ReceiveEvent(system_event, args);
       else
-        m_controller.process_system_event(SYSTEM_EVENTS__PLATFORM_ERROR, args);
+        m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_ERROR, args);
     break;
     case SYSTEM_EVENTS__PLATFORM_REQUEST:
-      m_controller.process_system_event(system_event, args);
+      m_controller.ProcessSystemEvent(system_event, args);
     break;
     case SYSTEM_EVENTS__PLATFORM_EVENT:
       m_ipc_manager.ReceiveEvent(system_event, args);
@@ -149,13 +141,11 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
         m_ipc_manager.process(args.front(), client_fd);
     break;
     case SYSTEM_EVENTS__PLATFORM_ERROR:
-      m_controller.process_system_event(system_event, args);
+      m_controller.ProcessSystemEvent(system_event, args);
       ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
 
-      if (client_fd == ALL_CLIENTS)
-        Broadcast("Platform Error", args);
-      else
-        SendEvent(client_fd, "Platform Error", args);
+      (client_fd == ALL_CLIENTS) ?
+        Broadcast("Platform Error", args) : SendEvent(client_fd, "Platform Error", args);
     break;
     case SYSTEM_EVENTS__FILE_UPDATE:
     {
@@ -271,13 +261,11 @@ void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std:
   if (error)
     event_args.push_back("Executed process returned an ERROR");
 
-  if (client_fd == ALL_CLIENTS)
-    Broadcast("Process Result", event_args);
-  else
-    SendEvent(client_fd, "Process Result", event_args);
+  (client_fd == ALL_CLIENTS) ?
+    Broadcast("Process Result", event_args) : SendEvent(client_fd, "Process Result", event_args);
 
   if (Scheduler::isKIQProcess(mask))
-    m_controller.process_system_event(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));
+    m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));
 }
 
 void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
@@ -290,10 +278,10 @@ void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
   while (iterator.has_data())
   {
     P_Wrapper packet = iterator.next();
-    VLOG("Sending file packet with size {}", packet.size);
     SocketListener::sendMessage(client_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 
+  VLOG("Sent {} file bytes",     iterator.GetBytesRead());
   m_sessions.at(client_fd).tx += iterator.GetBytesRead();
   m_file_sending = false;
 }
@@ -423,7 +411,7 @@ void KServer::OperationRequest(const std::string& message, const int32_t& client
   else if (IsStopOperation      (op)) EndSession(client_fd);
   else if (IsFileUploadOperation(op)) WaitForFile(client_fd);
   else if (IsIPCOperation       (op)) m_ipc_manager.process(message, client_fd);
-  else                                m_controller.process_client_request(client_fd, message);
+  else                                m_controller.ProcessClientRequest(client_fd, message);
 }
 
 /**

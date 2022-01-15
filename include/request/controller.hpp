@@ -52,28 +52,26 @@ class Controller {
   ~Controller();
 
 
-  void                      initialize(ProcessCallbackFn  event_callback_fn,
-                                       SystemCallbackFn system_callback_fn,
-                                       StatusCallbackFn status_callback_fn);
-  void                      shutdown();
+  void                      Initialize(ProcessCallbackFn event_callback_fn,
+                                       SystemCallbackFn  system_callback_fn,
+                                       StatusCallbackFn  status_callback_fn);
+  void                      Shutdown();
   void                      SetWait(const bool& wait);
-
-  Scheduler                 getScheduler();
   void                      InfiniteLoop();
-  void                      handlePendingTasks();
-  void                      operator()(const KOperation&               op,
-                                       const std::vector<std::string>& argv,
-                                       const int32_t&                  client_socket_fd,
-                                       const std::string&              uuid);
+  void                      HandlePendingTasks();
+  void                      operator()          (const KOperation&               op,
+                                                 const std::vector<std::string>& argv,
+                                                 const int32_t&                  client_socket_fd,
+                                                 const std::string&              uuid);
   std::vector<KApplication> CreateSession();
-  void                      Execute   (const uint32_t&    mask,
-                                       const std::string& request_id,
-                                       const int32_t&     client_socket_fd);
-  void                      process_system_event(const int32_t&                  event,
+  void                      Execute             (const uint32_t&    mask,
+                                                 const std::string& request_id,
+                                                 const int32_t&     client_socket_fd);
+  void                      ProcessSystemEvent  (const int32_t&                  event,
                                                  const std::vector<std::string>& payload,
                                                  const int32_t&                  id = 0);
-  void                      process_client_request(const int32_t&     client_fd,
-                                                   const std::string& message);
+  void                      ProcessClientRequest(const int32_t&     client_fd,
+                                                 const std::string& message);
 
  private:
   void onProcessComplete(const std::string& value,
@@ -82,9 +80,9 @@ class Controller {
                          const int32_t&     client_socket_fd,
                          const bool&        error,
                          const bool&        scheduled_task = false);
-  void onSchedulerEvent(const int32_t&                  client_socket_fd,
-                        const int32_t&                  event,
-                        const std::vector<std::string>& args = {});
+  void onSchedulerEvent (const int32_t&                  client_socket_fd,
+                         const int32_t&                  event,
+                         const std::vector<std::string>& args = {});
   void Status() const;
 
   ProcessCallbackFn                 m_process_event;
