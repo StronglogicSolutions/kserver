@@ -41,6 +41,15 @@ namespace Recurring {
 } // namespace Recurring
 } // namespace Constants
 
+struct ProcessEventData {
+int32_t                  code;
+std::vector<std::string> payload;
+};
+
+struct ProcessParseResult {
+std::vector<ProcessEventData> events;
+};
+
 namespace constants {
 // Scheduled Tasks
 static const uint8_t     PAYLOAD_ID_INDEX                {0x01};
@@ -165,116 +174,163 @@ using TaskArguments = std::vector<std::string>;
 
 static const uint8_t TASK_PAYLOAD_SIZE{12};
 struct Task {
-  int32_t                  execution_mask;
-  std::string              datetime;
-  bool                     file;
-  std::vector<FileInfo>    files;
-  std::string              envfile;
-  std::string              execution_flags;
-  int32_t                  task_id{0};
-  int32_t                  completed;
-  int32_t                  recurring;
-  bool                     notify;
-  std::string              runtime;
-  std::vector<std::string> filenames;
+int32_t                  execution_mask;
+std::string              datetime;
+bool                     file;
+std::vector<FileInfo>    files;
+std::string              envfile;
+std::string              execution_flags;
+int32_t                  task_id{0};
+int32_t                  completed;
+int32_t                  recurring;
+bool                     notify;
+std::string              runtime;
+std::vector<std::string> filenames;
 
-  std::string id() const
-  {
-    return std::to_string(task_id);
-  }
+std::string id() const
+{
+  return std::to_string(task_id);
+}
 
-  static Task clone_basic(const Task& task, int new_mask = -1, bool recurring = false)
-  {
-    Task new_task{};
-    new_task.datetime        = task.datetime;
-    new_task.execution_mask  = (new_mask >= 0) ? new_mask : task.execution_mask;
-    new_task.file            = task.file;
-    new_task.files           = task.files;
-    new_task.execution_flags = task.execution_flags;
-    new_task.runtime         = task.runtime;
-    new_task.filenames       = task.filenames;
+static Task clone_basic(const Task& task, int new_mask = -1, bool recurring = false)
+{
+  Task new_task{};
+  new_task.datetime        = task.datetime;
+  new_task.execution_mask  = (new_mask >= 0) ? new_mask : task.execution_mask;
+  new_task.file            = task.file;
+  new_task.files           = task.files;
+  new_task.execution_flags = task.execution_flags;
+  new_task.runtime         = task.runtime;
+  new_task.filenames       = task.filenames;
 
-    return new_task;
-  }
+  return new_task;
+}
 
-  bool validate() {
-    return !datetime.empty() && !envfile.empty() &&
-          !execution_flags.empty();
-  }
+bool validate() {
+  return !datetime.empty() && !envfile.empty() &&
+        !execution_flags.empty();
+}
 
-  std::vector<std::string> payload()
-  {
-    std::vector<std::string> payload{};
-    payload.reserve(8);
-    payload.emplace_back(id());
-    payload.emplace_back(datetime);
-    payload.emplace_back(execution_flags);
-    payload.emplace_back(std::to_string(completed));
-    payload.emplace_back(std::to_string(recurring));
-    payload.emplace_back(std::to_string(notify));
-    payload.emplace_back(runtime);
-    payload.emplace_back(filesToString());
-    return payload;
-  }
+std::vector<std::string> payload()
+{
+  std::vector<std::string> payload{};
+  payload.reserve(8);
+  payload.emplace_back(id());
+  payload.emplace_back(datetime);
+  payload.emplace_back(execution_flags);
+  payload.emplace_back(std::to_string(completed));
+  payload.emplace_back(std::to_string(recurring));
+  payload.emplace_back(std::to_string(notify));
+  payload.emplace_back(runtime);
+  payload.emplace_back(filesToString());
+  return payload;
+}
 
-  std::string toString() const {
-    std::string return_string{};
-    return_string.reserve(100);
-    return_string += "ID: " + id();
-    return_string += "\nMask: " + std::to_string(execution_mask);
-    return_string += "\nTime: " + datetime;
-    return_string += "\nFiles: " + std::to_string(files.size());
-    return_string += "\nCompleted: " + std::to_string(completed);
-    return_string += "\nRuntime: " + runtime;
-    return_string += "\nRecurring: ";
-    return_string += Constants::Recurring::names[recurring];
-    return_string += "\nEmail notification: ";
-    if (notify)   return_string += "Yes";
-    else          return_string += "No";
-    return return_string;
-  }
+std::string toString() const {
+  std::string return_string{};
+  return_string.reserve(100);
+  return_string += "ID: " + id();
+  return_string += "\nMask: " + std::to_string(execution_mask);
+  return_string += "\nTime: " + datetime;
+  return_string += "\nFiles: " + std::to_string(files.size());
+  return_string += "\nCompleted: " + std::to_string(completed);
+  return_string += "\nRuntime: " + runtime;
+  return_string += "\nRecurring: ";
+  return_string += Constants::Recurring::names[recurring];
+  return_string += "\nEmail notification: ";
+  if (notify)   return_string += "Yes";
+  else          return_string += "No";
+  return return_string;
+}
 
-  std::string filesToString() const
-  {
-    std::string files_s{};
-    for (const auto& file : filenames) files_s += file + ":";
-    if (!files_s.empty())
-      files_s.pop_back();
-    return files_s;
-  }
+std::string filesToString() const
+{
+  std::string files_s{};
+  for (const auto& file : filenames) files_s += file + ":";
+  if (!files_s.empty())
+    files_s.pop_back();
+  return files_s;
+}
 
-  std::string GetToken(const std::string& flag) const
-  {
-    return FileUtils::ReadEnvToken(envfile, flag);
-  }
+std::string GetToken(const std::string& flag) const
+{
+  return FileUtils::ReadEnvToken(envfile, flag);
+}
 
-  friend std::ostream &operator<<(std::ostream &out, const Task &task) {
-    return out << task.toString();
-  }
+friend std::ostream &operator<<(std::ostream &out, const Task &task) {
+  return out << task.toString();
+}
 
-  friend bool operator==(const Task& t1, const Task& t2);
-  friend bool operator!=(const Task& t1, const Task& t2);
+friend bool operator==(const Task& t1, const Task& t2);
+friend bool operator!=(const Task& t1, const Task& t2);
 
-  friend bool operator==(const Task& t1, const Task& t2) {
-    return (
-      t1.completed       == t2.completed       &&
-      t1.datetime        == t2.datetime        &&
-      t1.envfile         == t2.envfile         &&
-      t1.execution_flags == t2.execution_flags &&
-      t1.execution_mask  == t2.execution_mask  &&
-      t1.file            == t2.file            &&
-      t1.files.size()    == t2.files.size()    && // TODO: implement comparison for FileInfo
-      t1.task_id         == t2.task_id         &&
-      t1.recurring       == t2.recurring       &&
-      t1.notify          == t2.notify,
-      t1.runtime         == t1.runtime
-    );
-  }
+friend bool operator==(const Task& t1, const Task& t2) {
+  return (
+    t1.completed       == t2.completed       &&
+    t1.datetime        == t2.datetime        &&
+    t1.envfile         == t2.envfile         &&
+    t1.execution_flags == t2.execution_flags &&
+    t1.execution_mask  == t2.execution_mask  &&
+    t1.file            == t2.file            &&
+    t1.files.size()    == t2.files.size()    && // TODO: implement comparison for FileInfo
+    t1.task_id         == t2.task_id         &&
+    t1.recurring       == t2.recurring       &&
+    t1.notify          == t2.notify,
+    t1.runtime         == t1.runtime
+  );
+}
 
-  friend bool operator!=(const Task& t1,const Task& t2) {
-    return !(t1 == t2);
-  }
+friend bool operator!=(const Task& t1,const Task& t2) {
+  return !(t1 == t2);
+}
 };
+
+struct TaskWrapper
+{
+TaskWrapper(Task&& task_, const bool complete_ = false)
+: task    (task_),
+  id      (task.task_id),
+  complete(complete_),
+  parent  (nullptr),
+  child   (nullptr)
+{}
+
+Task             task;
+int32_t          id;
+bool             complete;
+TaskWrapper*     parent;
+TaskWrapper*     child;
+ProcessEventData event;
+
+void SetEvent(ProcessEventData&& event_)
+{
+  event = event_;
+}
+};
+
+static int8_t IG_FEED_IDX    {0x00};
+static int8_t YT_FEED_IDX    {0x01};
+static int8_t TW_FEED_IDX    {0x02};
+static int8_t TW_SEARCH_IDX  {0x03};
+static int8_t TW_RESEARCH_IDX{0x04};
+static int8_t NER_IDX        {0x05};
+static int8_t EMOTION_IDX    {0x06};
+static int8_t SENTIMENT_IDX  {0x07};
+static const char* REQUIRED_APPLICATIONS[]{
+  "IG Feed",
+  "YT Feed",
+  "TW Feed",
+  "TW Search",
+  "TW Research",
+  "KNLP - NER",
+  "KNLP - Emotion",
+  "KNLP - Sentiment"
+};
+static const int8_t      REQUIRED_APPLICATION_NUM{7};
+static const std::string TW_RESEARCH_APP   {REQUIRED_APPLICATIONS[TW_RESEARCH_IDX]};
+static const std::string NER_APP           {REQUIRED_APPLICATIONS[NER_IDX]};
+static const std::string EMOTION_APP       {REQUIRED_APPLICATIONS[EMOTION_IDX]};
+static const std::string SENTIMENT_APP     {REQUIRED_APPLICATIONS[SENTIMENT_IDX]};
 
 struct FileMetaData
 {

@@ -7,6 +7,8 @@ namespace kiq {
 using namespace ::constants;
 static Timer timer;
 static const size_t QueueLimit{0x05};
+static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
+
 IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
 {
   using namespace DataUtils;
@@ -45,7 +47,7 @@ Scheduler::Scheduler(Database::KDB&& kdb)
 : m_kdb(std::move(kdb)),
   m_platform(nullptr),
   m_trigger(nullptr),
-  m_research_manager(&m_kdb, &m_platform)
+  m_research_manager(&m_kdb, &m_platform, [this](const auto& name) { return FindMask(name); })
 {
   KLOG("Scheduler instantiated for testing");
 }
@@ -81,7 +83,7 @@ Scheduler::Scheduler(SystemEventcallback fn)
   m_platform(fn),
   m_trigger(&m_kdb),
   m_app_map(FetchApplicationMap(m_kdb)),
-  m_research_manager(&m_kdb, &m_platform),
+  m_research_manager(&m_kdb, &m_platform, [this](const auto& name) { return FindMask(name); }),
   m_ipc_command(NO_COMMAND_INDEX)
 {
   const auto AppExists = [this](const std::string& name) -> bool
@@ -696,8 +698,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   auto  NotScheduled = [this](auto id) { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
   auto  CompleteTask = [&map, &lists](const int32_t& id)
   {
-    auto pid  = map.at(id).first;
-    auto node = FindNode(lists.at(pid), id);
+    auto pid       = map.at(id).first;
+    auto node      = FindNode(lists.at(pid), id);
     node->complete = true;
   };
   auto SequenceTasks = [this](const std::vector<TaskParams>& v)
@@ -716,13 +718,12 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     CompleteTask(id);
     if (AllTasksComplete(map)) ResolvePending(immediately);
   };
-  auto GetTokens = [](const auto& payload)
+  auto GetTokens = [](const auto& p)
   {
-    std::vector<JSONItem> tokens{};
-    if (payload.size())
-      for (size_t i = 1; i < (payload.size() - 1); i += 2)
-        tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
-    return tokens;
+    std::vector<JSONItem> v{};
+      for (size_t i = 1; i < (p.size() - 1); i += 2)
+        v.emplace_back(JSONItem{p[i], p[i + 1]});
+    return v;
   };
   auto OnTermEvent = [this](const ResearchManager::TermEvent& term_info)
   {
@@ -735,50 +736,21 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   };
   auto AnalyzeTW = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
-    using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
-    using Sentiment = SentimentResultParser::Sentiment;
-    using Terms     = std::vector<JSONItem>;
-    using Hits      = std::vector<ResearchManager::TermHit>;
     auto  QueueFull       = [this]()               { return m_message_queue.size() > QueueLimit; };
     auto  PollExists      = [this](const auto& id) { return m_research_polls.find(id) != m_research_polls.end(); };
-    auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
-    {
-      return "Please rate the civilizational impact of the following statement:\n\n\"" + text +
-             "\"\n\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
-    };
-    static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
 
     if (QueueFull()) return VLOG("Outbound IPC queue is full");
 
-    KLOG("Performing final analysis on research triggered by {}", root.id);
-    const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
-    const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
-    const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
-    const TaskWrapper sub_c_emo_tk   = *(FindParent(&subchild,     FindMask(EMOTION_APP)));
-    const TaskWrapper child_c_emo_tk = *(FindParent(&sub_c_emo_tk, FindMask(EMOTION_APP)));
-    const auto        ner_data       = ner_parent.event.payload;
-    const auto        sub_c_emo_data = sub_c_emo_tk.event.payload;
-    const auto        child_emo_data = child_c_emo_tk.event.payload;
-    const auto        sub_c_sts_data = subchild.event.payload;
-    const auto        child_sts_data = child.event.payload;
-    const Terms       terms_data     = GetTokens(ner_data);
-    const Emotion     child_emo      = Emotion::Create(child_emo_data);
-    const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);
-     const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
-    const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
-    const Hits        hits           = m_research_manager.GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
-
-    for (const ResearchManager::TermHit& hit : hits)
+    static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
+    for (const ResearchManager::ResearchRequest& request : m_research_manager.AnalyzeTW(root, child, subchild))
     {
-      if (!PollExists(hit.id))
+      if (!PollExists(request.hit.id))
       {
-        std::string data   = MakePollMessage(child_text, child_emo, child_sts, hit.ToString());
-        std::string poll_q = "Rate the civilization impact:";
         std::string dest   = config::Process::tg_dest();
-        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::message, data, CreateOperation("Bot", {dest})));
-        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::poll, poll_q,  CreateOperation("Bot",
+        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::message, request.data,  CreateOperation("Bot", {dest})));
+        m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::poll,    request.title, CreateOperation("Bot",
                                                   {dest, "High", "Some", "Little", "None"})));
-        m_research_polls.insert(hit.id);
+        m_research_polls.insert(request.hit.id);
         return; // Limit to one
       }
     }
@@ -810,8 +782,6 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
 
   if (initiating_application == TW_RESEARCH_APP && responding_application == NER_APP)
   {
-    static const std::string IPC_Message_Header{"KIQ is now tracking the following terms:"};
-
     if (m_message_queue.empty())
       m_message_queue.emplace_back(MakeIPCEvent(
         SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
@@ -819,15 +789,15 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         IPC_Message_Header,
         CreateOperation("Bot", {config::Process::tg_dest()})));
 
-    auto items = GetTokens(t_wrapper.event.payload);
-    for (auto&& item : items)
+    const auto time = FindMasterRoot(&t_wrapper)->event.payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
+    for (auto&& item : GetTokens(t_wrapper.event.payload))
     {
       if (!VerifyTerm(item.value)) continue;
 
       Sanitize(item);
       const auto user       = init_task.GetToken(constants::USER_KEY);
       const auto term_hits  = m_research_manager.GetTermHits(item.value);
-      const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task);
+      const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task, time);
       if (term_hits.size())
         for (auto&& hit : term_hits)
           if (!(hit.sid.empty()) && NotScheduled(hit.sid))
@@ -943,7 +913,7 @@ bool Scheduler::OnProcessOutput(const std::string& output, const int32_t mask, c
           PostExecWork(std::move(outgoing_event), PostExecDuo{parent_id, id});
       }
       break;
-      case (SYSTEM_EVENTS__PROCESS_RESEARCH):
+      case (SYSTEM_EVENTS__PROCESS_RESEARCH): // TODO: We need to parse date
         CreateChild(id, outgoing_event.payload[constants::PLATFORM_PAYLOAD_CONTENT_INDEX], NER_APP, {"entity"});
         m_postexec_map.at(id).second.SetEvent(std::move(outgoing_event));
       break;

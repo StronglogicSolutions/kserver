@@ -91,9 +91,10 @@ static std::vector<ResearchManager::TermEvent> ParseTermEvents(const QueryValues
  * ResearchManager
  * @consructor
  */
-ResearchManager::ResearchManager(Database::KDB *db_ptr, Platform *plat_ptr)
-    : m_db_ptr(db_ptr),
-      m_plat_ptr(plat_ptr)
+ResearchManager::ResearchManager(Database::KDB *db_ptr, Platform *plat_ptr, MaskFn mask_fn)
+: m_db_ptr(db_ptr),
+  m_plat_ptr(plat_ptr),
+  m_mask_fn(mask_fn)
 {
 }
 
@@ -180,13 +181,12 @@ std::string ResearchManager::AddTermHit(const std::string &tid, const std::strin
 /**
  * GetTerm
  */
-std::string ResearchManager::GetTerm(const std::string &term)
+std::string ResearchManager::GetTerm(const std::string &term) const
 {
-  std::string id{};
   for (const auto &row : m_db_ptr->select("term", {"id"}, CreateFilter("name", term)))
     if (row.first == "id")
-      id = row.second;
-  return id;
+      return row.second;
+  return "";
 }
 
 /**
@@ -276,7 +276,7 @@ std::string ResearchManager::SaveTermHit(const JSONItem& term, const std::string
  */
 bool ResearchManager::TermHasHits(const std::string &term)
 {
-  return (GetTermHits(term).size()); // TODO: we need a simpler method for getting hit #
+  return (GetTermHits(term).size()); // TODO: we need a simpler method for getting hit
 }
 
 /**
@@ -328,14 +328,14 @@ std::string ResearchManager::TermEvent::ToJSON() const
 /**
  * RecordtermEvent
  */
-ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task)
+ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task, const std::string& time)
 {
   TermEvent event{};
   event.term = term.value;
   event.type = term.type;
   event.user = user;
 
-  if (HasBasePlatform(app))
+  if (!TermHitExists(term.value, TimeUtils::DatabaseTime(time)) && HasBasePlatform(app))
   {
     const auto pid = m_plat_ptr->GetPlatformID(GetBasePlatform(app));
     if (!pid.empty())
@@ -347,7 +347,7 @@ ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, con
         event.tid          = GetTerm(term.value);
         event.organization = identity.organization;
         event.person       = GetPersonForUID(identity.id).name;
-        event.time         = TimeUtils::FormatTimestamp(TimeUtils::UnixTime());
+        event.time         = time;
       }
     }
   }
@@ -432,5 +432,73 @@ std::vector<ResearchManager::TermEvent> ResearchManager::GetAllTermEvents() cons
   const auto events = ParseTermEvents(query);
 
   return events;
+}
+
+ResearchManager::StudyRequests
+ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, const TaskWrapper& subchild)
+{
+  using namespace FileUtils;
+  using Emotion   = EmotionResultParser::Emotion<EmotionResultParser::Emotions>;
+  using Sentiment = SentimentResultParser::Sentiment;
+  using Terms     = std::vector<JSONItem>;
+  using Hits      = std::vector<ResearchManager::TermHit>;
+
+  auto  FindMask        = m_mask_fn;
+  auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
+  {
+    return "Please rate the civilizational impact of the following statement:\n\n\"" + text +
+            "\"\n\nEMOTION\n" + emo.str() + '\n' + "SENTIMENT\n" + sts.str() +"\nHIT\n" + hit;
+  };
+  auto  GetTokens       = [](const auto& payload)
+  {
+    std::vector<JSONItem> tokens{};
+    if (payload.size())
+      for (size_t i = 1; i < (payload.size() - 1); i += 2)
+        tokens.emplace_back(JSONItem{payload[i], payload[i + 1]});
+    return tokens;
+  };
+
+  ResearchManager::StudyRequests requests{};
+
+  KLOG("Performing final analysis on research triggered by {}", root.id);
+  const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
+  const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
+  const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
+  const TaskWrapper sub_c_emo_tk   = *(FindParent(&subchild,     FindMask(EMOTION_APP)));
+  const TaskWrapper child_c_emo_tk = *(FindParent(&sub_c_emo_tk, FindMask(EMOTION_APP)));
+  const auto        ner_data       = ner_parent.event.payload;
+  const auto        sub_c_emo_data = sub_c_emo_tk.event.payload;
+  const auto        child_emo_data = child_c_emo_tk.event.payload;
+  const auto        sub_c_sts_data = subchild.event.payload;
+  const auto        child_sts_data = child.event.payload;
+  const Terms       terms_data     = GetTokens(ner_data);
+  const Emotion     child_emo      = Emotion::Create(child_emo_data);
+  const Emotion     sub_c_emo      = Emotion::Create(sub_c_emo_data);
+  const Sentiment   child_sts      = Sentiment::Create(child_sts_data);
+  const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
+  const Hits        hits           = GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
+
+  for (const ResearchManager::TermHit& hit : hits)
+  {
+    std::string data   = MakePollMessage(child_text, child_emo, child_sts, hit.ToString());
+    std::string poll_q = "Rate the civilization impact:";
+    requests.emplace_back(
+      ResearchRequest{
+        .hit   = hit,
+        .data  = data,
+        .title = poll_q,
+        .type  = Study::poll});
+  }
+  return requests;
+}
+
+bool ResearchManager::TermHitExists(const std::string& term, const std::string& time) const
+{
+  auto db    = m_db_ptr;
+  auto query = db->select("term_hit", {"id"}, CreateFilter("tid", GetTerm(term), "time", time));
+  for (const auto& value : query)
+    if (value.first == "id")
+     return true;
+  return false;
 }
 } // ns kiq

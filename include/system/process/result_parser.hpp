@@ -41,16 +41,6 @@ static std::string url_string(const std::vector<std::string> urls)
   return result;
 }
 
-struct ProcessEventData {
-int32_t                  code;
-std::vector<std::string> payload;
-};
-
-struct ProcessParseResult {
-std::vector<ProcessEventData> events;
-};
-
-
 class ProcessParseInterface {
 public:
 virtual ~ProcessParseInterface() {}
@@ -63,7 +53,7 @@ public:
 virtual ~ResearchResultInterface() {}
 static ProcessParseResult GetNOOPResult()
 {
-  return ProcessParseResult{{ProcessEventData{.code =SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
+  return ProcessParseResult{{ProcessEventData{.code = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT}}};
 }
 }; // ResearchResultInterface
 
@@ -622,13 +612,15 @@ virtual ~TWFeedResultParser() override {}
 
 virtual bool read(const std::string& s)
 {
-  using namespace rapidjson;
+  auto GetJSONError = [](auto& d)                { return GetParseError_En(d.GetParseError());   };
+  auto ParseOK      = [](auto& d, const auto& s) { return !(d.Parse(s.c_str()).HasParseError()); };
+  rapidjson::Document d{};
 
-  Document d{};
-  d.Parse(s.c_str());
-  if (!d.IsNull() && d.IsArray())
+  if (!ParseOK(d, s))
+    ELOG("Error parsing JSON: {}", GetJSONError(d));
+  else
+  if (d.IsArray())
   {
-
     for (const auto& item : d.GetArray())
     {
       TWFeedItem tw_item{};

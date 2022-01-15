@@ -198,8 +198,9 @@ namespace TimeUtils {
 int UnixTime();
 std::string Now();
 std::string FormatTimestamp(int unixtime);
-std::string FormatTimestamp(std::string unixtime);
-std::string time_as_today(std::string unixtime);
+std::string FormatTimestamp(const std::string& unixtime);
+std::string DatabaseTime(const std::string& unixtime);
+std::string time_as_today(const std::string& unixtime);
 }  // namespace TimeUtils
 
 namespace DataUtils
