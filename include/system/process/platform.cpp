@@ -550,9 +550,7 @@ std::string Platform::GetUser(const std::string& uid, const std::string& pid, bo
     filter = CreateFilter("id", uid);
   else
   if (use_default && pid.size())
-  {
     filter = CreateFilter("pid", pid, "type", "official");
-  }
   else
     return "";
 
