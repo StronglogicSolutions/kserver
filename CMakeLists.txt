@@ -77,8 +77,23 @@ target_link_libraries(
   zmq ${CMAKE_THREAD_LIBS_INIT}
 )
 
+target_link_libraries(
+  ${PROJECT_NAME}_lib
+  PRIVATE
+  ${UUID}
+  ${PQXX_LIB}
+  ${PQ_LIB}
+  Threads::Threads
+  zmq ${CMAKE_THREAD_LIBS_INIT}
+)
+
 # Includes
 target_include_directories(${PROJECT_NAME} PRIVATE
+  "include"
+  "third_party"
+)
+
+target_include_directories(${PROJECT_NAME}_lib PRIVATE
   "include"
   "third_party"
 )
