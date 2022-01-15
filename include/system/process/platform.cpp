@@ -250,7 +250,7 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
         .pid     = platform_id,
         .o_pid   = post.pid,
         .id      = post.id,
-        .user    = GetValidUser(post.pid, post.name),
+        .user    = GetValidUser(post.pid, post.user),
         .time    = post.time,
         .content = post.content,
         .urls    = post.urls,
@@ -365,8 +365,8 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) {
   posts.reserve(result.size() / 5);
   std::string pid, o_pid, id, time, repost, name, method, uid;
 
-  for (const auto& v : result) {
-         if (v.first == "platform_post.pid")       { pid    = v.second;  }
+  for (const auto& v : result)
+  { if      (v.first == "platform_post.pid")       { pid    = v.second;  }
     else if (v.first == "platform_post.o_pid")     { o_pid  = v.second;  }
     else if (v.first == "platform_post.unique_id") { id     = v.second;  }
     else if (v.first == "platform_post.time")      { time   = v.second;  }
@@ -374,6 +374,7 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) {
     else if (v.first == "platform.name")           { name   = v.second;  }
     else if (v.first == "platform.method")         { method = v.second;  }
     else if (v.first == "platform_post.uid")       { uid    = v.second;  }
+
 
     if (DataUtils::NoEmptyArgs(pid, o_pid, id, time, repost, name, method, uid))
     {
@@ -424,10 +425,8 @@ std::vector<PlatformPost> Platform::FetchPendingPlatformPosts()
 bool Platform::IsProcessingPlatform()
 {
   for (const auto& platform_request : m_platform_map)
-  {
     if (platform_request.second == PlatformPostState::PROCESSING)
       return true;
-  }
   return false;
 }
 
