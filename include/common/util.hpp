@@ -55,23 +55,10 @@ typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
 typedef std::vector<KApplication>                        ServerData;
 typedef std::pair<std::string, std::string>              FileInfo;
 
-static const int32_t READY_STATUS{0x01};
-struct KSession {
-  int32_t  fd;
-  int32_t  status;
-  uuid     id;
-  uint32_t tx{0};
-  uint32_t rx{0};
-
-  bool active() const
-  {
-    return (status == SESSION_ACTIVE);
-  }
-};
-
 struct Timer {
 using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration  = std::chrono::seconds;
+static const uint32_t ONE_MINUTE     = 60;
 static const uint32_t TEN_MINUTES    = 600;
 static const uint32_t TWENTY_MINUTES = 1200;
 Timer(const int64_t duration_ = TWENTY_MINUTES);
@@ -85,6 +72,43 @@ TimePoint time_point;
 bool      timer_active;
 int64_t   duration;
 };
+
+static const int32_t READY_STATUS{0x01};
+
+struct KSession {
+using TimePoint = Timer::TimePoint;
+int32_t   fd;
+int32_t   status;
+uuid      id;
+uint32_t  tx{0};
+uint32_t  rx{0};
+TimePoint last_ping;
+
+bool active() const
+{
+  return (!(expired()) && status == SESSION_ACTIVE);
+}
+
+void notify()
+{
+  last_ping = std::chrono::system_clock::now();
+}
+
+void verify()
+{
+  if (expired())
+    status = SESSION_INACTIVE;
+}
+
+bool expired() const
+{
+  using Duration = Timer::Duration;
+  const TimePoint now     = std::chrono::system_clock::now();
+  const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - last_ping).count();
+  return (elapsed > Timer::ONE_MINUTE);
+}
+};
+
 
 std::string GetCWD();
 std::string GetExecutableCWD();

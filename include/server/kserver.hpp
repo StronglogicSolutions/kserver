@@ -39,6 +39,16 @@ SessionMap::Sessions::const_iterator end() const
   return m_sessions.end();
 }
 
+SessionMap::Sessions::iterator begin()
+{
+  return m_sessions.begin();
+}
+
+SessionMap::Sessions::iterator end()
+{
+  return m_sessions.end();
+}
+
 SessionMap::Sessions::const_iterator find(int32_t fd) const
 {
   return m_sessions.find(fd);
@@ -119,7 +129,7 @@ private:
   bool     HandlingFile             (const int32_t& client_fd);
   void     SendFile                 (const int32_t& client_fd, const std::string& filename);
   void     SendPong                 (int32_t client_fd);
-  void     Status                   () const;
+  void     Status                   ();
   void     Broadcast                (const std::string& event, const std::vector<std::string>& argv);
   KSession GetSession               (const int32_t& client_fd) const;
 

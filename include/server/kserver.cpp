@@ -439,6 +439,7 @@ void KServer::onMessageReceived(int                      client_fd,
 void KServer::SendPong(int32_t client_fd)
 {
   KLOG("Client {} - keepalive", client_fd);
+  m_sessions.at(client_fd).notify();
   SendMessage(client_fd, PONG);
 }
 
@@ -593,8 +594,11 @@ KSession KServer::GetSession(const int32_t& client_fd) const
   return KSession{};
 }
 
-void KServer::Status() const
+void KServer::Status()
 {
+  for (auto&& [fd, session] : m_sessions)
+    session.verify();
+
   size_t tx_bytes{}, rx_bytes{};
   for (const auto& [fd, session] : m_sessions)
   {

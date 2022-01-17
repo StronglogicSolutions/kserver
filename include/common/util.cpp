@@ -28,9 +28,9 @@ bool Timer::active() const
 
 bool Timer::expired() const
 {
-         const TimePoint now         = std::chrono::system_clock::now();
-         const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
-  return (elapsed > TWENTY_MINUTES)  ;
+  const TimePoint now     = std::chrono::system_clock::now();
+  const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
+  return (elapsed > TWENTY_MINUTES);
 }
 
 void Timer::start()
