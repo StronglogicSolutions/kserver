@@ -13,6 +13,7 @@ static const char*   GOODBYE_MSG     {"KServer is shutting down the socket conne
 static const char*   RECV_MSG        {"Received by KServer"};
 static const char*   FILE_SUCCESS_MSG{"File Save Success"};
 static const char*   FILE_FAIL_MSG   {"File Save Failure"};
+
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
  * service to KStyleYo

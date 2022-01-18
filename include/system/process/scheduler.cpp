@@ -2,6 +2,7 @@
 #include "executor/task_handlers/generic.hpp"
 #include "ipc/ipc.hpp"
 #include "codec/uuid.h"
+#include "common/time.hpp"
 
 namespace kiq {
 using namespace ::constants;

@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <filesystem>
 #include <bitset>
-#include <chrono>
 #include <fstream>
 #include <sstream>
 #include <iterator>
@@ -41,10 +40,7 @@ using namespace KData;
 using namespace IGData;
 using namespace GenericData;
 
-extern const char ARGUMENT_SEPARATOR;
-
-static const int32_t SESSION_ACTIVE   = 1;
-static const int32_t SESSION_INACTIVE = 2;
+extern const char    ARGUMENT_SEPARATOR;
 static const int32_t ALL_CLIENTS      = -1;
 
 typedef std::string                                      KOperation;
@@ -54,61 +50,6 @@ typedef std::vector<std::map<int, std::string>>          MapVec;
 typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
 typedef std::vector<KApplication>                        ServerData;
 typedef std::pair<std::string, std::string>              FileInfo;
-
-struct Timer {
-using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
-using  Duration  = std::chrono::seconds;
-static const uint32_t ONE_MINUTE     = 60;
-static const uint32_t TEN_MINUTES    = 600;
-static const uint32_t TWENTY_MINUTES = 1200;
-Timer(const int64_t duration_ = TWENTY_MINUTES);
-bool active() const;
-bool expired() const;
-void start();
-void stop();
-
-private:
-TimePoint time_point;
-bool      timer_active;
-int64_t   duration;
-};
-
-static const int32_t READY_STATUS{0x01};
-
-struct KSession {
-using TimePoint = Timer::TimePoint;
-int32_t   fd;
-int32_t   status;
-uuid      id;
-uint32_t  tx{0};
-uint32_t  rx{0};
-TimePoint last_ping;
-
-bool active() const
-{
-  return (!(expired()) && status == SESSION_ACTIVE);
-}
-
-void notify()
-{
-  last_ping = std::chrono::system_clock::now();
-}
-
-void verify()
-{
-  if (expired())
-    status = SESSION_INACTIVE;
-}
-
-bool expired() const
-{
-  using Duration = Timer::Duration;
-  const TimePoint now     = std::chrono::system_clock::now();
-  const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - last_ping).count();
-  return (elapsed > Timer::ONE_MINUTE);
-}
-};
-
 
 std::string GetCWD();
 std::string GetExecutableCWD();
@@ -235,32 +176,22 @@ template <typename T>
 std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2);
 template <typename ...Args>
 void ClearArgs(Args&& ...args);
-
-template void ClearArgs(std::string&&);
 template <typename... Args>
 void ClearArgs(Args&&... args)
 {
   (args.clear(), ...);
 }
-
+template void ClearArgs(std::string&&);
 template <typename ...Args>
-bool          NoEmptyArgs(Args&& ...args);
-template bool NoEmptyArgs(std::string&&);
+bool NoEmptyArgs(Args&& ...args);
 template <typename... Args>
-bool          NoEmptyArgs(Args&&... args)
+bool NoEmptyArgs(Args&&... args)
 {
   for (const auto& arg : {args...})
     if (arg.empty())
       return false;
   return true;
 }
-template <typename... Args>
-bool ClearIfNoEmpty(Args&& ...args);
-bool ClearIfNoEmpty(std::string&&);
-template <typename... Args>
-bool ClearIfNoEmpty(Args&&... args)
-{
-  return ((args.empty(), ...));
-}
+template bool NoEmptyArgs(std::string&&);
 } // ns DataUtils
 } // ns kiq

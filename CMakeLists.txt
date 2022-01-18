@@ -40,6 +40,7 @@ set(SOURCE_FILES
   "src/main.cpp"
   "src/database_connection.cpp"
   "include/server/kserver.cpp"
+  "include/server/session.cpp"
   "include/request/controller.cpp"
   "include/config/config_parser.cpp"
   "include/system/process/scheduler.cpp"
@@ -53,6 +54,7 @@ set(SOURCE_FILES
   "include/system/process/executor/task_handlers/generic.cpp"
   "include/system/process/executor/task_handlers/instagram.cpp"
   "include/common/util.cpp"
+  "include/common/time.cpp"
   "include/log/logger.cpp"
 )
 
@@ -63,9 +65,9 @@ else ()
   set(SOURCES ${SOURCE_FILES} ${LISTENERLIB} ${PQXX_STATIC_LIB})
 endif()
 
-
 add_executable(${PROJECT_NAME} ${SOURCES})
 add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
+
 # Linking
 target_link_libraries(
   ${PROJECT_NAME}

@@ -1,4 +1,5 @@
 #include "controller.hpp"
+#include "common/time.hpp"
 
 namespace kiq::Request {
 static flatbuffers::FlatBufferBuilder builder(1024);

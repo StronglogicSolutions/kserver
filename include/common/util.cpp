@@ -17,35 +17,6 @@ std::string GetExecutableCWD()
   return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
 }
 
-Timer::Timer(const int64_t duration_)
-: duration(duration_)
-{}
-
-bool Timer::active() const
-{
-  return timer_active;
-}
-
-bool Timer::expired() const
-{
-  const TimePoint now     = std::chrono::system_clock::now();
-  const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
-  return (elapsed > TWENTY_MINUTES);
-}
-
-void Timer::start()
-{
-  time_point   = std::chrono::system_clock::now();
-  timer_active = true;
-}
-
-void Timer::stop()
-{
-  timer_active = false;
-}
-
-
-
 /**
  * JSON Tools
  */
@@ -974,6 +945,5 @@ std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2)
 }
 
 template std::vector<std::string>&& vector_merge(std::vector<std::string>&& v1, std::vector<std::string>&& v2);
-
 } // ns DataUtils
 } // ns kiq
