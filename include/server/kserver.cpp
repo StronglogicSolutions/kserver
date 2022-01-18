@@ -463,7 +463,7 @@ void KServer::EndSession(const int32_t& client_fd)
 void KServer::CloseConnections()
 {
   for (const int& fd : m_client_connections)
-    if (m_sessions.at(fd).status == SESSION_ACTIVE)
+    if (m_sessions.at(fd).active())
       EndSession(fd);
 }
 
@@ -596,16 +596,16 @@ KSession KServer::GetSession(const int32_t& client_fd) const
 
 void KServer::Status()
 {
-  for (auto&& [fd, session] : m_sessions)
-    session.verify();
+  for (auto&& [fd, session] : m_sessions) session.verify();
 
-  size_t tx_bytes{}, rx_bytes{};
+  size_t tx{},
+         rx{};
   for (const auto& [fd, session] : m_sessions)
   {
-    tx_bytes += session.tx;
-    rx_bytes += session.rx;
+    tx += session.tx;
+    rx += session.rx;
   }
 
-  VLOG("Server Status\nSent {} bytes\nRecv {} bytes", tx_bytes, rx_bytes);
+  VLOG("Server Status\nBytes sent: {}\nBytes recv: {}", tx, rx);
 }
 } // ns kiq
