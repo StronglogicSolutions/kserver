@@ -597,7 +597,12 @@ KSession KServer::GetSession(const int32_t& client_fd) const
 
 void KServer::Status()
 {
-  for (auto&& [fd, session] : m_sessions) session.verify();
+  std::string client_s;
+  for (auto&& [fd, session] : m_sessions)
+  {
+    session.verify();
+    client_s += session.info();
+  }
 
   size_t tx{},
          rx{};
@@ -607,6 +612,6 @@ void KServer::Status()
     rx += session.rx;
   }
 
-  VLOG("Server Status\nBytes sent: {}\nBytes recv: {}", tx, rx);
+  VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);
 }
 } // ns kiq

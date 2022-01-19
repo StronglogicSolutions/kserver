@@ -1,4 +1,5 @@
 #include "session.hpp"
+#include "log/logger.h"
 
 namespace kiq {
 
@@ -20,10 +21,24 @@ void KSession::verify()
 
 bool KSession::expired() const
 {
+  return (waiting_time() > Timer::ONE_MINUTE);
+}
+
+uint32_t KSession::waiting_time() const
+{
   using Duration = Timer::Duration;
   const TimePoint now     = std::chrono::system_clock::now();
   const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - last_ping).count();
-  return (elapsed > Timer::ONE_MINUTE);
+  return elapsed;
+}
+
+std::string KSession::info() const
+{
+  auto GetString = [](const int32_t& status) { return (status == 1) ? "ACTIVE" : "INACTIVE"; };
+  return fmt::format(
+    "┌──────────────────────────────────────────────┐\n"\
+    "FD:     {}\nStatus: {}\nID:     {}\nTX:     {}\nRX:     {}\nPing:   {} ms\n"\
+    "└──────────────────────────────────────────────┘", fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
 }
 
 SessionMap::Sessions::const_iterator SessionMap::begin() const

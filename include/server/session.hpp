@@ -20,10 +20,12 @@ uint32_t  tx{0};
 uint32_t  rx{0};
 TimePoint last_ping;
 
-bool active() const;
-void notify();
-void verify();
-bool expired() const;
+bool        active()       const;
+void        notify();
+void        verify();
+bool        expired()      const;
+std::string info()         const;
+uint32_t    waiting_time() const;
 };
 
 struct SessionMap
