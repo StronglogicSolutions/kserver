@@ -174,24 +174,19 @@ template <typename T>
 const std::vector<T> VAbsorb(std::vector<T>&& v, T&& u, bool to_front = false);
 template <typename T>
 std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2);
-template <typename ...Args>
-void ClearArgs(Args&& ...args);
 template <typename... Args>
 void ClearArgs(Args&&... args)
 {
   (args.clear(), ...);
 }
-template void ClearArgs(std::string&&);
-template <typename ...Args>
-bool NoEmptyArgs(Args&& ...args);
 template <typename... Args>
 bool NoEmptyArgs(Args&&... args)
 {
   for (const auto& arg : {args...})
-    if (arg.empty())
-      return false;
+    if (arg.empty()) return false;
   return true;
 }
+template void ClearArgs  (std::string&&);
 template bool NoEmptyArgs(std::string&&);
 } // ns DataUtils
 } // ns kiq
