@@ -52,14 +52,14 @@ uint32_t getAppMask(std::string name)
 }
 
 /**
- * getIntervalSeconds
+ * GetIntervalSeconds
  *
  * Helper function returns the number of seconds equivalent to a recurring interval
  *
  * @param  [in]  {uint32_t}  The integer value representing a recurring interval
  * @return [out] {uint32_t}  The number of seconds equivalent to that interval
  */
-const uint32_t getIntervalSeconds(uint32_t interval) {
+const uint32_t GetIntervalSeconds(uint32_t interval) {
   switch(interval) {
     case Constants::Recurring::HOURLY:
       return 3600;

@@ -345,12 +345,13 @@ std::string Platform::GetPlatformID(uint32_t mask) {
  * @param name
  * @return std::string
  */
-std::string Platform::GetPlatformID(const std::string& name) {
-  if (!name.empty()) {
+std::string Platform::GetPlatformID(const std::string& name)
+{
+  if (!name.empty())
     for (const auto& value : m_db.select("platform", {"id"}, CreateFilter("name", name)))
       if (value.first == "id")
         return value.second;
-  }
+
   return "";
 }
 

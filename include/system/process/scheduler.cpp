@@ -183,7 +183,7 @@ std::string Scheduler::schedule(Task task)
 
         if (task.recurring)
         {
-          const auto recurring = std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring));
+          const auto recurring = std::to_string(std::stoi(task.datetime) - GetIntervalSeconds(task.recurring));
           m_kdb.insert("recurring", {"sid", "time"}, {id, recurring});
         }
       }
@@ -284,7 +284,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
         if (recurring != Constants::Recurring::NO)
         {
           if (recurring == Constants::Recurring::HOURLY)
-            time = std::to_string(std::stoi(time) + getIntervalSeconds(recurring));
+            time = std::to_string(std::stoi(time) + GetIntervalSeconds(recurring));
           else
             time = TimeUtils::time_as_today(time);
         }
@@ -618,10 +618,10 @@ bool Scheduler::update(Task task)
     if (!HasRecurring(task.task_id))
       m_kdb.insert("recurring", {"sid", "time"}, {
         task.id(),
-        std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))});
+        std::to_string(std::stoi(task.datetime) - GetIntervalSeconds(task.recurring))});
     else
     m_kdb.update("recurring", {"time"},
-      {std::to_string(std::stoi(task.datetime) - getIntervalSeconds(task.recurring))},
+      {std::to_string(std::stoi(task.datetime) - GetIntervalSeconds(task.recurring))},
       CreateFilter("sid", task.id()));
 
   return !m_kdb.update(                // UPDATE
@@ -1133,7 +1133,7 @@ int32_t Scheduler::FindMask(const std::string& application_name)
  */
 std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
 {
-  auto GetTime = [](const auto& interval) { return (std::stoi(TimeUtils::Now()) + interval); };
+  auto GetTime = [](const auto& interval) { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(interval)); };
   const auto   platform        = v[0];
   const auto   command         = v[1];
   const auto   data            = v[2];
