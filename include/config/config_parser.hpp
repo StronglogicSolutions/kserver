@@ -59,5 +59,11 @@ namespace Platform {
 const std::string affiliate_content(const std::string& type);
 const std::string default_user();
 } // namespace Platform
+
+namespace Security {
+const std::string token_path();
+const std::string private_key();
+const std::string public_key();
+} // ns Security
 } // namespace config
-} // namespace kiq
+} // namespace kiq1
