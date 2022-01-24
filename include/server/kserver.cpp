@@ -497,11 +497,11 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       if (message.empty())
         ELOG("Failed to decode message");
       else
-      if (m_sessions.has(fd) && HasValidToken(fd, message))
-        EndSession(fd);
-      else
       if (IsPing(message))
         SendPong(fd);
+      else
+      if (m_sessions.has(fd) && !HasValidToken(fd, message))
+        EndSession(fd);
       else
       if (IsOperation(message))
         OperationRequest(message, fd);
