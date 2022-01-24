@@ -9,6 +9,7 @@ static const char*   STATUS          {"status"};
 static const char*   NEW_SESSION     {"New Session"};
 static const char*   CLOSE_SESSION   {"Close Session"};
 static const char*   WELCOME_MSG     {"Session started"};
+static const char*   REJECTED_MSG    {"Session rejected"};
 static const char*   GOODBYE_MSG     {"KServer is shutting down the socket connection"};
 static const char*   RECV_MSG        {"Received by KServer"};
 static const char*   FILE_SUCCESS_MSG{"File Save Success"};
@@ -371,18 +372,28 @@ void KServer::EnqueueFiles(const int32_t& client_fd, const std::vector<std::stri
 /**
  * Start Operation
  */
-void KServer::InitClient(const std::string& message, const int32_t& client_fd)
+void KServer::InitClient(const std::string& message, const int32_t& fd)
 {
-  auto NewSession = [&client_fd](const uuid& id)      { return KSession{client_fd, READY_STATUS, id};                        };
-  auto GetData    = [this]      ()                    { return CreateMessage(NEW_SESSION, m_controller.CreateSession());   };
-  auto GetInfo    = []          (auto state, auto id) { return SessionInfo{{STATUS, std::to_string(state)}, {"uuid", id}}; };
-  const uuids::uuid n_uuid = uuids::uuid_system_generator{}();
-  const std::string uuid_s = uuids::to_string(n_uuid);
-
-  m_sessions.init(client_fd, NewSession(n_uuid));
-  KLOG("Started session {} for {}", uuid_s, client_fd);
-  SendMessage(client_fd, GetData());
-  SendMessage(client_fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
+  auto GetData    = [this]()                { return CreateMessage(NEW_SESSION, m_controller.CreateSession());   };
+  auto GetInfo    = [](auto state, auto id) { return SessionInfo{{STATUS, std::to_string(state)}, {"uuid", id}}; };
+  auto GetError   = [](const auto reason)   { return SessionInfo{{STATUS, std::to_string(SESSION_INVALID)}, {"reason", reason}}; };
+  auto NewSession = [&fd](const uuid& id, const User& user) { return KSession{user, fd, SESSION_ACTIVE, id}; };
+  const User user = GetAuth(message);
+  if (ValidateToken(user))
+  {
+    const uuids::uuid n_uuid  = uuids::uuid_system_generator{}();
+    const std::string uuid_s  = uuids::to_string(n_uuid);
+    m_sessions.init(fd, NewSession(n_uuid, user));
+    KLOG("Started session {} for {}", uuid_s, fd);
+    SendMessage(fd, GetData());
+    SendMessage(fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
+  }
+  else
+  {
+    ELOG("Rejected session request for {} due to invalid token", fd);
+    SendMessage(fd, CreateSessionEvent(SESSION_INVALID, REJECTED_MSG, GetError("Invalid token")));
+    EndSession(fd);
+  }
 }
 
 /**
@@ -476,13 +487,18 @@ void KServer::CloseConnections()
 void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
 {
   using FileHandler = Kiqoder::FileHandler;
-  auto TrackDataStats = [this](int fd, size_t size) { if (m_sessions.has(fd)) m_sessions.at(fd).rx += size; };
+  auto TrackDataStats = [this](int fd, size_t size)     { if (m_sessions.has(fd)) m_sessions.at(fd).rx += size; };
   auto ProcessMessage = [this](int fd, uint8_t* m_ptr, size_t buffer_size)
   {
     DecodeMessage(m_ptr).leftMap([this, fd](auto&& message)
     {
+      auto HasValidToken  = [this](int fd, const auto& msg) { return (GetToken(msg) == m_sessions.at(fd).user.token); };
+
       if (message.empty())
         ELOG("Failed to decode message");
+      else
+      if (m_sessions.has(fd) && HasValidToken(fd, message))
+        EndSession(fd);
       else
       if (IsPing(message))
         SendPong(fd);

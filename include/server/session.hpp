@@ -7,12 +7,23 @@
 namespace kiq {
 using namespace uuids;
 
-static const int32_t READY_STATUS{0x01};
 static const int32_t SESSION_ACTIVE   = 1;
 static const int32_t SESSION_INACTIVE = 2;
+static const int32_t SESSION_INVALID  = 3;
+
+/**
+ * User
+ */
+
+struct User
+{
+std::string name;
+std::string token;
+};
 
 struct KSession {
 using TimePoint = Timer::TimePoint;
+User      user;
 int32_t   fd;
 int32_t   status;
 uuid      id;
@@ -31,7 +42,7 @@ uint32_t    waiting_time() const;
 struct SessionMap
 {
 public:
-using Sessions     = std::unordered_map<int32_t, KSession>;
+using Sessions = std::unordered_map<int32_t, KSession>;
 SessionMap::Sessions::const_iterator begin()                                       const;
 SessionMap::Sessions::const_iterator end()                                         const;
 SessionMap::Sessions::iterator       begin();
