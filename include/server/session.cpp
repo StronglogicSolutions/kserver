@@ -11,6 +11,7 @@ bool KSession::active() const
 void KSession::notify()
 {
   last_ping = std::chrono::system_clock::now();
+  status    = SESSION_ACTIVE;
 }
 
 void KSession::verify()
