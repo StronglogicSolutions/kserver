@@ -446,15 +446,19 @@ void KServer::SendPong(int32_t client_fd)
 
 void KServer::EndSession(const int32_t& client_fd)
 {
+  static const int SUCCESS{0};
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
                                                      "\nTX: " + std::to_string(session.tx); };
-  static const int SUCCESS{0};
-  KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
 
-  m_sessions.at(client_fd).status = SESSION_INACTIVE;
-
-  if (HandlingFile(client_fd))
-    SetFileNotPending();
+  if (m_sessions.has(client_fd))
+  {
+    KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
+    m_sessions.at(client_fd).status = SESSION_INACTIVE;
+    if (HandlingFile(client_fd))
+      SetFileNotPending();
+  }
+  else
+    KLOG("Shutting down socket for client with no session");
 
   VLOG("Calling shutdown on fd {}", client_fd);
   if (shutdown(client_fd, SHUT_RD) != SUCCESS)
@@ -488,6 +492,8 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       else
       if (IsMessage(message))
         SendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
+      else
+        EndSession(fd);
       return message;
     })
     .rightMap([this, fd](auto&& args)
