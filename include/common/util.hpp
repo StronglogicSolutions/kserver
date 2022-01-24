@@ -14,6 +14,7 @@
 #include <sstream>
 #include <iterator>
 #include <neither/either.hpp>
+#include <jwt-cpp/jwt.h>
 #include <string>
 #include <utility>
 #include <map>
@@ -21,6 +22,7 @@
 #include <ctime>
 
 #include "config/config_parser.hpp"
+#include "server/session.hpp"
 #include "system/process/executor/kapplication.hpp"
 
 #include "codec/rapidjson/document.h"
@@ -64,6 +66,8 @@ std::string CreateEvent         (const std::string& event, std::vector<std::stri
 std::string CreateEvent         (const std::string& event, int mask, std::vector<std::string> args);
 std::string CreateOperation     (const char *op, std::vector<std::string> args);
 std::string GetOperation        (const std::string& data);
+std::string GetToken            (const std::string& data);
+User        GetAuth             (const std::string& data);
 template<typename T>
 std::string GetMessage          (T data);
 std::string GetEvent            (std::string data);
@@ -108,6 +112,7 @@ bool IsPing               (const std::string& data);
  */
 using DecodedMessage = Either<std::string, std::vector<std::string>>;
 DecodedMessage DecodeMessage(uint8_t* buffer);
+bool           ValidateToken(User user);
 
 namespace SystemUtils {
 void SendMail(const std::string& recipient, const std::string& message, const std::string& subject = "KIQ Notification");
