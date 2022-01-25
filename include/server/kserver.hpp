@@ -68,7 +68,7 @@ void     WaitForFile              (const int32_t& client_fd);
 void     EnqueueFiles             (const int32_t& client_fd, const std::vector<std::string>& files);
 void     ScheduleRequest          (const std::vector<std::string>& task, const int32_t& client_fd);
 void     OperationRequest         (const std::string& message, const int32_t& client_fd);
-void     EndSession               (const int32_t& client_fd);
+void     EndSession               (const int32_t& client_fd, int32_t status = SESSION_INACTIVE);
 void     ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_fd);
 void     OnClientExit             (const int32_t& client_fd);
 void     EraseMessageHandler      (const int32_t& client_fd);

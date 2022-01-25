@@ -378,12 +378,15 @@ void KServer::InitClient(const std::string& message, const int32_t& fd)
   auto GetInfo    = [](auto state, auto id) { return SessionInfo{{STATUS, std::to_string(state)}, {"uuid", id}}; };
   auto GetError   = [](const auto reason)   { return SessionInfo{{STATUS, std::to_string(SESSION_INVALID)}, {"reason", reason}}; };
   auto NewSession = [&fd](const uuid& id, const User& user) { return KSession{user, fd, SESSION_ACTIVE, id}; };
-  const User user = GetAuth(message);
+
+  const User        user    = GetAuth(message);
+  const uuids::uuid n_uuid  = uuids::uuid_system_generator{}();
+  const std::string uuid_s  = uuids::to_string(n_uuid);
+
+  m_sessions.init(fd, NewSession(n_uuid, user));
+
   if (ValidateToken(user))
   {
-    const uuids::uuid n_uuid  = uuids::uuid_system_generator{}();
-    const std::string uuid_s  = uuids::to_string(n_uuid);
-    m_sessions.init(fd, NewSession(n_uuid, user));
     KLOG("Started session {} for {}", uuid_s, fd);
     SendMessage(fd, GetData());
     SendMessage(fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
@@ -392,7 +395,7 @@ void KServer::InitClient(const std::string& message, const int32_t& fd)
   {
     ELOG("Rejected session request for {} due to invalid token", fd);
     SendMessage(fd, CreateSessionEvent(SESSION_INVALID, REJECTED_MSG, GetError("Invalid token")));
-    EndSession(fd);
+    EndSession(fd, SESSION_INVALID);
   }
 }
 
@@ -455,7 +458,7 @@ void KServer::SendPong(int32_t client_fd)
   SendMessage(client_fd, PONG);
 }
 
-void KServer::EndSession(const int32_t& client_fd)
+void KServer::EndSession(const int32_t& client_fd, int32_t status)
 {
   static const int SUCCESS{0};
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
@@ -464,7 +467,7 @@ void KServer::EndSession(const int32_t& client_fd)
   if (m_sessions.has(client_fd))
   {
     KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
-    m_sessions.at(client_fd).status = SESSION_INACTIVE;
+    m_sessions.at(client_fd).status = status;
     if (HandlingFile(client_fd))
       SetFileNotPending();
   }
@@ -532,7 +535,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       m_message_handlers.at(fd).setID(fd);
       m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
     }
-    TrackDataStats(fd, size);
+    // TrackDataStats(fd, size);
   }
   catch(const std::exception& e)
   {
