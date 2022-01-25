@@ -19,12 +19,12 @@ int main(int argc, char** argv)
   }
   catch (const std::exception& e)
   {
-    std::cout << "Exception was caught: " << e.what() << std::endl;
+    ELOG("Exception was caught: {}", e.what());
     code = ERROR;
   }
   catch (...)
   {
-    std::cout << "Caught unknown exception" << std::endl;
+    ELOG("Caught unknown exception");
     code = ERROR;
   }
 
