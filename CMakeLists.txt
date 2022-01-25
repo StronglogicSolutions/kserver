@@ -93,10 +93,17 @@ target_link_libraries(
   zmq ${CMAKE_THREAD_LIBS_INIT}
 )
 
+target_include_directories(${PROJECT_NAME} PRIVATE
+  "include"
+  "third_party"
+  ${JWT_INCLUDE}
+)
+
 target_include_directories(${PROJECT_NAME}_lib PRIVATE
   "include"
   "third_party"
   ${JWT_INCLUDE}
 )
+
 
 add_subdirectory(test)

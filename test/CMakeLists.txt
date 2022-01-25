@@ -14,6 +14,7 @@ find_library(UUID uuid)
 find_library(PQXX_LIB pqxx)
 find_library(PQ_LIB pq)
 find_library(UUID uuid)
+find_package(OpenSSL COMPONENTS Crypto SSL REQUIRED)
 find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Wall")
@@ -39,5 +40,6 @@ target_link_libraries(
    ${PQXX_LIB}
    ${PQ_LIB}
    Threads::Threads
+   ${OPENSSL_LIBRARIES}
    zmq ${CMAKE_THREAD_LIBS_INIT}
 )
