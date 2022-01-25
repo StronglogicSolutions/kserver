@@ -36,7 +36,7 @@ uint32_t KSession::waiting_time() const
 std::string KSession::info() const
 {
   auto GetString = [](const int32_t& status)
-  { switch(status) { case(1): return "ACTIVE"; case (2): return "INACTIVE"; case (3): return "INVALID"; } };
+  { switch(status) { case(1): return "ACTIVE"; case (2): return "INACTIVE"; default: return "INVALID"; } };
   return fmt::format(
     "┌──────────────────────────────────────────────┐\n"\
     "FD:     {}\nStatus: {}\nID:     {}\nTX:     {}\nRX:     {}\nPing:   {} ms\n"\
