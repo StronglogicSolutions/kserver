@@ -489,7 +489,7 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
   return right(std::vector<std::string>{});
 }
 
-bool           ValidateToken(User user)
+bool ValidateToken(User user)
 {
   using Verifier = jwt::verifier<jwt::default_clock, jwt::traits::kazuho_picojson>;
   static const std::string private_key = ReadFileSimple(config::Security::private_key());
@@ -508,7 +508,7 @@ bool           ValidateToken(User user)
   }
   catch(const std::exception& e)
   {
-    std::cerr << "Exception thrown while validating token: " <<  e.what();
+    std::cerr << "Exception thrown while validating token: " <<  e.what() << std::endl;
   }
   return false;
 }
