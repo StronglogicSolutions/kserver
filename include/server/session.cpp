@@ -40,7 +40,7 @@ std::string KSession::info() const
   return fmt::format(
     "┌──────────────────────────────────────────────┐\n"\
     "FD:     {}\nStatus: {}\nID:     {}\nTX:     {}\nRX:     {}\nPing:   {} ms\n"\
-    "└──────────────────────────────────────────────┘", fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
+    "└──────────────────────────────────────────────┘\n", fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
 }
 
 SessionMap::Sessions::const_iterator SessionMap::begin() const
