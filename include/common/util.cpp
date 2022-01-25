@@ -17,34 +17,13 @@ std::string GetExecutableCWD()
   return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
 }
 
-Timer::Timer(const int64_t duration_)
-: duration(duration_)
-{}
-
-bool Timer::active() const
+std::string ReadFileSimple(const std::string& path)
 {
-  return timer_active;
+  std::ifstream     fs{path};
+  std::stringstream ss;
+  ss << fs.rdbuf();
+  return ss.str();
 }
-
-bool Timer::expired() const
-{
-         const TimePoint now         = std::chrono::system_clock::now();
-         const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
-  return (elapsed > TWENTY_MINUTES)  ;
-}
-
-void Timer::start()
-{
-  time_point   = std::chrono::system_clock::now();
-  timer_active = true;
-}
-
-void Timer::stop()
-{
-  timer_active = false;
-}
-
-
 
 /**
  * JSON Tools
@@ -171,6 +150,28 @@ std::string GetOperation(const std::string& data)
   return "";
 }
 
+std::string GetToken(const std::string& data)
+{
+  Document d;
+  return (!(d.Parse(data.c_str()).HasParseError()) && d.HasMember("token")) ?
+    d["token"].GetString() :
+    "";
+}
+
+User GetAuth(const std::string& data)
+{
+  User user;
+  Document d;
+  if (!(d.Parse(data.c_str()).HasParseError()))
+  {
+    if (d.HasMember("token"))
+      user.token = d["token"].GetString();
+    if (d.HasMember("user"))
+      user.name = d["user"].GetString();
+  }
+  return user;
+}
+
 template<typename T>
 std::string GetMessage(T data)
 {
@@ -268,12 +269,11 @@ std::string CreateSessionEvent(int status, std::string message, KIQArgMap args)
   w.Key("info");
   w.StartObject();
 
-  if (!args.empty())
-    for (const auto &v : args)
-    {
-      w.Key(v.first.c_str());
-      w.String(v.second.c_str());
-    }
+  for (const auto &v : args)
+  {
+    w.Key(v.first.c_str());
+    w.String(v.second.c_str());
+  }
 
   w.EndObject();
   w.EndObject();
@@ -487,6 +487,30 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
     }
   }
   return right(std::vector<std::string>{});
+}
+
+bool ValidateToken(User user)
+{
+  using Verifier = jwt::verifier<jwt::default_clock, jwt::traits::kazuho_picojson>;
+  static const std::string private_key = ReadFileSimple(config::Security::private_key());
+  static const std::string public_key  = ReadFileSimple(config::Security::public_key());
+  static const std::string path        = config::Security::token_path();
+  static const Verifier    verifier    = jwt::verify()
+    .allow_algorithm(jwt::algorithm::es256k(public_key, private_key, "", ""))
+    .with_issuer    ("kiq");
+        const std::string token        = ReadFileSimple(path + '/' + user.name);
+  try
+  {
+    const auto decoded     = jwt::decode(user.token);
+    verifier.verify(decoded);
+    const auto user_claim  = decoded.get_payload_claim("user");
+    return ((user_claim.as_string() == user.name) && (token == user.token));
+  }
+  catch(const std::exception& e)
+  {
+    std::cerr << "Exception thrown while validating token: " <<  e.what() << std::endl;
+  }
+  return false;
 }
 
 namespace SystemUtils {
@@ -974,6 +998,5 @@ std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2)
 }
 
 template std::vector<std::string>&& vector_merge(std::vector<std::string>&& v1, std::vector<std::string>&& v2);
-
 } // ns DataUtils
 } // ns kiq

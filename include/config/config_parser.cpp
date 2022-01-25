@@ -62,4 +62,10 @@ const std::string affiliate_content(const std::string& type)
 }
 const std::string default_user() { return reader.Get("platform", "default_user", "");                                  }
 } // namespace Platform
+
+namespace Security {
+const std::string token_path()   { return reader.Get("security", "token_path",  ""); }
+const std::string private_key()  { return reader.Get("security", "private_key", ""); }
+const std::string public_key()   { return reader.Get("security", "public_key",  ""); }
+} // ns Security
 } // namespace config::kiq

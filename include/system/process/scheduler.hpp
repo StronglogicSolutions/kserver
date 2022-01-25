@@ -166,7 +166,7 @@ TermIDs             m_term_ids;           // -> same as above
 bool           HasPendingTasks(TaskWrapper* root);
 bool           AllTasksComplete (const Scheduler::PostExecMap& map);
 uint32_t       getAppMask(std::string name);
-const uint32_t getIntervalSeconds(uint32_t interval);
+const uint32_t GetIntervalSeconds(uint32_t interval);
 Task           args_to_task(std::vector<std::string> args);
 bool           IsRecurringTask(const Task& task);
 uint32_t       getAppMask(std::string name);

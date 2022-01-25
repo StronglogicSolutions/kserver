@@ -7,3 +7,6 @@
 [submodule "third_party/kiqoder"]
 	path = third_party/kiqoder
 	url = https://github.com/StronglogicSolutions/kiqoder
+[submodule "third_party/jwt-cpp"]
+	path = third_party/jwt-cpp
+	url = https://github.com/Thalhammer/jwt-cpp

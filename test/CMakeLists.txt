@@ -14,9 +14,10 @@ find_library(UUID uuid)
 find_library(PQXX_LIB pqxx)
 find_library(PQ_LIB pq)
 find_library(UUID uuid)
+find_package(OpenSSL COMPONENTS Crypto SSL REQUIRED)
 find_package(Threads REQUIRED)
-
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Wall")
+set(JWT_INCLUDE "${CMAKE_SOURCE_DIR}/third_party/jwt-cpp/include")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -I ${JWT_INCLUDE}")
 file(GLOB_RECURSE TEST_SOURCES true ../include/system/process/executor/task_handlers/task.cpp ../include/*.cpp src/*.cpp src/*.h* ../src/database_connection.cpp ../src/socket_listener.cpp ../src/task_queue.cpp ${MOCK_DATA_SRC})
 
 set(FULL_SOURCES ${TEST_SOURCES})
@@ -27,6 +28,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
    "../include"
    "../third_party"
    "."
+   ${JWT_INCLUDE}
 )
 
 add_subdirectory(googletest)
@@ -39,5 +41,6 @@ target_link_libraries(
    ${PQXX_LIB}
    ${PQ_LIB}
    Threads::Threads
+   ${OPENSSL_LIBRARIES}
    zmq ${CMAKE_THREAD_LIBS_INIT}
 )

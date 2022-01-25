@@ -9,10 +9,12 @@ static const char*   STATUS          {"status"};
 static const char*   NEW_SESSION     {"New Session"};
 static const char*   CLOSE_SESSION   {"Close Session"};
 static const char*   WELCOME_MSG     {"Session started"};
+static const char*   REJECTED_MSG    {"Session rejected"};
 static const char*   GOODBYE_MSG     {"KServer is shutting down the socket connection"};
 static const char*   RECV_MSG        {"Received by KServer"};
 static const char*   FILE_SUCCESS_MSG{"File Save Success"};
 static const char*   FILE_FAIL_MSG   {"File Save Failure"};
+
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
  * service to KStyleYo
@@ -370,18 +372,31 @@ void KServer::EnqueueFiles(const int32_t& client_fd, const std::vector<std::stri
 /**
  * Start Operation
  */
-void KServer::InitClient(const std::string& message, const int32_t& client_fd)
+void KServer::InitClient(const std::string& message, const int32_t& fd)
 {
-  auto NewSession = [&client_fd](const uuid& id)      { return KSession{client_fd, READY_STATUS, id};                        };
-  auto GetData    = [this]      ()                    { return CreateMessage(NEW_SESSION, m_controller.CreateSession());   };
-  auto GetInfo    = []          (auto state, auto id) { return SessionInfo{{STATUS, std::to_string(state)}, {"uuid", id}}; };
-  const uuids::uuid n_uuid = uuids::uuid_system_generator{}();
-  const std::string uuid_s = uuids::to_string(n_uuid);
+  auto GetData    = [this]()                { return CreateMessage(NEW_SESSION, m_controller.CreateSession());   };
+  auto GetInfo    = [](auto state, auto id) { return SessionInfo{{STATUS, std::to_string(state)}, {"uuid", id}}; };
+  auto GetError   = [](const auto reason)   { return SessionInfo{{STATUS, std::to_string(SESSION_INVALID)}, {"reason", reason}}; };
+  auto NewSession = [&fd](const uuid& id, const User& user) { return KSession{user, fd, SESSION_ACTIVE, id}; };
 
-  m_sessions.init(client_fd, NewSession(n_uuid));
-  KLOG("Started session {} for {}", uuid_s, client_fd);
-  SendMessage(client_fd, GetData());
-  SendMessage(client_fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
+  const User        user    = GetAuth(message);
+  const uuids::uuid n_uuid  = uuids::uuid_system_generator{}();
+  const std::string uuid_s  = uuids::to_string(n_uuid);
+
+  m_sessions.init(fd, NewSession(n_uuid, user));
+
+  if (ValidateToken(user))
+  {
+    KLOG("Started session {} for {}", uuid_s, fd);
+    SendMessage(fd, GetData());
+    SendMessage(fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
+  }
+  else
+  {
+    ELOG("Rejected session request for {} due to invalid token", fd);
+    SendMessage(fd, CreateSessionEvent(SESSION_INVALID, REJECTED_MSG, GetError("Invalid token")));
+    EndSession(fd, SESSION_INVALID);
+  }
 }
 
 /**
@@ -439,20 +454,25 @@ void KServer::onMessageReceived(int                      client_fd,
 void KServer::SendPong(int32_t client_fd)
 {
   KLOG("Client {} - keepalive", client_fd);
+  m_sessions.at(client_fd).notify();
   SendMessage(client_fd, PONG);
 }
 
-void KServer::EndSession(const int32_t& client_fd)
+void KServer::EndSession(const int32_t& client_fd, int32_t status)
 {
+  static const int SUCCESS{0};
   auto GetStats = [](const KSession& session) { return "RX: " + std::to_string(session.rx) +
                                                      "\nTX: " + std::to_string(session.tx); };
-  static const int SUCCESS{0};
-  KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
 
-  m_sessions.at(client_fd).status = SESSION_INACTIVE;
-
-  if (HandlingFile(client_fd))
-    SetFileNotPending();
+  if (m_sessions.has(client_fd))
+  {
+    KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
+    m_sessions.at(client_fd).status = status;
+    if (HandlingFile(client_fd))
+      SetFileNotPending();
+  }
+  else
+    KLOG("Shutting down socket for client with no session");
 
   VLOG("Calling shutdown on fd {}", client_fd);
   if (shutdown(client_fd, SHUT_RD) != SUCCESS)
@@ -462,7 +482,7 @@ void KServer::EndSession(const int32_t& client_fd)
 void KServer::CloseConnections()
 {
   for (const int& fd : m_client_connections)
-    if (m_sessions.at(fd).status == SESSION_ACTIVE)
+    if (m_sessions.at(fd).active())
       EndSession(fd);
 }
 
@@ -470,22 +490,29 @@ void KServer::CloseConnections()
 void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
 {
   using FileHandler = Kiqoder::FileHandler;
-  auto TrackDataStats = [this](int fd, size_t size) { if (m_sessions.has(fd)) m_sessions.at(fd).rx += size; };
+  auto TrackDataStats = [this](int fd, size_t size)     { if (m_sessions.has(fd)) m_sessions.at(fd).rx += size; };
   auto ProcessMessage = [this](int fd, uint8_t* m_ptr, size_t buffer_size)
   {
     DecodeMessage(m_ptr).leftMap([this, fd](auto&& message)
     {
+      auto HasValidToken  = [this](int fd, const auto& msg) { return (GetToken(msg) == m_sessions.at(fd).user.token); };
+
       if (message.empty())
         ELOG("Failed to decode message");
       else
       if (IsPing(message))
         SendPong(fd);
       else
+      if (m_sessions.has(fd) && !HasValidToken(fd, message))
+        EndSession(fd);
+      else
       if (IsOperation(message))
         OperationRequest(message, fd);
       else
       if (IsMessage(message))
         SendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
+      else
+        EndSession(fd);
       return message;
     })
     .rightMap([this, fd](auto&& args)
@@ -508,7 +535,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       m_message_handlers.at(fd).setID(fd);
       m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
     }
-    TrackDataStats(fd, size);
+    // TrackDataStats(fd, size);
   }
   catch(const std::exception& e)
   {
@@ -593,15 +620,23 @@ KSession KServer::GetSession(const int32_t& client_fd) const
   return KSession{};
 }
 
-void KServer::Status() const
+void KServer::Status()
 {
-  size_t tx_bytes{}, rx_bytes{};
-  for (const auto& [fd, session] : m_sessions)
+  std::string client_s;
+  for (auto&& [fd, session] : m_sessions)
   {
-    tx_bytes += session.tx;
-    rx_bytes += session.rx;
+    session.verify();
+    client_s += session.info();
   }
 
-  VLOG("Server Status\nSent {} bytes\nRecv {} bytes", tx_bytes, rx_bytes);
+  size_t tx{},
+         rx{};
+  for (const auto& [fd, session] : m_sessions)
+  {
+    tx += session.tx;
+    rx += session.rx;
+  }
+
+  VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);
 }
 } // ns kiq

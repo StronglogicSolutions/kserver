@@ -10,11 +10,11 @@
 #include <stdio.h>
 #include <filesystem>
 #include <bitset>
-#include <chrono>
 #include <fstream>
 #include <sstream>
 #include <iterator>
 #include <neither/either.hpp>
+#include <jwt-cpp/jwt.h>
 #include <string>
 #include <utility>
 #include <map>
@@ -22,6 +22,7 @@
 #include <ctime>
 
 #include "config/config_parser.hpp"
+#include "server/session.hpp"
 #include "system/process/executor/kapplication.hpp"
 
 #include "codec/rapidjson/document.h"
@@ -41,10 +42,7 @@ using namespace KData;
 using namespace IGData;
 using namespace GenericData;
 
-extern const char ARGUMENT_SEPARATOR;
-
-static const int32_t SESSION_ACTIVE   = 1;
-static const int32_t SESSION_INACTIVE = 2;
+extern const char    ARGUMENT_SEPARATOR;
 static const int32_t ALL_CLIENTS      = -1;
 
 typedef std::string                                      KOperation;
@@ -54,37 +52,6 @@ typedef std::vector<std::map<int, std::string>>          MapVec;
 typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
 typedef std::vector<KApplication>                        ServerData;
 typedef std::pair<std::string, std::string>              FileInfo;
-
-static const int32_t READY_STATUS{0x01};
-struct KSession {
-  int32_t  fd;
-  int32_t  status;
-  uuid     id;
-  uint32_t tx{0};
-  uint32_t rx{0};
-
-  bool active() const
-  {
-    return (status == SESSION_ACTIVE);
-  }
-};
-
-struct Timer {
-using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
-using  Duration  = std::chrono::seconds;
-static const uint32_t TEN_MINUTES    = 600;
-static const uint32_t TWENTY_MINUTES = 1200;
-Timer(const int64_t duration_ = TWENTY_MINUTES);
-bool active() const;
-bool expired() const;
-void start();
-void stop();
-
-private:
-TimePoint time_point;
-bool      timer_active;
-int64_t   duration;
-};
 
 std::string GetCWD();
 std::string GetExecutableCWD();
@@ -99,6 +66,8 @@ std::string CreateEvent         (const std::string& event, std::vector<std::stri
 std::string CreateEvent         (const std::string& event, int mask, std::vector<std::string> args);
 std::string CreateOperation     (const char *op, std::vector<std::string> args);
 std::string GetOperation        (const std::string& data);
+std::string GetToken            (const std::string& data);
+User        GetAuth             (const std::string& data);
 template<typename T>
 std::string GetMessage          (T data);
 std::string GetEvent            (std::string data);
@@ -143,6 +112,7 @@ bool IsPing               (const std::string& data);
  */
 using DecodedMessage = Either<std::string, std::vector<std::string>>;
 DecodedMessage DecodeMessage(uint8_t* buffer);
+bool           ValidateToken(User user);
 
 namespace SystemUtils {
 void SendMail(const std::string& recipient, const std::string& message, const std::string& subject = "KIQ Notification");
@@ -209,34 +179,19 @@ template <typename T>
 const std::vector<T> VAbsorb(std::vector<T>&& v, T&& u, bool to_front = false);
 template <typename T>
 std::vector<T>&& vector_merge(std::vector<T>&& v1, std::vector<T>&& v2);
-template <typename ...Args>
-void ClearArgs(Args&& ...args);
-
-template void ClearArgs(std::string&&);
 template <typename... Args>
 void ClearArgs(Args&&... args)
 {
   (args.clear(), ...);
 }
-
-template <typename ...Args>
-bool          NoEmptyArgs(Args&& ...args);
-template bool NoEmptyArgs(std::string&&);
 template <typename... Args>
-bool          NoEmptyArgs(Args&&... args)
+bool NoEmptyArgs(Args&&... args)
 {
   for (const auto& arg : {args...})
-    if (arg.empty())
-      return false;
+    if (arg.empty()) return false;
   return true;
 }
-template <typename... Args>
-bool ClearIfNoEmpty(Args&& ...args);
-bool ClearIfNoEmpty(std::string&&);
-template <typename... Args>
-bool ClearIfNoEmpty(Args&&... args)
-{
-  return ((args.empty(), ...));
-}
+template void ClearArgs  (std::string&&);
+template bool NoEmptyArgs(std::string&&);
 } // ns DataUtils
 } // ns kiq

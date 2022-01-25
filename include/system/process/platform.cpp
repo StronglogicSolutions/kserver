@@ -257,8 +257,8 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
         .repost  = post.repost,
         .name    = post.name,
         .args    = ToJSONArray({post.args}),
-        .method  = post.method
-      };
+        .method  = post.method};
+
       SavePlatformPost(repost, constants::PLATFORM_POST_INCOMPLETE);
 
       for (const auto& af_post : MakeAffiliatePosts(repost))
@@ -345,12 +345,13 @@ std::string Platform::GetPlatformID(uint32_t mask) {
  * @param name
  * @return std::string
  */
-std::string Platform::GetPlatformID(const std::string& name) {
-  if (!name.empty()) {
+std::string Platform::GetPlatformID(const std::string& name)
+{
+  if (!name.empty())
     for (const auto& value : m_db.select("platform", {"id"}, CreateFilter("name", name)))
       if (value.first == "id")
         return value.second;
-  }
+
   return "";
 }
 
