@@ -42,7 +42,8 @@ std::string KSession::info() const
   return fmt::format(
     "┌──────────────────────────────────────────────┐\n"\
     "User:   {}\nFD:     {}\nStatus: {}\nID:     {}\nTX:     {}\nRX:     {}\nPing:   {} ms\n"\
-    "└──────────────────────────────────────────────┘\n", user, fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
+    "└──────────────────────────────────────────────┘\n",
+    user.name, fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
 }
 
 SessionMap::Sessions::const_iterator SessionMap::begin() const
