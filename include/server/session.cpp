@@ -5,7 +5,9 @@ namespace kiq {
 
 bool KSession::active() const
 {
-  return (!(expired()) && status == SESSION_ACTIVE);
+  bool active = (!(expired()) && status == SESSION_ACTIVE);
+  KLOG("Client {} with username {} is {}", fd, user, (active) ? "active" : "not active");
+  return active;
 }
 
 void KSession::notify()
@@ -39,8 +41,8 @@ std::string KSession::info() const
   { switch(status) { case(1): return "ACTIVE"; case (2): return "INACTIVE"; default: return "INVALID"; } };
   return fmt::format(
     "┌──────────────────────────────────────────────┐\n"\
-    "FD:     {}\nStatus: {}\nID:     {}\nTX:     {}\nRX:     {}\nPing:   {} ms\n"\
-    "└──────────────────────────────────────────────┘\n", fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
+    "User:   {}\nFD:     {}\nStatus: {}\nID:     {}\nTX:     {}\nRX:     {}\nPing:   {} ms\n"\
+    "└──────────────────────────────────────────────┘\n", user, fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
 }
 
 SessionMap::Sessions::const_iterator SessionMap::begin() const
