@@ -49,12 +49,15 @@ SessionMap::Sessions::iterator       begin();
 SessionMap::Sessions::iterator       end();
 SessionMap::Sessions::const_iterator find(int32_t fd)                              const;
 bool                                 has(int32_t fd)                               const;
-void                                 init(int32_t fd, const KSession& new_session);
+bool                                 init(int32_t fd, const KSession& new_session);
 KSession&                            at(int32_t fd);
+bool                                 logged_in(const User& user)                   const;
 
 private:
 
 Sessions m_sessions;
 };
+
+bool ValidateToken(User user);
 
 } // ns kiq
