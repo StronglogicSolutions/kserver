@@ -376,16 +376,15 @@ void KServer::InitClient(const std::string& message, const int32_t& fd)
 {
   auto GetData    = [this]()                { return CreateMessage(NEW_SESSION, m_controller.CreateSession());   };
   auto GetInfo    = [](auto state, auto id) { return SessionInfo{{STATUS, std::to_string(state)}, {"uuid", id}}; };
-  auto GetError   = [](const auto reason)   { return SessionInfo{{STATUS, std::to_string(SESSION_INVALID)}, {"reason", reason}}; };
+  auto GetError   = [](const auto reason)   { return SessionInfo{{STATUS, std::to_string(SESSION_INVALID)},
+                                                                 {"reason", reason}};                            };
   auto NewSession = [&fd](const uuid& id, const User& user) { return KSession{user, fd, SESSION_ACTIVE, id}; };
 
   const User        user    = GetAuth(message);
   const uuids::uuid n_uuid  = uuids::uuid_system_generator{}();
   const std::string uuid_s  = uuids::to_string(n_uuid);
 
-  m_sessions.init(fd, NewSession(n_uuid, user));
-
-  if (ValidateToken(user))
+  if (m_sessions.init(fd, NewSession(n_uuid, user)) && ValidateToken(user))
   {
     KLOG("Started session {} for {}", uuid_s, fd);
     SendMessage(fd, GetData());
@@ -393,7 +392,7 @@ void KServer::InitClient(const std::string& message, const int32_t& fd)
   }
   else
   {
-    ELOG("Rejected session request for {} due to invalid token", fd);
+    ELOG("Rejected session request for {} on {}", user.name, fd);
     SendMessage(fd, CreateSessionEvent(SESSION_INVALID, REJECTED_MSG, GetError("Invalid token")));
     EndSession(fd, SESSION_INVALID);
   }
@@ -503,7 +502,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       if (IsPing(message))
         SendPong(fd);
       else
-      if (m_sessions.has(fd) && !HasValidToken(fd, message))
+      if (m_sessions.has(fd) && m_sessions.at(fd).active() && !HasValidToken(fd, message))
         EndSession(fd);
       else
       if (IsOperation(message))
@@ -535,7 +534,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       m_message_handlers.at(fd).setID(fd);
       m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
     }
-    // TrackDataStats(fd, size);
+    TrackDataStats(fd, size);
   }
   catch(const std::exception& e)
   {

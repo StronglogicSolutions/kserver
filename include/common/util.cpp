@@ -17,14 +17,6 @@ std::string GetExecutableCWD()
   return full_path.substr(0, full_path.size() - (APP_NAME_LENGTH  + 1));
 }
 
-std::string ReadFileSimple(const std::string& path)
-{
-  std::ifstream     fs{path};
-  std::stringstream ss;
-  ss << fs.rdbuf();
-  return ss.str();
-}
-
 /**
  * JSON Tools
  */
@@ -487,30 +479,6 @@ DecodedMessage DecodeMessage(uint8_t* buffer)
     }
   }
   return right(std::vector<std::string>{});
-}
-
-bool ValidateToken(User user)
-{
-  using Verifier = jwt::verifier<jwt::default_clock, jwt::traits::kazuho_picojson>;
-  static const std::string private_key = ReadFileSimple(config::Security::private_key());
-  static const std::string public_key  = ReadFileSimple(config::Security::public_key());
-  static const std::string path        = config::Security::token_path();
-  static const Verifier    verifier    = jwt::verify()
-    .allow_algorithm(jwt::algorithm::es256k(public_key, private_key, "", ""))
-    .with_issuer    ("kiq");
-        const std::string token        = ReadFileSimple(path + '/' + user.name);
-  try
-  {
-    const auto decoded     = jwt::decode(user.token);
-    verifier.verify(decoded);
-    const auto user_claim  = decoded.get_payload_claim("user");
-    return ((user_claim.as_string() == user.name) && (token == user.token));
-  }
-  catch(const std::exception& e)
-  {
-    std::cerr << "Exception thrown while validating token: " <<  e.what() << std::endl;
-  }
-  return false;
 }
 
 namespace SystemUtils {

@@ -14,7 +14,6 @@
 #include <sstream>
 #include <iterator>
 #include <neither/either.hpp>
-#include <jwt-cpp/jwt.h>
 #include <string>
 #include <utility>
 #include <map>
@@ -112,7 +111,6 @@ bool IsPing               (const std::string& data);
  */
 using DecodedMessage = Either<std::string, std::vector<std::string>>;
 DecodedMessage DecodeMessage(uint8_t* buffer);
-bool           ValidateToken(User user);
 
 namespace SystemUtils {
 void SendMail(const std::string& recipient, const std::string& message, const std::string& subject = "KIQ Notification");
