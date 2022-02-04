@@ -115,7 +115,7 @@ bool SessionMap::logged_in(const User& user) const
 
 bool ValidateToken(User user)
 {
-  auto Expired        = [](const jwt::date&   date) { return std::chrono::system_clock::now() < date;          };
+  auto Expired        = [](const jwt::date&   date) { return std::chrono::system_clock::now() > date;          };
   auto ReadFileSimple = [](const std::string& path) { std::stringstream ss; ss << std::ifstream{path}.rdbuf();
                                                                                               return ss.str(); };
   using Verifier = jwt::verifier<jwt::default_clock, jwt::traits::kazuho_picojson>;
