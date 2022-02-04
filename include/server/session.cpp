@@ -115,6 +115,7 @@ bool SessionMap::logged_in(const User& user) const
 
 bool ValidateToken(User user)
 {
+  auto Expired        = [](const jwt::date&   date) { return std::chrono::system_clock::now() < date;          };
   auto ReadFileSimple = [](const std::string& path) { std::stringstream ss; ss << std::ifstream{path}.rdbuf();
                                                                                               return ss.str(); };
   using Verifier = jwt::verifier<jwt::default_clock, jwt::traits::kazuho_picojson>;
@@ -127,12 +128,22 @@ bool ValidateToken(User user)
         const std::string token        = ReadFileSimple(path + '/' + user.name);
   try
   {
-    const auto decoded     = jwt::decode(user.token);
+    const auto decoded = jwt::decode(user.token);
     verifier.verify(decoded);
-    const auto user_claim  = decoded.get_payload_claim("user");
-    bool token_valid = (user_claim.as_string() == user.name) && (token == user.token);
-    VLOG("Token {} for {}", (token_valid) ? "valid" : "invalid", user.name);
-    return token_valid;
+
+    if (decoded.get_payload_claim("user").as_string() != user.name)
+      ELOG("Token does not belong to user");
+    else
+    if (token == user.token)
+      ELOG("Token does not match");
+    else
+    if (Expired(decoded.get_expires_at()))
+      ELOG("Token has expired");
+    else
+    {
+      VLOG("Token valid for {}", user.name);
+      return true;
+    }
   }
   catch(const std::exception& e)
   {
