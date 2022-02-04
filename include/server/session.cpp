@@ -134,7 +134,7 @@ bool ValidateToken(User user)
     if (decoded.get_payload_claim("user").as_string() != user.name)
       ELOG("Token does not belong to user");
     else
-    if (token == user.token)
+    if (token != user.token)
       ELOG("Token does not match");
     else
     if (Expired(decoded.get_expires_at()))
