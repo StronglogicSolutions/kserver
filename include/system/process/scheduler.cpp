@@ -48,7 +48,8 @@ Scheduler::Scheduler(Database::KDB&& kdb)
 : m_kdb(std::move(kdb)),
   m_platform(nullptr),
   m_trigger(nullptr),
-  m_research_manager(&m_kdb, &m_platform, [this](const auto& name) { return FindMask(name); })
+  m_research_manager(&m_kdb, &m_platform, [this](const auto& name) { return FindMask(name); }),
+  m_research_polls{}
 {
   KLOG("Scheduler instantiated for testing");
 }
@@ -324,47 +325,26 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
 std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::string& date_range_s, const std::string& count, const std::string& limit, const std::string& order)
 {
   using DateRange = std::pair<std::string, std::string>;
+  using Filter_t  = std::vector<std::variant<CompBetweenFilter, QueryFilter>>;
   static const std::string MAX_INT = std::to_string(std::numeric_limits<int32_t>::max());
   const auto GetDateRange = [](const std::string& date_range_s) -> DateRange
   {
-    if (date_range_s.front() == '0')
-      return DateRange{"0", MAX_INT};
+    if (date_range_s.front() == '0') return DateRange{"0", MAX_INT};
 
     const auto split_idx = date_range_s.find_first_of("TO");
     return DateRange{date_range_s.substr(0, (date_range_s.size() - split_idx - 2)),
                      date_range_s.substr(split_idx + 1)};
-
   };
-
-  const DateRange date_range   = GetDateRange(date_range_s);
-  const auto      result_limit = (limit == "0") ? MAX_INT : limit; // TODO: ID limit - needs to be < or >
-  const auto      row_order    = order;
-
-  auto tasks = m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>(
-      "schedule", {                                   // table
-        Field::ID,
-        Field::TIME,
-        Field::MASK,
-        Field::FLAGS,
-        Field::ENVFILE,
-        Field::COMPLETED,
-        Field::NOTIFY,
-        Field::RECURRING
-      }, std::vector<std::variant<CompBetweenFilter, QueryFilter>>{
-        CompBetweenFilter{                                   // filter TODO: add id < or > result_limit
-          .field = Field::TIME,
-          .a     = date_range.first,
-          .b     = date_range.second
-        },
-        CreateFilter(Field::MASK, mask)},
-        OrderFilter{
-          .field = Field::ID,
-          .order = row_order
-        },
-        LimitFilter{
-          .count = count
-        });
-  return parseTasks(std::move(tasks));
+  static const Fields fields{Field::ID, Field::TIME, Field::MASK, Field::FLAGS, Field::ENVFILE,
+                             Field::COMPLETED, Field::NOTIFY, Field::RECURRING};
+  const DateRange     date_range   = GetDateRange(date_range_s);
+  const auto          result_limit = (limit == "0") ? MAX_INT : limit;
+  const auto          row_order    = order;
+  const Filter_t      filters      = {CompBetweenFilter{Field::TIME,  date_range.first, date_range.second},
+                                      CreateFilter(Field::MASK, mask)},
+                                      OrderFilter {Field::ID, row_order},
+                                      LimitFilter {count};
+  return parseTasks(std::move(m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>("schedule", fields, filters)));
 }
 
 std::vector<Task> Scheduler::fetchTasks()
@@ -737,21 +717,27 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
   };
   auto AnalyzeTW = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
-    auto  QueueFull       = [this]()               { return m_message_queue.size() > QueueLimit; };
-    auto  PollExists      = [this](const auto& id) { return m_research_polls.find(id) != m_research_polls.end(); };
+    auto  QueueFull  = [this]() { return m_message_queue.size() > QueueLimit; };
+    auto  PollExists = [this](const auto& id, const auto& term)
+    {
+      return m_research_polls.find(ResearchPoll{id, term}) != m_research_polls.end();
+      // return std::find_if(m_research_polls.begin(), m_research_polls.end(),
+      //   [&id, &term](const ResearchPoll& poll) { return poll(id, term); }) != m_research_polls.end();
+    };
 
     if (QueueFull()) return VLOG("Outbound IPC queue is full");
 
     static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
     for (const ResearchManager::ResearchRequest& request : m_research_manager.AnalyzeTW(root, child, subchild))
     {
-      if (!PollExists(request.hit.id))
+      if (!PollExists(root.id, request.hit.term))
       {
+
         std::string dest   = config::Process::tg_dest();
         m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::message, request.data,  CreateOperation("Bot", {dest})));
         m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::poll,    request.title, CreateOperation("Bot",
                                                   {dest, "High", "Some", "Little", "None"})));
-        m_research_polls.insert(request.hit.id);
+        m_research_polls.insert(ResearchPoll{root.id, request.hit.term});
         return; // Limit to one
       }
     }
