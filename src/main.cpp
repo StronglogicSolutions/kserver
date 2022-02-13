@@ -17,6 +17,11 @@ int main(int argc, char** argv)
     server.init();
     server.run();
   }
+  catch (const std::runtime_error& e)
+  {
+    ELOG("Runtime exception was caught: {}", e.what());
+    code = ERROR;
+  }
   catch (const std::exception& e)
   {
     ELOG("Exception was caught: {}", e.what());
@@ -24,7 +29,7 @@ int main(int argc, char** argv)
   }
   catch (...)
   {
-    ELOG("Caught unknown exception");
+    ELOG("Caught unknown exception. Errno is currently {}", errno);
     code = ERROR;
   }
 
