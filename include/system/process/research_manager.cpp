@@ -1,6 +1,7 @@
 #include "research_manager.hpp"
 
 namespace kiq {
+static const char* POLL_Q = "Rate the civilization impact:";
 /**
  * VerifyTerm
  */
@@ -480,14 +481,11 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
 
   for (const ResearchManager::TermHit& hit : hits)
   {
-    std::string data   = MakePollMessage(child_text, child_emo, child_sts, hit.ToString());
-    std::string poll_q = "Rate the civilization impact:";
-    requests.emplace_back(
-      ResearchRequest{
-        .hit   = hit,
-        .data  = data,
-        .title = poll_q,
-        .type  = Study::poll});
+    requests.emplace_back(ResearchRequest{
+      hit,
+      MakePollMessage(child_text, child_emo, child_sts, hit.ToString()),
+      POLL_Q,
+      Study::poll});
   }
   return requests;
 }

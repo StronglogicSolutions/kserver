@@ -721,8 +721,6 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     auto  PollExists = [this](const auto& id, const auto& term)
     {
       return m_research_polls.find(ResearchPoll{id, term}) != m_research_polls.end();
-      // return std::find_if(m_research_polls.begin(), m_research_polls.end(),
-      //   [&id, &term](const ResearchPoll& poll) { return poll(id, term); }) != m_research_polls.end();
     };
 
     if (QueueFull()) return VLOG("Outbound IPC queue is full");

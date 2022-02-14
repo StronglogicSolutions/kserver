@@ -14,6 +14,30 @@ enum class Study
 poll = 0x00,
 };
 
+struct MLInputGenerator
+{
+
+void operator()(Emotion<Emotions> e, Sentiment s, std::vector<std::string> poll_results)
+{
+std::stringstream ss;
+ss << e.scores.joy       << ','
+   << e.scores.sadness   << ','
+   << e.scores.surprise  << ','
+   << e.scores.fear      << ','
+   << e.scores.anger     << ','
+   << e.scores.disgust   << ','
+   << s.score            << ','
+   << poll_results.at(0) << ','
+   << poll_results.at(1) << ','
+   << poll_results.at(2) << ','
+   << poll_results.at(3);
+
+   output = ss.str();
+}
+
+std::string output;
+};
+
 using MaskFn = std::function<int32_t(const std::string&)>;
 
 class ResearchManager
