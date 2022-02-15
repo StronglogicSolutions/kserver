@@ -14,25 +14,50 @@ enum class Study
 poll = 0x00,
 };
 
+
+struct TWResearchInputs
+{
+Emotion<Emotions>        emotions;
+Sentiment                sentiment;
+std::vector<std::string> poll_results;
+};
+
+
+template <typename T = TWResearchInputs>
 struct MLInputGenerator
 {
 
-void operator()(Emotion<Emotions> e, Sentiment s, std::vector<std::string> poll_results)
+void operator()(T input)
 {
-std::stringstream ss;
-ss << e.scores.joy       << ','
-   << e.scores.sadness   << ','
-   << e.scores.surprise  << ','
-   << e.scores.fear      << ','
-   << e.scores.anger     << ','
-   << e.scores.disgust   << ','
-   << s.score            << ','
-   << poll_results.at(0) << ','
-   << poll_results.at(1) << ','
-   << poll_results.at(2) << ','
-   << poll_results.at(3);
-
+  if constexpr (std::is_same_v<T, TWResearchInputs>)
+  {
+    std::stringstream ss;
+    auto&             e = input.emotions;
+    auto&             s = input.sentiment;
+    auto&             p = input.poll_results;
+    ss << e.scores.joy      << ','
+       << e.scores.sadness  << ','
+       << e.scores.surprise << ','
+       << e.scores.fear     << ','
+       << e.scores.anger    << ','
+       << e.scores.disgust  << ','
+       << s.score           << ','
+       << p.at(0)           << ','
+       << p.at(1)           << ','
+       << p.at(2)           << ','
+       << p.at(3)           << '\n';
    output = ss.str();
+  }
+}
+
+std::string GetResult() const
+{
+  return output;
+}
+
+void clear()
+{
+  output.clear();
 }
 
 std::string output;
