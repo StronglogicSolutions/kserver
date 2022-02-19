@@ -932,6 +932,12 @@ bool Scheduler::SavePlatformPost(std::vector<std::string> payload)
  */
 void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
 {
+ auto GetUUID = [this](const auto& id) -> std::string
+ {
+   for (const auto& row : m_kdb.select("ipc", {"p_uuid"}, QueryFilter{"id", id}))
+     if (row.first == "id") return row.second;
+   return "";
+ };
  const auto& platform = payload[0];
  const auto& id       = payload[1];
  const auto& user     = payload[2];
@@ -941,7 +947,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
  KLOG("Platform request from {}", platform);
 
  if (message == REQUEST_SCHEDULE_POLL_STOP)
-   ScheduleIPC({platform, message, args});
+   ScheduleIPC({platform, message, args}, id);
  else
  if (message == REQUEST_PROCESS_POLL_RESULT)
  {
@@ -953,8 +959,8 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
      switch (event.code)
      {
        case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
-         KLOG("CREATE AI TRAINING TASK AND SCHEDULE");
-         m_research_manager.FinalizeMLInputs(id, event.payload);
+         KLOG("Finalizing research data for ML input");
+         m_research_manager.FinalizeMLInputs(GetUUID(id), event.payload);
        break;
        default:
          ELOG("Unable to complete processing result from {} IPC request: Unknown event with code {}", platform, event.code);
@@ -1118,15 +1124,15 @@ int32_t Scheduler::FindMask(const std::string& application_name)
  * ScheduleIPC
  * NOTE: All scheduled IPC commands will run in ONE HOUR's time
  */
-std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v)
+std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid)
 {
   auto GetTime = [](const auto& interval) { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(interval)); };
   const auto   platform = v[0];
   const auto   command  = v[1];
   const auto   data     = v[2];
   const auto   time     = std::to_string(GetTime(Constants::Recurring::HOURLY));
-  const Fields fields   = {"pid",                             "command", "data", "time"};
-  const Values values   = {m_platform.GetPlatformID(platform), command,   data,   time};
+  const Fields fields   = {"pid",                             "command", "data", "time", "p_uuid"};
+  const Values values   = {m_platform.GetPlatformID(platform), command,   data,   time,   uuid};
 
   return m_kdb.insert("ipc", fields, values, "id");
 }
@@ -1139,10 +1145,10 @@ void Scheduler::ProcessIPC()
 
   if (!IPCResponseReceived()) return;
 
-  const auto   filter = QueryComparisonFilter{{"time", "<", TimeUtils::Now()}};
-  const auto   query  = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(
-                          table, fields, {filter, CreateFilter("status", "0")});
-  std::string  id, pid, data, command, time;
+  const auto  filter = QueryComparisonFilter{{"time", "<", TimeUtils::Now()}};
+  const auto  query  = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(
+                         table, fields, {filter, CreateFilter("status", "0")});
+  std::string id, pid, data, command, time;
   for (const auto& value : query)
   {
     if (value.first == "id")      id = value.second;
