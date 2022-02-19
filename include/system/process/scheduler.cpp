@@ -706,7 +706,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         v.emplace_back(JSONItem{p[i], p[i + 1]});
     return v;
   };
-  auto OnTermEvent = [this](const ResearchManager::TermEvent& term_info)
+  auto OnTermEvent = [this](const TermEvent& term_info)
   {
     const auto tid = std::stoi(term_info.tid);
     if (m_term_ids.find(tid) == m_term_ids.end())
@@ -726,7 +726,7 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
     if (QueueFull()) return VLOG("Outbound IPC queue is full");
 
     static const auto request_event = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
-    for (const ResearchManager::ResearchRequest& request : m_research_manager.AnalyzeTW(root, child, subchild))
+    for (const auto& request : m_research_manager.AnalyzeTW(root, child, subchild))
     {
       if (!PollExists(root.id, request.hit.term))
       {
@@ -735,6 +735,8 @@ void Scheduler::PostExecWork(ProcessEventData&& event, Scheduler::PostExecDuo ap
         m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::message, request.data,  CreateOperation("Bot", {dest})));
         m_message_queue.emplace_back(MakeIPCEvent(request_event, TGCommand::poll,    request.title, CreateOperation("Bot",
                                                   {dest, "High", "Some", "Little", "None"})));
+        auto uuid = m_message_queue.back().data.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+        m_research_manager.AddMLInput(uuid, TWResearchInputs{request.emotion, request.sentiment});
         m_research_polls.insert(ResearchPoll{root.id, request.hit.term});
         return; // Limit to one
       }
@@ -952,6 +954,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string>& payload)
      {
        case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
          KLOG("CREATE AI TRAINING TASK AND SCHEDULE");
+         m_research_manager.FinalizeMLInputs(id, event.payload);
        break;
        default:
          ELOG("Unable to complete processing result from {} IPC request: Unknown event with code {}", platform, event.code);

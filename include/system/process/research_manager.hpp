@@ -14,61 +14,6 @@ enum class Study
 poll = 0x00,
 };
 
-
-struct TWResearchInputs
-{
-Emotion<Emotions>        emotions;
-Sentiment                sentiment;
-std::vector<std::string> poll_results;
-};
-
-
-template <typename T = TWResearchInputs>
-struct MLInputGenerator
-{
-
-void operator()(T input)
-{
-  if constexpr (std::is_same_v<T, TWResearchInputs>)
-  {
-    std::stringstream ss;
-    auto&             e = input.emotions;
-    auto&             s = input.sentiment;
-    auto&             p = input.poll_results;
-    ss << e.scores.joy      << ','
-       << e.scores.sadness  << ','
-       << e.scores.surprise << ','
-       << e.scores.fear     << ','
-       << e.scores.anger    << ','
-       << e.scores.disgust  << ','
-       << s.score           << ','
-       << p.at(0)           << ','
-       << p.at(1)           << ','
-       << p.at(2)           << ','
-       << p.at(3)           << '\n';
-   output = ss.str();
-  }
-}
-
-std::string GetResult() const
-{
-  return output;
-}
-
-void clear()
-{
-  output.clear();
-}
-
-std::string output;
-};
-
-using MaskFn = std::function<int32_t(const std::string&)>;
-
-class ResearchManager
-{
-public:
-ResearchManager(Database::KDB* db_ptr, Platform* plat_ptr, MaskFn mask_fn);
 struct Person{
 std::string id;
 std::string name;
@@ -116,7 +61,112 @@ TermHit hit;
 std::string data;
 std::string title;
 Study type;
+Emotion<Emotions> emotion;
+Sentiment sentiment;
 };
+
+
+struct TWResearchInputs
+{
+Emotion<Emotions>        emotions;
+Sentiment                sentiment;
+std::vector<std::string> poll_results;
+};
+
+template <typename T = TWResearchInputs>
+struct MLInputGenerator
+{
+~MLInputGenerator() = default;
+
+void init(const std::string& header)
+{
+  output = header;
+}
+
+void operator()(uint8_t idx, T input)
+{
+  inputs[idx] = input;
+  // if (output.at(idx) == output.end()) return;
+
+  // if constexpr (std::is_same_v<T, TWResearchInputs>)
+  // {
+  //   std::stringstream ss;
+  //   auto&             e = input.emotions;
+  //   auto&             s = input.sentiment;
+  //   auto&             p = input.poll_results;
+  //   ss << '\n' << e.scores.joy      << ','
+  //              << e.scores.sadness  << ','
+  //              << e.scores.surprise << ','
+  //              << e.scores.fear     << ','
+  //              << e.scores.anger    << ','
+  //              << e.scores.disgust  << ','
+  //              << s.score           << ','
+  //              << p.at(0)           << ','
+  //              << p.at(1)           << ','
+  //              << p.at(2)           << ','
+  //              << p.at(3);
+
+  //   output[idx] += ss.str();
+  // }
+}
+
+void Generate()
+{
+  if constexpr (std::is_same_v<T, TWResearchInputs>)
+  {
+    std::stringstream ss;
+    for (const auto [_, input] : inputs)
+    {
+      auto&             e = input.emotions;
+      auto&             s = input.sentiment;
+      auto&             p = input.poll_results;
+      ss << '\n' << e.scores.joy      << ','
+                << e.scores.sadness  << ','
+                << e.scores.surprise << ','
+                << e.scores.fear     << ','
+                << e.scores.anger    << ','
+                << e.scores.disgust  << ','
+                << s.score           << ','
+                << p.at(0)           << ','
+                << p.at(1)           << ','
+                << p.at(2)           << ','
+                << p.at(3);
+    }
+    output += ss.str();
+  }
+}
+
+T& at(uint8_t idx)
+{
+  return inputs.at(idx);
+}
+
+std::string GetResult() const
+{
+  return output;
+}
+
+void clear()
+{
+  output.clear();
+  inputs.clear();
+}
+
+
+
+using input_map_t = std::unordered_map<uint8_t, T>;
+
+input_map_t inputs;
+std::string output;
+
+};
+
+using MaskFn = std::function<int32_t(const std::string&)>;
+
+class ResearchManager
+{
+public:
+ResearchManager(Database::KDB* db_ptr, Platform* plat_ptr, MaskFn mask_fn);
 
 using StudyRequests = std::vector<ResearchRequest>;
 
@@ -158,10 +208,17 @@ bool                   TermHasHits(const std::string& term);
 bool                   TermHitExists(const std::string& term, const std::string& time) const;
 StudyRequests          AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, const TaskWrapper& subchild);
 
+template <typename T>
+void                   AddMLInput(const std::string& id, const T& input);
+void                   GenerateMLData();
+std::string            GetMLData();
+void                   FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data);
 
 private:
+using MLGenerator = MLInputGenerator<TWResearchInputs>;
 Database::KDB* m_db_ptr;
 Platform*      m_plat_ptr;
 MaskFn         m_mask_fn;
+MLGenerator    m_ml_generator;
 };
 } // ns kiq
