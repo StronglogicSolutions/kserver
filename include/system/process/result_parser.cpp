@@ -320,7 +320,8 @@ bool IGFeedResultParser::read(const std::string& s)
             ig_item.content = k.value.GetString();
           else
           if (strcmp(k.name.GetString(), "urls") == 0 && k.value.IsArray() && !k.value.Empty())
-            ig_item.media_urls.emplace_back(k.value.GetArray()[0].GetString()); // TODO: Confirm we only want first
+            for (const auto& url : k.value.GetArray())
+              ig_item.media_urls.emplace_back(url.GetString());
         }
       }
       m_feed_items.emplace_back(std::move(ig_item));
