@@ -684,8 +684,13 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   {
     static const bool &immediately = false;
     CompleteTask(id);
-    if (AllTasksComplete(map))
+    if (AllTasksComplete(map) && (m_message_queue.size() > 1))
       ResolvePending(immediately);
+    else
+    {
+      KLOG("Research results: no actions");
+      m_message_queue.clear();
+    }
   };
   auto GetTokens = [](const auto &p)
   {
@@ -955,7 +960,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
     if (IPCResponseReceived())
     {
       m_research_manager.GenerateMLData();
-      m_message_queue.emplace_back(MakeIPCEvent(plat_req, TGCommand::message, GetMLData(), DefaultTGOP()));
+      m_message_queue.emplace_back(MakeIPCEvent(plat_req, TGCommand::message, GetMLData(),            DefaultTGOP()));
       ResolvePending();
     }
   }
@@ -1053,20 +1058,13 @@ bool Scheduler::IPCNotPending() const
 
 void Scheduler::ResolvePending(const bool &check_timer)
 {
-  if (check_timer && (!timer.active() || !timer.expired()))
-    return;
-  if (m_message_queue.size() < 2)
+  if (check_timer && (!timer.active() || !timer.expired())) return;
+
+  KLOG("Resolving pending IPC messages");
+  for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
   {
-    KLOG("Research results: no actions");
-  }
-  else
-  {
-    KLOG("Resolving pending IPC messages");
-    for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
-    {
-      const auto ipc_event = *(buffer);
-      m_event_callback(ALL_CLIENTS, ipc_event.event, ipc_event.data);
-    }
+    const auto ipc_event = *(buffer);
+    m_event_callback(ALL_CLIENTS, ipc_event.event, ipc_event.data);
   }
 
   m_message_queue.clear();
