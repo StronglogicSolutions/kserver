@@ -26,20 +26,26 @@ const std::unordered_map<spdlog::level::level_enum, std::string> LogLevelStrings
 KLogger::KLogger(const std::string& logging_level)
 {
   using loglevel = spdlog::level::level_enum;
-  bool timestamp = (config::Logging::timestamp() == "true");
-
+  using sinks_t  = std::vector<spdlog::sink_ptr>;
+  const bool timestamp = (config::Logging::timestamp() == "true");
+  const auto path      =  config::Logging::path();
   try
   {
     static const auto        console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    static const auto        file_sink    = std::make_shared<spdlog::sinks::basic_file_sink_mt>(path);
     static const loglevel    level        = LogLevel.at(logging_level);
     static const std::string format       = (timestamp) ? "KLOG [%^%l%$] - %T.%e - %4!#:%-20!s%-22!!%v" :
                                                           "KLOG [%^%l%$] - %4!#:%-20!s%-22!!%v";
 
-    console_sink->set_level((logging_level.empty()) ? LogLevel.at(config::Logging::level()) :
-                                                      LogLevel.at(logging_level));
+    const auto final_loglevel = (logging_level.empty()) ? LogLevel.at(config::Logging::level()) : LogLevel.at(logging_level);
+
+    console_sink->set_level(final_loglevel);
     console_sink->set_pattern(format);
+    file_sink   ->set_level(final_loglevel);
+    file_sink   ->set_pattern(format);
     spdlog::      set_pattern(format);
-    spdlog::set_default_logger(std::make_shared<spdlog::logger>(spdlog::logger("KLOG", console_sink)));
+    sinks_t sinks{console_sink, file_sink};
+    spdlog::set_default_logger(std::make_shared<spdlog::logger>(spdlog::logger("KLOG", sinks.begin(), sinks.end())));
     spdlog::set_level(level);
     spdlog::flush_on(spdlog::level::info);
 
