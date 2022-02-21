@@ -686,13 +686,13 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     CompleteTask(id);
     if (AllTasksComplete(map))
     {
-      if (m_message_queue.size() > 1)
-        ResolvePending(IMMEDIATELY);
-      else
+      if (m_message_queue.size() < 2)
       {
         KLOG("Research results: no actions");
         m_message_queue.clear();
       }
+
+      ResolvePending(IMMEDIATELY);
     }
   };
   auto GetTokens = [](const auto &p)
@@ -1129,8 +1129,8 @@ int32_t Scheduler::FindMask(const std::string &application_name)
  */
 std::string Scheduler::ScheduleIPC(const std::vector<std::string> &v, const std::string &uuid)
 {
-  auto GetTime = [](const auto &interval) { return std::stoi(TimeUtils::Now()) + 60; };
-  // { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(interval)); };
+  auto GetTime = [](const auto &interval)
+  { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(interval)); };
   const auto platform = v[0];
   const auto command  = v[1];
   const auto data     = v[2];
