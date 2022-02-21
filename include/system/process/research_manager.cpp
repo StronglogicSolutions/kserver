@@ -97,7 +97,6 @@ ResearchManager::ResearchManager(Database::KDB *db_ptr, Platform *plat_ptr, Mask
   m_plat_ptr(plat_ptr),
   m_mask_fn(mask_fn)
 {
-  m_ml_generator.init("label,1x1,1x2");
 }
 
 /**
@@ -514,14 +513,17 @@ void ResearchManager::GenerateMLData()
 void ResearchManager::FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data)
 {
   VLOG("Adding data to model input data generator from research with ID {}", id);
-  m_ml_generator.at(std::stoi(id)).poll_results = data; // TODO: poll results must be parsed
+  m_ml_generator.at(id).poll_results = data; // TODO: poll results must be parsed
 }
 
 template <typename T>
 void ResearchManager::AddMLInput(const std::string& id, const T& input)
 {
+  if (!m_ml_generator.has_data())
+    m_ml_generator.init("label,1x1,1x2");
+
   VLOG("Adding research data with ID {}");
-  m_ml_generator.operator()(std::stoi(id), input);
+  m_ml_generator.operator()(id, input);
 }
 template void ResearchManager::AddMLInput(const std::string&, const TWResearchInputs&);
 

@@ -8,6 +8,7 @@ namespace kiq
 {
 using namespace ::constants;
 static Timer timer;
+static const bool         IMMEDIATELY           = false;
 static const size_t       QUEUE_LIMIT           = 0x05;
 static const std::string  IPC_MESSAGE_HEADER    = "KIQ is now tracking the following terms:";
 static const uint32_t     IPC_PLATFORM_REQUEST  = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
@@ -682,14 +683,16 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   { item.value = StringUtils::RemoveTags(item.value); };
   auto Finalize = [&map, this, CompleteTask](int32_t id)
   {
-    static const bool &immediately = false;
     CompleteTask(id);
-    if (AllTasksComplete(map) && (m_message_queue.size() > 1))
-      ResolvePending(immediately);
-    else
+    if (AllTasksComplete(map))
     {
-      KLOG("Research results: no actions");
-      m_message_queue.clear();
+      if (m_message_queue.size() > 1)
+        ResolvePending(IMMEDIATELY);
+      else
+      {
+        KLOG("Research results: no actions");
+        m_message_queue.clear();
+      }
     }
   };
   auto GetTokens = [](const auto &p)
@@ -960,8 +963,8 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
     if (IPCResponseReceived())
     {
       m_research_manager.GenerateMLData();
-      m_message_queue.emplace_back(MakeIPCEvent(plat_req, TGCommand::message, GetMLData(),            DefaultTGOP()));
-      ResolvePending();
+      m_message_queue.emplace_back(MakeIPCEvent(plat_req, TGCommand::message, GetMLData(), DefaultTGOP()));
+      ResolvePending(IMMEDIATELY);
     }
   }
 }

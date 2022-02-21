@@ -83,31 +83,9 @@ void init(const std::string& header)
   output = header;
 }
 
-void operator()(uint8_t idx, T input)
+void operator()(const std::string& idx, T input)
 {
   inputs[idx] = input;
-  // if (output.at(idx) == output.end()) return;
-
-  // if constexpr (std::is_same_v<T, TWResearchInputs>)
-  // {
-  //   std::stringstream ss;
-  //   auto&             e = input.emotions;
-  //   auto&             s = input.sentiment;
-  //   auto&             p = input.poll_results;
-  //   ss << '\n' << e.scores.joy      << ','
-  //              << e.scores.sadness  << ','
-  //              << e.scores.surprise << ','
-  //              << e.scores.fear     << ','
-  //              << e.scores.anger    << ','
-  //              << e.scores.disgust  << ','
-  //              << s.score           << ','
-  //              << p.at(0)           << ','
-  //              << p.at(1)           << ','
-  //              << p.at(2)           << ','
-  //              << p.at(3);
-
-  //   output[idx] += ss.str();
-  // }
 }
 
 void Generate()
@@ -136,7 +114,7 @@ void Generate()
   }
 }
 
-T& at(uint8_t idx)
+T& at(const std::string& idx)
 {
   return inputs.at(idx);
 }
@@ -152,9 +130,14 @@ void clear()
   inputs.clear();
 }
 
+bool has_data() const
+{
+  return (output.size() > 0);
+}
 
 
-using input_map_t = std::unordered_map<uint8_t, T>;
+
+using input_map_t = std::unordered_map<std::string, T>;
 
 input_map_t inputs;
 std::string output;
