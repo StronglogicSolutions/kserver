@@ -97,7 +97,7 @@ using PostExecMap     = std::unordered_map<int32_t, PostExecTuple>;
 using PostExecLists   = std::unordered_map<int32_t, TaskWrapper*>;
 using ApplicationInfo = std::pair<int32_t, std::string>;
 using ApplicationMap  = std::unordered_map<int32_t, std::string>;
-using TermEvents      = std::vector<ResearchManager::TermEvent>;
+using TermEvents      = std::vector<TermEvent>;
 
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
@@ -105,7 +105,7 @@ using TermEvents      = std::vector<ResearchManager::TermEvent>;
 virtual ~Scheduler() override;
 
 virtual std::string               schedule(Task task) override;
-        std::string               ScheduleIPC(const std::vector<std::string>& v);
+        std::string               ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid);
         void                      ProcessIPC();
 
         Task                      parseTask(QueryValues&& result);

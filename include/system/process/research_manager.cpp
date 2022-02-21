@@ -1,6 +1,7 @@
 #include "research_manager.hpp"
 
 namespace kiq {
+static const char* POLL_Q = "Rate the civilization impact:";
 /**
  * VerifyTerm
  */
@@ -47,9 +48,9 @@ bool VerifyTerm(const std::string &term)
 /**
  * ParseTermEvents
  */
-static std::vector<ResearchManager::TermEvent> ParseTermEvents(const QueryValues &values)
+static std::vector<TermEvent> ParseTermEvents(const QueryValues &values)
 {
-  using Event = ResearchManager::TermEvent;
+  using Event = TermEvent;
   using Events = std::vector<Event>;
 
   Events events;
@@ -101,7 +102,7 @@ ResearchManager::ResearchManager(Database::KDB *db_ptr, Platform *plat_ptr, Mask
 /**
  * ToString
  */
-std::string ResearchManager::TermHit::ToString() const
+std::string TermHit::ToString() const
 {
   return "Person: " + person + '\n' +
          "User:   " + user + '\n' +
@@ -204,7 +205,7 @@ std::string ResearchManager::GetPerson(const std::string &name)
 /**
  * GetPersonForUID
  */
-ResearchManager::Person ResearchManager::GetPersonForUID(const std::string &uid)
+Person ResearchManager::GetPersonForUID(const std::string &uid)
 {
   Person person{};
   const Fields fields{"platform_user.pers_id", "person.name"};
@@ -222,7 +223,7 @@ ResearchManager::Person ResearchManager::GetPersonForUID(const std::string &uid)
 /**
  * GetIdentity
  */
-ResearchManager::Identity ResearchManager::GetIdentity(const std::string &name, const std::string &pid)
+Identity ResearchManager::GetIdentity(const std::string &name, const std::string &pid)
 {
   if (name.empty() || pid.empty())
     throw std::invalid_argument{"Must provide name and platform id"};
@@ -282,7 +283,7 @@ bool ResearchManager::TermHasHits(const std::string &term)
 /**
  * valid
  */
-bool ResearchManager::TermEvent::valid() const
+bool TermEvent::valid() const
 {
   return (id.size());
 }
@@ -290,7 +291,7 @@ bool ResearchManager::TermEvent::valid() const
 /**
  * ToString
  */
-std::string ResearchManager::TermEvent::ToString(const bool verbose) const
+std::string TermEvent::ToString(const bool verbose) const
 {
   return (verbose) ? "ID  : " + id + '\n' +
                          "Term: " + term + '\n' +
@@ -302,7 +303,7 @@ std::string ResearchManager::TermEvent::ToString(const bool verbose) const
                          "Term \"" + term + "\" of type " + type + " by " + user + " (" + person + ") from " + organization + '\n';
 }
 
-std::string ResearchManager::TermEvent::ToJSON() const
+std::string TermEvent::ToJSON() const
 {
   rapidjson::StringBuffer s;
   Writer<rapidjson::StringBuffer, rapidjson::Document::EncodingType, ASCII<>> w(s);
@@ -328,7 +329,7 @@ std::string ResearchManager::TermEvent::ToJSON() const
 /**
  * RecordtermEvent
  */
-ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task, const std::string& time)
+TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, const std::string& user, const std::string& app, const Task& task, const std::string& time)
 {
   TermEvent event{};
   event.term = term.value;
@@ -358,7 +359,7 @@ ResearchManager::TermEvent ResearchManager::RecordTermEvent(JSONItem&& term, con
 /**
  * GetTermHits
  */
-std::vector<ResearchManager::TermHit> ResearchManager::GetTermHits(const std::string &term)
+std::vector<TermHit> ResearchManager::GetTermHits(const std::string &term)
 {
   auto db = m_db_ptr;
   const auto DoQuery = [&db](const std::string &tid) -> QueryValues
@@ -418,7 +419,7 @@ std::string ResearchManager::AddTerm(const std::string &name, const std::string 
   return m_db_ptr->insert("term", {"name", "type"}, {name, type}, "id");
 }
 
-std::vector<ResearchManager::TermEvent> ResearchManager::GetAllTermEvents() const
+std::vector<TermEvent> ResearchManager::GetAllTermEvents() const
 {
   auto db = m_db_ptr;
   const Fields fields{"term_hit.id", "term.id", "term.name", "term.type", "term_hit.time", "platform_user.name", "organization.name", "person.name"};
@@ -441,7 +442,7 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
   using Emotion   = Emotion<Emotions>;
   using Sentiment = Sentiment;
   using Terms     = std::vector<JSONItem>;
-  using Hits      = std::vector<ResearchManager::TermHit>;
+  using Hits      = std::vector<TermHit>;
 
   auto  FindMask        = m_mask_fn;
   auto  MakePollMessage = [](const auto& text, const auto& emo, const auto& sts, const auto& hit)
@@ -478,16 +479,15 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
   const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
   const Hits        hits           = GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
 
-  for (const ResearchManager::TermHit& hit : hits)
+  for (const TermHit& hit : hits)
   {
-    std::string data   = MakePollMessage(child_text, child_emo, child_sts, hit.ToString());
-    std::string poll_q = "Rate the civilization impact:";
-    requests.emplace_back(
-      ResearchRequest{
-        .hit   = hit,
-        .data  = data,
-        .title = poll_q,
-        .type  = Study::poll});
+    requests.emplace_back(ResearchRequest{
+      hit,
+      MakePollMessage(child_text, child_emo, child_sts, hit.ToString()),
+      POLL_Q,
+      Study::poll,
+      child_emo,
+      child_sts});
   }
   return requests;
 }
@@ -501,4 +501,37 @@ bool ResearchManager::TermHitExists(const std::string& term, const std::string& 
      return true;
   return false;
 }
+
+
+void ResearchManager::GenerateMLData()
+{
+  KLOG("Generating model training data");
+  m_ml_generator.Generate();
+}
+
+
+void ResearchManager::FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data)
+{
+  VLOG("Adding data to model input data generator from research with ID {}", id);
+  m_ml_generator.at(id).poll_results = data; // TODO: poll results must be parsed
+}
+
+template <typename T>
+void ResearchManager::AddMLInput(const std::string& id, const T& input)
+{
+  if (!m_ml_generator.has_data())
+    m_ml_generator.init("label,1x1,1x2");
+
+  VLOG("Adding research data with ID {}");
+  m_ml_generator.operator()(id, input);
+}
+template void ResearchManager::AddMLInput(const std::string&, const TWResearchInputs&);
+
+std::string ResearchManager::GetMLData()
+{
+  VLOG("Getting model training data");
+  return m_ml_generator.GetResult();
+}
+
+
 } // ns kiq
