@@ -489,7 +489,6 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
       Study::poll,
       child_emo,
       child_sts});
-    // m_ml_generator()
   }
   return requests;
 }
@@ -507,25 +506,28 @@ bool ResearchManager::TermHitExists(const std::string& term, const std::string& 
 
 void ResearchManager::GenerateMLData()
 {
+  KLOG("Generating model training data");
   m_ml_generator.Generate();
-  // TODO: use output
 }
 
 
 void ResearchManager::FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data)
 {
-  m_ml_generator.at(std::stoi(id)).poll_results = data;
+  VLOG("Adding data to model input data generator from research with ID {}", id);
+  m_ml_generator.at(std::stoi(id)).poll_results = data; // TODO: poll results must be parsed
 }
 
 template <typename T>
 void ResearchManager::AddMLInput(const std::string& id, const T& input)
 {
+  VLOG("Adding research data with ID {}");
   m_ml_generator.operator()(std::stoi(id), input);
 }
 template void ResearchManager::AddMLInput(const std::string&, const TWResearchInputs&);
 
 std::string ResearchManager::GetMLData()
 {
+  VLOG("Getting model training data");
   return m_ml_generator.GetResult();
 }
 
