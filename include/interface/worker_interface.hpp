@@ -3,24 +3,26 @@
 #include <thread>
 
 class Worker {
- public:
+public:
   Worker()
   : m_is_running(false) {}
 
-  virtual void start() {
+  virtual void start()
+  {
     m_is_running = true;
     m_thread = std::thread(Worker::run, this);
   }
 
-  static void run(void* worker) {
+  static void run(void* worker)
+  {
     static_cast<Worker*>(worker)->loop();
   }
 
-  void stop() {
+  void stop()
+  {
     m_is_running = false;
-    if (m_thread.joinable()) {
+    if (m_thread.joinable())
       m_thread.join();
-    }
   }
 
  bool        m_is_running;

@@ -48,11 +48,11 @@ std::string type;
 std::string time;
 std::string tid;
 
-bool        valid() const;
-std::string ToString(const bool verbose = false) const;
-std::string ToJSON()                             const;
+bool        valid()                            const;
+std::string to_str(const bool verbose = false) const;
+std::string to_JSON()                          const;
 
-static std::string NToString(const std::vector<TermEvent>& events);
+static std::string to_str(const std::vector<TermEvent>& events);
 };
 
 struct ResearchRequest

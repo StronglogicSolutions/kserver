@@ -629,7 +629,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     {
       Payload event_args{};
       for (const auto& term_data : m_scheduler.FetchTermEvents())
-        event_args.emplace_back(term_data.ToJSON());
+        event_args.emplace_back(term_data.to_JSON());
       m_system_event(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
     }
     break;

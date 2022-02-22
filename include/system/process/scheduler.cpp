@@ -10,7 +10,7 @@ using namespace ::constants;
 static Timer timer;
 static const bool         IMMEDIATELY           = false;
 static const size_t       QUEUE_LIMIT           = 0x05;
-static const std::string  IPC_MESSAGE_HEADER    = "KIQ is now tracking the following terms:";
+static const std::string  IPC_MESSAGE_HEADER    = "KIQ is now tracking the following terms\n";
 static const uint32_t     IPC_PLATFORM_REQUEST  = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
 static const Fields       DEFAULT_TASK_FIELDS   = {Field::ID, Field::TIME, Field::MASK, Field::FLAGS,
                                                    Field::ENVFILE, Field::COMPLETED, Field::NOTIFY, Field::RECURRING};
@@ -707,7 +707,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     const auto tid = std::stoi(term_info.tid);
     if (m_term_ids.find(tid) == m_term_ids.end())
     {
-      m_message_queue.front().append_msg(term_info.ToString());
+      m_message_queue.front().append_msg(term_info.to_str());
       m_term_ids.insert(tid);
     }
   };
