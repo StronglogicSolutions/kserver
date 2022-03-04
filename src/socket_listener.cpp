@@ -79,7 +79,7 @@ void SocketListener::onMessageReceived(int32_t                  client_socket_fd
  */
 void SocketListener::onConnectionClose(int client_socket_fd)
 {
-  throw -1;
+  std::cerr << "onConnectionClose should be overridden" << std::endl;
 }
 
 /**
@@ -124,8 +124,7 @@ void SocketListener::init(bool test_mode)
 {
   m_test_mode = test_mode;
   std::cout << "Initializing socket listener" << std::endl;
-  u_task_queue_ptr = std::make_unique<TaskQueue>();
-  u_task_queue_ptr->initialize();
+  m_task_queue.initialize();
 }
 
 void SocketListener::handleClientSocket(int32_t                           client_socket_fd,
@@ -187,7 +186,7 @@ void SocketListener::run()
 
         std::cout << "Placing client in queue" << std::endl;
 
-        u_task_queue_ptr->pushToQueue(
+        m_task_queue.pushToQueue(
             std::bind(&SocketListener::handleClientSocket, this,
                       client_socket_fd, message_handler,
                       std::forward<std::shared_ptr<uint8_t[]>>(s_buffer_ptr)));

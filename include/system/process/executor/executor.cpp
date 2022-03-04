@@ -7,33 +7,26 @@ const uint8_t SCHEDULED_REQUEST = 1;
 const uint8_t RECURRING_REQUEST = 2;
 } // namespace constants
 
-const char* findWorkDir(std::string_view path) {
-  return path.substr(0, path.find_last_of("/")).data();
-}
+static std::string findWorkDir(std::string path) { return (path.size()) ? path.substr(0, path.find_last_of("/")) : ""; }
 
 /** Impl */
-ProcessResult run_(std::string_view path, std::vector<std::string> argv) {
-  std::vector<std::string> v_args{};
-  v_args.reserve(argv.size() + 1);
-  v_args.push_back(std::string(path));
-  for (auto&& arg : argv) {
-    v_args.push_back(arg);
-  }
+ProcessResult run_(std::string path, std::vector<std::string> argv)
+{
+  std::vector<std::string> v;
+  v.reserve(argv.size() + 1);
+  v.push_back(std::string(path));
+  for (auto&& arg : argv)
+    v.push_back(arg);
 
-  std::string work_dir{findWorkDir(path)};
-
-  /* qx wraps calls to fork() and exec() */
-  return qx(v_args, work_dir);
+  return qx(v, findWorkDir(path));
 }
 
-ProcessDaemon::ProcessDaemon(std::string_view path, std::vector<std::string> argv)
+ProcessDaemon::ProcessDaemon(std::string path, std::vector<std::string> argv)
   : m_path(std::move(path)), m_argv(std::move(argv)) {}
 
-/** Uses async and future to call implementation*/
-ProcessResult ProcessDaemon::run() {
-  std::future<ProcessResult> result_future =
-      std::async(std::launch::async, &run_, m_path, m_argv);
-  return result_future.get();
+ProcessResult ProcessDaemon::run()
+{
+  return run_(m_path, m_argv);
 }
 
 ProcessExecutor::ProcessExecutor(const ProcessExecutor &e)
@@ -84,7 +77,7 @@ void ProcessExecutor::notifyTrackedProcessEvent(std::string std_out, int mask,
 }
 
 //   /* Request execution of an anonymous task */
-void ProcessExecutor::request(std::string_view         path,
+void ProcessExecutor::request(std::string         path,
                               int                      mask,
                               int                      client_socket_fd,
                               std::vector<std::string> argv) {
@@ -98,36 +91,32 @@ void ProcessExecutor::request(std::string_view         path,
   }
 }
 //   /** Request the running of a process being tracked with an ID */
-void ProcessExecutor::request(std::string_view         path,
+void ProcessExecutor::request(std::string         path,
                               int                      mask,
                               int                      client_socket_fd,
                               std::string              id,
                               std::vector<std::string> argv,
-                              uint8_t                  type) {
-  if (path[0] != '\0') {
-    ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
-    auto result = pd_ptr->run();
-    if (!result.output.empty()) {
-      notifyTrackedProcessEvent(result.output, mask, id, client_socket_fd,
-                                result.error);
-      if (!result.error && type != constants::IMMEDIATE_REQUEST) {
+                              uint8_t                  type)
+{
+  if (path.size() && path[0])
+  {
+    ProcessDaemon pd(path, argv);
+    auto result = pd.run();
+
+    if (!result.output.empty())
+    {
+      notifyTrackedProcessEvent(result.output, mask, id, client_socket_fd, result.error);
+
+      if (!result.error && type != constants::IMMEDIATE_REQUEST)
+      {
         Database::KDB kdb{};
 
-        auto COMPLETED =
-          type == constants::RECURRING_REQUEST ?
-           Completed::STRINGS[Completed::SCHEDULED] :
-           Completed::STRINGS[Completed::SUCCESS];
-
-        std::string result = kdb.update("schedule",               // table
-                                        {"completed"},            // field
-                                        {COMPLETED},              // value
-                                        CreateFilter("id", id),
-                                        "id"  // field value to return
-        );
+        auto COMPLETED = (type == constants::RECURRING_REQUEST) ? Completed::STRINGS[Completed::SCHEDULED] :
+                                                                  Completed::STRINGS[Completed::SUCCESS];
+        std::string result = kdb.update("schedule", {"completed"}, {COMPLETED}, CreateFilter("id", id), "id");
         KLOG("Updated task {} to reflect its completion", result);
       }
     }
-    delete pd_ptr;
   }
 }
 
@@ -148,19 +137,19 @@ bool ProcessExecutor::saveResult(uint32_t mask, T status, uint32_t time) {
           std::to_string(time),
           std::to_string(status)},
           "id");                             // return
-      if (!id.empty()) {
+      if (!id.empty())
+      {
         KLOG("Recorded process {} with result of {} at {}",
-          app_info.name,
-          Completed::NAMES[status],
-          TimeUtils::FormatTimestamp(time)
-        );
-
+          app_info.name, Completed::NAMES[status], TimeUtils::FormatTimestamp(time));
         return true;
       }
     }
-  } catch (const pqxx::sql_error &e) {
+  } catch (const pqxx::sql_error &e)
+  {
     ELOG("Insert query failed: {}", e.what());
-  } catch (const std::exception &e) {
+  }
+  catch (const std::exception &e)
+  {
     ELOG("Insert query failed: {}", e.what());
   }
 
@@ -181,17 +170,16 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task)
   if (environment.prepareRuntime())
   {
     ExecutionState exec_state = environment.get();
-    request(
-      exec_state.path,
-      task.execution_mask,
-      client_socket_fd,
-      task.id(),
-      exec_state.argv,
-      (task.recurring) ?
-        constants::RECURRING_REQUEST :
-        constants::SCHEDULED_REQUEST
-    );
-  } // TODO: Handle failed preparation -> tasks can get stuck in the request_handler's task map
+    request(exec_state.path,
+            task.execution_mask,
+            client_socket_fd,
+            task.id(),
+            exec_state.argv,
+            (task.recurring) ? constants::RECURRING_REQUEST : constants::SCHEDULED_REQUEST);
+
+  }
+  else
+    ELOG("Failed to prepare runtime environment for task {}", task.task_id);
 }
 
 template <typename T>

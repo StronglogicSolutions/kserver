@@ -316,15 +316,20 @@ static int8_t TW_RESEARCH_IDX{0x04};
 static int8_t NER_IDX        {0x05};
 static int8_t EMOTION_IDX    {0x06};
 static int8_t SENTIMENT_IDX  {0x07};
+static const char* KNLP_APPLICATIONS[]{
+  "KNLP - NER",
+  "KNLP - Emotion",
+  "KNLP - Sentiment"
+};
 static const char* REQUIRED_APPLICATIONS[]{
   "IG Feed",
   "YT Feed",
   "TW Feed",
   "TW Search",
   "TW Research",
-  "KNLP - NER",
-  "KNLP - Emotion",
-  "KNLP - Sentiment"
+  KNLP_APPLICATIONS[0],
+  KNLP_APPLICATIONS[1],
+  KNLP_APPLICATIONS[2]
 };
 static const int8_t      REQUIRED_APPLICATION_NUM{7};
 static const std::string TW_RESEARCH_APP   {REQUIRED_APPLICATIONS[TW_RESEARCH_IDX]};

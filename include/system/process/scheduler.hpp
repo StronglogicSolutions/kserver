@@ -58,7 +58,7 @@ virtual ~DeferInterface() {}
 class CalendarManagerInterface
 {
 public:
-virtual std::vector<Task> fetchTasks() = 0;
+virtual std::vector<Task> fetchTasks(bool extensive) = 0;
 virtual ~CalendarManagerInterface() {}
 };
 
@@ -94,7 +94,7 @@ virtual std::string               schedule(Task task) override;
                                              bool          parse_files = false,
                                              bool          is_recurring = false);
 
-virtual std::vector<Task>         fetchTasks() override;
+virtual std::vector<Task>         fetchTasks(bool extensive = true) override;
         std::vector<Task>         fetchTasks(const std::string& mask,        const std::string& date_range = "0TO0",
                                              const std::string& count = "0", const std::string& limit = "0",
                                              const std::string& order = "asc");

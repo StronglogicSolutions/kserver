@@ -105,7 +105,7 @@ class SocketListener : public SendInterface, public ListenInterface {
   // Server arguments
   std::string                 m_ip_address;
   int                         m_port;
-  std::unique_ptr<TaskQueue>  u_task_queue_ptr;
+  TaskQueue                   m_task_queue;
   bool                        m_service_enabled;
   bool                        m_test_mode;
 };

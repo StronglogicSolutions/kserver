@@ -13,14 +13,8 @@ static flatbuffers::FlatBufferBuilder builder(1024);
  */
 Controller::Controller()
 : m_active(true),
-  m_executor(nullptr),
-  m_scheduler(
-    [this](const int32_t&                  client_socket_fd,
-           const int32_t&                  event,
-           const std::vector<std::string>& args)
-  {
-    onSchedulerEvent(client_socket_fd, event, args);
-  }),
+  // m_executor(nullptr),
+  m_scheduler([this](int32_t fd, int32_t evt, const std::vector<std::string>& args) { onSchedulerEvent(fd, evt, args); }),
   m_ps_exec_count(0),
   m_client_rq_count(0),
   m_system_rq_count(0),
@@ -37,7 +31,7 @@ Controller::Controller(Controller &&r)
   m_executor(r.m_executor),
   m_scheduler(nullptr)
 {
-  r.m_executor = nullptr;
+  // r.m_executor = nullptr;
 }
 
 /**
@@ -47,7 +41,7 @@ Controller::Controller(Controller &&r)
  */
 Controller::Controller(const Controller &r)
 : m_active(r.m_active),
-  m_executor(nullptr),
+  // m_executor(nullptr),
   m_scheduler(nullptr)
 {}
 
@@ -58,7 +52,8 @@ Controller::Controller(const Controller &r)
  */
 Controller& Controller::operator=(const Controller &handler)
 {
-  this->m_executor  = nullptr;
+  // this->m_executor  = nullptr;
+  this->m_executor = handler.m_executor;
   return *this;
 }
 
@@ -69,11 +64,12 @@ Controller& Controller::operator=(const Controller &handler)
  */
 Controller& Controller::operator=(Controller&& handler)
 {
-  if (&handler != this) {
-    delete m_executor;
+  if (&handler != this)
+  {
+    // delete m_executor;
     m_executor          = handler.m_executor;
     m_active            = handler.m_active;
-    handler.m_executor  = nullptr;
+    // handler.m_executor  = nullptr;
   }
   return *this;
 }
@@ -86,8 +82,8 @@ Controller& Controller::operator=(Controller&& handler)
  */
 Controller::~Controller()
 {
-  if (m_executor != nullptr)
-    delete m_executor;
+  // if (m_executor != nullptr)
+  //   delete m_executor;
 
   if (m_maintenance_worker.joinable())
   {
@@ -109,8 +105,8 @@ void Controller::Initialize(ProcessCallbackFn process_callback_fn,
                             StatusCallbackFn  status_callback_fn)
 {
   const bool scheduled_task{true};
-  m_executor = new ProcessExecutor();
-  m_executor->setEventCallback(
+  // m_executor = new ProcessExecutor();
+  m_executor.setEventCallback(
     [this, scheduled_task](const std::string&  result,
                             const int32_t&     mask,
                             const std::string& id,
@@ -162,6 +158,8 @@ void Controller::InfiniteLoop()
 {
   static const int32_t client_fd{ALL_CLIENTS};
   static       Timer   timer{Timer::TEN_MINUTES};
+  static Scheduler     scheduler{
+    [this](int32_t fd, int32_t evt, const std::vector<std::string>& args) { onSchedulerEvent(fd, evt, args); }};
   KLOG("Worker starting");
   timer.start();
   while (m_active)
@@ -169,8 +167,8 @@ void Controller::InfiniteLoop()
     std::unique_lock<std::mutex> lock(m_mutex);
     m_condition.wait(lock, [this]() { return !m_wait; });
 
-    std::vector<Task> tasks = m_scheduler.fetchTasks();
-    for (auto&& recurring_task : m_scheduler.fetchRecurringTasks())
+    std::vector<Task> tasks = scheduler.fetchTasks();
+    for (auto&& recurring_task : scheduler.fetchRecurringTasks())
       tasks.emplace_back(recurring_task);
 
     if (!tasks.empty())
@@ -207,8 +205,8 @@ void Controller::InfiniteLoop()
       timer.start();
     }
 
-    m_scheduler.ProcessIPC();
-    m_scheduler.ResolvePending();
+    scheduler.ProcessIPC();
+    scheduler.ResolvePending();
     m_condition.wait_for(lock, std::chrono::milliseconds(5000));
   }
 
@@ -223,27 +221,25 @@ void Controller::InfiniteLoop()
 void Controller::HandlePendingTasks()
 {
   auto MakeError = [](const char* e_msg) { return fmt::format("Exception caught while executing process: {}", e_msg); };
-  try
+
+  for (auto client_it = m_tasks_map.begin(); client_it != m_tasks_map.end();)
   {
-    if (m_tasks_map.size())
+    for (auto task_it = client_it->second.begin(); task_it != client_it->second.end();)
     {
-      std::vector<std::future<void>> futures{};
-
-      for (const auto &client_tasks : m_tasks_map)
-        if (!client_tasks.second.empty())
-          for (const auto &task : client_tasks.second)
-            futures.push_back(std::async(std::launch::deferred,
-              &ProcessExecutor::executeTask, std::ref(*(m_executor)), client_tasks.first, task));
-      for (auto&& future : futures) future.get();
+      try
+      {
+        m_executor.executeTask(client_it->first, *task_it);
+        task_it = client_it->second.erase(task_it);
+      }
+      catch(const std::exception& e)
+      {
+        ELOG("Exception thrown while executing task {} for {}:\n{}", task_it->task_id, client_it->first, e.what());
+        SystemUtils::SendMail(config::System::admin(), MakeError(e.what()));
+        task_it++;
+      }
     }
+    client_it = m_tasks_map.erase(client_it);
   }
-  catch(const std::exception& e)
-  {
-    const auto error = MakeError(e.what());
-    ELOG(error);
-    SystemUtils::SendMail(config::System::admin(), error);
-  }
-
 }
 
 /**
@@ -350,17 +346,13 @@ std::vector<KApplication> Controller::CreateSession()
 
   for (const auto& row : m_kdb.select(name, fields, QueryFilter{}))
   {
-    if (row.first == "name")
-      command.name = row.second;
-      else
-      if (row.first == "mask")
-      command.mask = row.second;
-      else
-      if (row.first == "path")
-      command.path = row.second;
-      else
-      if (row.first == "data")
-      command.data = row.second;
+    if (row.first == "name") command.name = row.second;
+    else
+    if (row.first == "mask") command.mask = row.second;
+    else
+    if (row.first == "path") command.path = row.second;
+    else
+    if (row.first == "data") command.data = row.second;
 
     if (i == 3)
     {
@@ -529,7 +521,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       KLOG("Fetched {} scheduled tasks for client", size);
 
       for (const auto& task : tasks)
-        ReadTask(m_executor->GetAppInfo(task.execution_mask).name, task, payload);
+        ReadTask(m_executor.GetAppInfo(task.execution_mask).name, task, payload);
 
       m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
       m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
@@ -720,7 +712,7 @@ void Controller::onProcessComplete(const std::string& value,
 
         task_it->completed = status;                            // Update status
         m_scheduler.updateStatus(&*task_it, value);             // Failed tasks will re-run once more
-        m_executor->saveResult(mask, 1, TimeUtils::UnixTime()); // Save execution result
+        m_executor.saveResult(mask, 1, TimeUtils::UnixTime()); // Save execution result
 
         if (!error && task_it->recurring)                       // If no error, update last execution time
         {

@@ -4,7 +4,7 @@
 #include <future>
 #include <iostream>
 #include <string>
-#include <string_view>
+#include <string>
 
 #include "log/logger.h"
 #include "execxx.hpp"
@@ -24,9 +24,9 @@ typedef std::function<void(std::string, int, std::string, int, bool)>
 /** Manager Interface */
 class ProcessManager {
  public:
-  virtual void request(std::string_view path, int mask, int client_id,
+  virtual void request(std::string path, int mask, int client_id,
                        std::vector<std::string> argv) = 0;
-  virtual void request(std::string_view path, int mask, int client_id,
+  virtual void request(std::string path, int mask, int client_id,
                        std::string id, std::vector<std::string> argv,
                        uint8_t type) = 0;
 
@@ -41,16 +41,14 @@ class ProcessManager {
   virtual ~ProcessManager() {}
 };
 
-const char* findWorkDir(std::string_view path);
-
 /** Impl */
-ProcessResult run_(std::string_view path, std::vector<std::string> argv);
+ProcessResult run_(std::string path, std::vector<std::string> argv);
 
 /** Daemon to run process */
 class ProcessDaemon {
   public:
   /** Constructor/Destructor */
-  ProcessDaemon(std::string_view path, std::vector<std::string> argv);
+  ProcessDaemon(std::string path, std::vector<std::string> argv);
   ~ProcessDaemon() {};
   /** Disable copying */
   ProcessDaemon(const ProcessDaemon &)            = delete;
@@ -62,7 +60,7 @@ class ProcessDaemon {
   ProcessResult run();
 
   private:
-  std::string_view m_path;
+  std::string m_path;
   std::vector<std::string> m_argv;
 };
 
@@ -93,13 +91,13 @@ class ProcessExecutor : public ProcessManager {
                                          bool error) override;
 
   /* Request execution of an anonymous task */
-  virtual void request(std::string_view         path,
+  virtual void request(std::string         path,
                        int                      mask,
                        int                      client_socket_fd,
                        std::vector<std::string> argv) override;
 
   /** Request the running of a process being tracked with an ID */
-  virtual void request(std::string_view         path,
+  virtual void request(std::string         path,
                        int                      mask,
                        int                      client_socket_fd,
                        std::string              id,

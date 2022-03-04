@@ -96,7 +96,7 @@ class Controller {
   bool                              m_active;
 
   Registrar::Registrar              m_registrar;
-  ProcessExecutor*                  m_executor;
+  ProcessExecutor                   m_executor;
   Scheduler                         m_scheduler;
   std::thread                       m_maintenance_worker;
   Database::KDB                     m_kdb;

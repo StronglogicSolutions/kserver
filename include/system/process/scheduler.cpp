@@ -52,14 +52,13 @@ Scheduler::Scheduler(Database::KDB &&kdb)
     : m_kdb(std::move(kdb)),
       m_platform(nullptr),
       m_trigger(nullptr),
-      m_research_manager(&m_kdb, &m_platform, [this](const auto &name)
-                          { return FindMask(name); }),
+      m_research_manager(&m_kdb, &m_platform, [this](const auto& name) { return FindMask(name); }),
       m_research_polls{}
 {
   KLOG("Scheduler instantiated for testing");
 }
 
-static Scheduler::ApplicationMap FetchApplicationMap(Database::KDB &db)
+static Scheduler::ApplicationMap FetchApplicationMap(Database::KDB& db)
 {
   static const std::string table{"apps"};
   static const Fields fields{"mask", "name"};
@@ -89,17 +88,15 @@ Scheduler::Scheduler(SystemEventcallback fn)
       m_platform(fn),
       m_trigger(&m_kdb),
       m_app_map(FetchApplicationMap(m_kdb)),
-      m_research_manager(&m_kdb, &m_platform, [this](const auto &name)
-                          { return FindMask(name); }),
+      m_research_manager(&m_kdb, &m_platform, [this](const auto &name) { return FindMask(name); }),
       m_ipc_command(NO_COMMAND_INDEX)
 {
   const auto AppExists = [this](const std::string &name) -> bool
   {
-    auto it = std::find_if(m_app_map.begin(), m_app_map.end(),
+    auto it    = std::find_if(m_app_map.begin(), m_app_map.end(),
                             [name](const ApplicationInfo &info)
                             { return info.second == name; });
-    auto found = it != m_app_map.end();
-    return found;
+    return it != m_app_map.end();
   };
 
   try
@@ -351,37 +348,46 @@ std::vector<Task> Scheduler::parseTasks(QueryValues &&result, bool parse_files, 
 std::vector<Task> Scheduler::fetchTasks(const std::string &mask, const std::string &date_range_s, const std::string &count, const std::string &limit, const std::string &order)
 {
   using DateRange = std::pair<std::string, std::string>;
-  using Filter_t = std::vector<std::variant<CompBetweenFilter, QueryFilter>>;
+  using Filter_t  = std::vector<std::variant<CompBetweenFilter, QueryFilter>>;
+
   static const std::string MAX_INT = std::to_string(std::numeric_limits<int32_t>::max());
+
   const auto GetDateRange = [](const std::string &date_range_s) -> DateRange
   {
-    if (date_range_s.front() == '0')
-      return DateRange{"0", MAX_INT};
+    if (date_range_s.front() == '0') return DateRange{"0", MAX_INT};
 
     const auto split_idx = date_range_s.find_first_of("TO");
     return DateRange{date_range_s.substr(0, (date_range_s.size() - split_idx - 2)),
-                      date_range_s.substr(split_idx + 1)};
+                     date_range_s.substr(split_idx + 1)};
   };
-  static const Fields fields{Field::ID, Field::TIME, Field::MASK, Field::FLAGS, Field::ENVFILE,
-                              Field::COMPLETED, Field::NOTIFY, Field::RECURRING};
-  const DateRange date_range = GetDateRange(date_range_s);
-  const auto result_limit = (limit == "0") ? MAX_INT : limit;
-  const auto row_order = order;
-  const Filter_t filters = {CompBetweenFilter{Field::TIME, date_range.first, date_range.second},
-                            CreateFilter(Field::MASK, mask)},
-                  OrderFilter{Field::ID, row_order},
-                  LimitFilter{count};
-  return parseTasks(std::move(m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>("schedule", fields, filters)));
+  static const Fields fields{Field::ID, Field::TIME, Field::MASK, Field::FLAGS,
+                             Field::ENVFILE, Field::COMPLETED, Field::NOTIFY, Field::RECURRING};
+
+  const DateRange date_range   = GetDateRange(date_range_s);
+  const auto      result_limit = (limit == "0") ? MAX_INT : limit;
+  const auto      row_order    = order;
+  const Filter_t  filters      = {CompBetweenFilter{Field::TIME, date_range.first, date_range.second},
+                                  CreateFilter(Field::MASK, mask)};
+
+  return parseTasks(m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>(
+    "schedule", fields, filters, OrderFilter{Field::ID, row_order}, LimitFilter{count}));
 }
 
-std::vector<Task> Scheduler::fetchTasks()
+std::vector<Task> Scheduler::fetchTasks(bool extensive)
 {
+
   using Filters_t = std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>;
   auto   table   = "schedule";
   auto   fields  = DEFAULT_TASK_FIELDS;
   auto   filters = Filters_t{CompFilter{"recurring", "0", "="}, CompFilter{UNIXTIME_NOW, Field::TIME, ">"},
                              MultiOptionFilter{"completed", "IN", {Completed::STRINGS[Completed::SCHEDULED],
                                                                    Completed::STRINGS[Completed::FAILED]}}};
+  if (!extensive)
+  {
+    NotInFilter{"mask", {std::to_string(FindMask(KNLP_APPLICATIONS[0])),
+                         std::to_string(FindMask(KNLP_APPLICATIONS[1])),
+                         std::to_string(FindMask(KNLP_APPLICATIONS[2]))}};
+  }
   auto   tasks   = parseTasks(
     m_kdb.selectMultiFilter<CompFilter, CompBetweenFilter, MultiOptionFilter>(table, fields, filters, OrderFilter{Field::ID, "ASC"}));
 
@@ -656,11 +662,10 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
                               IPC_MESSAGE_HEADER,
                               CreateOperation("Bot", {config::Process::tg_dest()}));
 
-  const auto &map = m_postexec_map;
+  const auto &map   = m_postexec_map;
   const auto &lists = m_postexec_lists;
   auto InitQueue    = [this]() { m_message_queue.clear(); m_message_queue.emplace_back(IPC_QUEUE_HEADER_DATA); };
-  auto NotScheduled = [this](auto id)
-  { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
+  auto NotScheduled = [this](auto id) { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
   auto CompleteTask = [&map, &lists](const int32_t &id)
   {
     auto pid = map.at(id).first;
@@ -673,15 +678,11 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     for (const auto &params : v)
       id = CreateChild(id, params.data, params.name, params.args);
   };
-  auto FindRoot = [&map, &lists](int32_t id)
-  { return lists.at(map.at(id).first); };
-  auto FindTask = [&map](int32_t id)
-  { return map.at(id).second.task; };
-  auto GetAppName = [this](int32_t mask)
-  { return m_app_map.at(mask); };
-  auto Sanitize = [](JSONItem &item)
-  { item.value = StringUtils::RemoveTags(item.value); };
-  auto Finalize = [&map, this, CompleteTask](int32_t id)
+  auto FindRoot   = [&map, &lists](int32_t id) { return lists.at(map.at(id).first); };
+  auto FindTask   = [&map](int32_t id)         { return map.at(id).second.task; };
+  auto GetAppName = [this](int32_t mask)       { return m_app_map.at(mask); };
+  auto Sanitize   = [](JSONItem &item)         { item.value = StringUtils::RemoveTags(item.value); };
+  auto Finalize   = [&map, this, CompleteTask](int32_t id)
   {
     CompleteTask(id);
     if (AllTasksComplete(map))
@@ -742,7 +743,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   const auto resp_task  = FindTask(resp_id);
   const auto &init_mask = init_task.execution_mask;
   const auto &resp_mask = resp_task.execution_mask;
-  auto &t_wrapper = m_postexec_map.at(resp_id).second;
+        auto &t_wrapper = m_postexec_map.at(resp_id).second;
 
   if (event.payload.empty())
     return Finalize(resp_id);

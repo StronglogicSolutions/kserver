@@ -284,7 +284,7 @@ void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
   }
 
   VLOG("Sent {} file bytes",     iterator.GetBytesRead());
-  m_sessions.at(client_fd).tx += iterator.GetBytesRead();
+  // m_sessions.at(client_fd).tx += iterator.GetBytesRead();
   m_file_sending = false;
 }
 
@@ -318,7 +318,7 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
     SocketListener::sendMessage(client_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 
-  m_sessions.at(client_fd).tx += iterator.GetBytesRead();
+  // m_sessions.at(client_fd).tx += iterator.GetBytesRead();
 }
 
 /**
@@ -489,7 +489,17 @@ void KServer::CloseConnections()
 void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
 {
   using FileHandler = Kiqoder::FileHandler;
-  auto TrackDataStats = [this](int fd, size_t size)     { if (m_sessions.has(fd)) m_sessions.at(fd).rx += size; };
+  auto TrackDataStats = [this](int fd, size_t size)     {
+    KLOG("Tracking stats for {}", fd);
+    if (m_sessions.has(fd))
+    {
+      KLOG("Had session");
+      m_sessions.at(fd).rx += size;
+    }
+    else
+    KLOG("Didn't have session");
+
+  };
   auto ProcessMessage = [this](int fd, uint8_t* m_ptr, size_t buffer_size)
   {
     DecodeMessage(m_ptr).leftMap([this, fd](auto&& message)
@@ -534,7 +544,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       m_message_handlers.at(fd).setID(fd);
       m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
     }
-    TrackDataStats(fd, size);
+    // TrackDataStats(fd, size);
   }
   catch(const std::exception& e)
   {

@@ -42,27 +42,26 @@ KServer(int argc, char **argv);
 private:
 using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
 
-
-virtual void onMessageReceived(int                      client_fd,
-                                std::weak_ptr<uint8_t[]> w_buffer_ptr,
-                                ssize_t&                 size) override;
-virtual void onConnectionClose(int32_t client_fd)             override;
+virtual void onMessageReceived    (int                      client_fd,
+                                   std::weak_ptr<uint8_t[]> w_buffer_ptr,
+                                   ssize_t&                 size) override;
+virtual void onConnectionClose    (int32_t client_fd)             override;
 
 
 void     SystemEvent              (const int32_t&                  client_socket_fd,
-                                    const int32_t&                  system_event,
-                                    const std::vector<std::string>& args);
+                                   const int32_t&                  system_event,
+                                   const std::vector<std::string>& args);
 void     CloseConnections         ();
 void     OnProcessEvent           (const std::string& result, int32_t mask, const std::string& id,
-                                int32_t client_fd, bool error);
+                                   int32_t client_fd, bool error);
 void     SendMessage              (const int32_t& client_socket_fd, const std::string& message);
 void     SendEvent                (const int32_t& client_fd, const std::string& event,
-                                    const std::vector<std::string>& argv);
+                                   const std::vector<std::string>& argv);
 void     OnFileHandled            (const int& socket_fd, uint8_t *&&f_ptr = NULL,
-                                    size_t size = 0);
+                                   size_t size = 0);
 void     ReceiveFileData          (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
-                                    const int32_t&                    client_fd,
-                                    const size_t&                     size);
+                                   const int32_t&                    client_fd,
+                                   const size_t&                     size);
 void     InitClient               (const std::string& message, const int32_t& client_fd);
 void     WaitForFile              (const int32_t& client_fd);
 void     EnqueueFiles             (const int32_t& client_fd, const std::vector<std::string>& files);

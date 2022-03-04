@@ -86,9 +86,6 @@ bool SessionMap::init(int32_t fd, const KSession& new_session)
 {
   bool result{true};
 
-  if (m_sessions.find(fd) == m_sessions.end())
-    m_sessions.emplace(fd, new_session);
-  else
   if (logged_in(new_session.user))
     result = false;
   else
@@ -99,6 +96,8 @@ bool SessionMap::init(int32_t fd, const KSession& new_session)
 
 KSession& SessionMap::at(int32_t fd)
 {
+  if (!has(fd))
+    throw std::invalid_argument{"Illegal attempt to access invalid session"};
   return m_sessions.at(fd);
 }
 

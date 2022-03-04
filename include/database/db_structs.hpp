@@ -127,6 +127,11 @@ struct CompFilter {
   std::string sign;
 };
 
+struct NotInFilter {
+  std::string a;
+  std::vector<std::string> b;
+};
+
 struct CompBetweenFilter {
   std::string field;
   std::string a;

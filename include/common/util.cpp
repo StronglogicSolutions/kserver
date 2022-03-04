@@ -8,7 +8,9 @@ const char                    ARGUMENT_SEPARATOR{'\x1f'};
 
 std::string GetCWD()
 {
-  return realpath(".", NULL);
+  char* path_c_arr = realpath(".", NULL);
+  std::string path_string{path_c_arr};
+  return path_string;
 }
 
 std::string GetExecutableCWD()
@@ -639,7 +641,7 @@ std::string ReadEnvToken(const std::string& env_file_path, const std::string& to
     {
       auto sub_s = env.substr(start + token_key.size() + 2);
       auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR);
-      run_arg_s  = sub_s.substr(0, end);
+      run_arg_s  = sub_s.substr(0, (end - 1));
     }
   }
   return (is_json) ? trim_outer_quotes(run_arg_s) : SanitizeToken(run_arg_s);
