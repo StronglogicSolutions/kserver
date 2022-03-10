@@ -258,47 +258,27 @@ std::vector<Task> Scheduler::parseTasks(QueryValues &&result, bool parse_files, 
 
   for (const auto &v : result)
   {
-    if (v.first == Field::MASK)
-    {
-      mask = v.second;
-    }
-    else if (v.first == Field::FLAGS)
-    {
-      flags = v.second;
-    }
-    else if (v.first == Field::ENVFILE)
-    {
-      envfile = v.second;
-    }
-    else if (v.first == TIME_FIELD)
-    {
-      time = v.second;
-    }
-    else if (v.first == Field::ID)
-    {
-      id = std::stoi(v.second);
-    }
-    else if (v.first == Field::COMPLETED)
-    {
-      completed = std::stoi(v.second);
-    }
-    else if (v.first == Field::RECURRING)
-    {
-      recurring = std::stoi(v.second);
-    }
-    else if (v.first == Field::NOTIFY)
-    {
-      notify = v.second.compare("t") == 0;
-    }
-    else if (v.first == files_field)
-    {
-      filenames = v.second;
-      checked_for_files = true;
-    }
+    if (v.first == Field::MASK)      mask = v.second;
+    else
+    if (v.first == Field::FLAGS)     flags = v.second;
+    else
+    if (v.first == Field::ENVFILE)   envfile = v.second;
+    else
+    if (v.first == TIME_FIELD)       time = v.second;
+    else
+    if (v.first == Field::ID)        id = std::stoi(v.second);
+    else
+    if (v.first == Field::COMPLETED) completed = std::stoi(v.second);
+    else
+    if (v.first == Field::RECURRING) recurring = std::stoi(v.second);
+    else
+    if (v.first == Field::NOTIFY)    notify = v.second.compare("t") == 0;
+    else
+    if (v.first == files_field) {    filenames = v.second; checked_for_files = true; }
 
     if (!envfile.empty() && !flags.empty() && !time.empty() &&
-        !mask.empty() && completed != NO_COMPLETED_VALUE &&
-        id > 0 && recurring > -1 && notify > -1)
+        !mask.empty()    && completed != NO_COMPLETED_VALUE &&
+        id > 0           && recurring > -1  && notify > -1)
     {
 
       if (parse_files && !checked_for_files)
@@ -936,7 +916,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
          const auto& message  = payload[3];
          const auto& args     = payload[4];
 
-  KLOG("Platform request from {}", platform);
+  KLOG("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
 
   if (message == REQUEST_SCHEDULE_POLL_STOP)
     ScheduleIPC({platform, message, args}, id);
@@ -1193,6 +1173,7 @@ void Scheduler::SendIPCRequest(const std::string &id, const std::string &pid, co
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
 
   m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
+  VLOG("Dispatched IPC with ID {} command {} and data {}", id, command, data);
 }
 
 bool Scheduler::IPCResponseReceived() const
@@ -1215,4 +1196,10 @@ bool Scheduler::OnIPCReceived(const std::string &uuid)
   return true;
 }
 
+void Scheduler::Status() const
+{
+  m_platform.Status();
+  VLOG("Scheduler Status\nMessage queue: {}\nDispatched IPC: {}\nPostExec Tasks: {}",
+    m_message_queue.size(), m_dispatched_ipc.size(), m_postexec_map.size());
+}
 } // ns kiq

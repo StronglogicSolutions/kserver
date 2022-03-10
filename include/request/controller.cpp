@@ -790,6 +790,7 @@ void Controller::Status() const
   m_server_status();
   VLOG("Controller Status Update\nProcesses Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
     m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count);
+  m_scheduler.Status();
 }
 
 }  // ns kiq::Request

@@ -63,6 +63,7 @@ explicit Platform(SystemEventcallback fn);
 bool                      SavePlatformPost(std::vector<std::string> payload);
 void                      OnPlatformError(const std::vector<std::string>& payload);
 void                      ProcessPlatform();
+void                      Status() const;
 std::string               GetPlatform(const std::string& pid);
 std::string               GetPlatformID(const std::string& name);
 std::string               GetPlatformID(uint32_t mask);

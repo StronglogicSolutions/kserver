@@ -568,4 +568,21 @@ std::string Platform::GetPlatform(const std::string& pid)
       return value.second;
   return "";
 }
+
+void Platform::Status() const
+{
+  int pending{}, complete{}, failure{};
+  for (const auto& platform_request : m_platform_map)
+    switch (platform_request.second)
+    {
+      case (PlatformPostState::PROCESSING): pending++;
+      break;
+      case (PlatformPostState::SUCCESS):    complete++;
+      break;
+      case (PlatformPostState::FAILURE):    failure++;
+      break;
+      default: break;
+    }
+  VLOG("Platform Status: Pending {} Complete {} Errors {}", pending, complete, failure);
+}
 } // ns kiq
