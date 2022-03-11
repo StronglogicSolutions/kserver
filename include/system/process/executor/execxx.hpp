@@ -41,7 +41,9 @@ std::string readFd(int fd)
   std::string s{};
   ssize_t     r{};
   do
+  {
     if (r = read(fd, buffer, BUF_SIZE) > 0) s.append(buffer, r);
+  }
   while (r > 0);
   return s;
 }
