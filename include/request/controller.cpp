@@ -518,11 +518,8 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
 
     case (RequestType::FETCH_SCHEDULE):
     {
-      static const uint8_t AVERAGE_TASK_SIZE = 9;
       std::vector<Task>    tasks             = m_scheduler.fetchAllTasks();
       const auto           size              = tasks.size();
-      uint8_t              i{0};
-      uint8_t              TASKS_PER_EVENT{4};
       Payload              payload{"Schedule"};
 
       KLOG("Processing schedule fetch request");
