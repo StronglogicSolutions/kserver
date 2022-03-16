@@ -8,7 +8,10 @@
  */
 TaskQueue::TaskQueue()
 : m_active(true),
-  m_num_threads(std::thread::hardware_concurrency() / 2) {}
+  m_num_threads(std::thread::hardware_concurrency() / 2),
+  m_active_workers(0)
+{
+}
 
 /**
  * @destructor
@@ -54,8 +57,7 @@ void TaskQueue::workerLoop()
       pool_condition.wait(lock,
         [this]() { return !accepting_tasks || !m_task_queue.empty() || !m_active; });
 
-      if (!m_active)
-        break;                                           // Destructor called, exit
+      if (!m_active) break;
 
       if (!accepting_tasks && m_task_queue.empty())
       {
@@ -67,7 +69,9 @@ void TaskQueue::workerLoop()
       m_task_queue.pop();
       accepting_tasks.store(true);
     }
+    m_active_workers++;
     fn();                                            // Work
+    m_active_workers--;
   }
 }
 
@@ -111,9 +115,10 @@ void TaskQueue::initialize()
 void TaskQueue::joinThreads()
 {
   pool_condition.notify_all();
-  for (std::thread& t : m_thread_pool) {
-    if (t.joinable()) {
-      t.join();
-    }
-  }
+  for (std::thread& t : m_thread_pool) if (t.joinable()) t.join();
+}
+
+size_t TaskQueue::size() const
+{
+  return m_active_workers;
 }

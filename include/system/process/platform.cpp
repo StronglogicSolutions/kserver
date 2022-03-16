@@ -376,7 +376,6 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) {
     else if (v.first == "platform.method")         { method = v.second;  }
     else if (v.first == "platform_post.uid")       { uid    = v.second;  }
 
-
     if (DataUtils::NoEmptyArgs(pid, o_pid, id, time, repost, name, method, uid))
     {
       PlatformPost post{};
@@ -567,5 +566,22 @@ std::string Platform::GetPlatform(const std::string& pid)
     if (value.first == "name")
       return value.second;
   return "";
+}
+
+void Platform::Status() const
+{
+  int pending{}, complete{}, failure{};
+  for (const auto& platform_request : m_platform_map)
+    switch (platform_request.second)
+    {
+      case (PlatformPostState::PROCESSING): pending++;
+      break;
+      case (PlatformPostState::SUCCESS):    complete++;
+      break;
+      case (PlatformPostState::FAILURE):    failure++;
+      break;
+      default: break;
+    }
+  VLOG("Platform Status: Pending {} Complete {} Errors {}", pending, complete, failure);
 }
 } // ns kiq

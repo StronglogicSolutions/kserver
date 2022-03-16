@@ -23,25 +23,6 @@ static const char* UNIXTIME_NOW           {"extract(epoch from (now()))::int"};
 
 class ResearchManager;
 
-struct ResearchPoll
-{
-int32_t     task_id;
-std::string term;
-
-bool operator==(const ResearchPoll& p) const
-{
-  return ((task_id == p.task_id) && (term == p.term));
-}
-};
-
-struct PollHash
-{
-  std::size_t operator() (const ResearchPoll& p) const
-  {
-    return std::hash<int>()(p.task_id) * 31 + std::hash<int>()(static_cast<int32_t>(p.term.front()));
-  }
-};
-
 struct TaskParams
 {
 TaskParams(const int32_t& id_, const std::string& data_, const std::string& name_, const std::vector<std::string>& args_)
@@ -143,6 +124,7 @@ virtual std::vector<Task>         fetchTasks() override;
         int32_t                   FindPostExec(const int32_t& id);
         TermEvents                FetchTermEvents() const;
         void                      ResolvePending(const bool& check_timer = true);
+        void                      Status() const;
 
         template <typename T>
         std::vector<std::string>  getFlags(const T& mask);
@@ -163,7 +145,7 @@ private:
 
 using MessageQueue  = std::deque<IPCSendEvent>;
 using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;
-using ResearchPolls = std::unordered_set<ResearchPoll, PollHash>;
+using ResearchPolls = std::unordered_set<int32_t>;
 using TermIDs       = std::unordered_set<int32_t>;
 
 SystemEventcallback m_event_callback;

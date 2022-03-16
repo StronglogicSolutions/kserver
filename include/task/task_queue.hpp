@@ -42,6 +42,8 @@ class TaskQueue {
  */
   void pushToQueue(std::function<void()> fn);
 
+  size_t size() const;
+
  private:
 
 /** PRIVATE METHODS **/
@@ -75,5 +77,6 @@ class TaskQueue {
   std::condition_variable           pool_condition;
   std::atomic<bool>                 accepting_tasks;
   bool                              m_active;
-  int32_t                           m_num_threads;
+  size_t                            m_num_threads;
+  size_t                            m_active_workers;
 };

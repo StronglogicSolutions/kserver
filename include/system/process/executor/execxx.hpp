@@ -34,15 +34,15 @@ const uint32_t buf_size{32768};
  * @returns [out]
  *
  */
-std::string readFd(int fd) {
+std::string readFd(int fd) 
+{
   char buffer[buf_size];
   std::string s{};
   ssize_t r{};
-  do {
+  do 
+  {
     r = read(fd, buffer, buf_size);
-    if (r > 0) {
-      s.append(buffer, r);
-    }
+    if (r > 0) s.append(buffer, r);
   } while (r > 0);
   return s;
 }
@@ -57,9 +57,9 @@ std::string readFd(int fd) {
  * @returns [out]
  */
 [[ maybe_unused ]]
-ProcessResult qx(    std::vector<std::string> args,
-               const std::string&             working_directory = "") {
-
+ProcessResult qx(      std::vector<std::string> args,
+                 const std::string&             working_directory = "") 
+{
 #ifndef NDEBUG
   std::string execution_command{};
   for (const auto& arg : args) execution_command += arg + ' ';
@@ -193,3 +193,4 @@ ProcessResult qx(    std::vector<std::string> args,
 }
 } // namespace (anonymous)
 } // ns kiq
+

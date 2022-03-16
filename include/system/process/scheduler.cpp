@@ -258,47 +258,27 @@ std::vector<Task> Scheduler::parseTasks(QueryValues &&result, bool parse_files, 
 
   for (const auto &v : result)
   {
-    if (v.first == Field::MASK)
-    {
-      mask = v.second;
-    }
-    else if (v.first == Field::FLAGS)
-    {
-      flags = v.second;
-    }
-    else if (v.first == Field::ENVFILE)
-    {
-      envfile = v.second;
-    }
-    else if (v.first == TIME_FIELD)
-    {
-      time = v.second;
-    }
-    else if (v.first == Field::ID)
-    {
-      id = std::stoi(v.second);
-    }
-    else if (v.first == Field::COMPLETED)
-    {
-      completed = std::stoi(v.second);
-    }
-    else if (v.first == Field::RECURRING)
-    {
-      recurring = std::stoi(v.second);
-    }
-    else if (v.first == Field::NOTIFY)
-    {
-      notify = v.second.compare("t") == 0;
-    }
-    else if (v.first == files_field)
-    {
-      filenames = v.second;
-      checked_for_files = true;
-    }
+    if (v.first == Field::MASK)      mask = v.second;
+    else
+    if (v.first == Field::FLAGS)     flags = v.second;
+    else
+    if (v.first == Field::ENVFILE)   envfile = v.second;
+    else
+    if (v.first == TIME_FIELD)       time = v.second;
+    else
+    if (v.first == Field::ID)        id = std::stoi(v.second);
+    else
+    if (v.first == Field::COMPLETED) completed = std::stoi(v.second);
+    else
+    if (v.first == Field::RECURRING) recurring = std::stoi(v.second);
+    else
+    if (v.first == Field::NOTIFY)    notify = v.second.compare("t") == 0;
+    else
+    if (v.first == files_field) {    filenames = v.second; checked_for_files = true; }
 
     if (!envfile.empty() && !flags.empty() && !time.empty() &&
-        !mask.empty() && completed != NO_COMPLETED_VALUE &&
-        id > 0 && recurring > -1 && notify > -1)
+        !mask.empty()    && completed != NO_COMPLETED_VALUE &&
+        id > 0           && recurring > -1  && notify > -1)
     {
 
       if (parse_files && !checked_for_files)
@@ -655,12 +635,10 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
                               TGCommand::message,
                               IPC_MESSAGE_HEADER,
                               CreateOperation("Bot", {config::Process::tg_dest()}));
-
   const auto &map = m_postexec_map;
   const auto &lists = m_postexec_lists;
   auto InitQueue    = [this]() { m_message_queue.clear(); m_message_queue.emplace_back(IPC_QUEUE_HEADER_DATA); };
-  auto NotScheduled = [this](auto id)
-  { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
+  auto NotScheduled = [this](auto id) { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
   auto CompleteTask = [&map, &lists](const int32_t &id)
   {
     auto pid = map.at(id).first;
@@ -670,18 +648,13 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   auto SequenceTasks = [this](const std::vector<TaskParams> &v)
   {
     int32_t id = v.front().id;
-    for (const auto &params : v)
-      id = CreateChild(id, params.data, params.name, params.args);
+    for (const auto& prms : v) id = CreateChild(id, prms.data, prms.name, prms.args);
   };
-  auto FindRoot = [&map, &lists](int32_t id)
-  { return lists.at(map.at(id).first); };
-  auto FindTask = [&map](int32_t id)
-  { return map.at(id).second.task; };
-  auto GetAppName = [this](int32_t mask)
-  { return m_app_map.at(mask); };
-  auto Sanitize = [](JSONItem &item)
-  { item.value = StringUtils::RemoveTags(item.value); };
-  auto Finalize = [&map, this, CompleteTask](int32_t id)
+  auto FindRoot   = [&map, &lists]            (int32_t id)     { return lists.at(map.at(id).first); };
+  auto FindTask   = [&map]                    (int32_t id)     { return map.at(id).second.task; };
+  auto GetAppName = [this]                    (int32_t mask)   { return m_app_map.at(mask); };
+  auto Sanitize   = []                        (JSONItem &item) { item.value = StringUtils::RemoveTags(item.value); };
+  auto Finalize   = [&map, this, CompleteTask](int32_t id)
   {
     CompleteTask(id);
     if (AllTasksComplete(map))
@@ -691,15 +664,13 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
         KLOG("Research results: no actions");
         m_message_queue.clear();
       }
-
       ResolvePending(IMMEDIATELY);
     }
   };
   auto GetTokens = [](const auto &p)
   {
     std::vector<JSONItem> v{};
-    for (size_t i = 1; i < (p.size() - 1); i += 2)
-      v.emplace_back(JSONItem{p[i], p[i + 1]});
+    for (size_t i = 1; i < (p.size() - 1); i += 2) v.emplace_back(JSONItem{p[i], p[i + 1]});
     return v;
   };
   auto OnTermEvent = [this](const TermEvent &term_info)
@@ -713,11 +684,8 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   };
   auto AnalyzeTW = [this, &event, &GetTokens](const auto &root, const auto &child, const auto &subchild)
   {
-    auto QueueFull  = [this]() { return m_message_queue.size() > QUEUE_LIMIT; };
-    auto PollExists = [this](const auto &id, const auto &term)
-    {
-      return m_research_polls.find(ResearchPoll{id, term}) != m_research_polls.end();
-    };
+    auto QueueFull  = [this]                 { return m_message_queue.size() > QUEUE_LIMIT; };
+    auto PollExists = [this](const auto &id) { return m_research_polls.find(id) != m_research_polls.end(); };
 
     if (QueueFull())
       return VLOG("Outbound IPC queue is full");
@@ -726,14 +694,14 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     const auto requests      = m_research_manager.AnalyzeTW(root, child, subchild);
     for (const auto& request : requests)
     {
-      if (!PollExists(root.id, request.hit.term))
+      if (!PollExists(root.id))
       {
         std::string dest = config::Process::tg_dest();
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::message, request.data, CreateOperation("Bot", {dest})));
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::poll, request.title, CreateOperation("Bot", {dest, "High", "Some", "Little", "None"})));
         auto uuid = m_message_queue.back().data.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
         m_research_manager.AddMLInput(uuid, TWResearchInputs{request.emotion, request.sentiment});
-        m_research_polls.insert(ResearchPoll{root.id, request.hit.term});
+        m_research_polls.insert(root.id);
         return; // Limit to one
       }
     }
@@ -877,7 +845,7 @@ bool Scheduler::OnProcessOutput(const std::string &output, const int32_t mask, c
 
   ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::GetAppInfo(mask));
 
-  for (auto &&outgoing_event : result.events)
+  for (auto&& outgoing_event : result.events)
     switch (outgoing_event.code)
     {
     case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
@@ -939,7 +907,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
          const auto& message  = payload[3];
          const auto& args     = payload[4];
 
-  KLOG("Platform request from {}", platform);
+  KLOG("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
 
   if (message == REQUEST_SCHEDULE_POLL_STOP)
     ScheduleIPC({platform, message, args}, id);
@@ -1196,6 +1164,7 @@ void Scheduler::SendIPCRequest(const std::string &id, const std::string &pid, co
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
 
   m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
+  VLOG("Dispatched IPC with ID {} command {} and data {}", id, command, data);
 }
 
 bool Scheduler::IPCResponseReceived() const
@@ -1218,4 +1187,10 @@ bool Scheduler::OnIPCReceived(const std::string &uuid)
   return true;
 }
 
+void Scheduler::Status() const
+{
+  m_platform.Status();
+  VLOG("Scheduler Status\nMessage queue: {}\nDispatched IPC: {}\nPostExec Tasks: {}",
+    m_message_queue.size(), m_dispatched_ipc.size(), m_postexec_map.size());
+}
 } // ns kiq

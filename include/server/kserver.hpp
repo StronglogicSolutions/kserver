@@ -61,8 +61,8 @@ void     SendEvent                (const int32_t& client_fd, const std::string& 
 void     OnFileHandled            (const int& socket_fd, uint8_t *&&f_ptr = NULL,
                                     size_t size = 0);
 void     ReceiveFileData          (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
-                                    const int32_t&                    client_fd,
-                                    const size_t&                     size);
+                                   const size_t                      size,
+                                   const int32_t                     client_fd);
 void     InitClient               (const std::string& message, const int32_t& client_fd);
 void     WaitForFile              (const int32_t& client_fd);
 void     EnqueueFiles             (const int32_t& client_fd, const std::vector<std::string>& files);

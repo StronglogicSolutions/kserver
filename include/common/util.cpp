@@ -589,7 +589,8 @@ std::string ReadEnvFile(const std::string& env_file_path, bool relative_path)
 
 std::string ReadRunArgs(const std::string& env_file_path)
 {
-  static const std::string token_key{"R_ARGS="};
+  static const std::string_view token_key = "R_ARGS=";
+  static const size_t           key_size  = token_key.size();
   std::string run_arg_s{};
   std::string env = ReadEnvFile(env_file_path);
   if (!env.empty())
@@ -598,18 +599,19 @@ std::string ReadRunArgs(const std::string& env_file_path)
     if (start != std::string::npos)
     {
       auto sub_s = env.substr(start);
-      auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR);
-      run_arg_s  = sub_s.substr(token_key.size(), end);
+      auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR) - key_size;
+      run_arg_s  = sub_s.substr(key_size, end);
     }
   }
   return SanitizeToken(run_arg_s);
 }
 
-std::string ReadFile(const std::string& env_file_path) {
-    std::ifstream file_stream{env_file_path};
-    std::stringstream env_file_stream{};
-    env_file_stream << file_stream.rdbuf();
-    std::string return_s = env_file_stream.str();
+std::string ReadFile(const std::string& env_file_path)
+{
+    std::ifstream fs{env_file_path};
+    std::stringstream ss{};
+    ss << fs.rdbuf();
+    std::string return_s = ss.str();
     if (return_s.back() == '\n')
       return return_s.substr(0, return_s.size() - 1);
     return return_s;
@@ -617,14 +619,9 @@ std::string ReadFile(const std::string& env_file_path) {
 
 std::string CreateEnvFile(std::unordered_map<std::string, std::string>&& key_pairs)
 {
-  const std::string SHEBANG{"#!/usr/bin/env bash\n"};
-  std::string       environment_file{SHEBANG};
-
+  std::string environment_file{"#!/usr/bin/env bash\n"};
   for (const auto& [key, value] : key_pairs)
-  {
     environment_file += key + "=\"" + value + '\"' + ARGUMENT_SEPARATOR + '\n';
-  }
-
   return environment_file;
 }
 
@@ -638,7 +635,7 @@ std::string ReadEnvToken(const std::string& env_file_path, const std::string& to
     if (start != std::string::npos)
     {
       auto sub_s = env.substr(start + token_key.size() + 2);
-      auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR);
+      auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR) - 1;
       run_arg_s  = sub_s.substr(0, end);
     }
   }

@@ -342,8 +342,8 @@ void KServer::OnFileHandled(const int& socket_fd, uint8_t*&& f_ptr, size_t size)
  * Ongoing File Transfer
  */
 void KServer::ReceiveFileData(const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
-                              const int32_t&                    client_fd,
-                              const size_t&                     size)
+                              const size_t                      size,
+                              const int32_t                     client_fd)
 {
   using FileHandler = Kiqoder::FileHandler;
   auto  handler     = m_file_handlers.find(client_fd);
@@ -441,8 +441,8 @@ void KServer::onMessageReceived(int                      client_fd,
   {
     std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
     (m_file_pending) ?
-      ReceiveFileData(s_buffer_ptr, client_fd, size) :
-      ReceiveMessage(s_buffer_ptr, size, client_fd);
+      ReceiveFileData(s_buffer_ptr, size, client_fd) :
+      ReceiveMessage (s_buffer_ptr, size, client_fd);
   }
   catch(const std::exception& e)
   {
@@ -467,8 +467,7 @@ void KServer::EndSession(const int32_t& client_fd, int32_t status)
   {
     KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
     m_sessions.at(client_fd).status = status;
-    if (HandlingFile(client_fd))
-      SetFileNotPending();
+    if (HandlingFile(client_fd)) SetFileNotPending();
   }
   else
     KLOG("Shutting down socket for client with no session");
@@ -637,5 +636,6 @@ void KServer::Status()
   }
 
   VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);
+  VLOG("Thread pool: there are currently {} active workers tending to sockets", SocketListener::count());
 }
 } // ns kiq

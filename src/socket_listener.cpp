@@ -245,3 +245,8 @@ int SocketListener::waitForConnection(int listening_socket)
 {
   return accept(listening_socket, NULL, NULL);
 }
+
+size_t SocketListener::count() const
+{
+  return u_task_queue_ptr->size();
+}

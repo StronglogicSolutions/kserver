@@ -93,12 +93,13 @@ void Generate()
   if constexpr (std::is_same_v<T, TWResearchInputs>)
   {
     std::stringstream ss;
-    for (const auto [_, input] : inputs)
+    for (const auto [id, input] : inputs)
     {
       auto&             e = input.emotions;
       auto&             s = input.sentiment;
       auto&             p = input.poll_results;
-      ss << '\n' << e.scores.joy      << ','
+      ss        << '\n' + id         << ','
+                << e.scores.joy      << ','
                 << e.scores.sadness  << ','
                 << e.scores.surprise << ','
                 << e.scores.fear     << ','
