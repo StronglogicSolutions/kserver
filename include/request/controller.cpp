@@ -457,13 +457,13 @@ void Controller::ProcessSystemEvent(const int32_t&                  event,
  * @param [in] {std::string} message
  */
 void Controller::ProcessClientRequest(const int32_t&     client_fd,
-                                        const std::string& message)
+                                      const std::string& message)
 {
   using Payload = std::vector<std::string>;
-  auto ReadTask = [](const auto& name, const Task& task, Payload& payload)
+  auto ReadTask = [](const Task& task, Payload& payload)
   {
     payload.emplace_back(               task.id());
-    payload.emplace_back(               name);
+    payload.emplace_back(               task.name);
     payload.emplace_back(               task.datetime);
     payload.emplace_back(               task.execution_flags);
     payload.emplace_back(std::to_string(task.completed));
@@ -521,13 +521,10 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       std::vector<Task>    tasks             = m_scheduler.fetchAllTasks();
       const auto           size              = tasks.size();
       Payload              payload{"Schedule"};
-
       KLOG("Processing schedule fetch request");
       KLOG("Fetched {} scheduled tasks for client", size);
 
-      for (const auto& task : tasks)
-        ReadTask(m_executor->GetAppInfo(task.execution_mask).name, task, payload);
-
+      for (const auto& task : tasks) ReadTask(task, payload);
       m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
       m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
     }

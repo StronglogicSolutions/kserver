@@ -186,6 +186,7 @@ int32_t                  recurring;
 bool                     notify;
 std::string              runtime;
 std::vector<std::string> filenames;
+std::string              name;
 
 std::string id() const
 {
