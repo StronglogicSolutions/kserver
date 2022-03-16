@@ -714,10 +714,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   auto AnalyzeTW = [this, &event, &GetTokens](const auto &root, const auto &child, const auto &subchild)
   {
     auto QueueFull  = [this]() { return m_message_queue.size() > QUEUE_LIMIT; };
-    auto PollExists = [this](const auto &id, const auto &term)
-    {
-      return m_research_polls.find(ResearchPoll{id, term}) != m_research_polls.end();
-    };
+    auto PollExists = [this](const auto &id) { return m_research_polls.find(id) != m_research_polls.end(); };
 
     if (QueueFull())
       return VLOG("Outbound IPC queue is full");
@@ -726,14 +723,14 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     const auto requests      = m_research_manager.AnalyzeTW(root, child, subchild);
     for (const auto& request : requests)
     {
-      if (!PollExists(root.id, request.hit.term))
+      if (!PollExists(root.id))
       {
         std::string dest = config::Process::tg_dest();
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::message, request.data, CreateOperation("Bot", {dest})));
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::poll, request.title, CreateOperation("Bot", {dest, "High", "Some", "Little", "None"})));
         auto uuid = m_message_queue.back().data.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
         m_research_manager.AddMLInput(uuid, TWResearchInputs{request.emotion, request.sentiment});
-        m_research_polls.insert(ResearchPoll{root.id, request.hit.term});
+        m_research_polls.insert(root.id);
         return; // Limit to one
       }
     }
