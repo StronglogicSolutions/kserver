@@ -376,7 +376,6 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) {
     else if (v.first == "platform.method")         { method = v.second;  }
     else if (v.first == "platform_post.uid")       { uid    = v.second;  }
 
-
     if (DataUtils::NoEmptyArgs(pid, o_pid, id, time, repost, name, method, uid))
     {
       PlatformPost post{};

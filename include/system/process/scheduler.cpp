@@ -635,12 +635,10 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
                               TGCommand::message,
                               IPC_MESSAGE_HEADER,
                               CreateOperation("Bot", {config::Process::tg_dest()}));
-
   const auto &map = m_postexec_map;
   const auto &lists = m_postexec_lists;
   auto InitQueue    = [this]() { m_message_queue.clear(); m_message_queue.emplace_back(IPC_QUEUE_HEADER_DATA); };
-  auto NotScheduled = [this](auto id)
-  { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
+  auto NotScheduled = [this](auto id) { return m_postexec_map.find(std::stoi(id)) == m_postexec_map.end(); };
   auto CompleteTask = [&map, &lists](const int32_t &id)
   {
     auto pid = map.at(id).first;
@@ -650,18 +648,13 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   auto SequenceTasks = [this](const std::vector<TaskParams> &v)
   {
     int32_t id = v.front().id;
-    for (const auto &params : v)
-      id = CreateChild(id, params.data, params.name, params.args);
+    for (const auto& prms : v) id = CreateChild(id, prms.data, prms.name, prms.args);
   };
-  auto FindRoot = [&map, &lists](int32_t id)
-  { return lists.at(map.at(id).first); };
-  auto FindTask = [&map](int32_t id)
-  { return map.at(id).second.task; };
-  auto GetAppName = [this](int32_t mask)
-  { return m_app_map.at(mask); };
-  auto Sanitize = [](JSONItem &item)
-  { item.value = StringUtils::RemoveTags(item.value); };
-  auto Finalize = [&map, this, CompleteTask](int32_t id)
+  auto FindRoot   = [&map, &lists]            (int32_t id)     { return lists.at(map.at(id).first); };
+  auto FindTask   = [&map]                    (int32_t id)     { return map.at(id).second.task; };
+  auto GetAppName = [this]                    (int32_t mask)   { return m_app_map.at(mask); };
+  auto Sanitize   = []                        (JSONItem &item) { item.value = StringUtils::RemoveTags(item.value); };
+  auto Finalize   = [&map, this, CompleteTask](int32_t id)
   {
     CompleteTask(id);
     if (AllTasksComplete(map))
@@ -671,15 +664,13 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
         KLOG("Research results: no actions");
         m_message_queue.clear();
       }
-
       ResolvePending(IMMEDIATELY);
     }
   };
   auto GetTokens = [](const auto &p)
   {
     std::vector<JSONItem> v{};
-    for (size_t i = 1; i < (p.size() - 1); i += 2)
-      v.emplace_back(JSONItem{p[i], p[i + 1]});
+    for (size_t i = 1; i < (p.size() - 1); i += 2) v.emplace_back(JSONItem{p[i], p[i + 1]});
     return v;
   };
   auto OnTermEvent = [this](const TermEvent &term_info)
@@ -693,7 +684,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   };
   auto AnalyzeTW = [this, &event, &GetTokens](const auto &root, const auto &child, const auto &subchild)
   {
-    auto QueueFull  = [this]() { return m_message_queue.size() > QUEUE_LIMIT; };
+    auto QueueFull  = [this]                 { return m_message_queue.size() > QUEUE_LIMIT; };
     auto PollExists = [this](const auto &id) { return m_research_polls.find(id) != m_research_polls.end(); };
 
     if (QueueFull())
@@ -854,7 +845,7 @@ bool Scheduler::OnProcessOutput(const std::string &output, const int32_t mask, c
 
   ProcessParseResult result = m_result_processor.process(output, ProcessExecutor::GetAppInfo(mask));
 
-  for (auto &&outgoing_event : result.events)
+  for (auto&& outgoing_event : result.events)
     switch (outgoing_event.code)
     {
     case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
