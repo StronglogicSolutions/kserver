@@ -143,25 +143,26 @@ QueryValues select(std::string table, Fields fields,
   template <typename FilterA, typename FilterB>
   QueryValues selectMultiFilter(
       std::string table, Fields fields,
-      std::vector<std::variant<FilterA, FilterB>> filters) {
-    try {
+      std::vector<std::variant<FilterA, FilterB>> filters)
+      {
+    try
+    {
       MultiVariantFilterSelect<std::vector<std::variant<FilterA, FilterB>>> select_query{
         .table  = table,
         .fields = fields,
-        .filter = filters
-      };
+        .filter = filters};
       QueryResult result = m_connection->query(select_query);
-      for (const auto &value : result.values) {
-        std::cout << "Query value: " << value.second << std::endl;
-      }
       return result.values;
-
-    } catch (const pqxx::sql_error &e) {
+    }
+    catch (const pqxx::sql_error &e)
+    {
       ELOG("Exception caught: {}", e.what());
-      throw e;
-    } catch (const std::exception &e) {
+      throw;
+    }
+    catch (const std::exception &e)
+    {
       ELOG("Exception caught: {}", e.what());
-      throw e;
+      throw;
     }
   }
 

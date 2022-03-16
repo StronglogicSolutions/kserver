@@ -291,19 +291,18 @@ bool TermEvent::valid() const
 /**
  * ToString
  */
-std::string TermEvent::ToString(const bool verbose) const
+std::string TermEvent::to_str(const bool verbose) const
 {
   return (verbose) ? "ID  : " + id + '\n' +
-                         "Term: " + term + '\n' +
-                         "Type: " + type + '\n' +
-                         "User: " + user + '\n' +
-                         "Org : " + organization + '\n' +
-                         "Time: " + time
-                   : "New term added at " + time + ":\n" + id + ": " +
-                         "Term \"" + term + "\" of type " + type + " by " + user + " (" + person + ") from " + organization + '\n';
+                     "Term: " + term + '\n' +
+                     "Type: " + type + '\n' +
+                     "User: " + user + '\n' +
+                     "Org : " + organization + '\n' +
+                     "Time: " + time
+                   : term + " of type " + type + " by " + user + " (" + person + ") from " + organization + '\n';
 }
 
-std::string TermEvent::ToJSON() const
+std::string TermEvent::to_JSON() const
 {
   rapidjson::StringBuffer s;
   Writer<rapidjson::StringBuffer, rapidjson::Document::EncodingType, ASCII<>> w(s);
