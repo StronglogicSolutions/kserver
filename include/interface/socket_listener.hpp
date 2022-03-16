@@ -85,6 +85,8 @@ class SocketListener : public SendInterface, public ListenInterface {
    */
   void cleanup();
 
+  size_t count() const;
+
  private:
   // private methods
   int createSocket();
