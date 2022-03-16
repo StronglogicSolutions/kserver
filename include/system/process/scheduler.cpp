@@ -308,7 +308,8 @@ std::vector<Task> Scheduler::parseTasks(QueryValues &&result, bool parse_files, 
             .recurring = recurring,
             .notify = (notify == 1),
             .runtime = FileUtils::ReadRunArgs(envfile), // ⬅ set from DB?
-            .filenames = StringUtils::Split(filenames, ' ')});
+            .filenames = StringUtils::Split(filenames, ' '),
+            .name      = m_app_map.at(std::stoi(mask))});
         id = 0;
         recurring = -1;
         notify = -1;
