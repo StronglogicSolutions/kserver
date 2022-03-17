@@ -627,7 +627,7 @@ std::string CreateEnvFile(std::unordered_map<std::string, std::string>&& key_pai
 
 std::string ReadEnvToken(const std::string& env_file_path, const std::string& token_key, bool is_json)
 {
-  std::string run_arg_s{};
+  std::string value{};
   std::string env = ReadEnvFile(env_file_path);
   if (!env.empty())
   {
@@ -636,10 +636,11 @@ std::string ReadEnvToken(const std::string& env_file_path, const std::string& to
     {
       auto sub_s = env.substr(start + token_key.size() + 2);
       auto end   = sub_s.find_first_of(ARGUMENT_SEPARATOR) - 1;
-      run_arg_s  = sub_s.substr(0, end);
+      value      = sub_s.substr(0, end);
     }
   }
-  return (is_json) ? trim_outer_quotes(run_arg_s) : SanitizeToken(run_arg_s);
+  return (value.size()) ? (is_json) ? trim_outer_quotes(value) :
+                                       SanitizeToken(value)    : "";
 }
 
 bool WriteEnvToken(const std::string& env_file_path, const std::string& token_key, const std::string& token_value) {
