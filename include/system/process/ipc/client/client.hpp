@@ -99,16 +99,13 @@ bool ReceiveMessage() {
 }
 
 
-bool ReceiveIPCMessage(const bool use_req = true)
+bool ReceiveIPCMessage(bool use_req = true)
 {
-  std::vector<ipc_message::byte_buffer> received_message{};
-  zmq::message_t                        message;
-  int                                   more_flag{1};
-
-  zmq::socket_t&                        socket = (use_req) ?
-                                                   m_req_socket :
-                                                   m_rep_socket;
-
+  using buffer_vector_t = std::vector<ipc_message::byte_buffer>;
+  buffer_vector_t received_message{};
+  zmq::message_t  message;
+  int             more_flag{1};
+  zmq::socket_t&  socket = (use_req) ? m_req_socket : m_rep_socket;
   while (more_flag)
   {
     socket.recv(&message, static_cast<int>(zmq::recv_flags::none));
@@ -116,8 +113,7 @@ bool ReceiveIPCMessage(const bool use_req = true)
     socket.getsockopt(ZMQ_RCVMORE, &more_flag, &size);
 
     received_message.push_back(std::vector<unsigned char>{
-        static_cast<char*>(message.data()), static_cast<char*>(message.data()) + message.size()
-    });
+      static_cast<char*>(message.data()), static_cast<char*>(message.data()) + message.size()});
   }
 
   ipc_message::u_ipc_msg_ptr ipc_message = DeserializeIPCMessage(std::move(received_message));
@@ -137,21 +133,14 @@ bool ReceiveIPCMessage(const bool use_req = true)
 
 uint8_t Poll()
 {
-  uint8_t        poll_mask{0x00};
+  uint8_t        poll_mask      = 0x00;
   void*          rep_socket_ptr = static_cast<void*>(m_rep_socket);
   void*          req_socket_ptr = static_cast<void*>(m_req_socket);
-  zmq_pollitem_t items[2]{
-    {rep_socket_ptr, 0, ZMQ_POLLIN, 0},
-    {req_socket_ptr, 0, ZMQ_POLLIN, 0}
-  };
-
+  zmq_pollitem_t items[2]       = {{rep_socket_ptr, 0, ZMQ_POLLIN, 0},
+                                   {req_socket_ptr, 0, ZMQ_POLLIN, 0}};
   zmq::poll(&items[0], 2, 0);
-
-  if (items[0].revents & ZMQ_POLLIN)
-    poll_mask |= (0x01 << 0);
-
-  if (items[1].revents & ZMQ_POLLIN)
-    poll_mask |= (0x01 << 1);
+  if (items[0].revents & ZMQ_POLLIN) poll_mask |= (0x01U << 0x00U);
+  if (items[1].revents & ZMQ_POLLIN) poll_mask |= (0x01U << 0x01U);
 
   return poll_mask;
 }

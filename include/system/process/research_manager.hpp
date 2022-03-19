@@ -71,6 +71,11 @@ struct TWResearchInputs
 Emotion<Emotions>        emotions;
 Sentiment                sentiment;
 std::vector<std::string> poll_results;
+
+bool Ready() const
+{
+  return ((!emotions.emotions.empty()) && (!poll_results.empty()));
+}
 };
 
 template <typename T = TWResearchInputs>
@@ -118,6 +123,17 @@ void Generate()
 T& at(const std::string& idx)
 {
   return inputs.at(idx);
+}
+
+bool Ready() const
+{
+  if (constexpr std::is_same_v<T, TWResearchInputs)
+  {
+    for (const auto& input : inputs)
+      if (!input.Ready()) break;
+    return true;
+  }
+  return false;
 }
 
 std::string GetResult() const
@@ -197,6 +213,7 @@ void                   AddMLInput(const std::string& id, const T& input);
 void                   GenerateMLData();
 std::string            GetMLData();
 void                   FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data);
+bool                   MLInputReady() const;
 
 private:
 using MLGenerator = MLInputGenerator<TWResearchInputs>;

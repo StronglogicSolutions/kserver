@@ -665,6 +665,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
         KLOG("Research results: no actions");
         m_message_queue.clear();
       }
+      KLOG("Resolving pending IPC from Finalize()");
       ResolvePending(IMMEDIATELY);
     }
   };
@@ -929,7 +930,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
         ELOG("Unable to complete processing result from {} IPC request: Unknown event with code {}", platform, event.code);
       }
 
-    if (IPCResponseReceived())
+    if (IPCResponseReceived() && m_research_manager.MLInputReady())
     {
       m_research_manager.GenerateMLData();
       m_message_queue.emplace_back(MakeIPCEvent(plat_req, TGCommand::message, GetMLData(), DefaultTGOP()));
