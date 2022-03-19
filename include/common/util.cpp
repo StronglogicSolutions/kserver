@@ -549,36 +549,31 @@ void SaveFile(const std::string& env_file_string, const std::string& env_file_pa
 
 static void remove_double_quotes(std::string& s)
 {
-  s.erase(
-    std::remove(s.begin(), s.end(),'\"'),
-    s.end()
-  );
+  s.erase(std::remove(s.begin(), s.end(),'\"'), s.end());
 }
-
 
 static void trim_outer_whitespace(std::string& s)
 {
-  if (s.empty()) return;
-  if (s.front() == ' ') s.erase(s.begin());
-  if (s.back()  == ' ') s.pop_back();
+  if (s.size() && s.front() == ' ') s.erase(s.begin());
+  if (s.size() && s.back()  == ' ') s.pop_back();
 }
 
 static std::string trim_outer_quotes(std::string& s)
 {
-  if (s.empty()) return s;
-  if (s.front() == '"') s.erase(s.begin());
-  if (s.back()  == '"') s.pop_back();
+  if (s.size() && s.front() == '"') s.erase(s.begin());
+  if (s.size() && s.back()  == '"') s.pop_back();
   return s;
 }
 
 static std::string SanitizeToken(std::string& s)
 {
-  if (s.empty()) return s;
-  remove_double_quotes(s);
-  trim_outer_whitespace(s);
+  if (s.size())
+  {
+    remove_double_quotes(s);
+    trim_outer_whitespace(s);
+  }
   return s;
 }
-
 
 std::string ReadEnvFile(const std::string& env_file_path, bool relative_path)
 {
