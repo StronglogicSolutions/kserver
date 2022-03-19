@@ -127,9 +127,9 @@ T& at(const std::string& idx)
 
 bool Ready() const
 {
-  if (constexpr std::is_same_v<T, TWResearchInputs)
+  if constexpr (std::is_same_v<T, TWResearchInputs>)
   {
-    for (const auto& input : inputs)
+    for (const auto& [_, input] : inputs)
       if (!input.Ready()) break;
     return true;
   }
