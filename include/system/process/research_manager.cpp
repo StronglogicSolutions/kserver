@@ -532,5 +532,9 @@ std::string ResearchManager::GetMLData()
   return m_ml_generator.GetResult();
 }
 
+bool ResearchManager::MLInputReady() const
+{
+  return m_ml_generator.Ready();
+}
 
 } // ns kiq
