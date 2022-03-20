@@ -1,12 +1,18 @@
 #include "generic.hpp"
 
 namespace kiq {
-Task GenericTaskHandler::Create(const std::string&              mask,
+template <typename T>
+Task GenericTaskHandler::Create(const T&                        app_mask,
                                 const std::string&              description,
                                 const std::string&              header     ,
                                 const std::string&              user       ,
                                 const std::vector<std::string>& args       )
 {
+  std::string mask;
+  if constexpr (std::is_integral<T>::value)
+    mask = std::to_string(app_mask);
+  else
+    mask = app_mask;
   const std::string username = (user.empty()) ? config::System::admin() : user;
         Task task{};
   std::vector<std::string> argv{
@@ -25,6 +31,19 @@ Task GenericTaskHandler::Create(const std::string&              mask,
   handler.prepareTask(argv, StringUtils::GenerateUUIDString(), &task);
   return task;
 }
+
+template
+Task GenericTaskHandler::Create(const int32_t&                  app_mask,
+                                const std::string&              description,
+                                const std::string&              header     ,
+                                const std::string&              user       ,
+                                const std::vector<std::string>& args       );
+template
+Task GenericTaskHandler::Create(const std::string&              app_mask,
+                                const std::string&              description,
+                                const std::string&              header     ,
+                                const std::string&              user       ,
+                                const std::vector<std::string>& args       );
 
 Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
                                      const std::string&              uuid,
