@@ -37,10 +37,10 @@ explicit IPCClient(uint32_t port)  // TODO: this has to be changed
   ResetSocket();
 }
 
-void ResetSocket()
+void ResetSocket(bool server = true)
 {
   m_req_socket.connect(REQ_ADDRESS);
-  m_rep_socket.bind(REP_ADDRESS);
+  if (server) m_rep_socket.bind(REP_ADDRESS);
 }
 
 bool SendMessage(std::string message)

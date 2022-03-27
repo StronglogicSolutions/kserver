@@ -103,30 +103,25 @@ void ProcessExecutor::request(std::string_view         path,
                               int                      client_socket_fd,
                               std::string              id,
                               std::vector<std::string> argv,
-                              uint8_t                  type) {
-  if (path[0] != '\0') {
-    ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
-    auto result = pd_ptr->run();
-    if (!result.output.empty()) {
-      notifyTrackedProcessEvent(result.output, mask, id, client_socket_fd,
-                                result.error);
-      if (!result.error && type != constants::IMMEDIATE_REQUEST) {
-        Database::KDB kdb{};
+                              uint8_t                  type)
+{
+  if (path[0] != '\0')
+  {
+    ProcessDaemon* pd_ptr = new ProcessDaemon(path, argv);
+    ProcessResult  result = pd_ptr->run();
 
-        auto COMPLETED =
-          type == constants::RECURRING_REQUEST ?
-           Completed::STRINGS[Completed::SCHEDULED] :
-           Completed::STRINGS[Completed::SUCCESS];
-
-        std::string result = kdb.update("schedule",               // table
-                                        {"completed"},            // field
-                                        {COMPLETED},              // value
-                                        CreateFilter("id", id),
-                                        "id"  // field value to return
-        );
-        KLOG("Updated task {} to reflect its completion", result);
-      }
+    notifyTrackedProcessEvent(result.output, mask, id, client_socket_fd, result.error);
+    if (!result.error && type != constants::IMMEDIATE_REQUEST)
+    {
+      Database::KDB kdb{};
+      auto COMPLETED =
+        type == constants::RECURRING_REQUEST ?
+          Completed::STRINGS[Completed::SCHEDULED] :
+          Completed::STRINGS[Completed::SUCCESS];
+      std::string result = kdb.update("schedule", {"completed"}, {COMPLETED}, CreateFilter("id", id), "id");
+      KLOG("Updated task {} to reflect its completion", result);
     }
+
     delete pd_ptr;
   }
 }

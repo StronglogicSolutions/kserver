@@ -398,21 +398,21 @@ void Controller::Execute(const uint32_t&    mask,
   const QueryFilter              filter = CreateFilter("mask", std::to_string(mask));
 
   ProcessExecutor executor{};
-  executor.setEventCallback([this](std::string result,
-                                    int         mask,
-                                    std::string request_id,
-                                    int         client_socket_fd,
-                                    bool        error)
+  executor.setEventCallback([this](const std::string& result,
+                                   int                mask,
+                                   const std::string& request_id,
+                                   int                client_socket_fd,
+                                   bool               error)
   {
     onProcessComplete(result, mask, request_id, client_socket_fd, error);
   });
 
-  for (const auto &row : m_kdb.select(name, fields, filter))
+  for (const auto& row : m_kdb.select(name, fields, filter))
   {
     m_system_event(client_socket_fd,
-                          SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
-                          {"PROCESS RUNNER - Process execution requested for applications with mask " + std::to_string(mask),
-                          request_id});
+                   SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
+                   {"PROCESS RUNNER - Process execution requested for applications with mask " + std::to_string(mask),
+                   request_id});
 
     executor.request(row.second, mask, client_socket_fd, request_id, {}, constants::IMMEDIATE_REQUEST);
   }
@@ -424,9 +424,9 @@ void Controller::Execute(const uint32_t&    mask,
  * @param [in] {int32_t}                  event
  * @param [in] {std::vector<std::string>> payload
  */
-void Controller::ProcessSystemEvent(const int32_t&                  event,
+void Controller::ProcessSystemEvent(const int32_t&                    event,
                                       const std::vector<std::string>& payload,
-                                      const int32_t& id)
+                                      const int32_t&                  id)
 {
   switch (event)
   {
@@ -716,15 +716,7 @@ void Controller::onProcessComplete(const std::string& value,
         m_scheduler.updateStatus(&*task_it, value);             // Failed tasks will re-run once more
         m_executor->saveResult(mask, 1, TimeUtils::UnixTime()); // Save execution result
 
-        if (!error && task_it->recurring)                       // If no error, update last execution time
-        {
-          KLOG("Task {} will be scheduled for {}",
-            task_it->id(), TimeUtils::FormatTimestamp(task_it->datetime));
-
-          m_scheduler.updateRecurring(&*task_it); // Latest time
-          KLOG("Task {} was a recurring task scheduled to run {}",
-            task_it->id(), Constants::Recurring::names[task_it->recurring]);
-        }
+        if (!error && task_it->recurring) m_scheduler.updateRecurring(&*task_it);
 
         if (task_it->notify)                                             // Send email notification
         {

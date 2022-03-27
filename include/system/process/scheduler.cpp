@@ -288,14 +288,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues &&result, bool parse_files, 
       }
       else
       {
-        if (recurring != Constants::Recurring::NO)
-        {
-          if (recurring == Constants::Recurring::HOURLY)
-            time = std::to_string(std::stoi(time) + GetIntervalSeconds(recurring));
-          else
-            time = TimeUtils::time_as_today(time);
-        }
-
+        if (recurring != Constants::Recurring::NO) time = TimeUtils::time_as_today(time);
         tasks.push_back(Task{
             .execution_mask = std::stoi(mask),
             .datetime = time,
@@ -571,16 +564,14 @@ bool Scheduler::update(Task task)
       m_kdb.insert("recurring", {"sid", "time"}, {task.id(), std::to_string(std::stoi(task.datetime) - GetIntervalSeconds(task.recurring))});
     else
       m_kdb.update("recurring", {"time"},
-                    {std::to_string(std::stoi(task.datetime) - GetIntervalSeconds(task.recurring))},
-                    CreateFilter("sid", task.id()));
+                   {std::to_string(std::stoi(task.datetime) - GetIntervalSeconds(task.recurring))},
+                   CreateFilter("sid", task.id()));
 
-  return !m_kdb.update(         // UPDATE
-                    "schedule", {// table
-                                "mask", "time", "flags", "completed", "recurring", "notify", "runtime"},
-                    {std::to_string(task.execution_mask), task.datetime, task.execution_flags, std::to_string(task.completed), std::to_string(task.recurring), std::to_string(task.notify), task.runtime}, CreateFilter("id", task.id()),
-                    "id" // returning value
-                    )
-              .empty(); // not empty = success
+  return !m_kdb.update("schedule", {"mask", "time", "flags", "completed", "recurring", "notify", "runtime"},
+                       {std::to_string(task.execution_mask), task.datetime, task.execution_flags, std::to_string(task.completed),
+                       std::to_string(task.recurring), std::to_string(task.notify), task.runtime},
+                       CreateFilter("id", task.id()),
+                       "id").empty();
 }
 
 /**
@@ -593,7 +584,9 @@ bool Scheduler::update(Task task)
  */
 bool Scheduler::updateRecurring(Task *task)
 {
-  return !m_kdb.update("recurring", {"time"}, {task->datetime}, CreateFilter("sid", task->id()), "id").empty();
+  auto time = std::to_string(std::stoi(task->datetime) + GetIntervalSeconds(task->recurring));
+  KLOG("{} task {} scheduled for {}", Constants::Recurring::names[task->recurring], task->id(), time);
+  return !m_kdb.update("recurring", {"time"}, {time}, CreateFilter("sid", task->id()), "id").empty();
 }
 
 /**
@@ -994,9 +987,9 @@ bool Scheduler::addTrigger(const std::vector<std::string> &payload)
       for (int i = 0; i < config_num; i++)
         config.info.config_info_v.emplace_back(
             ParamConfigInfo{
-                .token_name = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 1)),
-                .config_section = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 2)),
-                .config_name = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 3))});
+              .token_name     = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 1)),
+              .config_section = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 2)),
+              .config_name    = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 3))});
 
       return m_trigger.add(config);
     }
