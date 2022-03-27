@@ -139,6 +139,10 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
     case SYSTEM_EVENTS__PLATFORM_EVENT:
       m_ipc_manager.ReceiveEvent(system_event, args);
     break;
+    case SYSTEM_EVENTS__PLATFORM_INFO:
+      (client_fd == ALL_CLIENTS) ? Broadcast("Platform Info", args) :
+                                   SendEvent(client_fd, "Platform Info", args);
+    break;
     case SYSTEM_EVENTS__KIQ_IPC_MESSAGE:
         m_ipc_manager.process(args.front(), client_fd);
     break;

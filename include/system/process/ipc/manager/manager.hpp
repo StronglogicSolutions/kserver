@@ -96,6 +96,10 @@ void HandleClientMessages()
     return Payload{message->platform(), message->id(),   message->user(),
                    message->content(),  message->args()};
   };
+  auto GetInfo = [](platform_info* message) -> Payload
+  {
+    return Payload{message->platform(), message->info()};
+  };
 
   if (m_incoming_queue.size())
   {
@@ -114,8 +118,12 @@ void HandleClientMessages()
         case (::constants::IPC_PLATFORM_REQUEST):
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_REQUEST, GetRequest(static_cast<platform_request*>(it->get())));
         break;
+        case (::constants::IPC_PLATFORM_INFO):
+          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_INFO, GetInfo(static_cast<platform_info*>(it->get())));
+        break;
         case (::constants::IPC_PLATFORM_ERROR):
           m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, GetError(static_cast<platform_error*>(it->get())));
+        break;
         break;
         case (::constants::IPC_OK_TYPE):
           VLOG("IPC OK");
@@ -148,7 +156,7 @@ virtual void loop() override
       catch (const std::exception& e)
       {
         ELOG("Caught IPC exception: {}\nResetting client socket", e.what());
-        client.ResetSocket();
+        client.ResetSocket(false);
       }
 
       std::vector<u_ipc_msg_ptr> messages = client.GetMessages();

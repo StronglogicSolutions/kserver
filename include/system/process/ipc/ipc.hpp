@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <unordered_map>
 /**
 
             ┌───────────────────────────────────────────────────────────┐
@@ -21,13 +20,15 @@ static const uint8_t IPC_KIQ_MESSAGE     {0x01};
 static const uint8_t IPC_PLATFORM_TYPE   {0x02};
 static const uint8_t IPC_PLATFORM_ERROR  {0x03};
 static const uint8_t IPC_PLATFORM_REQUEST{0x04};
+static const uint8_t IPC_PLATFORM_INFO   {0x05};
 
 static const std::unordered_map<uint8_t, const char*> IPC_MESSAGE_NAMES{
   {IPC_OK_TYPE,          "IPC_OK_TYPE"},
   {IPC_KIQ_MESSAGE,      "IPC_KIQ_MESSAGE"},
   {IPC_PLATFORM_TYPE,    "IPC_PLATFORM_TYPE"},
   {IPC_PLATFORM_ERROR,   "IPC_PLATFORM_ERROR"},
-  {IPC_PLATFORM_REQUEST, "IPC_PLATFORM_REQUEST"}
+  {IPC_PLATFORM_REQUEST, "IPC_PLATFORM_REQUEST"},
+  {IPC_PLATFORM_INFO,    "IPC_PLATFORM_INFO"}
 };
 
 namespace index {
@@ -35,6 +36,7 @@ static const uint8_t EMPTY    = 0x00;
 static const uint8_t TYPE     = 0x01;
 static const uint8_t PLATFORM = 0x02;
 static const uint8_t ID       = 0x03;
+static const uint8_t INFO     = 0x03;
 static const uint8_t USER     = 0x04;
 static const uint8_t DATA     = 0x05;
 static const uint8_t URLS     = 0x06;
@@ -360,6 +362,46 @@ const std::string args() const
 
 };
 
+class platform_info : public ipc_message
+{
+public:
+platform_info(const std::string& platform, const std::string& info)
+{
+  m_frames = {
+    byte_buffer{},
+    byte_buffer{constants::IPC_PLATFORM_INFO},
+    byte_buffer{platform.data(), platform.data() + platform.size()},
+    byte_buffer{info.data(), info.data() + info.size()}
+  };
+}
+
+platform_info(const std::vector<byte_buffer>& data)
+{
+  m_frames = {
+    byte_buffer{},
+    byte_buffer{data.at(constants::index::TYPE)},
+    byte_buffer{data.at(constants::index::PLATFORM)},
+    byte_buffer{data.at(constants::index::INFO)}
+  };
+}
+
+const std::string platform() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::PLATFORM).data()),
+    m_frames.at(constants::index::PLATFORM).size()
+  };
+}
+
+const std::string info() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::INFO).data()),
+    m_frames.at(constants::index::INFO).size()
+  };
+}
+};
+
 static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message::byte_buffer>&& data)
 {
    uint8_t message_type = *(data.at(constants::index::TYPE).data());
@@ -376,6 +418,8 @@ static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message:
       return std::make_unique<platform_error>(data);
     case (constants::IPC_PLATFORM_REQUEST):
       return std::make_unique<platform_request>(data);
+    case (constants::IPC_PLATFORM_INFO):
+      return std::make_unique<platform_info>(data);
     default:
       return nullptr;
    }
