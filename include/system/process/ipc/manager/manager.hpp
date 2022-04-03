@@ -98,7 +98,7 @@ void HandleClientMessages()
   };
   auto GetInfo = [](platform_info* message) -> Payload
   {
-    return Payload{message->platform(), message->info()};
+    return Payload{message->platform(), message->type(), message->info()};
   };
 
   if (m_incoming_queue.size())
