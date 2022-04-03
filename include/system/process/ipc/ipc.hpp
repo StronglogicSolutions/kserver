@@ -32,20 +32,21 @@ static const std::unordered_map<uint8_t, const char*> IPC_MESSAGE_NAMES{
 };
 
 namespace index {
-static const uint8_t EMPTY    = 0x00;
-static const uint8_t TYPE     = 0x01;
-static const uint8_t PLATFORM = 0x02;
-static const uint8_t ID       = 0x03;
-static const uint8_t INFO     = 0x03;
-static const uint8_t USER     = 0x04;
-static const uint8_t DATA     = 0x05;
-static const uint8_t URLS     = 0x06;
-static const uint8_t REQ_ARGS = 0x06;
-static const uint8_t REPOST   = 0x07;
-static const uint8_t ARGS     = 0x08;
-static const uint8_t CMD      = 0x09;
-static const uint8_t KIQ_DATA = 0x02;
-static const uint8_t ERROR    = 0x05;
+static const uint8_t EMPTY     = 0x00;
+static const uint8_t TYPE      = 0x01;
+static const uint8_t PLATFORM  = 0x02;
+static const uint8_t ID        = 0x03;
+static const uint8_t INFO      = 0x03;
+static const uint8_t INFO_TYPE = 0x04;
+static const uint8_t USER      = 0x04;
+static const uint8_t DATA      = 0x05;
+static const uint8_t URLS      = 0x06;
+static const uint8_t REQ_ARGS  = 0x06;
+static const uint8_t REPOST    = 0x07;
+static const uint8_t ARGS      = 0x08;
+static const uint8_t CMD       = 0x09;
+static const uint8_t KIQ_DATA  = 0x02;
+static const uint8_t ERROR     = 0x05;
 } // namespace index
 
 static const uint8_t TELEGRAM_COMMAND_INDEX = 0x00;
@@ -365,13 +366,14 @@ const std::string args() const
 class platform_info : public ipc_message
 {
 public:
-platform_info(const std::string& platform, const std::string& info)
+platform_info(const std::string& platform, const std::string& info, const std::string& type)
 {
   m_frames = {
     byte_buffer{},
     byte_buffer{constants::IPC_PLATFORM_INFO},
     byte_buffer{platform.data(), platform.data() + platform.size()},
-    byte_buffer{info.data(), info.data() + info.size()}
+    byte_buffer{info.data(), info.data() + info.size()},
+    byte_buffer{type.data(), type.data() + type.size()}
   };
 }
 
@@ -381,7 +383,8 @@ platform_info(const std::vector<byte_buffer>& data)
     byte_buffer{},
     byte_buffer{data.at(constants::index::TYPE)},
     byte_buffer{data.at(constants::index::PLATFORM)},
-    byte_buffer{data.at(constants::index::INFO)}
+    byte_buffer{data.at(constants::index::INFO)},
+    byte_buffer{data.at(constants::index::INFO_TYPE)}
   };
 }
 
@@ -398,6 +401,14 @@ const std::string info() const
   return std::string{
     reinterpret_cast<const char*>(m_frames.at(constants::index::INFO).data()),
     m_frames.at(constants::index::INFO).size()
+  };
+}
+
+const std::string type() const
+{
+  return std::string{
+    reinterpret_cast<const char*>(m_frames.at(constants::index::INFO_TYPE).data()),
+    m_frames.at(constants::index::INFO_TYPE).size()
   };
 }
 };
