@@ -225,17 +225,9 @@ void Controller::HandlePendingTasks()
   auto MakeError = [](const char* e_msg) { return fmt::format("Exception caught while executing process: {}", e_msg); };
   try
   {
-    if (m_tasks_map.size())
-    {
-      std::vector<std::future<void>> futures{};
-
-      for (const auto &client_tasks : m_tasks_map)
-        if (!client_tasks.second.empty())
-          for (const auto &task : client_tasks.second)
-            futures.push_back(std::async(std::launch::deferred,
-              &ProcessExecutor::executeTask, std::ref(*(m_executor)), client_tasks.first, task));
-      for (auto&& future : futures) future.get();
-    }
+    for (const auto& client_tasks : m_tasks_map)
+      for (const auto& task : client_tasks.second)
+        m_executor->executeTask(client_tasks.first, task);
   }
   catch(const std::exception& e)
   {
