@@ -512,7 +512,14 @@ void ResearchManager::GenerateMLData()
 void ResearchManager::FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data)
 {
   VLOG("Adding data to model input data generator from research with ID {}", id);
-  m_ml_generator.at(id).poll_results = data; // TODO: poll results must be parsed
+  if (m_ml_generator.has(id))
+    m_ml_generator.at(id).poll_results = data;
+  else
+  {
+    auto err = fmt::format("Failed to finalize model data with ID {}", id);
+    SystemUtils::SendMail(config::System::admin(), err, "KIQ Error");
+    ELOG(err);
+  }
 }
 
 template <typename T>
