@@ -160,6 +160,30 @@ void Controller::SetWait(const bool& wait)
  */
 void Controller::InfiniteLoop()
 {
+  auto CleanTasks = [this]()
+  {
+    unsigned int tasks   = 0;
+    unsigned int clients = 0;
+    for (auto it = m_tasks_map.begin(); it != m_tasks_map.end(); )
+    {
+      for (auto t_it  = it->second.begin(); t_it != it->second.end(); )
+        if (t_it->completed == Completed::SUCCESS)
+        {
+          t_it = it->second.erase(t_it);
+          tasks++;
+        }
+        else
+          t_it++;
+      if (it->second.empty())
+      {
+        it = m_tasks_map.erase(it);
+        clients++;
+      }
+      else
+        it++;
+    }
+    KLOG("Removed {} completed tasks. {} clients completed all their tasks", tasks, clients);
+  };
   static const int32_t client_fd{ALL_CLIENTS};
   static       Timer   timer{Timer::TEN_MINUTES};
   KLOG("Worker starting");
@@ -205,6 +229,8 @@ void Controller::InfiniteLoop()
     {
       Status();
       timer.start();
+      VLOG("Cleaning tasks");
+      CleanTasks();
     }
 
     m_scheduler.ProcessIPC();
@@ -721,11 +747,6 @@ void Controller::onProcessComplete(const std::string& value,
 
           SystemUtils::SendMail(config::Email::notification(), email_string);
         }
-
-        KLOG("removing completed task from memory");
-        it->second.erase(task_it);
-        if (it->second.empty())
-          m_tasks_map.erase(it);
       }
     }
   }
