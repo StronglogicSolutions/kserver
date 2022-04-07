@@ -251,7 +251,8 @@ void Controller::HandlePendingTasks()
   {
     for (const auto& client_tasks : m_tasks_map)
       for (const auto& task : client_tasks.second)
-        m_executor->executeTask(client_tasks.first, task);
+        if (task.completed != Completed::SUCCESS)
+          m_executor->executeTask(client_tasks.first, task);
     CleanTasks();
   }
   catch(const std::exception& e)
