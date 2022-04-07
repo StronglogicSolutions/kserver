@@ -222,38 +222,13 @@ void Controller::InfiniteLoop()
  */
 void Controller::HandlePendingTasks()
 {
-  auto CleanTasks = [this]()
-  {
-    unsigned int tasks   = 0;
-    unsigned int clients = 0;
-    for (auto it = m_tasks_map.begin(); it != m_tasks_map.end(); )
-    {
-      for (auto t_it  = it->second.begin(); t_it != it->second.end(); )
-        if (t_it->completed == Completed::SUCCESS)
-        {
-          t_it = it->second.erase(t_it);
-          tasks++;
-        }
-        else
-          t_it++;
-      if (it->second.empty())
-      {
-        it = m_tasks_map.erase(it);
-        clients++;
-      }
-      else
-        it++;
-    }
-    KLOG("Removed {} completed tasks. {} clients completed all their tasks", tasks, clients);
-  };
   auto MakeError = [](const char* e_msg) { return fmt::format("Exception caught while executing process: {}", e_msg); };
   try
   {
     for (const auto& client_tasks : m_tasks_map)
       for (const auto& task : client_tasks.second)
-        if (task.completed != Completed::SUCCESS)
-          m_executor->executeTask(client_tasks.first, task);
-    CleanTasks();
+        m_executor->executeTask(client_tasks.first, task);
+    m_tasks_map.clear();
   }
   catch(const std::exception& e)
   {
