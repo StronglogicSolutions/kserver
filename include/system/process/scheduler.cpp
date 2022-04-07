@@ -288,7 +288,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues &&result, bool parse_files, 
       }
       else
       {
-        // if (recurring != Constants::Recurring::NO) time = TimeUtils::time_as_today(time);
+        if (recurring != Constants::Recurring::NO) time = TimeUtils::time_as_today(time);
         tasks.push_back(Task{
             .execution_mask = std::stoi(mask),
             .datetime = time,
