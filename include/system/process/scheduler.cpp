@@ -382,7 +382,7 @@ std::vector<Task> Scheduler::fetchRecurringTasks()
                               Field::NOTIFY, "recurring.time", sub_q};
   static const Filters filters{
       CompFilter{Field::RECURRING, "0", "<>"},
-      CompFilter{UNIXTIME_NOW, "recurring.time + (SELECT get_recurring_seconds(schedule.recurring))", ">"},
+      CompFilter{UNIXTIME_NOW, "recurring.time", ">"},
       MultiOptionFilter{"completed", "IN", {Completed::STRINGS[Completed::SCHEDULED], Completed::STRINGS[Completed::FAILED]}}};
   static const Joins joins{{"recurring", "sid", "schedule", "id", JoinType::INNER},
                             {"file", "sid", "schedule", "id", JoinType::OUTER}};

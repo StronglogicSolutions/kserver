@@ -152,7 +152,10 @@ bool has_data() const
   return (output.size() > 0);
 }
 
-
+bool has(const std::string& key) const
+{
+  return inputs.find(key) != inputs.end();
+}
 
 using input_map_t = std::unordered_map<std::string, T>;
 
