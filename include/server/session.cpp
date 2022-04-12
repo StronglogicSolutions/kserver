@@ -72,6 +72,11 @@ SessionMap::Sessions::iterator SessionMap::end()
   return m_sessions.end();
 }
 
+SessionMap::Sessions::iterator SessionMap::erase(SessionMap::Sessions::iterator it)
+{
+  return m_sessions.erase(it);
+}
+
 SessionMap::Sessions::const_iterator SessionMap::find(int32_t fd) const
 {
   return m_sessions.find(fd);

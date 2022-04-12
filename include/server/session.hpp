@@ -43,15 +43,16 @@ struct SessionMap
 {
 public:
 using Sessions = std::unordered_map<int32_t, KSession>;
-SessionMap::Sessions::const_iterator begin()                                       const;
-SessionMap::Sessions::const_iterator end()                                         const;
-SessionMap::Sessions::iterator       begin();
-SessionMap::Sessions::iterator       end();
-SessionMap::Sessions::const_iterator find(int32_t fd)                              const;
-bool                                 has(int32_t fd)                               const;
-bool                                 init(int32_t fd, const KSession& new_session);
-KSession&                            at(int32_t fd);
-bool                                 logged_in(const User& user)                   const;
+Sessions::const_iterator begin()                                       const;
+Sessions::const_iterator end()                                         const;
+Sessions::iterator       begin();
+Sessions::iterator       end();
+Sessions::iterator       erase(Sessions::iterator);
+Sessions::const_iterator find(int32_t fd)                              const;
+bool                     has(int32_t fd)                               const;
+bool                     init(int32_t fd, const KSession& new_session);
+KSession&                at(int32_t fd);
+bool                     logged_in(const User& user)                   const;
 
 private:
 
