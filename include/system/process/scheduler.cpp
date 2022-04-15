@@ -702,13 +702,13 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     }
   };
 
-  const auto &init_id   = applications.first;
-  const auto &resp_id   = applications.second;
-  const auto init_task  = FindTask(init_id);
-  const auto resp_task  = FindTask(resp_id);
-  const auto &init_mask = init_task.execution_mask;
-  const auto &resp_mask = resp_task.execution_mask;
-  auto &t_wrapper = m_postexec_map.at(resp_id).second;
+  const auto& init_id   = applications.first;
+  const auto& resp_id   = applications.second;
+  const auto  init_task = FindTask(init_id);
+  const auto  resp_task = FindTask(resp_id);
+  const auto& init_mask = init_task.execution_mask;
+  const auto& resp_mask = resp_task.execution_mask;
+        auto& t_wrapper = m_postexec_map.at(resp_id).second;
 
   if (event.payload.empty())
     return Finalize(resp_id);
@@ -724,8 +724,8 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     return;
   }
 
-  const auto &initiating_application = GetAppName(init_mask);
-  const auto &responding_application = GetAppName(resp_mask);
+  const auto& initiating_application = GetAppName(init_mask);
+  const auto& responding_application = GetAppName(resp_mask);
 
   if (initiating_application == TW_RESEARCH_APP && responding_application == NER_APP)
   {
@@ -737,9 +737,10 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
       if (!VerifyTerm(item.value)) continue;
 
       Sanitize(item);
-      const auto user = init_task.GetToken(constants::USER_KEY);
-      const auto term_hits = m_research_manager.GetTermHits(item.value);
-      const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, resp_task, time);
+      const auto root       = FindMasterRoot(&t_wrapper)->task;
+      const auto user       = init_task.GetToken(constants::USER_KEY);
+      const auto term_hits  = m_research_manager.GetTermHits(item.value);
+      const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, root, time);
       if (term_hits.size())
         for (auto &&hit : term_hits)
           if (!(hit.sid.empty()) && NotScheduled(hit.sid))
@@ -755,11 +756,11 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   else
   if (initiating_application == NER_APP && responding_application == NER_APP)
     SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}},
-                    {resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}}});
+                            {resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}}});
   else
   if (initiating_application == EMOTION_APP && responding_application == EMOTION_APP)
     SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}},
-                    {resp_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}}});
+                            {resp_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}}});
   else
   if (initiating_application == SENTIMENT_APP && responding_application == SENTIMENT_APP)
   {
@@ -886,21 +887,14 @@ bool Scheduler::SavePlatformPost(std::vector<std::string> payload)
  */
 void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
 {
-  auto GetUUID = [this](const auto &id) -> std::string
-  {
-    for (const auto &row : m_kdb.select("ipc", {"p_uuid"}, QueryFilter{"id", id}))
-      if (row.first == "p_uuid")
-        return row.second;
-    return "";
-  };
   auto DefaultTGOP = []() { return CreateOperation("Bot", {config::Process::tg_dest()}); };
   auto GetMLData = [this]() -> std::string { return "ML Input string generated:\n" + m_research_manager.GetMLData(); };
   static const auto  plat_req = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
-         const auto& platform = payload[0];
-         const auto& id       = payload[1];
-         const auto& user     = payload[2];
-         const auto& message  = payload[3];
-         const auto& args     = payload[4];
+         const auto& platform = payload[constants::PLATFORM_REQUEST_PLATFORM_INDEX];
+         const auto& id       = payload[constants::PLATFORM_REQUEST_ID_INDEX];
+         const auto& user     = payload[constants::PLATFORM_REQUEST_USER_INDEX];
+         const auto& message  = payload[constants::PLATFORM_REQUEST_MESSAGE_INDEX];
+         const auto& args     = payload[constants::PLATFORM_REQUEST_ARGS_INDEX];
 
   KLOG("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
 
@@ -937,9 +931,10 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
  *
  * @param payload
  */
-void Scheduler::OnPlatformError(const std::vector<std::string> &payload)
+void Scheduler::OnPlatformError(const std::vector<std::string>& payload)
 { // TODO: Check ID and resolve pending IPC failures
   m_platform.OnPlatformError(payload);
+  OnIPCReceived(payload.at(constants::PLATFORM_ERROR_ID_INDEX));
 }
 
 bool Scheduler::processTriggers(Task *task_ptr)
@@ -1172,8 +1167,7 @@ bool Scheduler::IPCResponseReceived() const
 
 bool Scheduler::OnIPCReceived(const std::string &uuid)
 {
-  auto UpdateStatus = [this](auto id)
-  { m_kdb.update("ipc", {"status"}, {"1"}, CreateFilter("id", id)); };
+  auto UpdateStatus = [this](auto id) { m_kdb.update("ipc", {"status"}, {"1"}, CreateFilter("id", id)); };
   auto it = m_dispatched_ipc.find(uuid);
   if (it == m_dispatched_ipc.end())
     return false;
@@ -1187,5 +1181,13 @@ void Scheduler::Status() const
   m_platform.Status();
   VLOG("Scheduler Status\nMessage queue: {}\nDispatched IPC: {}\nPostExec Tasks: {}",
     m_message_queue.size(), m_dispatched_ipc.size(), m_postexec_map.size());
+}
+
+std::string Scheduler::GetUUID(const std::string& id) const
+{
+  for (const auto &row : m_kdb.select("ipc", {"p_uuid"}, QueryFilter{"id", id}))
+    if (row.first == "p_uuid")
+      return row.second;
+  return "";
 }
 } // ns kiq

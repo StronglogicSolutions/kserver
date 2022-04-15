@@ -1,7 +1,7 @@
 #include "time.hpp"
 
 namespace kiq {
-Timer::Timer(const int64_t duration_)
+Timer::Timer(const uint64_t duration_)
 : duration(duration_)
 {}
 
@@ -14,7 +14,7 @@ bool Timer::expired() const
 {
   const TimePoint now     = std::chrono::system_clock::now();
   const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - time_point).count();
-  return (elapsed > TWENTY_MINUTES);
+  return (elapsed > duration);
 }
 
 void Timer::start()

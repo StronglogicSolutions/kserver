@@ -635,7 +635,10 @@ void KServer::Status()
     client_s += session.info();
     tx += session.tx;
     rx += session.rx;
-    it = (session.waiting_time() > Timer::TEN_MINUTES) ? m_sessions.erase(it) : it++;
+    if (session.waiting_time() > Timer::TEN_MINUTES)
+      it = m_sessions.erase(it);
+    else
+      it++;
   }
 
   VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);

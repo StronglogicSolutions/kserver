@@ -36,7 +36,7 @@ void        notify();
 void        verify();
 bool        expired()      const;
 std::string info()         const;
-uint32_t    waiting_time() const;
+uint64_t    waiting_time() const;
 };
 
 struct SessionMap
