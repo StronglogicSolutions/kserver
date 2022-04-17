@@ -72,7 +72,7 @@ using byte_buffer   = std::vector<uint8_t>;
 using u_ipc_msg_ptr = std::unique_ptr<ipc_message>;
 virtual ~ipc_message() {}
 
-uint8_t type()
+uint8_t type() const
 {
   return m_frames.at(constants::index::TYPE).front();
 }
@@ -82,6 +82,11 @@ std::vector<byte_buffer> data() {
 }
 
 std::vector<byte_buffer> m_frames;
+
+virtual std::string to_string() const
+{
+  return ::constants::IPC_MESSAGE_NAMES.at(type());
+}
 };
 
 class platform_error : public ipc_message
@@ -142,6 +147,15 @@ const std::string id() const
     m_frames.at(constants::index::ID).size()
   };
 }
+
+std::string to_string() const override
+{
+  return  "Type    : " + ipc_message::to_string() + '\n' +
+          "Platform: " + name()                   + '\n' +
+          "ID      : " + id()                     + '\n' +
+          "User    : " + user()                   + '\n' +
+          "Error   :"  + error();
+}
 };
 
 class okay_message : public ipc_message
@@ -179,12 +193,18 @@ kiq_message(const std::vector<byte_buffer>& data)
   };
 }
 
-const std::string payload()
+const std::string payload() const
 {
   return std::string{
     reinterpret_cast<const char*>(m_frames.at(constants::index::KIQ_DATA).data()),
     m_frames.at(constants::index::KIQ_DATA).size()
   };
+}
+
+std::string to_string() const override
+{
+  return  "Type    : " + ipc_message::to_string() + '\n' +
+          "Payload : " + payload();
 }
 
 };
@@ -290,6 +310,21 @@ const uint32_t cmd() const
   return cmd;
 }
 
+std::string to_string() const override
+{
+  auto text = content();
+  if (text.size() > 30) text = text.substr(0, 30);
+  return  "Type    : " + ipc_message::to_string() + '\n' +
+          "Platform: " + platform()               + '\n' +
+          "ID      : " + id()                     + '\n' +
+          "User    : " + user()                   + '\n' +
+          "Content : " + text                     + 'n'  +
+          "URLS    : " + urls()                   + 'n'  +
+          "Repost  : " + std::to_string(repost()) + 'n'  +
+          "Args    : " + args()                   + 'n'  +
+          "Cmd     : " + std::to_string(cmd());
+}
+
 };
 
 class platform_request : public ipc_message
@@ -361,6 +396,17 @@ const std::string args() const
   };
 }
 
+std::string to_string() const override
+{
+  auto text = content();
+  if (text.size() > 30) text = text.substr(0, 30);
+  return  "Type    : " + ipc_message::to_string() + '\n' +
+          "Platform: " + platform()               + '\n' +
+          "ID      : " + id()                     + '\n' +
+          "User    : " + user()                   + '\n' +
+          "Content : " + text                     + 'n'  +
+          "Args    : " + args();
+}
 };
 
 class platform_info : public ipc_message
@@ -410,6 +456,14 @@ const std::string type() const
     reinterpret_cast<const char*>(m_frames.at(constants::index::INFO_TYPE).data()),
     m_frames.at(constants::index::INFO_TYPE).size()
   };
+}
+
+std::string to_string() const override
+{
+  return  "Type    : " + ipc_message::to_string() + '\n' +
+          "Platform: " + platform()               + '\n' +
+          "Type      : " + type()                 + '\n' +
+          "Info      : " + info();
 }
 };
 
