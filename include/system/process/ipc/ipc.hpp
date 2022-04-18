@@ -150,11 +150,11 @@ const std::string id() const
 
 std::string to_string() const override
 {
-  return  "Type    : " + ipc_message::to_string() + '\n' +
-          "Platform: " + name()                   + '\n' +
-          "ID      : " + id()                     + '\n' +
-          "User    : " + user()                   + '\n' +
-          "Error   :"  + error();
+  return  "(Type): "     + ipc_message::to_string() + ',' +
+          "(Platform): " + name()                   + ',' +
+          "(ID):"       + id()                      + ',' +
+          "(User): "     + user()                   + ',' +
+          "(Error):"     + error();
 }
 };
 
@@ -203,8 +203,8 @@ const std::string payload() const
 
 std::string to_string() const override
 {
-  return  "Type    : " + ipc_message::to_string() + '\n' +
-          "Payload : " + payload();
+  return  "(Type): "    + ipc_message::to_string() + ',' +
+          "(Payload): " + payload();
 }
 
 };
@@ -313,16 +313,16 @@ const uint32_t cmd() const
 std::string to_string() const override
 {
   auto text = content();
-  if (text.size() > 30) text = text.substr(0, 30);
-  return  "Type    : " + ipc_message::to_string() + '\n' +
-          "Platform: " + platform()               + '\n' +
-          "ID      : " + id()                     + '\n' +
-          "User    : " + user()                   + '\n' +
-          "Content : " + text                     + 'n'  +
-          "URLS    : " + urls()                   + 'n'  +
-          "Repost  : " + std::to_string(repost()) + 'n'  +
-          "Args    : " + args()                   + 'n'  +
-          "Cmd     : " + std::to_string(cmd());
+  if (text.size() > 120) text = text.substr(0, 120);
+  return  "(Type):" + ipc_message::to_string()   + ',' +
+          "(Platform):" + platform()             + ',' +
+          "(ID):" + id()                         + ',' +
+          "(User):" + user()                     + ',' +
+          "(Content):" + text                    + ',' +
+          "(URLS):" + urls()                     + ',' +
+          "(Repost):" + std::to_string(repost()) + ',' +
+          "(Args):" + args()                     + ',' +
+          "(Cmd):" + std::to_string(cmd());
 }
 
 };
@@ -399,13 +399,13 @@ const std::string args() const
 std::string to_string() const override
 {
   auto text = content();
-  if (text.size() > 30) text = text.substr(0, 30);
-  return  "Type    : " + ipc_message::to_string() + '\n' +
-          "Platform: " + platform()               + '\n' +
-          "ID      : " + id()                     + '\n' +
-          "User    : " + user()                   + '\n' +
-          "Content : " + text                     + 'n'  +
-          "Args    : " + args();
+  if (text.size() > 120) text = text.substr(0, 120);
+  return  "(Type): "     + ipc_message::to_string() + ',' +
+          "(Platform): " + platform()               + ',' +
+          "(ID): "       + id()                     + ',' +
+          "(User): "     + user()                   + ',' +
+          "(Content): "  + text                     + ',' +
+          "(Args): "     + args();
 }
 };
 
@@ -460,10 +460,10 @@ const std::string type() const
 
 std::string to_string() const override
 {
-  return  "Type    : " + ipc_message::to_string() + '\n' +
-          "Platform: " + platform()               + '\n' +
-          "Type      : " + type()                 + '\n' +
-          "Info      : " + info();
+  return  "(Type):"    + ipc_message::to_string() + ',' +
+          "(Platform)" + platform()               + ',' +
+          "(Type):"    + type()                   + ',' +
+          "(Info):"    + info();
 }
 };
 
