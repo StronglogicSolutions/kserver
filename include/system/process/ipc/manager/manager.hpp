@@ -24,6 +24,7 @@ IPCManager(SystemCallback_fn_ptr system_event_fn)
   m_req_ready(true)
 {
   m_clients.insert(std::pair<int32_t, IPCClient>{ALL_CLIENTS, IPCClient{DEFAULT_PORT}});
+  m_clients.at(ALL_CLIENTS).KeepAlive();
 }
 
 void process(std::string message, int32_t fd)
@@ -128,6 +129,13 @@ void HandleClientMessages()
         case (::constants::IPC_OK_TYPE):
           VLOG("IPC OK");
         break;
+        case (::constants::IPC_KEEPALIVE_TYPE):
+          if (!m_daemon.reset())
+          {
+            ELOG("IPC session is unreliable");
+            m_clients.at(ALL_CLIENTS).ResetSocket();
+          }
+        break;
         default:
           ELOG("Failed to handle unknown IPC message");
       }
@@ -179,5 +187,6 @@ std::deque<u_ipc_msg_ptr>              m_incoming_queue;
 std::mutex                             m_mutex;
 std::condition_variable                m_condition;
 bool                                   m_req_ready;
+session_daemon                         m_daemon;
 };
 } // ns kiq

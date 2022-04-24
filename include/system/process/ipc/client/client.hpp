@@ -18,6 +18,8 @@ static const bool HasReply(uint8_t mask)
   return (mask & 0x01 << 1);
 }
 
+static auto IsKeepAlive = [](auto type) { return type == ::constants::IPC_KEEPALIVE_TYPE; };
+
 struct IPC_Session
 {
 uint32_t    id;
@@ -29,7 +31,7 @@ class IPCClient
 public:
 using u_ipc_msg_ptr = ipc_message::u_ipc_msg_ptr;
 
-explicit IPCClient(uint32_t port)  // TODO: this has to be changed
+explicit IPCClient(uint32_t port)
 : m_context{1},
   m_rep_socket{m_context, ZMQ_REP},
   m_req_socket{m_context, ZMQ_REQ}
@@ -40,31 +42,23 @@ explicit IPCClient(uint32_t port)  // TODO: this has to be changed
 void ResetSocket(bool server = true)
 {
   m_req_socket.connect(REQ_ADDRESS);
-  if (server) m_rep_socket.bind(REP_ADDRESS);
-}
-
-bool SendMessage(std::string message)
-{
-  zmq::message_t ipc_msg{message.size()};
-  memcpy(ipc_msg.data(), message.data(), message.size());
-  zmq::send_result_t result = m_req_socket.send(std::move(ipc_msg), zmq::send_flags::none);
-
-  return result.has_value();
+  if (server)
+  {
+    m_rep_socket = zmq::socket_t{m_context, ZMQ_REP};
+    m_rep_socket.bind(REP_ADDRESS);
+  }
 }
 
 bool SendIPCMessage(u_ipc_msg_ptr message, const bool use_req = false)
 {
   auto           payload   = message->data();
   int32_t        frame_num = payload.size();
-  zmq::socket_t& socket    = (use_req) ?
-                               m_req_socket :
-                               m_rep_socket;
+  zmq::socket_t& socket    = (use_req) ? m_req_socket : m_rep_socket;
 
   for (int i = 0; i < frame_num; i++)
   {
-    int  flag  = i == (frame_num - 1) ? 0 : ZMQ_SNDMORE;
+    int  flag  = (i == (frame_num - 1)) ? 0 : ZMQ_SNDMORE;
     auto data  = payload.at(i);
-
     zmq::message_t message{data.size()};
     std::memcpy(message.data(), data.data(), data.size());
 
@@ -80,25 +74,6 @@ bool ReplyIPC()
   return SendIPCMessage(std::move(std::make_unique<okay_message>()));
 }
 
-
-bool ReceiveMessage() {
-  zmq::message_t     message{};
-  zmq::recv_result_t result = m_req_socket.recv(message, zmq::recv_flags::none);
-
-  if (result.has_value()) {
-    m_rx_msg = std::string{
-      static_cast<char*>(message.data()),
-      static_cast<char*>(message.data()) + message.size()
-    };
-    KLOG("Received IPC message: {}", m_rx_msg);
-    return true;
-  }
-
-  ELOG("Failed to receive IPC message");
-  return false;
-}
-
-
 bool ReceiveIPCMessage(bool use_req = true)
 {
   using buffer_vector_t = std::vector<ipc_message::byte_buffer>;
@@ -106,6 +81,7 @@ bool ReceiveIPCMessage(bool use_req = true)
   zmq::message_t  message;
   int             more_flag{1};
   zmq::socket_t&  socket = (use_req) ? m_req_socket : m_rep_socket;
+
   while (more_flag)
   {
     socket.recv(&message, static_cast<int>(zmq::recv_flags::none));
@@ -120,6 +96,7 @@ bool ReceiveIPCMessage(bool use_req = true)
 
   if (ipc_message != nullptr)
   {
+    if (IsKeepAlive(ipc_message->type())) Enqueue(std::make_unique<keepalive>());
     VLOG("Client received {} message", ::constants::IPC_MESSAGE_NAMES.at(ipc_message->type()));
     m_rx_msgs.emplace_back(std::move(ipc_message));
     m_req_ready = (use_req) ? true : m_req_ready;
@@ -167,6 +144,11 @@ void ProcessQueue()
 void Enqueue(u_ipc_msg_ptr message)
 {
   m_outgoing_queue.emplace_back(std::move(message));
+}
+
+void KeepAlive()
+{
+  Enqueue(std::make_unique<keepalive>());
 }
 
 private:

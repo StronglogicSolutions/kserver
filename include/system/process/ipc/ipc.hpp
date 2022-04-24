@@ -16,14 +16,16 @@
 
 namespace constants {
 static const uint8_t IPC_OK_TYPE         {0x00};
-static const uint8_t IPC_KIQ_MESSAGE     {0x01};
-static const uint8_t IPC_PLATFORM_TYPE   {0x02};
-static const uint8_t IPC_PLATFORM_ERROR  {0x03};
-static const uint8_t IPC_PLATFORM_REQUEST{0x04};
-static const uint8_t IPC_PLATFORM_INFO   {0x05};
+static const uint8_t IPC_KEEPALIVE_TYPE  {0x01};
+static const uint8_t IPC_KIQ_MESSAGE     {0x02};
+static const uint8_t IPC_PLATFORM_TYPE   {0x03};
+static const uint8_t IPC_PLATFORM_ERROR  {0x04};
+static const uint8_t IPC_PLATFORM_REQUEST{0x05};
+static const uint8_t IPC_PLATFORM_INFO   {0x06};
 
 static const std::unordered_map<uint8_t, const char*> IPC_MESSAGE_NAMES{
   {IPC_OK_TYPE,          "IPC_OK_TYPE"},
+  {IPC_KEEPALIVE_TYPE,   "IPC_KEEPALIVE_TYPE"},
   {IPC_KIQ_MESSAGE,      "IPC_KIQ_MESSAGE"},
   {IPC_PLATFORM_TYPE,    "IPC_PLATFORM_TYPE"},
   {IPC_PLATFORM_ERROR,   "IPC_PLATFORM_ERROR"},
@@ -170,6 +172,20 @@ okay_message()
 }
 
 virtual ~okay_message() override {}
+};
+
+class keepalive : public ipc_message
+{
+public:
+keepalive()
+{
+  m_frames = {
+    byte_buffer{},
+    byte_buffer{constants::IPC_KEEPALIVE_TYPE}
+  };
+}
+
+virtual ~keepalive() override {}
 };
 
 class kiq_message : public ipc_message
@@ -473,19 +489,49 @@ static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message:
 
    switch (message_type)
    {
-    case (constants::IPC_PLATFORM_TYPE):
-      return std::make_unique<platform_message>(data);
-    case (constants::IPC_OK_TYPE):
-      return std::make_unique<okay_message>();
-    case (constants::IPC_KIQ_MESSAGE):
-      return std::make_unique<kiq_message>(data);
-    case (constants::IPC_PLATFORM_ERROR):
-      return std::make_unique<platform_error>(data);
-    case (constants::IPC_PLATFORM_REQUEST):
-      return std::make_unique<platform_request>(data);
-    case (constants::IPC_PLATFORM_INFO):
-      return std::make_unique<platform_info>(data);
-    default:
-      return nullptr;
+    case (constants::IPC_OK_TYPE):          return std::make_unique<okay_message>();
+    case (constants::IPC_KEEPALIVE_TYPE):   return std::make_unique<keepalive>();
+    case (constants::IPC_KIQ_MESSAGE):      return std::make_unique<kiq_message>(data);
+    case (constants::IPC_PLATFORM_TYPE):    return std::make_unique<platform_message>(data);
+    case (constants::IPC_PLATFORM_INFO):    return std::make_unique<platform_info>(data);
+    case (constants::IPC_PLATFORM_ERROR):   return std::make_unique<platform_error>(data);
+    case (constants::IPC_PLATFORM_REQUEST): return std::make_unique<platform_request>(data);
+    default:                                return nullptr;
    }
 }
+
+using time_point = std::chrono::time_point<std::chrono::system_clock>;
+using duration   = std::chrono::milliseconds;
+static const duration time_limit = std::chrono::milliseconds(60000);
+class session_daemon {
+public:
+  session_daemon()
+  : m_active(false)
+  {}
+
+  bool reset()
+  {
+    if (m_active)
+    {
+      const time_point tp = std::chrono::system_clock::now();
+      m_duration = std::chrono::duration_cast<duration>(tp - m_tp);
+      m_tp = tp;
+      return (m_duration < time_limit);
+    }
+
+    begin();
+    return true;
+  }
+
+  void begin()
+  {
+    m_active = true;
+    m_tp = std::chrono::system_clock::now();
+  }
+
+private:
+  time_point m_tp;
+  duration   m_duration;
+  bool       m_active;
+
+};
