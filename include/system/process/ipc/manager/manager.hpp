@@ -16,6 +16,8 @@ using SystemCallback_fn_ptr = std::function<void(int32_t, const std::vector<std:
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
 static const uint32_t DEFAULT_PORT{static_cast<uint32_t>(std::stoul(config::Process::ipc_port()))};
 
+static auto NOOP = [] { (void)(0); };
+
 class IPCManager : public Worker {
 public:
 
@@ -35,11 +37,9 @@ void process(std::string message, int32_t fd)
 
 bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
 {
-  KLOG("Processing IPC message for event {}", event);
-  bool received{true};
-
-  if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED)
-    m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<platform_message>(
+  auto Deserialize = [](auto args)
+  {
+    return std::make_unique<platform_message>(
       args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_USER_INDEX),
@@ -47,20 +47,15 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
       args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
       std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
-      args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX))));
-  else
-  if (event == SYSTEM_EVENTS__PLATFORM_EVENT)
-  {
-    m_clients.at(ALL_CLIENTS).Enqueue(std::move(std::make_unique<platform_message>(
-      args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),  // populated
-      args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),        // none
-      args.at(constants::PLATFORM_PAYLOAD_USER_INDEX),      // none
-      args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),   // content = command?
-      args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),       // none
-      args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y", // false
-      std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)), // not sure
-      args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX))));     // poll ID
-  }
+      args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX));
+  };
+
+  KLOG("Processing IPC message for event {}", event);
+  bool received{true};
+
+  if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED ||
+      event == SYSTEM_EVENTS__PLATFORM_EVENT)
+    m_clients.at(ALL_CLIENTS).Enqueue(std::move(Deserialize(args)));
   else
     received = false;
 
@@ -97,7 +92,7 @@ void HandleClientMessages()
     return Payload{message->platform(), message->id(),   message->user(),
                    message->content(),  message->args()};
   };
-  auto GetInfo = [](platform_info* message) -> Payload
+  auto GetInfo = [](platform_info* message)       -> Payload
   {
     return Payload{message->platform(), message->type(), message->info()};
   };
@@ -126,6 +121,9 @@ void HandleClientMessages()
         break;
         case (::constants::IPC_KEEPALIVE_TYPE):
           m_daemon.reset();
+        break;
+        case (::constants::IPC_OK_TYPE):
+          NOOP();
         break;
         default:
           ELOG("Failed to handle unknown IPC message");
