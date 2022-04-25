@@ -506,32 +506,41 @@ static const duration time_limit = std::chrono::milliseconds(60000);
 class session_daemon {
 public:
   session_daemon()
-  : m_active(false)
+  : m_active(false),
+    m_valid(true)
   {}
 
-  bool reset()
+  void reset()
+  {
+    if (!m_active) m_active = true;
+    m_tp = std::chrono::system_clock::now();
+  }
+
+  bool validate()
   {
     if (m_active)
     {
-      const time_point tp = std::chrono::system_clock::now();
-      m_duration = std::chrono::duration_cast<duration>(tp - m_tp);
-      m_tp = tp;
-      return (m_duration < time_limit);
+      m_duration = std::chrono::duration_cast<duration>(std::chrono::system_clock::now() - m_tp);
+      m_valid    = (m_duration < time_limit);
     }
-
-    begin();
-    return true;
+    return m_valid;
   }
 
-  void begin()
+  void stop()
   {
-    m_active = true;
-    m_tp = std::chrono::system_clock::now();
+    m_active = false;
+    m_valid  = true;
+  }
+
+  bool active() const
+  {
+    return m_active;
   }
 
 private:
   time_point m_tp;
   duration   m_duration;
   bool       m_active;
+  bool       m_valid;
 
 };

@@ -41,6 +41,8 @@ explicit IPCClient(uint32_t port)
 
 void ResetSocket(bool server = true)
 {
+  m_req_ready  = true;
+  m_req_socket = zmq::socket_t{m_context, ZMQ_REQ};
   m_req_socket.connect(REQ_ADDRESS);
   if (server)
   {
@@ -70,7 +72,6 @@ bool SendIPCMessage(u_ipc_msg_ptr message, const bool use_req = false)
 
 bool ReplyIPC()
 {
-  VLOG("Sending REPLY");
   return SendIPCMessage(std::move(std::make_unique<okay_message>()));
 }
 
@@ -97,7 +98,6 @@ bool ReceiveIPCMessage(bool use_req = true)
   if (ipc_message != nullptr)
   {
     if (IsKeepAlive(ipc_message->type())) Enqueue(std::make_unique<keepalive>());
-    VLOG("Client received {} message", ::constants::IPC_MESSAGE_NAMES.at(ipc_message->type()));
     m_rx_msgs.emplace_back(std::move(ipc_message));
     m_req_ready = (use_req) ? true : m_req_ready;
 
@@ -141,9 +141,15 @@ void ProcessQueue()
     m_outgoing_queue.pop_front();
   }
 }
+
 void Enqueue(u_ipc_msg_ptr message)
 {
   m_outgoing_queue.emplace_back(std::move(message));
+}
+
+bool HasOutbound() const
+{
+  return m_outgoing_queue.size() > 0;
 }
 
 void KeepAlive()

@@ -424,9 +424,20 @@ std::vector<PlatformPost> Platform::FetchPendingPlatformPosts()
  */
 bool Platform::IsProcessingPlatform()
 {
+  static Timer timer{Timer::TWO_MINUTES};
+  if (timer.active() && timer.expired())
+  {
+    m_platform_map.clear();
+    return false;
+  }
+
   for (const auto& platform_request : m_platform_map)
     if (platform_request.second == PlatformPostState::PROCESSING)
+    {
+      if (!timer.active()) timer.start();
       return true;
+    }
+  timer.stop();
   return false;
 }
 
