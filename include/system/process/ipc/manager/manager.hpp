@@ -40,14 +40,10 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
   auto Deserialize = [](auto args)
   {
     return std::make_unique<platform_message>(
-      args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_USER_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
-      std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
-      args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX));
+      args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),       args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
+      args.at(constants::PLATFORM_PAYLOAD_USER_INDEX),           args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
+      args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),            args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
+      std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)), args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX));
   };
 
   KLOG("Processing IPC message for event {}", event);
@@ -62,7 +58,8 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
   return received;
 }
 
-void close(int32_t fd) {
+void close(int32_t fd)
+{
   std::unordered_map<int32_t, IPCClient>::iterator it = m_clients.find(fd);
 
   if (it != m_clients.end())
@@ -75,62 +72,43 @@ void close(int32_t fd) {
 
 void HandleClientMessages()
 {
+  using ipc_msg_it_t = std::deque<u_ipc_msg_ptr>::iterator;
   using Payload = std::vector<std::string>;
-  auto GetPayload = [](platform_message* message) -> Payload
-  {
-    return Payload{message->platform(), message->id(),   message->user(), "",
-                   message->content(),  message->urls(), std::to_string(message->repost()), message->args()};
-  };
+  auto GetPayload = [](platform_message* message) { return Payload{message->platform(), message->id(), message->user(), "", message->content(),
+                                                                   message->urls(), std::to_string(message->repost()), message->args()}; };
+  auto GetInfo    = [](platform_info* message)    { return Payload{message->platform(), message->type(), message->info()};};
+  auto GetError   = [](platform_error* message)   { return Payload{message->name(), message->id(), message->user(), message->error(), ""}; };
+  auto GetRequest = [](platform_request* message) { return Payload{message->platform(), message->id(),   message->user(), message->content(),
+                                                                   message->args()}; };
 
-  auto GetError = [](platform_error* message)     -> Payload
+  for (ipc_msg_it_t it = m_incoming_queue.begin(); it != m_incoming_queue.end();)
   {
-    return Payload{message->name(), message->id(), message->user(), message->error(), ""};
-  };
-
-  auto GetRequest = [](platform_request* message) -> Payload
-  {
-    return Payload{message->platform(), message->id(),   message->user(),
-                   message->content(),  message->args()};
-  };
-  auto GetInfo = [](platform_info* message)       -> Payload
-  {
-    return Payload{message->platform(), message->type(), message->info()};
-  };
-
-  if (m_incoming_queue.size())
-  {
-    std::deque<u_ipc_msg_ptr>::iterator it = m_incoming_queue.begin();
-    while (it != m_incoming_queue.end())
+    switch (it->get()->type())
     {
-      std::vector<std::string> payload{};
-      const uint8_t            message_type = it->get()->type();
-      switch (message_type)
-      {
-        case (::constants::IPC_PLATFORM_TYPE):
-          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it->get())));
-        break;
-        case (::constants::IPC_PLATFORM_REQUEST):
-          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_REQUEST, GetRequest(static_cast<platform_request*>(it->get())));
-        break;
-        case (::constants::IPC_PLATFORM_INFO):
-          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_INFO, GetInfo(static_cast<platform_info*>(it->get())));
-        break;
-        case (::constants::IPC_PLATFORM_ERROR):
-          m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR, GetError(static_cast<platform_error*>(it->get())));
-        break;
-        break;
-        case (::constants::IPC_KEEPALIVE_TYPE):
-          m_daemon.reset();
-        break;
-        case (::constants::IPC_OK_TYPE):
-          NOOP();
-        break;
-        default:
-          ELOG("Failed to handle unknown IPC message");
-      }
-      it = m_incoming_queue.erase(it);
+      case (::constants::IPC_PLATFORM_TYPE):
+        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it->get())));
+      break;
+      case (::constants::IPC_PLATFORM_REQUEST):
+        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_REQUEST,  GetRequest(static_cast<platform_request*>(it->get())));
+      break;
+      case (::constants::IPC_PLATFORM_INFO):
+        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_INFO,     GetInfo   (static_cast<platform_info*>   (it->get())));
+      break;
+      case (::constants::IPC_PLATFORM_ERROR):
+        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR,    GetError  (static_cast<platform_error*>  (it->get())));
+      break;
+      case (::constants::IPC_KEEPALIVE_TYPE):
+        m_daemon.reset();
+      break;
+      case (::constants::IPC_OK_TYPE):
+        NOOP();
+      break;
+      default:
+        ELOG("Failed to handle unknown IPC message");
     }
+    it = m_incoming_queue.erase(it);
   }
+
 }
 
 private:
