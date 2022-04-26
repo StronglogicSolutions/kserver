@@ -624,19 +624,21 @@ KSession KServer::GetSession(const int32_t& client_fd) const
 
 void KServer::Status()
 {
+  size_t      tx{};
+  size_t      rx{};
   std::string client_s;
-  for (auto&& [fd, session] : m_sessions)
+
+  for (auto it = m_sessions.begin(); it != m_sessions.end();)
   {
+    auto& session = it->second;
     session.verify();
     client_s += session.info();
-  }
-
-  size_t tx{},
-         rx{};
-  for (const auto& [fd, session] : m_sessions)
-  {
     tx += session.tx;
     rx += session.rx;
+    if (session.waiting_time() > Timer::TEN_MINUTES)
+      it = m_sessions.erase(it);
+    else
+      it++;
   }
 
   VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);

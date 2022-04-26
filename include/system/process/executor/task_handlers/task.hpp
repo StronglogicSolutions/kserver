@@ -79,6 +79,20 @@ static const uint8_t     PLATFORM_PAYLOAD_CMD_INDEX      {0x09};
 static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
 static const uint8_t     PLATFORM_DEFAULT_COMMAND        {0x00};
 
+// Platform Request
+static const uint8_t     PLATFORM_REQUEST_PLATFORM_INDEX {0x00};
+static const uint8_t     PLATFORM_REQUEST_ID_INDEX       {0x01};
+static const uint8_t     PLATFORM_REQUEST_USER_INDEX     {0x02};
+static const uint8_t     PLATFORM_REQUEST_MESSAGE_INDEX  {0x03};
+static const uint8_t     PLATFORM_REQUEST_ARGS_INDEX     {0x04};
+
+// Platform Error
+static const uint8_t     PLATFORM_ERROR_PLATFORM_INDEX   {0x00};
+static const uint8_t     PLATFORM_ERROR_ID_INDEX         {0x01};
+static const uint8_t     PLATFORM_ERROR_USER_INDEX       {0x02};
+static const uint8_t     PLATFORM_ERROR_MESSAGE_INDEX    {0x03};
+static const uint8_t     PLATFORM_ERROR_ARGS_INDEX       {0x04};
+
        const std::string NO_ORIGIN_PLATFORM_EXISTS       {"2"};
        const std::string PLATFORM_POST_INCOMPLETE        {"0"};
        const std::string PLATFORM_POST_COMPLETE          {"1"};

@@ -16,14 +16,16 @@
 
 namespace constants {
 static const uint8_t IPC_OK_TYPE         {0x00};
-static const uint8_t IPC_KIQ_MESSAGE     {0x01};
-static const uint8_t IPC_PLATFORM_TYPE   {0x02};
-static const uint8_t IPC_PLATFORM_ERROR  {0x03};
-static const uint8_t IPC_PLATFORM_REQUEST{0x04};
-static const uint8_t IPC_PLATFORM_INFO   {0x05};
+static const uint8_t IPC_KEEPALIVE_TYPE  {0x01};
+static const uint8_t IPC_KIQ_MESSAGE     {0x02};
+static const uint8_t IPC_PLATFORM_TYPE   {0x03};
+static const uint8_t IPC_PLATFORM_ERROR  {0x04};
+static const uint8_t IPC_PLATFORM_REQUEST{0x05};
+static const uint8_t IPC_PLATFORM_INFO   {0x06};
 
 static const std::unordered_map<uint8_t, const char*> IPC_MESSAGE_NAMES{
   {IPC_OK_TYPE,          "IPC_OK_TYPE"},
+  {IPC_KEEPALIVE_TYPE,   "IPC_KEEPALIVE_TYPE"},
   {IPC_KIQ_MESSAGE,      "IPC_KIQ_MESSAGE"},
   {IPC_PLATFORM_TYPE,    "IPC_PLATFORM_TYPE"},
   {IPC_PLATFORM_ERROR,   "IPC_PLATFORM_ERROR"},
@@ -72,7 +74,7 @@ using byte_buffer   = std::vector<uint8_t>;
 using u_ipc_msg_ptr = std::unique_ptr<ipc_message>;
 virtual ~ipc_message() {}
 
-uint8_t type()
+uint8_t type() const
 {
   return m_frames.at(constants::index::TYPE).front();
 }
@@ -82,6 +84,11 @@ std::vector<byte_buffer> data() {
 }
 
 std::vector<byte_buffer> m_frames;
+
+virtual std::string to_string() const
+{
+  return ::constants::IPC_MESSAGE_NAMES.at(type());
+}
 };
 
 class platform_error : public ipc_message
@@ -142,6 +149,15 @@ const std::string id() const
     m_frames.at(constants::index::ID).size()
   };
 }
+
+std::string to_string() const override
+{
+  return  "(Type): "     + ipc_message::to_string() + ',' +
+          "(Platform): " + name()                   + ',' +
+          "(ID):"       + id()                      + ',' +
+          "(User): "     + user()                   + ',' +
+          "(Error):"     + error();
+}
 };
 
 class okay_message : public ipc_message
@@ -156,6 +172,20 @@ okay_message()
 }
 
 virtual ~okay_message() override {}
+};
+
+class keepalive : public ipc_message
+{
+public:
+keepalive()
+{
+  m_frames = {
+    byte_buffer{},
+    byte_buffer{constants::IPC_KEEPALIVE_TYPE}
+  };
+}
+
+virtual ~keepalive() override {}
 };
 
 class kiq_message : public ipc_message
@@ -179,12 +209,18 @@ kiq_message(const std::vector<byte_buffer>& data)
   };
 }
 
-const std::string payload()
+const std::string payload() const
 {
   return std::string{
     reinterpret_cast<const char*>(m_frames.at(constants::index::KIQ_DATA).data()),
     m_frames.at(constants::index::KIQ_DATA).size()
   };
+}
+
+std::string to_string() const override
+{
+  return  "(Type): "    + ipc_message::to_string() + ',' +
+          "(Payload): " + payload();
 }
 
 };
@@ -290,6 +326,21 @@ const uint32_t cmd() const
   return cmd;
 }
 
+std::string to_string() const override
+{
+  auto text = content();
+  if (text.size() > 120) text = text.substr(0, 120);
+  return  "(Type):" + ipc_message::to_string()   + ',' +
+          "(Platform):" + platform()             + ',' +
+          "(ID):" + id()                         + ',' +
+          "(User):" + user()                     + ',' +
+          "(Content):" + text                    + ',' +
+          "(URLS):" + urls()                     + ',' +
+          "(Repost):" + std::to_string(repost()) + ',' +
+          "(Args):" + args()                     + ',' +
+          "(Cmd):" + std::to_string(cmd());
+}
+
 };
 
 class platform_request : public ipc_message
@@ -361,6 +412,17 @@ const std::string args() const
   };
 }
 
+std::string to_string() const override
+{
+  auto text = content();
+  if (text.size() > 120) text = text.substr(0, 120);
+  return  "(Type): "     + ipc_message::to_string() + ',' +
+          "(Platform): " + platform()               + ',' +
+          "(ID): "       + id()                     + ',' +
+          "(User): "     + user()                   + ',' +
+          "(Content): "  + text                     + ',' +
+          "(Args): "     + args();
+}
 };
 
 class platform_info : public ipc_message
@@ -411,6 +473,14 @@ const std::string type() const
     m_frames.at(constants::index::INFO_TYPE).size()
   };
 }
+
+std::string to_string() const override
+{
+  return  "(Type):"    + ipc_message::to_string() + ',' +
+          "(Platform)" + platform()               + ',' +
+          "(Type):"    + type()                   + ',' +
+          "(Info):"    + info();
+}
 };
 
 static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message::byte_buffer>&& data)
@@ -419,19 +489,58 @@ static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message:
 
    switch (message_type)
    {
-    case (constants::IPC_PLATFORM_TYPE):
-      return std::make_unique<platform_message>(data);
-    case (constants::IPC_OK_TYPE):
-      return std::make_unique<okay_message>();
-    case (constants::IPC_KIQ_MESSAGE):
-      return std::make_unique<kiq_message>(data);
-    case (constants::IPC_PLATFORM_ERROR):
-      return std::make_unique<platform_error>(data);
-    case (constants::IPC_PLATFORM_REQUEST):
-      return std::make_unique<platform_request>(data);
-    case (constants::IPC_PLATFORM_INFO):
-      return std::make_unique<platform_info>(data);
-    default:
-      return nullptr;
+    case (constants::IPC_OK_TYPE):          return std::make_unique<okay_message>();
+    case (constants::IPC_KEEPALIVE_TYPE):   return std::make_unique<keepalive>();
+    case (constants::IPC_KIQ_MESSAGE):      return std::make_unique<kiq_message>(data);
+    case (constants::IPC_PLATFORM_TYPE):    return std::make_unique<platform_message>(data);
+    case (constants::IPC_PLATFORM_INFO):    return std::make_unique<platform_info>(data);
+    case (constants::IPC_PLATFORM_ERROR):   return std::make_unique<platform_error>(data);
+    case (constants::IPC_PLATFORM_REQUEST): return std::make_unique<platform_request>(data);
+    default:                                return nullptr;
    }
 }
+
+using time_point = std::chrono::time_point<std::chrono::system_clock>;
+using duration   = std::chrono::milliseconds;
+static const duration time_limit = std::chrono::milliseconds(60000);
+class session_daemon {
+public:
+  session_daemon()
+  : m_active(false),
+    m_valid(true)
+  {}
+
+  void reset()
+  {
+    if (!m_active) m_active = true;
+    m_tp = std::chrono::system_clock::now();
+  }
+
+  bool validate()
+  {
+    if (m_active)
+    {
+      m_duration = std::chrono::duration_cast<duration>(std::chrono::system_clock::now() - m_tp);
+      m_valid    = (m_duration < time_limit);
+    }
+    return m_valid;
+  }
+
+  void stop()
+  {
+    m_active = false;
+    m_valid  = true;
+  }
+
+  bool active() const
+  {
+    return m_active;
+  }
+
+private:
+  time_point m_tp;
+  duration   m_duration;
+  bool       m_active;
+  bool       m_valid;
+
+};

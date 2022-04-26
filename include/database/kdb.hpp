@@ -44,7 +44,7 @@ class KDB {
     // delete m_connection;
   }
 
-QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_t limit = 0)
+QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_t limit = 0) const
 {
   try
   {

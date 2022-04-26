@@ -33,12 +33,10 @@ bool KSession::expired() const
   return (waiting_time() > Timer::ONE_MINUTE);
 }
 
-uint32_t KSession::waiting_time() const
+uint64_t KSession::waiting_time() const
 {
   using Duration = Timer::Duration;
-  const TimePoint now     = std::chrono::system_clock::now();
-  const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - last_ping).count();
-  return elapsed;
+  return std::chrono::duration_cast<Duration>(std::chrono::system_clock::now() - last_ping).count();
 }
 
 std::string KSession::info() const
@@ -70,6 +68,11 @@ SessionMap::Sessions::iterator SessionMap::begin()
 SessionMap::Sessions::iterator SessionMap::end()
 {
   return m_sessions.end();
+}
+
+SessionMap::Sessions::iterator SessionMap::erase(SessionMap::Sessions::iterator it)
+{
+  return m_sessions.erase(it);
 }
 
 SessionMap::Sessions::const_iterator SessionMap::find(int32_t fd) const

@@ -142,6 +142,7 @@ private:
         void                      SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time);
         bool                      IPCResponseReceived() const;
         bool                      OnIPCReceived(const std::string& id);
+        std::string               GetUUID(const std::string& id) const;
 
 using MessageQueue  = std::deque<IPCSendEvent>;
 using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;
