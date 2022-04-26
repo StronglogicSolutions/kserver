@@ -305,7 +305,10 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
   {
     auto it = m_platform_map.find({platform_id, id});
     if (it != m_platform_map.end())
+    {
+      KLOG("Completed {} platform request {}", name, id);
       it->second = PlatformPostState::SUCCESS;
+    }
   }
 
   return SavePlatformPost(PlatformPost{
@@ -424,7 +427,7 @@ std::vector<PlatformPost> Platform::FetchPendingPlatformPosts()
  */
 bool Platform::IsProcessingPlatform()
 {
-  static Timer timer{Timer::TWO_MINUTES};
+  static Timer timer{Timer::TEN_MINUTES};
   if (timer.active() && timer.expired())
   {
     m_platform_map.clear();
@@ -454,7 +457,7 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
   const std::string& platform_id = GetPlatformID(name);
   const std::string& error       = payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX);
 
-  ELOG("Platform error received.\nError message: {}", error);
+  ELOG("{} platform error received for {}.\nError message: {}", name, id, error);
   SystemUtils::SendMail(config::Email::admin(), error);
 
   if (!id.empty())
