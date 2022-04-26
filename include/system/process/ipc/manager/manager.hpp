@@ -49,8 +49,7 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args)
   KLOG("Processing IPC message for event {}", event);
   bool received{true};
 
-  if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED ||
-      event == SYSTEM_EVENTS__PLATFORM_EVENT)
+  if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED || event == SYSTEM_EVENTS__PLATFORM_EVENT)
     m_clients.at(ALL_CLIENTS).Enqueue(std::move(Deserialize(args)));
   else
     received = false;
