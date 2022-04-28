@@ -307,7 +307,7 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
     if (it != m_platform_map.end())
     {
       KLOG("Completed {} platform request {}", name, id);
-      it->second = PlatformPostState::SUCCESS;
+      it->second.second = PlatformPostState::SUCCESS;
     }
   }
 
@@ -427,15 +427,20 @@ std::vector<PlatformPost> Platform::FetchPendingPlatformPosts()
  */
 bool Platform::IsProcessingPlatform()
 {
-  static Timer timer{Timer::TEN_MINUTES};
+  static Timer timer{Timer::TWO_MINUTES};
   if (timer.active() && timer.expired())
   {
-    m_platform_map.clear();
+    for (auto& platform_request : m_platform_map)
+    if (platform_request.second.second == PlatformPostState::PROCESSING)
+    {
+      platform_request.second.second = PlatformPostState::FAILURE;
+      UpdatePostStatus(platform_request.second.first, PLATFORM_STATUS_FAILURE);
+    }
     return false;
   }
 
   for (const auto& platform_request : m_platform_map)
-    if (platform_request.second == PlatformPostState::PROCESSING)
+    if (platform_request.second.second == PlatformPostState::PROCESSING)
     {
       if (!timer.active()) timer.start();
       return true;
@@ -466,7 +471,7 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
     {
       auto it = m_platform_map.find({platform_id, id});
       if (it != m_platform_map.end())
-        it->second = PlatformPostState::FAILURE;
+        it->second.second = PlatformPostState::FAILURE;
     }
 
     PlatformPost post{};
@@ -496,7 +501,7 @@ void Platform::ProcessPlatform()
       KLOG("Processing platform post\n Platform: {}\nID: {}\nUser: {}\nContent: {}",
             platform_post.name, platform_post.id, platform_post.user, platform_post.content);
 
-      m_platform_map.insert({{platform_post.pid, platform_post.id}, PlatformPostState::PROCESSING});
+      m_platform_map.insert({{platform_post.pid, platform_post.id}, {platform_post, PlatformPostState::PROCESSING}});
       m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, platform_post.GetPayload());
     }
     else
@@ -586,7 +591,7 @@ void Platform::Status() const
 {
   int pending{}, complete{}, failure{};
   for (const auto& platform_request : m_platform_map)
-    switch (platform_request.second)
+    switch (platform_request.second.second)
     {
       case (PlatformPostState::PROCESSING): pending++;
       break;
