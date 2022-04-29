@@ -43,10 +43,12 @@ void ResetSocket(bool server = true)
 {
   m_req_ready  = true;
   m_req_socket = zmq::socket_t{m_context, ZMQ_REQ};
+  m_req_socket.setsockopt(ZMQ_LINGER, 0);
   m_req_socket.connect(REQ_ADDRESS);
   if (server)
   {
     m_rep_socket = zmq::socket_t{m_context, ZMQ_REP};
+    m_rep_socket.setsockopt(ZMQ_LINGER, 0);
     m_rep_socket.bind(REP_ADDRESS);
   }
 }
