@@ -427,7 +427,7 @@ std::vector<PlatformPost> Platform::FetchPendingPlatformPosts()
  */
 bool Platform::IsProcessingPlatform()
 {
-  static Timer timer{Timer::TWO_MINUTES};
+  static Timer timer{Timer::TEN_MINUTES};
   if (timer.active() && timer.expired())
   {
     for (auto& platform_request : m_platform_map)

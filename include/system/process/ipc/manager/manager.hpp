@@ -154,7 +154,7 @@ virtual void loop() override
     }
 
     std::unique_lock<std::mutex> lock{m_mutex};
-    m_condition.wait_for(lock, std::chrono::milliseconds(300));
+    m_condition.wait_for(lock, std::chrono::milliseconds(50));
   }
 }
 
