@@ -149,7 +149,7 @@ virtual void loop() override
     {
       m_daemon.stop();
       ELOG("IPC session is unreliable");
-      m_clients.at(ALL_CLIENTS).ResetSocket();
+      m_clients.at(ALL_CLIENTS).ResetSocket(false);
       m_clients.at(ALL_CLIENTS).KeepAlive();
     }
 
