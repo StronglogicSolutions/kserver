@@ -436,9 +436,6 @@ struct platform_pair_hash
   }
 };
 
-using PlatformRequestMap =
-std::unordered_map<std::pair<std::string, std::string>, PlatformPostState, platform_pair_hash>;
-
 struct PlatformPost {
 std::string pid;
 std::string o_pid = constants::NO_ORIGIN_PLATFORM_EXISTS;
@@ -497,6 +494,10 @@ std::vector<std::string> GetPayload() const
 
   return payload;
 }
-
 };
+
+using PlatformStatePair = std::pair<PlatformPost, PlatformPostState>;
+using PlatformRequestMap =
+std::unordered_map<std::pair<std::string, std::string>, PlatformStatePair, platform_pair_hash>;
+
 } // ns kiq
