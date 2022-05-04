@@ -388,7 +388,7 @@ void KServer::InitClient(const std::string& message, const int32_t& fd)
   const uuids::uuid n_uuid  = uuids::uuid_system_generator{}();
   const std::string uuid_s  = uuids::to_string(n_uuid);
 
-  if (m_sessions.init(fd, NewSession(n_uuid, user)) && ValidateToken(user))
+  if (m_sessions.init(user.name, NewSession(n_uuid, user)) && ValidateToken(user))
   {
     KLOG("Started session {} for {}", uuid_s, fd);
     SendMessage(fd, GetData());
@@ -548,9 +548,9 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
 
 void KServer::Broadcast(const std::string& event, const std::vector<std::string>& argv)
 {
-  for (const auto& [fd, session] : m_sessions)
+  for (const auto& [_, session] : m_sessions)
     if (session.active())
-      SendEvent(fd, event, argv);
+      SendEvent(session.fd, event, argv);
 }
 
 void KServer::OnClientExit(const int32_t& client_fd)
@@ -617,9 +617,7 @@ void KServer::onConnectionClose(int32_t client_fd)
 KSession KServer::GetSession(const int32_t& client_fd) const
 {
   auto it = m_sessions.find(client_fd);
-  if (it != m_sessions.end())
-    return it->second;
-  return KSession{};
+  return (it != m_sessions.fdend()) ? *it->second : KSession{};
 }
 
 void KServer::Status()
@@ -628,17 +626,13 @@ void KServer::Status()
   size_t      rx{};
   std::string client_s;
 
-  for (auto it = m_sessions.begin(); it != m_sessions.end();)
+  for (auto it = m_sessions.begin(); it != m_sessions.end(); it++)
   {
     auto& session = it->second;
     session.verify();
     client_s += session.info();
     tx += session.tx;
     rx += session.rx;
-    if (session.waiting_time() > Timer::TEN_MINUTES)
-      it = m_sessions.erase(it);
-    else
-      it++;
   }
 
   VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);
