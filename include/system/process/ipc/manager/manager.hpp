@@ -113,13 +113,17 @@ void HandleClientMessages()
 private:
 virtual void loop() override
 {
+  uint8_t mask;
   while (m_is_running)
   {
     for (auto&& [fd, client] : m_clients)
     {
       try
       {
-        const uint8_t mask = client.Poll();
+        {
+          std::unique_lock<std::mutex> lock{m_mutex};
+          mask = client.Poll();
+        }
 
         if (HasRequest(mask) && client.ReceiveIPCMessage(false))
           client.ReplyIPC();
@@ -152,9 +156,6 @@ virtual void loop() override
       m_clients.at(ALL_CLIENTS).ResetSocket(false);
       m_clients.at(ALL_CLIENTS).KeepAlive();
     }
-
-    std::unique_lock<std::mutex> lock{m_mutex};
-    m_condition.wait_for(lock, std::chrono::milliseconds(50));
   }
 }
 
@@ -162,7 +163,6 @@ std::unordered_map<int32_t, IPCClient> m_clients;
 SystemCallback_fn_ptr                  m_system_event_fn;
 std::deque<u_ipc_msg_ptr>              m_incoming_queue;
 std::mutex                             m_mutex;
-std::condition_variable                m_condition;
 bool                                   m_req_ready;
 session_daemon                         m_daemon;
 };

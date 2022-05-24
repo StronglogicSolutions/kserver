@@ -7,6 +7,7 @@
 namespace kiq {
 const std::string REQ_ADDRESS{"tcp://0.0.0.0:28473"};
 const std::string REP_ADDRESS{"tcp://0.0.0.0:28474"};
+const int32_t     POLLTIMEOUT{50};
 
 static const bool HasRequest(uint8_t mask)
 {
@@ -117,7 +118,7 @@ uint8_t Poll()
   void*          req_socket_ptr = static_cast<void*>(m_req_socket);
   zmq_pollitem_t items[2]       = {{rep_socket_ptr, 0, ZMQ_POLLIN, 0},
                                    {req_socket_ptr, 0, ZMQ_POLLIN, 0}};
-  zmq::poll(&items[0], 2, 0);
+  zmq::poll(&items[0], 2, POLLTIMEOUT);
   if (items[0].revents & ZMQ_POLLIN) poll_mask |= (0x01U << 0x00U);
   if (items[1].revents & ZMQ_POLLIN) poll_mask |= (0x01U << 0x01U);
 
