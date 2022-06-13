@@ -133,13 +133,9 @@ std::string CreateOperation(const char *op, std::vector<std::string> args)
 
 std::string GetOperation(const std::string& data)
 {
-  if (data.size())
-  {
-    Document d;
-    if (!(d.Parse(data.c_str()).HasParseError()) && d.HasMember("command"))
-      return d["command"].GetString();
-  }
-  return "";
+  Document d;
+  return (d.Parse(data.c_str()).HasParseError() || !d.HasMember("command")) ?
+    "" : d["command"].GetString();
 }
 
 std::string GetToken(const std::string& data)
