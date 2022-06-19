@@ -88,5 +88,8 @@ std::string               GetUID(const std::string& pid, const std::string& name
 Database::KDB       m_db;
 PlatformRequestMap  m_platform_map;
 SystemEventcallback m_event_callback;
+unsigned int        m_pending{0};
+unsigned int        m_errors {0};
+unsigned int        m_posted {0};
 };
 } // ns kiq
