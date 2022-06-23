@@ -1190,4 +1190,9 @@ std::string Scheduler::GetUUID(const std::string& id) const
       return row.second;
   return "";
 }
+
+void Scheduler::FetchPosts()
+{
+  m_platform.FetchPosts();
+}
 } // ns kiq

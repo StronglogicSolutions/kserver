@@ -599,4 +599,19 @@ void Platform::Status() const
 {
   VLOG("Platform Status: Pending {} Complete {} Errors {}", m_pending, m_posted, m_errors);
 }
+
+void Platform::FetchPosts()
+{
+  auto query = m_db.select("platform_post", {"id", "pid", "unique_id", "time", "status", "uid"});
+  auto posts   = ParsePlatformPosts(std::move(query));
+  auto payload = std::vector<std::string>{posts.size()};
+  for (auto& post : posts)
+  {
+    PopulatePlatformPost(post);
+    auto post_payload = post.GetPayload();
+    payload.insert(payload.end(), post_payload.begin(), post_payload.end());
+  }
+
+  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_FETCH_POSTS , payload);
+}
 } // ns kiq
