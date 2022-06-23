@@ -34,14 +34,18 @@ set(KSERVER_HEADERS "-I include -I third_party -I ${JWT_INCLUDE}")
 # Flags
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wno-deprecated-declarations -std=c++17 -g -lzmq -lpqxx -lpq -lpthread -pthread -luuid -lstdc++fs ${KSERVER_HEADERS} -L /usr/include/pqxx")
+  set(OPENSSL_LINK_ITEMS "/usr/local/lib/libssl.a /usr/local/lib/libcrypto.a")
 else ()
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wno-deprecated-declarations -std=c++17 -g -lzmq -lpqxx -lpq -lpthread -pthread -luuid ${KSERVER_HEADERS} -L /usr/local/include/pqxx")
+  set(OPENSSL_LINK_ITEMS ${OPENSSL_LIBRARIES})
+
 endif()
 
 set(SOURCE_FILES
   "src/main.cpp"
   "src/database_connection.cpp"
   "include/server/kserver.cpp"
+  "include/server/event_handler.cpp"
   "include/server/session.cpp"
   "include/request/controller.cpp"
   "include/config/config_parser.cpp"
@@ -70,6 +74,8 @@ endif()
 add_executable(${PROJECT_NAME} ${SOURCES})
 add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 
+message(${OPENSSL_LIBRARIES})
+
 # Linking
 target_link_libraries(
   ${PROJECT_NAME}
@@ -78,7 +84,7 @@ target_link_libraries(
   ${PQXX_LIB}
   ${PQ_LIB}
   Threads::Threads
-  ${OPENSSL_LIBRARIES}
+  ${OPENSSL_LINK_ITEMS}
   zmq ${CMAKE_THREAD_LIBS_INIT}
 )
 
@@ -89,7 +95,7 @@ target_link_libraries(
   ${PQXX_LIB}
   ${PQ_LIB}
   Threads::Threads
-  ${OPENSSL_LIBRARIES}
+  ${OPENSSL_LINK_ITEMS}
   zmq ${CMAKE_THREAD_LIBS_INIT}
 )
 

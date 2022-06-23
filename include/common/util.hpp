@@ -119,8 +119,10 @@ namespace FileUtils
 {
 bool                     CreateDirectory(const char *dir_name);
 void                     SaveFile(uint8_t *bytes, int size, const std::string& filename);
+void                     SaveFile(uint8_t *bytes, int size, std::string_view filename);
 void                     SaveFile(     const std::vector<char>& bytes, const char* filename);
 void                     SaveFile(     const std::string& env_file_string, const std::string& env_file_path);
+void                     SaveFile(     const std::string& env_file_string, std::string_view path);
 std::string              SaveEnvFile(  const std::string& env_file_string, const std::string& unique_id);
 std::string              ReadEnvFile(  const std::string& env_file_path, bool relative_path = false);
 std::string              ReadRunArgs(  const std::string& env_file_path);
