@@ -622,7 +622,9 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     case (EXECUTE):
       Execute(std::stoi(args.at(1)), args.at(2), client_fd);
     break;
-
+    case(FETCH_POSTS):
+      m_scheduler.FetchPosts();
+    break;
     case (RequestType::UNKNOWN):
       [[ fallthrough ]];
     default:
