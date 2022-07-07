@@ -113,7 +113,10 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
     m_sessions[name] = new_session;
 
   if (result)
+  {
     m_session_ptrs[new_session.fd] = &m_sessions[name];
+    m_sessions[name].notify();
+  }
 
   return result;
 }

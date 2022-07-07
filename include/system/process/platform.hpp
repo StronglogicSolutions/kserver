@@ -63,17 +63,18 @@ explicit Platform(SystemEventcallback fn);
 bool                      SavePlatformPost(std::vector<std::string> payload);
 void                      OnPlatformError(const std::vector<std::string>& payload);
 void                      ProcessPlatform();
-void                      FetchPosts();
+std::vector<PlatformPost> Fetch(bool pending = false) const;
+void                      FetchPosts() const;
 void                      Status() const;
 std::string               GetPlatform(const std::string& pid);
 std::string               GetPlatformID(const std::string& name);
 std::string               GetPlatformID(uint32_t mask);
-std::string               GetUser  (const std::string& uid, const std::string& pid = "", bool use_default = false);
+std::string               GetUser  (const std::string& uid, const std::string& pid = "", bool use_default = false) const;
 
 private:
 std::vector<std::string>  FetchRepostIDs(const std::string& pid);
-std::vector<PlatformPost> FetchPendingPlatformPosts();
-std::vector<PlatformPost> ParsePlatformPosts(QueryValues&& result);
+std::vector<PlatformPost> FetchPendingPlatformPosts() const;
+std::vector<PlatformPost> ParsePlatformPosts(QueryValues&& result) const;
 bool                      SavePlatformPost(PlatformPost       post,
                                            const std::string& status = constants::PLATFORM_POST_COMPLETE);
 const std::vector<PlatformPost> MakeAffiliatePosts(const PlatformPost& post);

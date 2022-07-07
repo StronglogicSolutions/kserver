@@ -262,7 +262,8 @@ QueryValues select(std::string table, Fields fields,
     }
   }
 
-  QueryValues selectSimpleJoin(std::string table, Fields fields, QueryFilter filter, Join join) {
+  QueryValues selectSimpleJoin(std::string table, Fields fields, QueryFilter filter, Join join)  const
+  {
     try {
       SimpleJoinQuery select_query{
         .table  = table,

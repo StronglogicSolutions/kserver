@@ -76,6 +76,7 @@ static const uint8_t     PLATFORM_PAYLOAD_REPOST_INDEX   {0x06};
 static const uint8_t     PLATFORM_PAYLOAD_METHOD_INDEX   {0x07};
 static const uint8_t     PLATFORM_PAYLOAD_ARGS_INDEX     {0x08};
 static const uint8_t     PLATFORM_PAYLOAD_CMD_INDEX      {0x09};
+static const uint8_t     PLATFORM_PAYLOAD_STATUS_INDEX   {0x0A};
 static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
 static const uint8_t     PLATFORM_DEFAULT_COMMAND        {0x00};
 
@@ -449,6 +450,7 @@ std::string name;
 std::string args;
 std::string method;
 std::string cmd{std::to_string(constants::PLATFORM_DEFAULT_COMMAND)};
+std::string status;
 
 const bool is_valid() const
 {
@@ -460,6 +462,7 @@ const std::string ToString() const
   return std::string{"PID: "     + pid    + '\n' +
                      "Origin: "  + o_pid  + '\n' +
                      "ID: "      + id     + '\n' +
+                     "Status: "  + status + '\n' +
                      "User: "    + user   + '\n' +
                      "Time: "    + time   + '\n' +
                      "Content: " + content+ '\n' +
@@ -480,7 +483,7 @@ std::vector<std::string> GetPayload() const
      const auto  type  = args[1];
   */
   std::vector<std::string> payload{};
-  payload.resize(10);
+  payload.resize(11);
   payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = name;
   payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = id;
   payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = user;
@@ -491,6 +494,7 @@ std::vector<std::string> GetPayload() const
   payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX)   = method;
   payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX)     = args;
   payload.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)      = cmd;
+  payload.at(constants::PLATFORM_PAYLOAD_STATUS_INDEX)   = status;
 
   return payload;
 }

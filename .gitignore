@@ -19,6 +19,10 @@ lib
 **/*.cmake
 **/*.sql
 **/.git
+**/*.log
+/config
+/protocol.*
 **/kserver_test
 .vscode
 **/googletest
+scripts

@@ -239,6 +239,9 @@ void KServer::SystemEvent(const int32_t&                  client_fd,
     case SYSTEM_EVENTS__TERM_HITS:
       SendEvent(client_fd, "Term Hits", args);
     break;
+
+    case SYSTEM_EVENTS__PLATFORM_FETCH_POSTS:
+      SendEvent(client_fd, "Platform Posts", args);
   }
 }
 
@@ -304,7 +307,11 @@ void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
 void KServer::SendEvent(const int32_t& client_fd, const std::string& event, const std::vector<std::string>& argv)
 {
   KLOG("Sending {} event to {}", event, client_fd);
-  SendMessage(client_fd, CreateEvent(event, argv));
+
+  if (client_fd == ALL_CLIENTS)
+    Broadcast(event, argv);
+  else
+    SendMessage(client_fd, CreateEvent(event, argv));
 }
 
 void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
