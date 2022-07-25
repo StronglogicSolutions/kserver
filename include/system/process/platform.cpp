@@ -383,7 +383,7 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) con
     else if (v.first == "platform_post.uid")       { uid    = v.second;  }
     else if (v.first == "platform_post.status")    { status = v.second;  }
 
-    if (DataUtils::NoEmptyArgs(pid, o_pid, id, time, repost, name, method, uid))
+    if (DataUtils::NoEmptyArgs(pid, o_pid, id, time, repost, name, method, uid, status))
     {
       PlatformPost post{};
       post.pid    = pid;
