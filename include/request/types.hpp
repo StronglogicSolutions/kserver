@@ -30,7 +30,8 @@ enum RequestType {
   FETCH_TERM_HITS       = 0x13,
   EXECUTE               = 0x14,
   FETCH_POSTS           = 0x15,
-  UNKNOWN               = 0x16
+  UPDATE_POST           = 0x16,
+  UNKNOWN               = 0x17
 };
 
 /**
@@ -71,6 +72,8 @@ static RequestType int_to_request_type(int byte) {
       return EXECUTE;
     case (FETCH_POSTS):
       return FETCH_POSTS;
+    case (UPDATE_POST):
+      return UPDATE_POST;
   }
   return UNKNOWN;
 }

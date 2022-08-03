@@ -230,7 +230,8 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
 {
   auto GetValidUser = [this](auto o_pid, auto name) { return (GetPlatform(o_pid) == "TW Search") ? config::Platform::default_user() : name; };
 
-  if (PostAlreadyExists(post)) return UpdatePostStatus(post, status);
+  if (PostAlreadyExists(post))
+    return UpdatePostStatus(post, post.status.empty() ? status : post.status);
 
   KLOG("Saving platform post:\n{}", post.ToString());
 
@@ -293,10 +294,14 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
   const std::string& urls        = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX);
   const std::string& repost      = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX);
   const std::string& method      = payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
+
   const std::string& platform_id = GetPlatformID(name);
-  const std::string& args        = payload.size() > 8 ?
-                                     payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX) :
-                                     "";
+  const std::string& args        = payload.size() > 8 ? payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX) :
+                                                        "";
+  const std::string& cmd         = payload.size() > 9 ? payload.at(constants::PLATFORM_PAYLOAD_CMD_INDEX) :
+                                                        std::to_string(constants::PLATFORM_DEFAULT_COMMAND);
+  const std::string& status      = payload.size() > 10? payload.at(constants::PLATFORM_PAYLOAD_STATUS_INDEX) :
+                                                        "";
 
   if (platform_id.empty())
     return false;
@@ -324,7 +329,9 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
     .repost  = repost,
     .name    = name,
     .args    = args,
-    .method  = method
+    .method  = method,
+    .cmd     = cmd,
+    .status  = status
   });
 }
 

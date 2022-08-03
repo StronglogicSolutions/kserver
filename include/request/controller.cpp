@@ -625,6 +625,9 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     case(FETCH_POSTS):
       m_scheduler.FetchPosts();
     break;
+    case(UPDATE_POST):
+      m_scheduler.SavePlatformPost({args.begin() + 1, args.end()});
+    break;
     case (RequestType::UNKNOWN):
       [[ fallthrough ]];
     default:
