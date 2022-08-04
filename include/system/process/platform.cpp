@@ -308,6 +308,8 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
     {
       KLOG("Completed {} platform request {}", name, id);
       it->second.second = PlatformPostState::SUCCESS;
+      m_posted++;
+      m_pending--;
     }
   }
 
@@ -427,25 +429,9 @@ std::vector<PlatformPost> Platform::FetchPendingPlatformPosts()
  */
 bool Platform::IsProcessingPlatform()
 {
-  static Timer timer{Timer::TEN_MINUTES};
-  if (timer.active() && timer.expired())
-  {
-    for (auto& platform_request : m_platform_map)
-    if (platform_request.second.second == PlatformPostState::PROCESSING)
-    {
-      platform_request.second.second = PlatformPostState::FAILURE;
-      UpdatePostStatus(platform_request.second.first, PLATFORM_STATUS_FAILURE);
-    }
-    return false;
-  }
-
   for (const auto& platform_request : m_platform_map)
     if (platform_request.second.second == PlatformPostState::PROCESSING)
-    {
-      if (!timer.active()) timer.start();
       return true;
-    }
-  timer.stop();
   return false;
 }
 
@@ -471,10 +457,14 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
     {
       auto it = m_platform_map.find({platform_id, id});
       if (it != m_platform_map.end())
+      {
         it->second.second = PlatformPostState::FAILURE;
+        m_errors++;
+        m_pending--;
+      }
     }
 
-    PlatformPost post{};
+    PlatformPost post;
     post.name = name;
     post.id   = id;
     post.pid  = platform_id;
@@ -492,6 +482,23 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
  */
 void Platform::ProcessPlatform()
 {
+  static Timer timer{Timer::TEN_MINUTES};
+  if (!timer.active())
+    timer.start();
+  else
+  if (timer.active() && timer.expired())
+  {
+    for (auto& platform_request : m_platform_map)
+    if (platform_request.second.second == PlatformPostState::PROCESSING)
+    {
+      platform_request.second.second = PlatformPostState::FAILURE;
+      UpdatePostStatus(platform_request.second.first, PLATFORM_STATUS_FAILURE);
+      m_errors++;
+      m_pending--;
+    }
+    timer.stop();
+  }
+
   if (IsProcessingPlatform()) return KLOG("Platform requests are still being processed");
 
   for (auto&& platform_post : FetchPendingPlatformPosts())
@@ -503,6 +510,7 @@ void Platform::ProcessPlatform()
 
       m_platform_map.insert({{platform_post.pid, platform_post.id}, {platform_post, PlatformPostState::PROCESSING}});
       m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, platform_post.GetPayload());
+      m_pending++;
     }
     else
       ELOG("Failed to retrieve values for {} platform post with id {}", platform_post.name, platform_post.id);
@@ -589,18 +597,6 @@ std::string Platform::GetPlatform(const std::string& pid)
 
 void Platform::Status() const
 {
-  int pending{}, complete{}, failure{};
-  for (const auto& platform_request : m_platform_map)
-    switch (platform_request.second.second)
-    {
-      case (PlatformPostState::PROCESSING): pending++;
-      break;
-      case (PlatformPostState::SUCCESS):    complete++;
-      break;
-      case (PlatformPostState::FAILURE):    failure++;
-      break;
-      default: break;
-    }
-  VLOG("Platform Status: Pending {} Complete {} Errors {}", pending, complete, failure);
+  VLOG("Platform Status: Pending {} Complete {} Errors {}", m_pending, m_posted, m_errors);
 }
 } // ns kiq

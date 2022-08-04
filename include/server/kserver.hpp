@@ -15,10 +15,12 @@
 #include "request/controller.hpp"
 #include "system/process/ipc/manager/manager.hpp"
 #include "session.hpp"
+#include "event_handler.hpp"
 
 #define IF_NOT_HANDLING_PACKETS_FOR_CLIENT(x) if (m_file_pending_fd != x)
 
 namespace kiq {
+
 
 struct OutboundFile
 {
@@ -26,6 +28,64 @@ int32_t      fd;
 FileMetaData file;
 };
 
+class FileManager
+{
+public:
+using ReceivedFiles_t = std::vector<ReceivedFile>;
+using OutboundFiles_t = std::deque <OutboundFile>;
+
+ReceivedFiles_t::iterator FindReceived(int32_t fd, std::string_view time)
+{
+  return std::find_if(m_received_files.begin(), m_received_files.end(), [fd, time](const ReceivedFile &file)
+  { return (file.client_fd == fd && std::to_string(file.timestamp) == time); });
+}
+
+bool ReceivedExists(const ReceivedFiles_t::iterator& it)
+{
+  return it != m_received_files.end();
+}
+
+void Add(const ReceivedFile&& file)
+{
+  m_received_files.emplace_back(file);
+}
+
+void SaveFile(const ReceivedFiles_t::iterator& it, std::string_view filename)
+{
+  FileUtils::SaveFile(it->f_ptr, it->size, filename);
+}
+
+void EraseReceived(ReceivedFiles_t::iterator it)
+{
+  m_received_files.erase(it);
+}
+
+void EnqueueOutbound(int32_t fd, const std::vector<std::string>& files)
+{
+  m_file_sending    = true;
+  m_file_sending_fd = fd;
+  for (const auto file : FileMetaData::PayloadToMetaData(files))
+    m_outbound_files.emplace_back(OutboundFile{fd, file});
+}
+
+OutboundFile& OutboundNext()
+{
+  return m_outbound_files.front();
+}
+
+OutboundFile&& Dequeue()
+{
+  auto& file = m_outbound_files.front();
+  m_outbound_files.pop_front();
+  return std::move(file);
+}
+
+private:
+  bool            m_file_sending   {false};
+  int32_t         m_file_sending_fd{0};
+  ReceivedFiles_t m_received_files;
+  OutboundFiles_t m_outbound_files;
+};
 
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
@@ -39,6 +99,17 @@ public:
 KServer(int argc, char **argv);
 ~KServer();
 
+void     Broadcast                (const std::string& event, const std::vector<std::string>& argv);
+
+void     SendEvent                (const int32_t& client_fd, const std::string& event,
+                                    const std::vector<std::string>& argv);
+void     SendFile                 (const int32_t& client_fd, const std::string& filename);
+void     EraseMessageHandler      (const int32_t& client_fd);
+void     EraseFileHandler         (const int32_t& client_fd);
+Request::Controller& GetController();
+IPCManager&     GetIPCMgr();
+FileManager&    GetFileMgr();
+
 private:
 using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
 
@@ -49,15 +120,11 @@ virtual void onMessageReceived(int                      client_fd,
 virtual void onConnectionClose(int32_t client_fd)             override;
 
 
-void     SystemEvent              (const int32_t&                  client_socket_fd,
-                                    const int32_t&                  system_event,
-                                    const std::vector<std::string>& args);
+void     SystemEvent              (int32_t fd, int32_t event, const std::vector<std::string>& args);
 void     CloseConnections         ();
 void     OnProcessEvent           (const std::string& result, int32_t mask, const std::string& id,
                                 int32_t client_fd, bool error);
 void     SendMessage              (const int32_t& client_socket_fd, const std::string& message);
-void     SendEvent                (const int32_t& client_fd, const std::string& event,
-                                    const std::vector<std::string>& argv);
 void     OnFileHandled            (const int& socket_fd, uint8_t *&&f_ptr = NULL,
                                     size_t size = 0);
 void     ReceiveFileData          (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
@@ -71,25 +138,23 @@ void     OperationRequest         (const std::string& message, const int32_t& cl
 void     EndSession               (const int32_t& client_fd, int32_t status = SESSION_INACTIVE);
 void     ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_fd);
 void     OnClientExit             (const int32_t& client_fd);
-void     EraseMessageHandler      (const int32_t& client_fd);
-void     EraseFileHandler         (const int32_t& client_fd);
 void     DeleteClientFiles        (const int32_t& client_fd);
 void     SetFileNotPending        ();
 void     SetFilePending           (const int32_t& client_fd);
 bool     HandlingFile             (const int32_t& client_fd);
-void     SendFile                 (const int32_t& client_fd, const std::string& filename);
 void     SendPong                 (int32_t client_fd);
 void     Status                   ();
-void     Broadcast                (const std::string& event, const std::vector<std::string>& argv);
 KSession GetSession               (const int32_t& client_fd) const;
 
 Request::Controller       m_controller;
 IPCManager                m_ipc_manager;
+SystemEventHandler        m_event_handler;
 std::vector<int>          m_client_connections;
 FileHandlers              m_file_handlers;
 FileHandlers              m_message_handlers;
 SessionMap                m_sessions;
-std::vector<ReceivedFile> m_received_files;
+FileManager               m_file_manager;
+
 std::deque <OutboundFile> m_outbound_files;
 bool                      m_file_pending;
 int32_t                   m_file_pending_fd;
@@ -98,4 +163,5 @@ int32_t                   m_file_sending_fd;
 bool                      m_message_pending;
 int32_t                   m_message_pending_fd;
 };
+
 };     // namespace kiq
