@@ -498,12 +498,18 @@ bool CreateDirectory(const char *dir_name) {
 }
 
 void SaveFile(const std::vector<char>& bytes, const char *filename) {
-  std::ofstream output(filename,
-                       std::ios::binary | std::ios::out | std::ios::app);
-  const char* raw_data = bytes.data();
-  for (size_t i = 0; i < bytes.size(); i++) {
+  std::ofstream output(filename, std::ios::binary | std::ios::out | std::ios::app);
+  const char*   raw_data = bytes.data();
+  for (size_t i = 0; i < bytes.size(); i++)
     output.write(const_cast<const char *>(&raw_data[i]), 1);
-  }
+  output.close();
+}
+
+void SaveFile(uint8_t *bytes, int size, std::string_view filename)
+{
+  std::ofstream output(filename.data(), std::ios::binary | std::ios::out | std::ios::app);
+  for (int i = 0; i < size; i++)
+    output.write((const char *)(&bytes[i]), 1);
   output.close();
 }
 
@@ -540,6 +546,12 @@ void saveFopenFile(std::vector<char> bytes, const char *filename) {
 
 void SaveFile(const std::string& env_file_string, const std::string& env_file_path) {
   std::ofstream out{env_file_path.c_str(), (std::ios::trunc | std::ios::out | std::ios::binary)};
+  out << env_file_string;
+}
+
+void SaveFile(const std::string& env_file_string, std::string_view path)
+{
+  std::ofstream out{path.data(), (std::ios::trunc | std::ios::out | std::ios::binary)};
   out << env_file_string;
 }
 

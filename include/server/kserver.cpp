@@ -1,3 +1,4 @@
+#include "event_handler.hpp"
 #include "kserver.hpp"
 #include "kiqoder/file_iterator.hpp"
 
@@ -12,8 +13,7 @@ static const char*   WELCOME_MSG     {"Session started"};
 static const char*   REJECTED_MSG    {"Session rejected"};
 static const char*   GOODBYE_MSG     {"KServer is shutting down the socket connection"};
 static const char*   RECV_MSG        {"Received by KServer"};
-static const char*   FILE_SUCCESS_MSG{"File Save Success"};
-static const char*   FILE_FAIL_MSG   {"File Save Failure"};
+
 
 /**
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
@@ -29,6 +29,7 @@ KServer::KServer(int argc, char **argv)
   {
     SystemEvent(ALL_CLIENTS, event, payload);
   }),
+  m_event_handler(this),
   m_file_pending(false),
   m_file_pending_fd(NONE_PENDING)
   {
@@ -71,178 +72,9 @@ KServer::~KServer()
  * @param[in] {std::vector<std::string>}
  *
  */
-void KServer::SystemEvent(const int32_t&                  client_fd,
-                          const int32_t&                  system_event,
-                          const std::vector<std::string>& args)
+void KServer::SystemEvent(int32_t client_fd, int32_t system_event, const std::vector<std::string>& args)
 {
-  switch (system_event)
-  {
-    case SYSTEM_EVENTS__SCHEDULED_TASKS_READY:
-      KLOG("Maintenance worker found tasks");
-      (client_fd == ALL_CLIENTS) ?
-        Broadcast("Scheduled Tasks Ready", args) : SendEvent(client_fd, "Scheduled Tasks Ready", args);
-    break;
-    case SYSTEM_EVENTS__SCHEDULED_TASKS_NONE:
-      KLOG("There are currently no tasks ready for execution.");
-      (client_fd == ALL_CLIENTS) ?
-        Broadcast("No tasks ready", args)        : SendEvent(client_fd, "No tasks ready", args);
-    break;
-    case SYSTEM_EVENTS__SCHEDULER_FETCH:
-      if (client_fd != ALL_CLIENTS)
-      {
-        KLOG("Sending schedule fetch results to client {}", client_fd);
-        SendEvent(client_fd, "Scheduled Tasks", args);
-      }
-    break;
-    case SYSTEM_EVENTS__SCHEDULER_UPDATE:
-      if (client_fd != ALL_CLIENTS)
-      {
-        KLOG("Sending schedule update result to client {}", client_fd);
-        SendEvent(client_fd, "Schedule PUT", args);
-      }
-    break;
-    case SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS:
-      if (client_fd != ALL_CLIENTS)
-      {
-        KLOG("Sending schedule flag values to client {}", client_fd);
-        SendEvent(client_fd, "Schedule Tokens", args);
-      }
-    break;
-    case SYSTEM_EVENTS__SCHEDULER_SUCCESS:
-      KLOG("Task successfully scheduled");
-      (client_fd == ALL_CLIENTS) ?
-        Broadcast("Task Scheduled", args) : SendEvent(client_fd, "Task Scheduled", args);
-    break;
-    case SYSTEM_EVENTS__PLATFORM_NEW_POST:
-    {
-      KLOG("Platform Post event received");
-      m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST, args);
-
-      std::vector<std::string> outgoing_args{};
-      outgoing_args.reserve(args.size());
-      for (const auto& arg : args)
-        outgoing_args.emplace_back(arg);
-
-      (client_fd == ALL_CLIENTS) ?
-        Broadcast("Platform Post", args) : SendEvent(client_fd, "Platform Post", args);
-    }
-    break;
-    case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
-      if (args.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
-        m_ipc_manager.ReceiveEvent(system_event, args);
-      else
-        m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_ERROR, args);
-    break;
-    case SYSTEM_EVENTS__PLATFORM_REQUEST:
-      m_controller.ProcessSystemEvent(system_event, args);
-    break;
-    case SYSTEM_EVENTS__PLATFORM_EVENT:
-      m_ipc_manager.ReceiveEvent(system_event, args);
-    break;
-    case SYSTEM_EVENTS__PLATFORM_INFO:
-      (client_fd == ALL_CLIENTS) ? Broadcast("Platform Info", args) :
-                                   SendEvent(client_fd, "Platform Info", args);
-    break;
-    case SYSTEM_EVENTS__KIQ_IPC_MESSAGE:
-        m_ipc_manager.process(args.front(), client_fd);
-    break;
-    case SYSTEM_EVENTS__PLATFORM_ERROR:
-      m_controller.ProcessSystemEvent(system_event, args);
-      ELOG("Error processing platform post: {}", args.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
-
-      (client_fd == ALL_CLIENTS) ?
-        Broadcast("Platform Error", args) : SendEvent(client_fd, "Platform Error", args);
-    break;
-    case SYSTEM_EVENTS__FILE_UPDATE:
-    {
-      const auto timestamp = args.at(1);
-      KLOG("Updating information file information for client {}'s file received at {}", client_fd, timestamp);
-
-      auto received_file = std::find_if(m_received_files.begin(), m_received_files.end(),
-        [client_fd, timestamp](const ReceivedFile &file)
-        {
-          return (file.client_fd                 == client_fd &&
-                  std::to_string(file.timestamp) == timestamp);
-        });
-
-      if (received_file != m_received_files.end())
-      {
-        KLOG("Data buffer found. Creating directory and saving file");
-        const std::string filename = args.at(0);
-        FileUtils::SaveFile(received_file->f_ptr, received_file->size, filename);
-        m_received_files.erase(received_file);
-
-        if (args.size() > 3 && args.at(3) == "final file")
-          EraseFileHandler(client_fd);
-
-        SendEvent(client_fd, FILE_SUCCESS_MSG, {timestamp});
-      }
-      else
-      {
-        ELOG("Unable to find file");
-        SendEvent(client_fd, FILE_FAIL_MSG, {timestamp});
-      }
-    }
-    break;
-    case SYSTEM_EVENTS__FILES_SEND:
-    {
-      const auto files = args;
-      EnqueueFiles(client_fd, files);
-      SendEvent(client_fd, "File Upload", files);
-    }
-    break;
-    case SYSTEM_EVENTS__FILES_SEND_ACK:
-    {
-      if (m_file_sending_fd == client_fd)
-        SendEvent(client_fd, "File Upload Meta", m_outbound_files.front().file.to_string_v());
-    }
-    break;
-    case SYSTEM_EVENTS__FILES_SEND_READY:
-    if (m_file_sending_fd == client_fd)
-    {
-      SendFile(client_fd, m_outbound_files.front().file.name);
-      m_outbound_files.pop_front();
-    }
-    break;
-    case SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED:
-      SendEvent(client_fd, "Process Execution Requested", args);
-      break;
-
-    case SYSTEM_EVENTS__APPLICATION_FETCH_SUCCESS:
-      SendEvent(client_fd, "Application was found", args);
-      break;
-
-    case SYSTEM_EVENTS__APPLICATION_FETCH_FAIL:
-      SendEvent(client_fd, "Application was not found", args);
-      break;
-
-    case SYSTEM_EVENTS__REGISTRAR_SUCCESS:
-      SendEvent(client_fd, "Application was registered", args);
-      break;
-
-    case SYSTEM_EVENTS__REGISTRAR_FAIL:
-      SendEvent(client_fd, "Failed to register application", args);
-    break;
-
-    case SYSTEM_EVENTS__TASK_FETCH_FLAGS:
-      SendEvent(client_fd, "Application Flags", args);
-    break;
-
-    case SYSTEM_EVENTS__TASK_DATA:
-      SendEvent(client_fd, "Task Data", args);
-    break;
-
-    case SYSTEM_EVENTS__TASK_DATA_FINAL:
-      SendEvent(client_fd, "Task Data Final", args);
-    break;
-
-    case SYSTEM_EVENTS__TERM_HITS:
-      SendEvent(client_fd, "Term Hits", args);
-    break;
-
-    case SYSTEM_EVENTS__PLATFORM_FETCH_POSTS:
-      SendEvent(client_fd, "Platform Posts", args);
-  }
+  m_event_handler(client_fd, system_event, args);
 }
 
 /**
@@ -270,8 +102,7 @@ void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std:
   if (error)
     event_args.push_back("Executed process returned an ERROR");
 
-  (client_fd == ALL_CLIENTS) ?
-    Broadcast("Process Result", event_args) : SendEvent(client_fd, "Process Result", event_args);
+  Broadcast("Process Result", event_args);
 
   if (Scheduler::isKIQProcess(mask))
     m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));
@@ -307,7 +138,6 @@ void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
 void KServer::SendEvent(const int32_t& client_fd, const std::string& event, const std::vector<std::string>& argv)
 {
   KLOG("Sending {} event to {}", event, client_fd);
-
   if (client_fd == ALL_CLIENTS)
     Broadcast(event, argv);
   else
@@ -342,7 +172,7 @@ void KServer::OnFileHandled(const int& socket_fd, uint8_t*&& f_ptr, size_t size)
   else
   {
     const auto timestamp = TimeUtils::UnixTime();
-    m_received_files.emplace_back(ReceivedFile{timestamp, socket_fd, f_ptr, size});
+    m_file_manager.Add({timestamp, socket_fd, f_ptr, size});
     KLOG("Received file from {} at {}", socket_fd, timestamp);
     SendEvent(socket_fd, "File Transfer Complete", {std::to_string(timestamp)});
     SetFileNotPending();
@@ -644,5 +474,20 @@ void KServer::Status()
 
   VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);
   VLOG("Thread pool: there are currently {} active workers tending to sockets", SocketListener::count());
+}
+
+Request::Controller& KServer::GetController()
+{
+  return m_controller;
+}
+
+IPCManager& KServer::GetIPCMgr()
+{
+  return m_ipc_manager;
+}
+
+FileManager& KServer::GetFileMgr()
+{
+  return m_file_manager;
 }
 } // ns kiq

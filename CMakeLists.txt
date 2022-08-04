@@ -42,6 +42,7 @@ set(SOURCE_FILES
   "src/main.cpp"
   "src/database_connection.cpp"
   "include/server/kserver.cpp"
+  "include/server/event_handler.cpp"
   "include/server/session.cpp"
   "include/request/controller.cpp"
   "include/config/config_parser.cpp"
