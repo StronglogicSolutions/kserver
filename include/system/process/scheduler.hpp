@@ -125,6 +125,7 @@ virtual std::vector<Task>         fetchTasks() override;
         TermEvents                FetchTermEvents() const;
         void                      ResolvePending(const bool& check_timer = true);
         void                      Status() const;
+        void                      FetchPosts();
 
         template <typename T>
         std::vector<std::string>  getFlags(const T& mask);

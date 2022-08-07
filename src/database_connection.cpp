@@ -434,6 +434,9 @@ std::string selectStatement(T query)
   else
   if constexpr(std::is_same_v<T, JoinQuery<QueryFilter>>)
     return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + ' ' + getJoinStatement(query.joins);
+  else
+  if constexpr(std::is_same_v<T, SimpleJoinQuery>)
+    return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table + ' ' + getJoinStatement({query.join});
 
   return "SELECT " + fieldsAsString(query.fields) + " FROM " + query.table;
 }
