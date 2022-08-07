@@ -111,18 +111,17 @@ bool Platform::PostAlreadyExists(const PlatformPost& post)
  * @return true
  * @return false
  */
-bool Platform::UpdatePostStatus(const PlatformPost& post, const std::string& status)
+bool Platform::Update(const PlatformPost& post, const std::string& status)
 {
   if (post.id.empty() || post.user.empty())
     return false;
 
-  return (!m_db.update(
-    "platform_post",
-    {"status"},
-    {status},
-    CreateFilter("pid", post.pid, "unique_id", post.id, "uid", GetUID(post.pid, post.user)),
-    "id"
-  ).empty());
+  const auto id = m_db.update("platform_post", {"status"}, {status},
+    CreateFilter("pid", post.pid, "unique_id", post.id, "uid", GetUID(post.pid, post.user)), "id");
+
+  WLOG("Sending Platform Update but status might not be set");
+  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_UPDATE, post.GetPayload());
+  return !id.empty();
 }
 
 /**
@@ -231,7 +230,10 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
   auto GetValidUser = [this](auto o_pid, auto name) { return (GetPlatform(o_pid) == "TW Search") ? config::Platform::default_user() : name; };
 
   if (PostAlreadyExists(post))
-    return UpdatePostStatus(post, post.status.empty() ? status : post.status);
+  {
+    post.status = (post.status.empty()) ? status : post.status;
+    return Update(post, post.status);
+  }
 
   KLOG("Saving platform post:\n{}", post.ToString());
 
@@ -469,7 +471,7 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
     post.pid  = platform_id;
     post.user = user;
 
-    UpdatePostStatus(post, PLATFORM_STATUS_FAILURE);
+    Update(post, PLATFORM_STATUS_FAILURE);
   }
   else
     ELOG("Platform error had no associated post", error);
@@ -491,7 +493,7 @@ void Platform::ProcessPlatform()
     if (platform_request.second.second == PlatformPostState::PROCESSING)
     {
       platform_request.second.second = PlatformPostState::FAILURE;
-      UpdatePostStatus(platform_request.second.first, PLATFORM_STATUS_FAILURE);
+      Update(platform_request.second.first, PLATFORM_STATUS_FAILURE);
       m_errors++;
       m_pending--;
     }

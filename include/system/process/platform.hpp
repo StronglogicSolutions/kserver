@@ -78,7 +78,7 @@ std::vector<PlatformPost> ParsePlatformPosts(QueryValues&& result) const;
 bool                      SavePlatformPost(PlatformPost       post,
                                            const std::string& status = constants::PLATFORM_POST_COMPLETE);
 const std::vector<PlatformPost> MakeAffiliatePosts(const PlatformPost& post);
-bool                      UpdatePostStatus(const PlatformPost& post, const std::string& status);
+bool                      Update(const PlatformPost& post, const std::string& status);
 bool                      PostAlreadyExists(const PlatformPost& post);
 bool                      IsProcessingPlatform();
 bool                      UserExists(const std::string& pid, const std::string& name);

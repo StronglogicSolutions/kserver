@@ -111,33 +111,37 @@ void SystemEventHandler::HandlePlatform_Post_Requested (int32_t client_fd, int32
   else
     m_server->GetController().ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_ERROR, payload);
 }
-void SystemEventHandler::HandlePlatform_Error (int32_t client_fd, int32_t event, const EventPayload& payload)
+void SystemEventHandler::HandlePlatform_Error(int32_t client_fd, int32_t event, const EventPayload& payload)
 {
   m_server->GetController().ProcessSystemEvent(event, payload);
   ELOG("Error processing platform post: {}", payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
   m_server->Broadcast("Platform Error", payload);
 }
-void SystemEventHandler::HandlePlatform_Request (int32_t client_fd, int32_t event, const EventPayload& payload)
+void SystemEventHandler::HandlePlatform_Request    (int32_t client_fd, int32_t event, const EventPayload& payload)
 {
   m_server->GetController().ProcessSystemEvent(event, payload);
 }
-void SystemEventHandler::HandlePlatform_Event (int32_t client_fd, int32_t event, const EventPayload& payload)
+void SystemEventHandler::HandlePlatform_Event      (int32_t client_fd, int32_t event, const EventPayload& payload)
 {
   m_server->GetIPCMgr().ReceiveEvent(event, payload);
 }
-void SystemEventHandler::HandlePlatform_Info (int32_t client_fd, int32_t event, const EventPayload& payload)
+void SystemEventHandler::HandlePlatform_Info       (int32_t client_fd, int32_t event, const EventPayload& payload)
 {
   m_server->SendEvent(client_fd, "Platform Info", payload);
 }
-void SystemEventHandler::HandlePlatform_Fetch_Posts (int32_t client_fd, int32_t event, const EventPayload& payload)
+void SystemEventHandler::HandlePlatform_Fetch_Posts(int32_t client_fd, int32_t event, const EventPayload& payload)
 {
   m_server->Broadcast("Platform Posts", payload);
 }
-void SystemEventHandler::HandleProcess_Complete (int32_t client_fd, int32_t event, const EventPayload& payload)
+void SystemEventHandler::HandlePlatform_Update     (int32_t client_fd, int32_t event, const EventPayload& payload)
+{
+  m_server->Broadcast("Platform Update", payload);
+}
+void SystemEventHandler::HandleProcess_Complete    (int32_t client_fd, int32_t event, const EventPayload& payload)
 {
 
 }
-void SystemEventHandler::HandleScheduler_Request (int32_t client_fd, int32_t event, const EventPayload& payload)
+void SystemEventHandler::HandleScheduler_Request   (int32_t client_fd, int32_t event, const EventPayload& payload)
 {
 
 }
@@ -145,11 +149,11 @@ void SystemEventHandler::HandleTrigger_Add_Success (int32_t client_fd, int32_t e
 {
 
 }
-void SystemEventHandler::HandleTrigger_Add_Fail (int32_t client_fd, int32_t event, const EventPayload& payload)
+void SystemEventHandler::HandleTrigger_Add_Fail    (int32_t client_fd, int32_t event, const EventPayload& payload)
 {
 
 }
-void SystemEventHandler::HandleFiles_Send (int32_t fd, int32_t event, const EventPayload& files)
+void SystemEventHandler::HandleFiles_Send          (int32_t fd, int32_t event, const EventPayload& files)
 {
   m_server->GetFileMgr().EnqueueOutbound(fd, files);
   m_server->SendEvent(fd, "File Upload", files);
