@@ -15,6 +15,7 @@
 #define KLOG SPDLOG_INFO
 #define ELOG SPDLOG_ERROR
 #define VLOG SPDLOG_TRACE
+#define WLOG SPDLOG_WARN
 
 namespace kiq::LOG {
 using LogPtr = std::shared_ptr<spdlog::logger>;

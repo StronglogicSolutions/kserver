@@ -41,6 +41,7 @@ public:
   void HandlePlatform_Event              (int32_t client_fd, int32_t event, const EventPayload& payload);
   void HandlePlatform_Info               (int32_t client_fd, int32_t event, const EventPayload& payload);
   void HandlePlatform_Fetch_Posts        (int32_t client_fd, int32_t event, const EventPayload& payload);
+  void HandlePlatform_Update             (int32_t client_fd, int32_t event, const EventPayload& payload);
   void HandleProcess_Complete            (int32_t client_fd, int32_t event, const EventPayload& payload);
   void HandleScheduler_Request           (int32_t client_fd, int32_t event, const EventPayload& payload);
   void HandleTrigger_Add_Success         (int32_t client_fd, int32_t event, const EventPayload& payload);
@@ -122,6 +123,9 @@ private:
     },
     { SYSTEM_EVENTS__PLATFORM_FETCH_POSTS,
       [this](auto fd, auto evt, const auto& data) { HandlePlatform_Fetch_Posts(fd, evt, data); }
+    },
+    { SYSTEM_EVENTS__PLATFORM_UPDATE,
+      [this](auto fd, auto evt, const auto& data) { HandlePlatform_Update(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PROCESS_COMPLETE,
       [this](auto fd, auto evt, const auto& data) { HandleProcess_Complete(fd, evt, data); }
