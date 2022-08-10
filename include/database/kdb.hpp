@@ -236,19 +236,17 @@ QueryValues select(std::string table, Fields fields,
                          const T&           filters,
                          const Joins&       joins,
                          const OrderFilter& order = OrderFilter{},
-                         const LimitFilter& limit = LimitFilter{})
+                         const LimitFilter& limit = LimitFilter{}) const
   {
-    try {
-      JoinQuery<T> select_query{
+    try
+    {
+      return m_connection->query(JoinQuery<T>{
         .table  = table,
         .fields = fields,
         .filter = filters,
         .joins  = joins,
         .order  = order,
-        .limit  = limit
-      };
-      QueryResult result = m_connection->query(select_query);
-      return result.values;
+        .limit  = limit}).values;
     }
     catch (const pqxx::sql_error &e)
     {

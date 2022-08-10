@@ -377,35 +377,26 @@ std::string Platform::GetPlatformID(const std::string& name)
  */
 std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) const
 {
-  std::vector<PlatformPost> posts{};
-  posts.reserve(result.size() / 5);
-  std::string pid, o_pid, id, time, repost, name, method, uid, status;
-
+  static const size_t       post_size = 10;
+  std::vector<PlatformPost> posts;
+  std::map<std::string, std::string> map;
   for (const auto& v : result)
-  { if      (v.first == "platform_post.pid")       { pid    = v.second;  }
-    else if (v.first == "platform_post.o_pid")     { o_pid  = v.second;  }
-    else if (v.first == "platform_post.unique_id") { id     = v.second;  }
-    else if (v.first == "platform_post.time")      { time   = v.second;  }
-    else if (v.first == "platform_post.repost")    { repost = v.second;  }
-    else if (v.first == "platform.name")           { name   = v.second;  }
-    else if (v.first == "platform.method")         { method = v.second;  }
-    else if (v.first == "platform_post.uid")       { uid    = v.second;  }
-    else if (v.first == "platform_post.status")    { status = v.second;  }
-
-    if (DataUtils::NoEmptyArgs(pid, o_pid, id, time, repost, name, method, uid, status))
+  {
+    map[v.first] = v.second;
+    if (map.size() == post_size)
     {
       PlatformPost post{};
-      post.pid    = pid;
-      post.o_pid  = o_pid;
-      post.id     = id;
-      post.user   = GetUser(uid);
-      post.time   = time;
-      post.repost = repost;
-      post.name   = name;
-      post.method = method;
-      post.status = status;
+      post.pid    = map["platform_post.pid"];
+      post.o_pid  = map["platform_post.o_pid"];
+      post.id     = map["platform_post.unique_id"];
+      post.user   = map["platform_user.name"];
+      post.time   = map["platform_post.time"];
+      post.repost = map["platform_post.repost"];
+      post.name   = map["platform.name"];
+      post.method = map["platform.method"];
+      post.status = map["platform_post.status"];
       posts.emplace_back(std::move(post));
-      DataUtils::ClearArgs(pid, o_pid, id, time, repost, name, method, uid, status);
+      map.clear();
     }
   }
 
@@ -569,9 +560,9 @@ std::string Platform::GetUID(const std::string& pid, const std::string& name)
  */
 std::string Platform::GetUser(const std::string& uid, const std::string& pid, bool use_default) const
 {
-  auto        table  = "platform_user";
-  Fields      fields = {"name"};
-  QueryFilter filter;
+  static const auto   table  = "platform_user";
+  static const Fields fields = {"name"};
+  QueryFilter         filter;
 
   if (uid.size())
     filter = CreateFilter("id", uid);
@@ -603,29 +594,21 @@ void Platform::Status() const
 
 std::vector<PlatformPost> Platform::Fetch(bool pending) const
 {
-  static const auto        table{"platform_post"};
-  static const Fields      fields{"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id",
-                                  "platform_post.time", "platform.name", "platform_post.repost",
-                                  "platform.method", "platform_post.uid", "platform_post.status"};
-         const QueryFilter filter = (pending) ? CreateFilter("platform_post.status", constants::PLATFORM_POST_INCOMPLETE) : QueryFilter{};
-  static const Join        join{.table      = "platform",
-                                .field      = "id",
-                                .join_table = "platform_post",
-                                .join_field = "pid",
-                                .type       =  JoinType::INNER};
-
-  return ParsePlatformPosts(m_db.selectSimpleJoin(table, fields, filter, join));
+  return ParsePlatformPosts(m_db.selectJoin("platform_post", {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id",
+                                                              "platform_post.time", "platform.name", "platform_post.repost", "platform.method", "platform_post.uid", "platform_post.status", "platform_user.name"},
+    (pending) ? CreateFilter("platform_post.status", constants::PLATFORM_POST_INCOMPLETE) : QueryFilter{},
+    Joins{{"platform", "id", "platform_post", "pid",      JoinType::INNER},
+          {"platform_user", "id", "platform_post", "uid", JoinType::OUTER}}));
 }
 
 void Platform::FetchPosts() const
 {
   static bool              not_only_pending = false;
   std::vector<std::string> payload;
-
   for (auto& post : Fetch(not_only_pending))
   {
     PopulatePlatformPost(post);
-    auto post_payload = post.GetPayload();
+    const auto post_payload = post.GetPayload();
     payload.insert(payload.end(), post_payload.begin(), post_payload.end());
   }
 
