@@ -12,8 +12,9 @@
 #include "system/process/ipc/client/client.hpp"
 
 namespace kiq {
-using SystemCallback_fn_ptr = std::function<void(int32_t, const std::vector<std::string>&)>;
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
+using SystemCallback_fn_ptr = std::function<void(int32_t, const std::vector<std::string>&)>;
+using SystemDispatch_t      = std::function<void(std::deque<u_ipc_msg_ptr>::const_iterator)>;
 static const uint32_t DEFAULT_PORT{static_cast<uint32_t>(std::stoul(config::Process::ipc_port()))};
 
 static auto NOOP = [] { (void)(0); };
@@ -72,42 +73,26 @@ void close(int32_t fd)
 void HandleClientMessages()
 {
   using ipc_msg_it_t = std::deque<u_ipc_msg_ptr>::iterator;
-  using Payload = std::vector<std::string>;
-  auto GetPayload = [](platform_message* message) { return Payload{message->platform(), message->id(), message->user(), "", message->content(),
-                                                                   message->urls(), std::to_string(message->repost()), message->args()}; };
-  auto GetInfo    = [](platform_info* message)    { return Payload{message->platform(), message->type(), message->info()};};
-  auto GetError   = [](platform_error* message)   { return Payload{message->name(), message->id(), message->user(), message->error(), ""}; };
-  auto GetRequest = [](platform_request* message) { return Payload{message->platform(), message->id(),   message->user(), message->content(),
-                                                                   message->args()}; };
+  using Payload      = std::vector<std::string>;
+
+  auto GetPayload = [](auto m) { return Payload{m->platform(), m->id(),   m->user(), "", m->content(), m->urls(), std::to_string(m->repost()), m->args()}; };
+  auto GetInfo    = [](auto m) { return Payload{m->platform(), m->type(), m->info()};                                                                      };
+  auto GetError   = [](auto m) { return Payload{m->name(),     m->id(),   m->user(), m->error(), ""};                                                      };
+  auto GetRequest = [](auto m) { return Payload{m->platform(), m->id(),   m->user(), m->content(), m->args()};                                             };
+
+  std::map<uint8_t, SystemDispatch_t> dispatch_table{
+  {::constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { m_system_event_fn(::constants::IPC_PLATFORM_TYPE,    GetPayload(static_cast<platform_message*>(it->get()))); }},
+  {::constants::IPC_PLATFORM_REQUEST, [&, this](auto it) { m_system_event_fn(::constants::IPC_PLATFORM_REQUEST, GetRequest(static_cast<platform_request*>(it->get()))); }},
+  {::constants::IPC_PLATFORM_INFO   , [&, this](auto it) { m_system_event_fn(::constants::IPC_PLATFORM_INFO,    GetInfo   (static_cast<platform_info*>   (it->get()))); }},
+  {::constants::IPC_PLATFORM_ERROR  , [&, this](auto it) { m_system_event_fn(::constants::IPC_PLATFORM_ERROR,   GetError  (static_cast<platform_error*>  (it->get()))); }},
+  {::constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
+  {::constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
 
   for (ipc_msg_it_t it = m_incoming_queue.begin(); it != m_incoming_queue.end();)
   {
-    switch (it->get()->type())
-    {
-      case (::constants::IPC_PLATFORM_TYPE):
-        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it->get())));
-      break;
-      case (::constants::IPC_PLATFORM_REQUEST):
-        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_REQUEST,  GetRequest(static_cast<platform_request*>(it->get())));
-      break;
-      case (::constants::IPC_PLATFORM_INFO):
-        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_INFO,     GetInfo   (static_cast<platform_info*>   (it->get())));
-      break;
-      case (::constants::IPC_PLATFORM_ERROR):
-        m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR,    GetError  (static_cast<platform_error*>  (it->get())));
-      break;
-      case (::constants::IPC_KEEPALIVE_TYPE):
-        m_daemon.reset();
-      break;
-      case (::constants::IPC_OK_TYPE):
-        NOOP();
-      break;
-      default:
-        ELOG("Failed to handle unknown IPC message");
-    }
+    dispatch_table[it->get()->type()](it);
     it = m_incoming_queue.erase(it);
   }
-
 }
 
 private:
