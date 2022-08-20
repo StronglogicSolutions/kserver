@@ -4,6 +4,7 @@
 #include <string_view>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 #include <map>
 #include <thread>
 
