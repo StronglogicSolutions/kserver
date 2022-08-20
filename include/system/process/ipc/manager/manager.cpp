@@ -55,13 +55,13 @@ bool IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string> args
 void IPCManager::start()
 {
   static const char* broker_peer = "botbroker_worker";
-  static const char* kygui_peer  = "kygui_worker";
+  // static const char* kygui_peer  = "kygui_worker";
   m_clients.emplace(0, IPCWorker{m_context, broker_peer, this, true});
-  m_clients.emplace(1, IPCWorker{m_context, kygui_peer , this});
+  // m_clients.emplace(1, IPCWorker{m_context, kygui_peer , this});
   m_clients.at(0).start();
-  m_clients.at(1).start();
+  // m_clients.at(1).start();
   m_daemon.add_observer(broker_peer, [] { ELOG("Heartbeat timed out for {}", broker_peer); });
-  m_daemon.add_observer(kygui_peer,  [] { ELOG("Heartbeat timed out for {}", kygui_peer);  });
+  // m_daemon.add_observer(kygui_peer,  [] { ELOG("Heartbeat timed out for {}", kygui_peer);  });
 }
 
 void IPCManager::process_message(u_ipc_msg_ptr msg)

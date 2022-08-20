@@ -53,8 +53,6 @@ void IPCWorker::recv()
   if (identity.empty())
     return;
 
-  KLOG("Received message from {}", identity.to_string_view());
-
   buffer_vector_t received_message{};
   zmq::message_t  message;
   int             more_flag{1};
@@ -93,8 +91,6 @@ std::future<void>& IPCWorker::stop()
 
 void IPCWorker::send_ipc_message(u_ipc_msg_ptr message, bool tx)
 {
-  KLOG("Worker is sending message");
-
   zmq::socket_t& socket    = (tx) ? tx_sink_ : backend_;
   const auto     payload   = message->data();
   const int32_t  frame_num = payload.size();

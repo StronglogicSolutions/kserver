@@ -588,5 +588,4 @@ private:
   observers_t       m_observers;
   std::future<void> m_future;
 
-
 };
