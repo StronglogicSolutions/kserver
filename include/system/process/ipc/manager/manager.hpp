@@ -30,9 +30,10 @@ bool ReceiveEvent(int32_t event, const std::vector<std::string> args);
 void close(int32_t fd);
 void process_message(u_ipc_msg_ptr msg);
 void start();
+void on_heartbeat(std::string_view peer);
 
 private:
-  void loop();;
+  void loop();
 
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
   {::constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},
@@ -44,7 +45,6 @@ private:
 
   std::unordered_map<int32_t, IPCWorker> m_clients;
   SystemCallback_fn_ptr                  m_system_event_fn;
-  // std::deque<u_ipc_msg_ptr>              m_incoming_queue;
   std::mutex                             m_mutex;
   bool                                   m_req_ready;
   session_daemon                         m_daemon;

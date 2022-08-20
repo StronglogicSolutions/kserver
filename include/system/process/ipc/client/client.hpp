@@ -17,6 +17,7 @@ class IPCBrokerInterface
 {
 public:
   virtual ~IPCBrokerInterface() = default;
+  virtual void on_heartbeat(std::string_view peer) = 0;
   virtual void process_message(ipc_message::u_ipc_msg_ptr) = 0;
 };
 
@@ -24,7 +25,7 @@ class IPCWorker
 {
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
 public:
-  IPCWorker(zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* broker);
+  IPCWorker(zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* broker, bool send_hb = false);
   void               start();
   std::future<void>& stop();
   void               send_ipc_message(u_ipc_msg_ptr message, bool tx = true);
@@ -42,5 +43,7 @@ private:
   bool                active_;
   std::promise<void>  promise_;
   std::future<void>   future_;
+  std::future<void>   hb_future_;
+  bool                send_hb_;
 };
 } // ns kiq

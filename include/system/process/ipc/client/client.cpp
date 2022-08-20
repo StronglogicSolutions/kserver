@@ -2,13 +2,14 @@
 
 namespace kiq
 {
-IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* broker)
+IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* broker, bool send_hb)
 : manager_(broker),
   ctx_(ctx),
   tx_sink_(ctx_, ZMQ_DEALER),
   backend_(ctx_, ZMQ_DEALER),
   target_(target_id),
-  name_(std::string(target_id) + ":worker")
+  name_(std::string(target_id) + ":worker"),
+  send_hb_(send_hb)
 {
   tx_sink_.set(zmq::sockopt::linger, 0);
   backend_.set(zmq::sockopt::linger, 0);
@@ -19,6 +20,15 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view target_id, IPCBrokerI
 void IPCWorker::start()
 {
   future_ = std::async(std::launch::async, [this] { run(); });
+  if (send_hb_)
+    hb_future_ =  std::async(std::launch::async, [this]
+    {
+      while (active_)
+      {
+        send_ipc_message(std::make_unique<keepalive>());
+        std::this_thread::sleep_for(hb_rate);
+      }
+    });
 }
 
 void IPCWorker::run()
@@ -66,7 +76,7 @@ void IPCWorker::recv()
   if (ipc_message::u_ipc_msg_ptr ipc_message = DeserializeIPCMessage(std::move(received_message)))
   {
     if (IsKeepAlive(ipc_message->type()))
-      send_ipc_message(std::make_unique<keepalive>(),    true);
+      manager_->on_heartbeat(name_);
     else
       send_ipc_message(std::make_unique<okay_message>(), false);
     manager_->process_message(std::move(ipc_message));
@@ -76,6 +86,8 @@ void IPCWorker::recv()
 std::future<void>& IPCWorker::stop()
 {
   active_ = false;
+  if (send_hb_ && hb_future_.valid())
+    hb_future_.wait();
   return future_;
 }
 
