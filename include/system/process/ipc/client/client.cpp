@@ -74,7 +74,7 @@ void IPCWorker::recv()
   if (ipc_message::u_ipc_msg_ptr ipc_message = DeserializeIPCMessage(std::move(received_message)))
   {
     if (IsKeepAlive(ipc_message->type()))
-      manager_->on_heartbeat(name_);
+      manager_->on_heartbeat(target_);
     else
       send_ipc_message(std::make_unique<okay_message>(), false);
     manager_->process_message(std::move(ipc_message));
