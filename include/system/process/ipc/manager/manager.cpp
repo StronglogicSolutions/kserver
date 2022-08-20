@@ -18,7 +18,7 @@ IPCManager::IPCManager(SystemCallback_fn_ptr system_event_fn)
   m_public_(m_context, ZMQ_ROUTER),
   m_backend_(m_context, ZMQ_DEALER)
 {
-  m_public_.bind(REP_ADDRESS);
+  m_public_ .bind(REP_ADDRESS);
   m_backend_.bind(BACKEND_ADDRESS);
   m_future = std::async(std::launch::async, [this]
   {
@@ -71,6 +71,7 @@ void IPCManager::process_message(u_ipc_msg_ptr msg)
 
 void IPCManager::on_heartbeat(std::string_view peer)
 {
-  m_daemon.validate(peer);
+  if (!m_daemon.validate(peer))
+    VLOG("Heartbeat timer reset for {}", peer);
 }
 } // ns kiq
