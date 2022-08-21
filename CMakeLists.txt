@@ -52,6 +52,8 @@ set(SOURCE_FILES
   "include/system/process/trigger.cpp"
   "include/system/process/result_parser.cpp"
   "include/system/process/research_manager.cpp"
+  "include/system/process/ipc/manager/manager.cpp"
+  "include/system/process/ipc/client/client.cpp"
   "include/system/process/executor/executor.cpp"
   "include/system/process/executor/task_handlers/task.cpp"
   "include/system/process/executor/task_handlers/generic.cpp"

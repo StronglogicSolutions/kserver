@@ -1,8 +1,13 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include <memory>
+#include <unordered_map>
+#include <map>
+#include <thread>
+
 /**
 
             ┌───────────────────────────────────────────────────────────┐
@@ -500,15 +505,31 @@ static ipc_message::u_ipc_msg_ptr DeserializeIPCMessage(std::vector<ipc_message:
    }
 }
 
-using time_point = std::chrono::time_point<std::chrono::system_clock>;
-using duration   = std::chrono::milliseconds;
+using timepoint = std::chrono::time_point<std::chrono::system_clock>;
+using duration  = std::chrono::milliseconds;
 static const duration time_limit = std::chrono::milliseconds(60000);
+static const duration hb_rate    = std::chrono::milliseconds(600);
 class session_daemon {
 public:
   session_daemon()
   : m_active(false),
     m_valid(true)
-  {}
+  {
+    m_future = std::async(std::launch::async, [this] { while (true) loop(); });
+  }
+
+  ~session_daemon()
+  {
+    if (m_future.valid())
+      m_future.wait();
+  }
+
+  void add_observer(std::string_view peer, std::function<void()> callback)
+  {
+    observer_t observer{hbtime_t{}, callback};
+    m_observers.try_emplace(peer, observer);
+    m_observers.at(peer).first.first = std::chrono::system_clock::now();
+  }
 
   void reset()
   {
@@ -516,14 +537,24 @@ public:
     m_tp = std::chrono::system_clock::now();
   }
 
-  bool validate()
+  bool validate(std::string_view peer)
   {
     if (m_active)
     {
-      m_duration = std::chrono::duration_cast<duration>(std::chrono::system_clock::now() - m_tp);
-      m_valid    = (m_duration < time_limit);
+      if (auto it = m_observers.find(peer); it != m_observers.end())
+      {
+        duration & interval = it->second.first.second;
+        timepoint& tpoint   = it->second.first.first;
+        const auto now      = std::chrono::system_clock::now();
+                   interval = std::chrono::duration_cast<duration>(now - tpoint);
+                   tpoint   = now;
+        if (interval < time_limit)
+          return true;
+        else
+          it->second.second();
+      }
     }
-    return m_valid;
+    return false;
   }
 
   void stop()
@@ -537,10 +568,24 @@ public:
     return m_active;
   }
 
+  void loop()
+  {
+    for (const auto& [_, observer] : m_observers)
+      if (observer.first.second > time_limit)
+        observer.second();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
 private:
-  time_point m_tp;
-  duration   m_duration;
-  bool       m_active;
-  bool       m_valid;
+  using hbtime_t    = std::pair<timepoint, duration>;
+  using observer_t  = std::pair<hbtime_t, std::function<void()>>;
+  using observers_t = std::map<std::string_view, observer_t>;
+
+  timepoint         m_tp;
+  duration          m_duration;
+  bool              m_active;
+  bool              m_valid;
+  observers_t       m_observers;
+  std::future<void> m_future;
 
 };
