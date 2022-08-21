@@ -43,7 +43,7 @@ private:
   {::constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
   {::constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
 
-  std::unordered_map<int32_t, IPCWorker> m_clients;
+  std::map<std::string_view, IPCWorker>  m_clients;
   SystemCallback_fn_ptr                  m_system_event_fn;
   std::mutex                             m_mutex;
   bool                                   m_req_ready;

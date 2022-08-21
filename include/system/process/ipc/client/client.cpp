@@ -8,7 +8,7 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view target_id, IPCBrokerI
   tx_sink_(ctx_, ZMQ_DEALER),
   backend_(ctx_, ZMQ_DEALER),
   target_(target_id),
-  name_(std::string(target_id) + ":worker"),
+  name_(std::string(target_id) + "__worker"),
   send_hb_(send_hb)
 {
   tx_sink_.set(zmq::sockopt::linger, 0);
@@ -50,7 +50,7 @@ void IPCWorker::recv()
   zmq::message_t  identity;
   backend_.recv(&identity);
 
-  if (identity.empty())
+  if (identity.empty() || identity.to_string_view() != target_)
     return;
 
   buffer_vector_t received_message{};

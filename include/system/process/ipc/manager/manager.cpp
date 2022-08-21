@@ -2,6 +2,9 @@
 #include "system/process/executor/task_handlers/task.hpp"
 namespace kiq {
 
+static const char* broker_peer = "botbroker";
+static const char* kygui_peer  = "kygui";
+
 std::unique_ptr<platform_message> Deserialize(const Payload& args)
 {
   return std::make_unique<platform_message>(
@@ -36,7 +39,7 @@ IPCManager::~IPCManager()
 void IPCManager::process(std::string message, int32_t fd)
 {
   KLOG("Received outgoing IPC request");
-  m_clients.at(0).send_ipc_message(std::make_unique<kiq_message>(message));
+  m_clients.at(broker_peer).send_ipc_message(std::make_unique<kiq_message>(message));
 }
 
 bool IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string> args)
@@ -45,7 +48,7 @@ bool IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string> args
   bool received{true};
 
   if (event == SYSTEM_EVENTS__PLATFORM_POST_REQUESTED || event == SYSTEM_EVENTS__PLATFORM_EVENT)
-    m_clients.at(0).send_ipc_message(Deserialize(args));
+    m_clients.at(broker_peer).send_ipc_message(Deserialize(args));
   else
     received = false;
 
@@ -54,10 +57,12 @@ bool IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string> args
 
 void IPCManager::start()
 {
-  static const char* broker_peer = "botbroker";
-  m_clients.emplace(0, IPCWorker{m_context, broker_peer, this, true});
-  m_clients.at(0).start();
+  m_clients.emplace(kygui_peer,  IPCWorker{m_context, kygui_peer , this});
+  m_clients.emplace(broker_peer, IPCWorker{m_context, broker_peer, this, true});
+  m_clients.at(kygui_peer) .start();
+  m_clients.at(broker_peer).start();
   m_daemon.add_observer(broker_peer, [] { ELOG("Heartbeat timed out for {}", broker_peer); });
+  m_daemon.add_observer(kygui_peer,  [] { ELOG("Heartbeat timed out for {}", kygui_peer);  });
 }
 
 void IPCManager::process_message(u_ipc_msg_ptr msg)
