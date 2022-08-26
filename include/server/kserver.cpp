@@ -265,7 +265,7 @@ void KServer::OperationRequest(const std::string& message, const int32_t& client
   if      (IsStartOperation     (op)) InitClient(message, client_fd);
   else if (IsStopOperation      (op)) EndSession(client_fd);
   else if (IsFileUploadOperation(op)) WaitForFile(client_fd);
-  else if (IsIPCOperation       (op)) m_ipc_manager.process(message, client_fd);
+  else if (IsIPCOperation       (op)) m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, {message});
   else                                m_controller.ProcessClientRequest(client_fd, message);
 }
 

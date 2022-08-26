@@ -16,8 +16,9 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view target_id, IPCBrokerI
   tx_sink_.set(zmq::sockopt::routing_id, name_);
   backend_.set(zmq::sockopt::routing_id, name_);
 }
-
-void IPCWorker::start()
+//*******************************************************************//
+void
+IPCWorker::start()
 {
   future_ = std::async(std::launch::async, [this] { run(); });
   if (send_hb_)
@@ -30,8 +31,9 @@ void IPCWorker::start()
       }
     });
 }
-
-void IPCWorker::run()
+//*******************************************************************//
+void
+IPCWorker::run()
 {
   VLOG("{} is ready to receive IPC", name_);
   tx_sink_.connect(REQ_ADDRESS);
@@ -40,8 +42,9 @@ void IPCWorker::run()
     recv();
   VLOG("{} no longer receiving IPC", name_);
 }
-
-void IPCWorker::recv()
+//*******************************************************************//
+void
+IPCWorker::recv()
 {
   using buffer_vector_t = std::vector<ipc_message::byte_buffer>;
 
@@ -67,7 +70,6 @@ void IPCWorker::recv()
 
     size_t size = sizeof(more_flag);
     backend_.getsockopt(ZMQ_RCVMORE, &more_flag, &size);
-
     received_message.push_back(get_part(message));
   }
 
@@ -80,25 +82,27 @@ void IPCWorker::recv()
     manager_->process_message(std::move(ipc_message));
   }
 }
-
-std::future<void>& IPCWorker::stop()
+//*******************************************************************//
+std::future<void>&
+IPCWorker::stop()
 {
   active_ = false;
   if (send_hb_ && hb_future_.valid())
     hb_future_.wait();
   return future_;
 }
-
-void IPCWorker::send_ipc_message(u_ipc_msg_ptr message, bool tx)
+//*******************************************************************//
+void
+IPCWorker::send_ipc_message(u_ipc_msg_ptr message, bool tx)
 {
   zmq::socket_t& socket    = (tx) ? tx_sink_ : backend_;
   const auto     payload   = message->data();
-  const int32_t  frame_num = payload.size();
+  const size_t   frame_num = payload.size();
 
   for (int i = 0; i < frame_num; i++)
   {
-    const int  flag  = (i == (frame_num - 1)) ? 0 : ZMQ_SNDMORE;
-    const auto data  = payload.at(i);
+    const int      flag  = (i == (frame_num - 1)) ? 0 : ZMQ_SNDMORE;
+    const auto     data  = payload.at(i);
     zmq::message_t message{data.size()};
     std::memcpy(message.data(), data.data(), data.size());
     socket.send(message, flag);

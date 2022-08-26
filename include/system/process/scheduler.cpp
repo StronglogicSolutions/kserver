@@ -742,7 +742,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
       const auto term_hits  = m_research_manager.GetTermHits(item.value);
       const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, root, time);
       if (term_hits.size())
-        for (auto &&hit : term_hits)
+        for (auto&& hit : term_hits)
           if (!(hit.sid.empty()) && NotScheduled(hit.sid))
             CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY),
                         NER_APP, {"entity"});

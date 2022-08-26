@@ -285,6 +285,7 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
  */
 bool Platform::SavePlatformPost(std::vector<std::string> payload)
 {
+  VLOG("Platform::SavePlatformPost()");
   if (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
       return false;
 
@@ -318,6 +319,8 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
       m_posted++;
       m_pending--;
     }
+    else
+      ELOG("Failed to update platform post in processing queue");
   }
 
   return SavePlatformPost(PlatformPost{

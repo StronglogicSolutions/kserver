@@ -25,7 +25,6 @@ public:
 
 IPCManager(SystemCallback_fn_ptr system_event_fn);
 ~IPCManager() final;
-void process(std::string message, int32_t fd);
 bool ReceiveEvent(int32_t event, const std::vector<std::string> args);
 void close(int32_t fd);
 void process_message(u_ipc_msg_ptr msg);
