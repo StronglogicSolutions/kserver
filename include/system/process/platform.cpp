@@ -235,7 +235,7 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
     return Update(post, post.status);
   }
 
-  KLOG("Saving platform post:\n{}", post.ToString());
+  KLOG("Saving platform post on platform {} by user {}", post.pid, post.user);
 
   std::string uid = GetUID(post.pid, post.user);
   if (uid.empty())
@@ -285,36 +285,18 @@ bool Platform::SavePlatformPost(PlatformPost post, const std::string& status)
  */
 bool Platform::SavePlatformPost(std::vector<std::string> payload)
 {
-  VLOG("Platform::SavePlatformPost()");
-  if (payload.size() < constants::PLATFORM_MINIMUM_PAYLOAD_SIZE)
-      return false;
+  PlatformPost post = PlatformPost::FromPayload(payload);
+  post.pid = GetPlatformID(post.name);
 
-  const std::string& name        = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
-  const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
-  const std::string& user        = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
-  const std::string& time        = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
-  const std::string& content     = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX);
-  const std::string& urls        = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX);
-  const std::string& repost      = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX);
-  const std::string& method      = payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
-
-  const std::string& platform_id = GetPlatformID(name);
-  const std::string& args        = payload.size() > 8 ? payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX) :
-                                                        "";
-  const std::string& cmd         = payload.size() > 9 ? payload.at(constants::PLATFORM_PAYLOAD_CMD_INDEX) :
-                                                        std::to_string(constants::PLATFORM_DEFAULT_COMMAND);
-  const std::string& status      = payload.size() > 10? payload.at(constants::PLATFORM_PAYLOAD_STATUS_INDEX) :
-                                                        "";
-
-  if (platform_id.empty())
+  if (post.pid.empty())
     return false;
 
   if (IsProcessingPlatform())
   {
-    auto it = m_platform_map.find({platform_id, id});
+    auto it = m_platform_map.find({post.pid, post.id});
     if (it != m_platform_map.end())
     {
-      KLOG("Completed {} platform request {}", name, id);
+      KLOG("Completed {} platform request {}", post.name, post.id);
       it->second.second = PlatformPostState::SUCCESS;
       m_posted++;
       m_pending--;
@@ -323,21 +305,7 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
       ELOG("Failed to update platform post in processing queue");
   }
 
-  return SavePlatformPost(PlatformPost{
-    .pid     = platform_id,
-    .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
-    .id      = id  .empty() ? StringUtils::GenerateUUIDString()   : id,
-    .user    = user,
-    .time    = time.empty() ? std::to_string(TimeUtils::UnixTime()) : time,
-    .content = content,
-    .urls    = urls,
-    .repost  = repost,
-    .name    = name,
-    .args    = args,
-    .method  = method,
-    .cmd     = cmd,
-    .status  = status
-  });
+  return SavePlatformPost(post);
 }
 
 /**

@@ -7,7 +7,19 @@
 #include <unordered_map>
 #include <map>
 #include <thread>
+#include <type_traits>
 
+using external_log_fn = std::function<void(const char*)>;
+namespace
+{
+  static void noop(const char*) { (void)"NOOP"; }
+  external_log_fn log_fn = noop;
+} // ns
+
+static void set_log_fn(external_log_fn fn)
+{
+  log_fn = fn;
+}
 /**
 
             ┌───────────────────────────────────────────────────────────┐
@@ -511,6 +523,7 @@ static const duration time_limit = std::chrono::milliseconds(60000);
 static const duration hb_rate    = std::chrono::milliseconds(600);
 class session_daemon {
 public:
+  using hbtime_t = std::pair<timepoint, duration>;
   session_daemon()
   : m_active(false),
     m_valid(true)
@@ -526,6 +539,7 @@ public:
 
   void add_observer(std::string_view peer, std::function<void()> callback)
   {
+    log_fn("Added peer: "); log_fn(peer.data());
     observer_t observer{hbtime_t{}, callback};
     m_observers.try_emplace(peer, observer);
     m_observers.at(peer).first.first = std::chrono::system_clock::now();
@@ -537,23 +551,34 @@ public:
     m_tp = std::chrono::system_clock::now();
   }
 
+  static void update_time(hbtime_t& hb_time)
+  {
+    timepoint& tpoint   = hb_time.first;
+    duration & interval = hb_time.second;
+    const auto now      = std::chrono::system_clock::now();
+               interval = std::chrono::duration_cast<duration>(now - tpoint);
+               tpoint   = now;
+  }
+
   bool validate(std::string_view peer)
   {
     if (m_active)
     {
       if (auto it = m_observers.find(peer); it != m_observers.end())
       {
-        duration & interval = it->second.first.second;
-        timepoint& tpoint   = it->second.first.first;
-        const auto now      = std::chrono::system_clock::now();
-                   interval = std::chrono::duration_cast<duration>(now - tpoint);
-                   tpoint   = now;
-        if (interval < time_limit)
+        hbtime_t& time = it->second.first;
+        update_time(time);
+        if (time.second < time_limit)
           return true;
         else
           it->second.second();
       }
+      else
+      log_fn("Peer does not exist");
+
     }
+    else
+      log_fn("Session daemon not active yet");
     return false;
   }
 
@@ -570,14 +595,13 @@ public:
 
   void loop()
   {
-    for (const auto& [_, observer] : m_observers)
-      if (observer.first.second > time_limit)
+    for (auto& [_, observer] : m_observers)
+      if (update_time(observer.first); observer.first.second > time_limit)
         observer.second();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(600));
   }
 
 private:
-  using hbtime_t    = std::pair<timepoint, duration>;
   using observer_t  = std::pair<hbtime_t, std::function<void()>>;
   using observers_t = std::map<std::string_view, observer_t>;
 
