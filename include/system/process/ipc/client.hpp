@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zmq.hpp>
+
 #include <future>
 #include <system/process/ipc/ipc.hpp>
 #include "log/logger.h"
@@ -8,7 +8,7 @@
 namespace kiq
 {
 
-class botbroker_handler : public MessageHandlerInterface
+class botbroker_handler : public IPCHandlerInterface
 {
 public:
   using ipc_msg_t = ipc_message::u_ipc_msg_ptr;
@@ -17,7 +17,9 @@ public:
   void process_message(ipc_msg_t) final;
   void               start();
   std::future<void>& stop();
-  void               send_ipc_message(ipc_msg_t message);
+
+protected:
+  zmq::socket_t& socket() final;
 
 private:
   IPCBrokerInterface* manager_;

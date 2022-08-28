@@ -8,6 +8,8 @@
 #include <map>
 #include <thread>
 #include <type_traits>
+#include <zmq.hpp>
+
 
 using external_log_fn = std::function<void(const char*)>;
 namespace
@@ -614,6 +616,29 @@ private:
 
 };
 
+class IPCTransmitterInterface
+{
+public:
+  virtual ~IPCTransmitterInterface() = default;
+  void send_ipc_message(ipc_message::u_ipc_msg_ptr message)
+  {
+    const auto     payload   = message->data();
+    const size_t   frame_num = payload.size();
+
+    for (int i = 0; i < frame_num; i++)
+    {
+      const int      flag  = (i == (frame_num - 1)) ? 0 : ZMQ_SNDMORE;
+      const auto     data  = payload.at(i);
+      zmq::message_t message{data.size()};
+      std::memcpy(message.data(), data.data(), data.size());
+      socket().send(message, flag);
+    }
+  }
+
+protected:
+  virtual zmq::socket_t& socket() = 0;
+};
+
 class IPCBrokerInterface
 {
 public:
@@ -627,7 +652,13 @@ class MessageHandlerInterface
 public:
   virtual ~MessageHandlerInterface() = default;
   virtual void process_message(ipc_message::u_ipc_msg_ptr) = 0;
-  virtual void send_ipc_message(ipc_message::u_ipc_msg_ptr message) = 0;
 };
 
-using client_handlers_t = std::map<std::string_view, MessageHandlerInterface*>;
+
+class IPCHandlerInterface : public MessageHandlerInterface,
+                            public IPCTransmitterInterface
+{
+public:
+  ~IPCHandlerInterface() override = default;
+};
+using client_handlers_t = std::map<std::string_view, IPCHandlerInterface*>;

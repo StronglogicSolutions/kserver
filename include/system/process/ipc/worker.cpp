@@ -74,23 +74,13 @@ IPCWorker::stop()
   active_ = false;
   return future_;
 }
-//*******************************************************************//
-void
-IPCWorker::send_ipc_message(u_ipc_msg_ptr message)
+//******************************************************************//
+zmq::socket_t&
+IPCWorker::socket()
 {
-  const auto     payload   = message->data();
-  const size_t   frame_num = payload.size();
-
-  for (int i = 0; i < frame_num; i++)
-  {
-    const int      flag  = (i == (frame_num - 1)) ? 0 : ZMQ_SNDMORE;
-    const auto     data  = payload.at(i);
-    zmq::message_t message{data.size()};
-    std::memcpy(message.data(), data.data(), data.size());
-    backend_.send(message, flag);
-  }
+  return backend_;
 }
-
+//******************************************************************//
 std::string
 IPCWorker::name() const
 {

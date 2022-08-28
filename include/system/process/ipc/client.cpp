@@ -36,26 +36,17 @@ botbroker_handler::~botbroker_handler()
 }
 //*******************************************************************//
 void
-botbroker_handler::send_ipc_message(ipc_msg_t message)
-{
-  const auto     payload   = message->data();
-  const size_t   frame_num = payload.size();
-
-  for (int i = 0; i < frame_num; i++)
-  {
-    const int      flag  = (i == (frame_num - 1)) ? 0 : ZMQ_SNDMORE;
-    const auto     data  = payload.at(i);
-    zmq::message_t message{data.size()};
-    std::memcpy(message.data(), data.data(), data.size());
-    tx_sink_.send(message, flag);
-  }
-}
-//*******************************************************************//
-void
 botbroker_handler::process_message(ipc_msg_t msg)
 {
   if (IsKeepAlive(msg->type()))
     manager_->on_heartbeat(client_);
   manager_->process_message(std::move(msg));
+}
+
+//******************************************************************//
+zmq::socket_t&
+botbroker_handler::socket()
+{
+  return tx_sink_;
 }
 } // ns kiq
