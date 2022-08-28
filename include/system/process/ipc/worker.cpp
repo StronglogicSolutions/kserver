@@ -1,46 +1,30 @@
-#include "client.hpp"
+#include "worker.hpp"
 
 namespace kiq
 {
-IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* broker, bool send_hb)
-: manager_(broker),
-  ctx_(ctx),
-  tx_sink_(ctx_, ZMQ_DEALER),
+IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers_t*  handlers)
+: ctx_(ctx),
   backend_(ctx_, ZMQ_DEALER),
-  target_(target_id),
-  name_(std::string(target_id) + "__worker"),
-  send_hb_(send_hb)
+  handlers_(handlers)
 {
-  tx_sink_.set(zmq::sockopt::linger, 0);
   backend_.set(zmq::sockopt::linger, 0);
-  tx_sink_.set(zmq::sockopt::routing_id, name_);
-  backend_.set(zmq::sockopt::routing_id, name_);
+  backend_.set(zmq::sockopt::routing_id, name);
 }
 //*******************************************************************//
 void
 IPCWorker::start()
 {
   future_ = std::async(std::launch::async, [this] { run(); });
-  if (send_hb_)
-    hb_future_ =  std::async(std::launch::async, [this]
-    {
-      while (active_)
-      {
-        send_ipc_message(std::make_unique<keepalive>());
-        std::this_thread::sleep_for(hb_rate);
-      }
-    });
 }
 //*******************************************************************//
 void
 IPCWorker::run()
 {
-  VLOG("{} is ready to receive IPC", name_);
-  tx_sink_.connect(REQ_ADDRESS);
+  VLOG("{} is ready to receive IPC", name());
   backend_.connect(BACKEND_ADDRESS);
   while (active_)
     recv();
-  VLOG("{} no longer receiving IPC", name_);
+  VLOG("{} no longer receiving IPC", name());
 }
 //*******************************************************************//
 void
@@ -53,7 +37,7 @@ IPCWorker::recv()
   zmq::message_t  identity;
   backend_.recv(&identity);
 
-  if (identity.empty() || identity.to_string_view() != target_)
+  if (identity.empty())
     return;
 
   buffer_vector_t received_message{};
@@ -64,7 +48,7 @@ IPCWorker::recv()
   {
     if (!backend_.recv(&message, static_cast<int>(zmq::recv_flags::none)))
     {
-      VLOG("IPC Worker {} failed to receive on socket", target_);
+      VLOG("IPC Worker {} failed to receive on socket", name());
       return;
     }
 
@@ -75,27 +59,25 @@ IPCWorker::recv()
 
   if (ipc_message::u_ipc_msg_ptr ipc_message = DeserializeIPCMessage(std::move(received_message)))
   {
-    if (IsKeepAlive(ipc_message->type()))
-      manager_->on_heartbeat(target_);
-    else
-      send_ipc_message(std::make_unique<okay_message>(), false);
-    manager_->process_message(std::move(ipc_message));
+    if (!IsKeepAlive(ipc_message->type()))
+      send_ipc_message(std::make_unique<okay_message>());
+
+    handlers_->at(identity.to_string_view())->process_message(std::move(ipc_message));
   }
+  else
+    ELOG("{} failed to deserialize IPC message", name());
 }
 //*******************************************************************//
 std::future<void>&
 IPCWorker::stop()
 {
   active_ = false;
-  if (send_hb_ && hb_future_.valid())
-    hb_future_.wait();
   return future_;
 }
 //*******************************************************************//
 void
-IPCWorker::send_ipc_message(u_ipc_msg_ptr message, bool tx)
+IPCWorker::send_ipc_message(u_ipc_msg_ptr message)
 {
-  zmq::socket_t& socket    = (tx) ? tx_sink_ : backend_;
   const auto     payload   = message->data();
   const size_t   frame_num = payload.size();
 
@@ -105,7 +87,13 @@ IPCWorker::send_ipc_message(u_ipc_msg_ptr message, bool tx)
     const auto     data  = payload.at(i);
     zmq::message_t message{data.size()};
     std::memcpy(message.data(), data.data(), data.size());
-    socket.send(message, flag);
+    backend_.send(message, flag);
   }
+}
+
+std::string
+IPCWorker::name() const
+{
+  return backend_.get(zmq::sockopt::routing_id);
 }
 } // ns kiq

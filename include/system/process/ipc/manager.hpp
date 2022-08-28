@@ -2,7 +2,8 @@
 
 #include "interface/worker_interface.hpp"
 #include "server/types.hpp"
-#include "system/process/ipc/client/client.hpp"
+#include "worker.hpp"
+#include "client.hpp"
 
 namespace kiq {
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
@@ -42,7 +43,8 @@ private:
   {::constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
   {::constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
 
-  std::map<std::string_view, IPCWorker>  m_clients;
+  std::map<std::string_view, IPCWorker>  m_workers;
+  client_handlers_t                      m_clients;
   SystemCallback_fn_ptr                  m_system_event_fn;
   std::mutex                             m_mutex;
   bool                                   m_req_ready;

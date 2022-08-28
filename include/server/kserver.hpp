@@ -13,7 +13,7 @@
 #include "log/logger.h"
 #include "kiqoder/kiqoder.hpp"
 #include "request/controller.hpp"
-#include "system/process/ipc/manager/manager.hpp"
+#include "system/process/ipc/manager.hpp"
 #include "session.hpp"
 #include "event_handler.hpp"
 

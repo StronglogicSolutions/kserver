@@ -83,7 +83,7 @@ static const char*   IPC_COMMANDS[]{
 };
 
 } // namespace constants
-
+static auto IsKeepAlive = [](auto type) { return type == constants::IPC_KEEPALIVE_TYPE; };
 class ipc_message
 {
 public:
@@ -613,3 +613,21 @@ private:
   std::future<void> m_future;
 
 };
+
+class IPCBrokerInterface
+{
+public:
+  virtual ~IPCBrokerInterface() = default;
+  virtual void on_heartbeat(std::string_view peer) = 0;
+  virtual void process_message(ipc_message::u_ipc_msg_ptr) = 0;
+};
+
+class MessageHandlerInterface
+{
+public:
+  virtual ~MessageHandlerInterface() = default;
+  virtual void process_message(ipc_message::u_ipc_msg_ptr) = 0;
+  virtual void send_ipc_message(ipc_message::u_ipc_msg_ptr message) = 0;
+};
+
+using client_handlers_t = std::map<std::string_view, MessageHandlerInterface*>;

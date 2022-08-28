@@ -3,7 +3,6 @@
 
 namespace kiq
 {
-
   static const char *broker_peer = "botbroker";
   static const char *kygui_peer  = "kygui";
 
@@ -31,7 +30,6 @@ namespace kiq
         m_context(1),
         m_public_(m_context, ZMQ_ROUTER),
         m_backend_(m_context, ZMQ_DEALER)
-
   {
     set_log_fn([](const char* arg) { VLOG(arg); });
     m_public_.bind(REP_ADDRESS);
@@ -42,9 +40,16 @@ namespace kiq
   //*******************************************************************//
   IPCManager::~IPCManager()
   {
-    for (auto &[_, worker] : m_clients)
+    for (auto &[_, worker] : m_workers)
       if (const auto &fut = worker.stop(); fut.valid())
         fut.wait();
+
+    for (auto it = m_clients.begin(); it != m_clients.end();)
+    {
+      MessageHandlerInterface* handler_ptr = it->second;
+      delete handler_ptr;
+      it = m_clients.erase(it);
+    }
   }
   //*******************************************************************//
   bool
@@ -56,10 +61,10 @@ namespace kiq
     {
     case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
     case SYSTEM_EVENTS__PLATFORM_EVENT:
-      m_clients.at(broker_peer).send_ipc_message(deserialize(args));
+      m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
       break;
     case SYSTEM_EVENTS__IPC_REQUEST:
-      m_clients.at(broker_peer).send_ipc_message(std::make_unique<kiq_message>(args.front()));
+      m_clients.at(broker_peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
       break;
     default:
       return false;
@@ -70,8 +75,9 @@ namespace kiq
   void
   IPCManager::start()
   {
-    m_clients.emplace(broker_peer, IPCWorker{m_context, broker_peer, this, true});
-    m_clients.at(broker_peer).start();
+    m_workers.emplace(broker_peer, IPCWorker{m_context, broker_peer, &m_clients});
+    m_workers.at(broker_peer).start();
+    m_clients.emplace(broker_peer, new botbroker_handler{m_context, broker_peer, this, true});
     m_daemon.add_observer(broker_peer, [] { ELOG("Heartbeat timed out for {}", broker_peer); });
   }
   //*******************************************************************//
