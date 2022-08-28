@@ -7,7 +7,21 @@
 #include <unordered_map>
 #include <map>
 #include <thread>
+#include <type_traits>
+#include <zmq.hpp>
 
+
+using external_log_fn = std::function<void(const char*)>;
+namespace
+{
+  static void noop(const char*) { (void)"NOOP"; }
+  external_log_fn log_fn = noop;
+} // ns
+
+static void set_log_fn(external_log_fn fn)
+{
+  log_fn = fn;
+}
 /**
 
             ┌───────────────────────────────────────────────────────────┐
@@ -71,7 +85,7 @@ static const char*   IPC_COMMANDS[]{
 };
 
 } // namespace constants
-
+static auto IsKeepAlive = [](auto type) { return type == constants::IPC_KEEPALIVE_TYPE; };
 class ipc_message
 {
 public:
@@ -511,6 +525,7 @@ static const duration time_limit = std::chrono::milliseconds(60000);
 static const duration hb_rate    = std::chrono::milliseconds(600);
 class session_daemon {
 public:
+  using hbtime_t = std::pair<timepoint, duration>;
   session_daemon()
   : m_active(false),
     m_valid(true)
@@ -526,6 +541,7 @@ public:
 
   void add_observer(std::string_view peer, std::function<void()> callback)
   {
+    log_fn("Added peer: "); log_fn(peer.data());
     observer_t observer{hbtime_t{}, callback};
     m_observers.try_emplace(peer, observer);
     m_observers.at(peer).first.first = std::chrono::system_clock::now();
@@ -537,23 +553,34 @@ public:
     m_tp = std::chrono::system_clock::now();
   }
 
+  static void update_time(hbtime_t& hb_time)
+  {
+    timepoint& tpoint   = hb_time.first;
+    duration & interval = hb_time.second;
+    const auto now      = std::chrono::system_clock::now();
+               interval = std::chrono::duration_cast<duration>(now - tpoint);
+               tpoint   = now;
+  }
+
   bool validate(std::string_view peer)
   {
     if (m_active)
     {
       if (auto it = m_observers.find(peer); it != m_observers.end())
       {
-        duration & interval = it->second.first.second;
-        timepoint& tpoint   = it->second.first.first;
-        const auto now      = std::chrono::system_clock::now();
-                   interval = std::chrono::duration_cast<duration>(now - tpoint);
-                   tpoint   = now;
-        if (interval < time_limit)
+        hbtime_t& time = it->second.first;
+        update_time(time);
+        if (time.second < time_limit)
           return true;
         else
           it->second.second();
       }
+      else
+      log_fn("Peer does not exist");
+
     }
+    else
+      log_fn("Session daemon not active yet");
     return false;
   }
 
@@ -570,14 +597,13 @@ public:
 
   void loop()
   {
-    for (const auto& [_, observer] : m_observers)
-      if (observer.first.second > time_limit)
+    for (auto& [_, observer] : m_observers)
+      if (update_time(observer.first); observer.first.second > time_limit)
         observer.second();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(600));
   }
 
 private:
-  using hbtime_t    = std::pair<timepoint, duration>;
   using observer_t  = std::pair<hbtime_t, std::function<void()>>;
   using observers_t = std::map<std::string_view, observer_t>;
 
@@ -589,3 +615,50 @@ private:
   std::future<void> m_future;
 
 };
+
+class IPCTransmitterInterface
+{
+public:
+  virtual ~IPCTransmitterInterface() = default;
+  void send_ipc_message(ipc_message::u_ipc_msg_ptr message)
+  {
+    const auto     payload   = message->data();
+    const size_t   frame_num = payload.size();
+
+    for (int i = 0; i < frame_num; i++)
+    {
+      const int      flag  = (i == (frame_num - 1)) ? 0 : ZMQ_SNDMORE;
+      const auto     data  = payload.at(i);
+      zmq::message_t message{data.size()};
+      std::memcpy(message.data(), data.data(), data.size());
+      socket().send(message, flag);
+    }
+  }
+
+protected:
+  virtual zmq::socket_t& socket() = 0;
+};
+
+class IPCBrokerInterface
+{
+public:
+  virtual ~IPCBrokerInterface() = default;
+  virtual void on_heartbeat(std::string_view peer) = 0;
+  virtual void process_message(ipc_message::u_ipc_msg_ptr) = 0;
+};
+
+class MessageHandlerInterface
+{
+public:
+  virtual ~MessageHandlerInterface() = default;
+  virtual void process_message(ipc_message::u_ipc_msg_ptr) = 0;
+};
+
+
+class IPCHandlerInterface : public MessageHandlerInterface,
+                            public IPCTransmitterInterface
+{
+public:
+  ~IPCHandlerInterface() override = default;
+};
+using client_handlers_t = std::map<std::string_view, IPCHandlerInterface*>;

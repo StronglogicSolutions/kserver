@@ -2,7 +2,8 @@
 
 #include "interface/worker_interface.hpp"
 #include "server/types.hpp"
-#include "system/process/ipc/client/client.hpp"
+#include "worker.hpp"
+#include "client.hpp"
 
 namespace kiq {
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
@@ -25,7 +26,6 @@ public:
 
 IPCManager(SystemCallback_fn_ptr system_event_fn);
 ~IPCManager() final;
-void process(std::string message, int32_t fd);
 bool ReceiveEvent(int32_t event, const std::vector<std::string> args);
 void close(int32_t fd);
 void process_message(u_ipc_msg_ptr msg);
@@ -43,14 +43,17 @@ private:
   {::constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
   {::constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
 
-  std::map<std::string_view, IPCWorker>  m_clients;
-  SystemCallback_fn_ptr                  m_system_event_fn;
-  std::mutex                             m_mutex;
-  bool                                   m_req_ready;
-  session_daemon                         m_daemon;
-  zmq::context_t                         m_context;
-  zmq::socket_t                          m_public_;
-  zmq::socket_t                          m_backend_;
-  std::future<void>                      m_future;
+  using workers_t = std::vector<IPCWorker>;
+
+  workers_t             m_workers;
+  client_handlers_t     m_clients;
+  SystemCallback_fn_ptr m_system_event_fn;
+  std::mutex            m_mutex;
+  bool                  m_req_ready;
+  session_daemon        m_daemon;
+  zmq::context_t        m_context;
+  zmq::socket_t         m_public_;
+  zmq::socket_t         m_backend_;
+  std::future<void>     m_future;
 };
 } // ns kiq
