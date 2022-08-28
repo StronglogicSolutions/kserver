@@ -3,10 +3,12 @@
 namespace kiq
 {
 static const char*  REQ_ADDRESS{"tcp://localhost:28473"};
+//*******************************************************************//
 botbroker_handler::botbroker_handler(zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* manager, bool send_hb)
 : manager_(manager),
   ctx_(ctx),
   tx_sink_(ctx_, ZMQ_DEALER),
+  client_(target_id),
   name_(std::string(target_id) + "__worker"),
   send_hb_(send_hb)
 {
@@ -24,7 +26,7 @@ botbroker_handler::botbroker_handler(zmq::context_t& ctx, std::string_view targe
       }
     });
 }
-
+//*******************************************************************//
 botbroker_handler::~botbroker_handler()
 {
   active_ = false;
@@ -32,7 +34,7 @@ botbroker_handler::~botbroker_handler()
   if (send_hb_ && future_.valid())
     future_.wait();
 }
-
+//*******************************************************************//
 void
 botbroker_handler::send_ipc_message(ipc_msg_t message)
 {
@@ -48,12 +50,12 @@ botbroker_handler::send_ipc_message(ipc_msg_t message)
     tx_sink_.send(message, flag);
   }
 }
-
+//*******************************************************************//
 void
 botbroker_handler::process_message(ipc_msg_t msg)
 {
   if (IsKeepAlive(msg->type()))
-    manager_->on_heartbeat(target_);
+    manager_->on_heartbeat(client_);
   manager_->process_message(std::move(msg));
 }
 } // ns kiq

@@ -23,7 +23,7 @@ private:
   IPCBrokerInterface* manager_;
   zmq::context_t&     ctx_;
   zmq::socket_t       tx_sink_;
-  std::string_view    target_;
+  std::string_view    client_;
   std::string         name_;
   bool                active_;
   std::future<void>   future_;
