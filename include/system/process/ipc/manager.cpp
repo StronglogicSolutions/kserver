@@ -40,7 +40,7 @@ namespace kiq
   //*******************************************************************//
   IPCManager::~IPCManager()
   {
-    for (auto &[_, worker] : m_workers)
+    for (auto& worker : m_workers)
       if (const auto &fut = worker.stop(); fut.valid())
         fut.wait();
 
@@ -75,8 +75,8 @@ namespace kiq
   void
   IPCManager::start()
   {
-    m_workers.emplace(broker_peer, IPCWorker{m_context, broker_peer, &m_clients});
-    m_workers.at(broker_peer).start();
+    m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
+    m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{m_context, broker_peer, this, true});
     m_daemon.add_observer(broker_peer, [] { ELOG("Heartbeat timed out for {}", broker_peer); });
   }

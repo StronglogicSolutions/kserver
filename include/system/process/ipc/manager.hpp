@@ -43,15 +43,17 @@ private:
   {::constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
   {::constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
 
-  std::map<std::string_view, IPCWorker>  m_workers;
-  client_handlers_t                      m_clients;
-  SystemCallback_fn_ptr                  m_system_event_fn;
-  std::mutex                             m_mutex;
-  bool                                   m_req_ready;
-  session_daemon                         m_daemon;
-  zmq::context_t                         m_context;
-  zmq::socket_t                          m_public_;
-  zmq::socket_t                          m_backend_;
-  std::future<void>                      m_future;
+  using workers_t = std::vector<IPCWorker>;
+
+  workers_t             m_workers;
+  client_handlers_t     m_clients;
+  SystemCallback_fn_ptr m_system_event_fn;
+  std::mutex            m_mutex;
+  bool                  m_req_ready;
+  session_daemon        m_daemon;
+  zmq::context_t        m_context;
+  zmq::socket_t         m_public_;
+  zmq::socket_t         m_backend_;
+  std::future<void>     m_future;
 };
 } // ns kiq
