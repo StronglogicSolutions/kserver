@@ -5,6 +5,7 @@ namespace kiq {
 static const std::string_view APP_NAME         = "kserver";
 static       int              APP_NAME_LENGTH  = 7;
 const char                    ARGUMENT_SEPARATOR{'\x1f'};
+static const std::string_view PING_BYTE        = "253";
 
 std::string GetCWD()
 {
@@ -369,34 +370,34 @@ std::string CreateMessage(const char *data, std::map<int, std::vector<std::strin
 /**
  * Operations
  */
-bool IsMessage(const std::string& data)
+bool IsMessage(std::string_view data)
 {
   if (data.size())
   {
     Document d;
-    return (!d.Parse(data.c_str()).HasParseError() && d.HasMember("message"));
+    return (!d.Parse(data.data()).HasParseError() && d.HasMember("message"));
   }
   return false;
 }
 
-bool IsOperation(const std::string& data)
+bool IsOperation(std::string_view data)
 {
   if (data.size())
   {
     Document d;
-    if (!d.Parse(data.c_str()).HasParseError() && d.HasMember("type"))
+    if (!d.Parse(data.data()).HasParseError() && d.HasMember("type"))
       return strcmp(d["type"].GetString(), "operation") == 0;
   }
 return false;
 }
 
-bool IsExecuteOperation(const std::string& data)    { return data == "Execute";    }
-bool IsScheduleOperation(const std::string& data)   { return data == "Schedule";   }
-bool IsFileUploadOperation(const std::string& data) { return data == "FileUpload"; }
-bool IsIPCOperation(const std::string& data)        { return data == "ipc";        }
-bool IsStartOperation(const std::string& data)      { return data == "start";      }
-bool IsStopOperation (const std::string& data)      { return data == "stop";       }
-bool IsAppOperation  (const std::string& data)      { return data == "AppRequest"; }
+bool IsExecuteOperation   (std::string_view data) { return data == "Execute";    }
+bool IsScheduleOperation  (std::string_view data) { return data == "Schedule";   }
+bool IsFileUploadOperation(std::string_view data) { return data == "FileUpload"; }
+bool IsIPCOperation       (std::string_view data) { return data == "ipc";        }
+bool IsStartOperation     (std::string_view data) { return data == "start";      }
+bool IsStopOperation      (std::string_view data) { return data == "stop";       }
+bool IsAppOperation       (std::string_view data) { return data == "AppRequest"; }
 
 static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t& size)
 {
@@ -404,9 +405,9 @@ static bool VerifyFlatbuffer(const uint8_t* buffer, const uint32_t& size)
   return VerifyMessageBuffer(verifier);
 }
 
-bool IsPing(const std::string& data)
+bool IsPing(std::string_view data)
 {
-  return (data == "253");
+  return (data == PING_BYTE);
 }
 
 /**
