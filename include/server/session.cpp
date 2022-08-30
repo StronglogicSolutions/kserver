@@ -9,7 +9,7 @@ namespace kiq {
 bool KSession::active() const
 {
   bool active = (!(expired()) && status == SESSION_ACTIVE);
-  VLOG("Client {} with username {} is {}", fd, user.name, (active) ? "active" : "not active");
+  VLOG("{} is {} on {}", user.name, (active) ? "active" : "not active", fd);
   return active;
 }
 
@@ -45,7 +45,7 @@ std::string KSession::info() const
   { switch(status) { case(1): return "ACTIVE"; case (2): return "INACTIVE"; default: return "INVALID"; } };
   return fmt::format(
     "┌──────────────────────────────────────────────┐\n"\
-    "User:   {}\nFD:     {}\nStatus: {}\nID:     {}\nTX:     {}\nRX:     {}\nPing:   {} ms\n"\
+    " User:   {}\n FD:     {}\n Status: {}\n ID:     {}\n TX:     {}\n RX:     {}\n Ping:   {} ms\n"\
     "└──────────────────────────────────────────────┘\n",
     user.name, fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
 }

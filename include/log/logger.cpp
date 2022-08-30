@@ -34,8 +34,8 @@ KLogger::KLogger(const std::string& logging_level)
     static const auto        console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     static const auto        file_sink    = std::make_shared<spdlog::sinks::basic_file_sink_mt>(path);
     static const loglevel    level        = LogLevel.at(logging_level);
-    static const std::string format       = (timestamp) ? "KLOG [%^%l%$] - %T.%e - %4!#:%-20!s%-22!!%v" :
-                                                          "KLOG [%^%l%$] - %4!#:%-20!s%-22!!%v";
+    static const std::string format       = (timestamp) ? "KIQ [%^%-5l%$] - %T.%e - %-20!s :%-4!# - %-22!!%v" :
+                                                          "KIQ [%^%-5l%$] - %-20!s :%-4!# - %-22!!%v";
 
     const auto final_loglevel = (logging_level.empty()) ? LogLevel.at(config::Logging::level()) : LogLevel.at(logging_level);
 

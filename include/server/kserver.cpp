@@ -151,7 +151,7 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
 
   const size_t size = message.size();
   F_Iterator iterator{message.data(), size};
-  KLOG("Sending {} bytes to {}", size, client_fd);
+  VLOG("Sending {} bytes to {}", size, client_fd);
 
   while (iterator.has_data())
   {
@@ -293,7 +293,6 @@ void KServer::onMessageReceived(int                      client_fd,
 
 void KServer::SendPong(int32_t client_fd)
 {
-  KLOG("Client {} - keepalive", client_fd);
   m_sessions.at(client_fd).notify();
   SendMessage(client_fd, PONG);
 }
