@@ -95,16 +95,16 @@ std::string CreateMessage(const char *data,
 /**
  * Operations
  */
-bool IsMessage            (const std::string& data);
-bool IsOperation          (const std::string& data);
-bool IsExecuteOperation   (const std::string& data);
-bool IsScheduleOperation  (const std::string& data);
-bool IsFileUploadOperation(const std::string& data);
-bool IsIPCOperation       (const std::string& data);
-bool IsStartOperation     (const std::string& data);
-bool IsStopOperation      (const std::string& data);
-bool IsAppOperation       (const std::string& data);
-bool IsPing               (const std::string& data);
+bool IsMessage            (std::string_view data);
+bool IsOperation          (std::string_view data);
+bool IsExecuteOperation   (std::string_view data);
+bool IsScheduleOperation  (std::string_view data);
+bool IsFileUploadOperation(std::string_view data);
+bool IsIPCOperation       (std::string_view data);
+bool IsStartOperation     (std::string_view data);
+bool IsStopOperation      (std::string_view data);
+bool IsAppOperation       (std::string_view data);
+bool IsPing               (std::string_view data);
 
 /**
  * General
