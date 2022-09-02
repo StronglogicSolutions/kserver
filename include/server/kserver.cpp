@@ -469,6 +469,8 @@ void KServer::Status()
     client_s += session.info();
     tx += session.tx;
     rx += session.rx;
+    if (session.expired())
+      EndSession(session.fd);
   }
 
   VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);
