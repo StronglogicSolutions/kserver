@@ -462,7 +462,7 @@ void KServer::Status()
   size_t      rx{};
   std::string client_s;
 
-  for (auto it = m_sessions.begin(); it != m_sessions.end(); it++)
+  for (auto it = m_sessions.begin(); it != m_sessions.end();)
   {
     auto& session = it->second;
     session.verify();
@@ -470,7 +470,12 @@ void KServer::Status()
     tx += session.tx;
     rx += session.rx;
     if (session.expired())
+    {
       EndSession(session.fd);
+      it = m_sessions.erase(it);
+    }
+    else
+      it++;
   }
 
   VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);
