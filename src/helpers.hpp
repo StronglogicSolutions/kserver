@@ -1,4 +1,5 @@
-#include <database/db_structs.hpp>
+#include <db_structs.hpp>
+#include <optional>
 
 template <typename T>
 std::string filter_statement(T filter);
@@ -328,14 +329,13 @@ operator()(DatabaseQuery query)
 void
 operator()(ComparisonSelectQuery query)
 {
-  const auto filter = query.filter;
-  if (filter.size() > 1)
+  if (query.filter.size() > 1)
   {
     output = UNSUPPORTED;
     return;
   }
 
-  for (const auto &filter_tup : filter)
+  for (const auto &filter_tup : query.filter)
   {
     filter_string += delim + std::get<0>(filter_tup) + std::get<1>(filter_tup) + std::get<2>(filter_tup);
     delim = " AND ";
@@ -346,14 +346,13 @@ operator()(ComparisonSelectQuery query)
 void
 operator()(ComparisonBetweenSelectQuery query)
 {
-  const auto filter = query.filter;
-  if (filter.size() > 1)
+  if (query.filter.size() > 1)
   {
     output = UNSUPPORTED;
     return;
   }
 
-  for (const auto &filter : filter)
+  for (const auto &filter : query.filter)
     filter_string += delim + filter_statement(filter);
   output = "SELECT " + fields_string(query.fields) + " FROM " + query.table + filter_string;
 }
@@ -361,8 +360,7 @@ operator()(ComparisonBetweenSelectQuery query)
 void
 operator()(MultiFilterSelect query)
 {
-  const auto filter = query.filter;
-  for (const auto &filter : filter)
+  for (const auto &filter : query.filter)
   {
     filter_string += delim + filter_statement(filter);
     delim = " AND ";
@@ -373,9 +371,8 @@ operator()(MultiFilterSelect query)
 void
 operator()(MultiVariantFilterSelect<std::vector<std::variant<CompFilter, CompBetweenFilter>>> query)
 {
-  const auto filter = query.filter;
   std::string stmt{"SELECT " + fields_string(query.fields) + " FROM " + query.table + filter_string +
-    variant_filter_statement<CompFilter, CompBetweenFilter>(filter)};
+    variant_filter_statement<CompFilter, CompBetweenFilter>(query.filter)};
   if (query.order.has_value()) stmt += order_string(query.order);
   if (query.limit.has_value()) stmt += limit_string(query.limit.count);
   output = stmt;
@@ -384,9 +381,8 @@ operator()(MultiVariantFilterSelect<std::vector<std::variant<CompFilter, CompBet
 void
 operator()(MultiVariantFilterSelect<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>> query)
 {
-  const auto filter = query.filter;
   std::string stmt{"SELECT " + fields_string(query.fields) + " FROM " + query.table + filter_string +
-    variant_filter_statement<CompFilter, CompBetweenFilter, MultiOptionFilter>(filter)};
+    variant_filter_statement<CompFilter, CompBetweenFilter, MultiOptionFilter>(query.filter)};
   if (query.order.has_value()) stmt += order_string(query.order);
   if (query.limit.has_value()) stmt += limit_string(query.limit.count);
   output = stmt;
@@ -395,9 +391,8 @@ operator()(MultiVariantFilterSelect<std::vector<std::variant<CompFilter, CompBet
 void
 operator()(MultiVariantFilterSelect<std::vector<std::variant<CompBetweenFilter, QueryFilter>>> query)
 {
-  const auto filter = query.filter;
   std::string stmt{"SELECT " + fields_string(query.fields) + " FROM " + query.table + filter_string +
-                    variant_filter_statement<CompBetweenFilter, QueryFilter>(filter)};
+                    variant_filter_statement<CompBetweenFilter, QueryFilter>(query.filter)};
   if (query.order.has_value()) stmt += order_string(query.order);
   if (query.limit.has_value()) stmt += limit_string(query.limit.count);
   output = stmt;
@@ -406,9 +401,8 @@ operator()(MultiVariantFilterSelect<std::vector<std::variant<CompBetweenFilter, 
 void
 operator()(MultiVariantFilterSelect<std::vector<std::variant<QueryComparisonFilter, QueryFilter>>> query)
 {
-  const auto filter = query.filter;
   std::string stmt{"SELECT " + fields_string(query.fields) + " FROM " + query.table + filter_string +
-                    variant_filter_statement<QueryComparisonFilter, QueryFilter>(filter)};
+                    variant_filter_statement<QueryComparisonFilter, QueryFilter>(query.filter)};
   if (query.order.has_value()) stmt += order_string(query.order);
   if (query.limit.has_value()) stmt += limit_string(query.limit.count);
   output = stmt;
@@ -417,24 +411,21 @@ operator()(MultiVariantFilterSelect<std::vector<std::variant<QueryComparisonFilt
 void
 operator()(JoinQuery<std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>> query)
 {
-  const auto filter = query.filter;
-  filter_string += variant_filter_statement(filter);
+  filter_string += variant_filter_statement(query.filter);
   output = "SELECT " + fields_string(query.fields) + " FROM " + query.table + " " + get_join_string(query.joins) + filter_string;
 }
 //**************************************************//
 void
 operator()(SimpleJoinQuery query)
 {
-  const auto filter = query.filter;
-  filter_string += filter_statement(filter);
+  filter_string += filter_statement(query.filter);
   output = "SELECT " + fields_string(query.fields) + " FROM " + query.table + " " + get_join_string({query.join}) + filter_string;
 }
 //**************************************************//
 void
 operator()(JoinQuery<std::vector<QueryFilter>> query)
 {
-  const auto filter = query.filter;
-  for (const auto &f : filter)
+  for (const auto &f : query.filter)
   {
     filter_string += delim + filter_statement(f);
     delim = " AND ";
@@ -446,8 +437,7 @@ operator()(JoinQuery<std::vector<QueryFilter>> query)
 void
 operator()(JoinQuery<QueryFilter> query)
 {
-  const auto filter       = query.filter;
-  filter_string          += delim + filter_statement(filter);
+  filter_string          += delim + filter_statement(query.filter);
   std::string join_string = get_join_string(query.joins);
   output = "SELECT " + fields_string(query.fields) + " FROM " + query.table + " " + join_string + filter_string;
 }
