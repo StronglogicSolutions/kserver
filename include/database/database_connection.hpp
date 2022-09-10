@@ -11,7 +11,7 @@ DatabaseConnection() {}
 DatabaseConnection(DatabaseConnection&& d)
 : m_config(std::move(d.m_config)) {}
 DatabaseConnection(const DatabaseConnection& d) = delete;
-virtual ~DatabaseConnection() final {}
+virtual ~DatabaseConnection() override {}
 
 template <typename T>
 QueryResult         query(T query);
