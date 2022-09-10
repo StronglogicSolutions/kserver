@@ -119,7 +119,6 @@ bool Platform::Update(const PlatformPost& post, const std::string& status)
   const auto id = m_db.update("platform_post", {"status"}, {status},
     CreateFilter("pid", post.pid, "unique_id", post.id, "uid", GetUID(post.pid, post.user)), "id");
 
-  WLOG("Sending Platform Update but status might not be set");
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_UPDATE, post.GetPayload());
   return !id.empty();
 }
