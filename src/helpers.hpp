@@ -1,5 +1,7 @@
 #include <database/db_structs.hpp>
-#include <optional>
+
+static const char* g_inner ="INNER JOIN ";
+static const char* g_outer = "LEFT OUTER JOIN ";
 
 template <typename T>
 std::string filter_statement(T filter);
@@ -54,10 +56,11 @@ std::string get_join_string(Joins joins)
   std::string join_s{};
   for (const auto& join : joins)
   {
-    join_s += join.type == JoinType::INNER ? "INNER JOIN " : "LEFT OUTER JOIN ";
+    join_s += join.type == JoinType::INNER ? g_inner : g_outer;
     join_s += join.table + " ON " + join.table + '.' + join.field + '=' + join.join_table + '.' + join.join_field;
     join_s += " ";
   }
+
   if (join_s.size())
     join_s.pop_back(); // remove whitespace
 
@@ -108,8 +111,7 @@ std::string update_statement(UpdateReturnQuery query, std::string returning,
           delim = ',';
         }
       }
-      return std::string{"UPDATE " + query.table + " " + update_string + " " +
-                         filter_string + " RETURNING " + returning};
+      return "UPDATE " + query.table + " " + update_string + " " + filter_string + " RETURNING " + returning;
     }
   }
   return "";
@@ -124,7 +126,7 @@ std::string delete_statement(T query)
   else
   if constexpr (std::is_same_v<T, DatabaseQuery>)
     stmt =
-      "DELETE FROM " + query.table + " " +
+      "DELETE FROM " + query.table          + " " +
       "WHERE "       + filter.front().first + "='" + filter.front().second + "'" +
      " RETURNING "   + filter.front().first;
   return stmt;
@@ -219,8 +221,7 @@ std::string filter_statement(T filter)
 }
 //**************************************************//
 template <typename FilterA, typename FilterB>
-std::string variant_filter_statement(
-    std::vector<std::variant<FilterA, FilterB>> filters)
+std::string variant_filter_statement(std::vector<std::variant<FilterA, FilterB>> filters)
 {
   std::string filter_string{};
   uint8_t     idx          = 0;
@@ -230,11 +231,8 @@ std::string variant_filter_statement(
   {
     filter_string += (filter.index() == 0) ? filter_statement(std::get<0>(filter)) :
                                              filter_statement(std::get<1>(filter));
-    if (filter_count > (idx + 1))
-    {
-      idx++;
+    if (idx++ < filter_count - 1)
       filter_string += " AND ";
-    }
   }
 
   return filter_string;
@@ -258,12 +256,10 @@ std::string variant_filter_statement(std::vector<std::variant<FilterA, FilterB, 
     default:  filter_string += filter_statement(std::get<2>(filter));
     }
 
-    if (filter_count > (idx + 1))
-    {
-      idx++;
+    if (idx++ < filter_count - 1)
       filter_string += " AND ";
-    }
   }
+
   return filter_string;
 }
 
