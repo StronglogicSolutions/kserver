@@ -29,7 +29,7 @@ class MockDBFixture : public ::testing::Test {
   public:
 
   bool setConfig(DatabaseConfiguration config) {
-    return mock_db_connection.setConfig(config);
+    return mock_db_connection.set_config(config);
   }
     void SetUp() override {
       EXPECT_CALL(mock_db_connection, query(_))
