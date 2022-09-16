@@ -921,7 +921,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
     {
       m_research_manager.GenerateMLData();
       m_message_queue.emplace_back(MakeIPCEvent(plat_req, TGCommand::message, GetMLData(), DefaultTGOP()));
-      schedule(GenericTaskHandler::Create(FindMask("Kneural"), GetMLData()));
+      schedule(GenericTaskHandler::Create(FindMask("Kneural"), "", "", "", {"--input=" + GetMLData()}));
       ResolvePending(IMMEDIATELY);
     }
   }
