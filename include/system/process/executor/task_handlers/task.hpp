@@ -76,8 +76,23 @@ static const uint8_t     PLATFORM_PAYLOAD_REPOST_INDEX   {0x06};
 static const uint8_t     PLATFORM_PAYLOAD_METHOD_INDEX   {0x07};
 static const uint8_t     PLATFORM_PAYLOAD_ARGS_INDEX     {0x08};
 static const uint8_t     PLATFORM_PAYLOAD_CMD_INDEX      {0x09};
+static const uint8_t     PLATFORM_PAYLOAD_STATUS_INDEX   {0x0A};
 static const uint8_t     PLATFORM_MINIMUM_PAYLOAD_SIZE   {0x07};
 static const uint8_t     PLATFORM_DEFAULT_COMMAND        {0x00};
+
+// Platform Request
+static const uint8_t     PLATFORM_REQUEST_PLATFORM_INDEX {0x00};
+static const uint8_t     PLATFORM_REQUEST_ID_INDEX       {0x01};
+static const uint8_t     PLATFORM_REQUEST_USER_INDEX     {0x02};
+static const uint8_t     PLATFORM_REQUEST_MESSAGE_INDEX  {0x03};
+static const uint8_t     PLATFORM_REQUEST_ARGS_INDEX     {0x04};
+
+// Platform Error
+static const uint8_t     PLATFORM_ERROR_PLATFORM_INDEX   {0x00};
+static const uint8_t     PLATFORM_ERROR_ID_INDEX         {0x01};
+static const uint8_t     PLATFORM_ERROR_USER_INDEX       {0x02};
+static const uint8_t     PLATFORM_ERROR_MESSAGE_INDEX    {0x03};
+static const uint8_t     PLATFORM_ERROR_ARGS_INDEX       {0x04};
 
        const std::string NO_ORIGIN_PLATFORM_EXISTS       {"2"};
        const std::string PLATFORM_POST_INCOMPLETE        {"0"};
@@ -422,9 +437,6 @@ struct platform_pair_hash
   }
 };
 
-using PlatformRequestMap =
-std::unordered_map<std::pair<std::string, std::string>, PlatformPostState, platform_pair_hash>;
-
 struct PlatformPost {
 std::string pid;
 std::string o_pid = constants::NO_ORIGIN_PLATFORM_EXISTS;
@@ -438,6 +450,7 @@ std::string name;
 std::string args;
 std::string method;
 std::string cmd{std::to_string(constants::PLATFORM_DEFAULT_COMMAND)};
+std::string status;
 
 const bool is_valid() const
 {
@@ -449,6 +462,7 @@ const std::string ToString() const
   return std::string{"PID: "     + pid    + '\n' +
                      "Origin: "  + o_pid  + '\n' +
                      "ID: "      + id     + '\n' +
+                     "Status: "  + status + '\n' +
                      "User: "    + user   + '\n' +
                      "Time: "    + time   + '\n' +
                      "Content: " + content+ '\n' +
@@ -469,7 +483,7 @@ std::vector<std::string> GetPayload() const
      const auto  type  = args[1];
   */
   std::vector<std::string> payload{};
-  payload.resize(10);
+  payload.resize(11);
   payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = name;
   payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = id;
   payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX)     = user;
@@ -480,9 +494,50 @@ std::vector<std::string> GetPayload() const
   payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX)   = method;
   payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX)     = args;
   payload.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)      = cmd;
+  payload.at(constants::PLATFORM_PAYLOAD_STATUS_INDEX)   = status;
 
   return payload;
 }
 
+static PlatformPost FromPayload(const std::vector<std::string>& payload)
+{
+  const std::string& name        = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
+  const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+  const std::string& user        = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
+  const std::string& time        = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
+  const std::string& content     = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX);
+  const std::string& urls        = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX);
+  const std::string& repost      = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX);
+  const std::string& method      = payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
+
+
+  const std::string& args        = payload.size() > 8 ? payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX) :
+                                                        "";
+  const std::string& cmd         = payload.size() > 9 ? payload.at(constants::PLATFORM_PAYLOAD_CMD_INDEX) :
+                                                        std::to_string(constants::PLATFORM_DEFAULT_COMMAND);
+  const std::string& status      = payload.size() > 10? payload.at(constants::PLATFORM_PAYLOAD_STATUS_INDEX) :
+                                                        "";
+
+  return PlatformPost{
+    .pid     = "",
+    .o_pid   = constants::NO_ORIGIN_PLATFORM_EXISTS,
+    .id      = id  .empty() ? StringUtils::GenerateUUIDString()     : id,
+    .user    = user,
+    .time    = time.empty() ? std::to_string(TimeUtils::UnixTime()) : time,
+    .content = content,
+    .urls    = urls,
+    .repost  = repost,
+    .name    = name,
+    .args    = args,
+    .method  = method,
+    .cmd     = cmd,
+    .status  = status
+  };
+}
 };
+
+using PlatformStatePair = std::pair<PlatformPost, PlatformPostState>;
+using PlatformRequestMap =
+std::unordered_map<std::pair<std::string, std::string>, PlatformStatePair, platform_pair_hash>;
+
 } // ns kiq

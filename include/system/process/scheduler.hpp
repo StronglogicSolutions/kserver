@@ -125,6 +125,7 @@ virtual std::vector<Task>         fetchTasks() override;
         TermEvents                FetchTermEvents() const;
         void                      ResolvePending(const bool& check_timer = true);
         void                      Status() const;
+        void                      FetchPosts();
 
         template <typename T>
         std::vector<std::string>  getFlags(const T& mask);
@@ -142,6 +143,7 @@ private:
         void                      SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time);
         bool                      IPCResponseReceived() const;
         bool                      OnIPCReceived(const std::string& id);
+        std::string               GetUUID(const std::string& id) const;
 
 using MessageQueue  = std::deque<IPCSendEvent>;
 using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;

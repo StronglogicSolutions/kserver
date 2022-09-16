@@ -3,6 +3,9 @@
 #include <string>
 #include <cstring>
 #include <ostream>
+#include <functional>
+#include <map>
+
 namespace kiq {
 static const int MAX_PACKET_SIZE = 4096;
 static const int HEADER_SIZE     = 4;
@@ -35,19 +38,23 @@ static const int32_t SYSTEM_EVENTS__PLATFORM_POST_REQUESTED     = 16;
 static const int32_t SYSTEM_EVENTS__PLATFORM_ERROR              = 17;
 static const int32_t SYSTEM_EVENTS__PLATFORM_REQUEST            = 18;
 static const int32_t SYSTEM_EVENTS__PLATFORM_EVENT              = 19;
-static const int32_t SYSTEM_EVENTS__PROCESS_COMPLETE            = 20;
-static const int32_t SYSTEM_EVENTS__SCHEDULER_REQUEST           = 21;
-static const int32_t SYSTEM_EVENTS__TRIGGER_ADD_SUCCESS         = 22;
-static const int32_t SYSTEM_EVENTS__TRIGGER_ADD_FAIL            = 23;
-static const int32_t SYSTEM_EVENTS__FILES_SEND                  = 24;
-static const int32_t SYSTEM_EVENTS__FILES_SEND_ACK              = 25;
-static const int32_t SYSTEM_EVENTS__FILES_SEND_READY            = 26;
-static const int32_t SYSTEM_EVENTS__TASK_DATA                   = 27;
-static const int32_t SYSTEM_EVENTS__TASK_DATA_FINAL             = 28;
-static const int32_t SYSTEM_EVENTS__PROCESS_RESEARCH            = 29;
-static const int32_t SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT     = 30;
-static const int32_t SYSTEM_EVENTS__KIQ_IPC_MESSAGE             = 31;
-static const int32_t SYSTEM_EVENTS__TERM_HITS                   = 32;
+static const int32_t SYSTEM_EVENTS__PLATFORM_INFO               = 20;
+static const int32_t SYSTEM_EVENTS__PLATFORM_FETCH_POSTS        = 21;
+static const int32_t SYSTEM_EVENTS__PLATFORM_UPDATE             = 22;
+static const int32_t SYSTEM_EVENTS__PROCESS_COMPLETE            = 23;
+static const int32_t SYSTEM_EVENTS__SCHEDULER_REQUEST           = 24;
+static const int32_t SYSTEM_EVENTS__TRIGGER_ADD_SUCCESS         = 25;
+static const int32_t SYSTEM_EVENTS__TRIGGER_ADD_FAIL            = 26;
+static const int32_t SYSTEM_EVENTS__FILES_SEND                  = 27;
+static const int32_t SYSTEM_EVENTS__FILES_SEND_ACK              = 28;
+static const int32_t SYSTEM_EVENTS__FILES_SEND_READY            = 29;
+static const int32_t SYSTEM_EVENTS__TASK_DATA                   = 30;
+static const int32_t SYSTEM_EVENTS__TASK_DATA_FINAL             = 31;
+static const int32_t SYSTEM_EVENTS__PROCESS_RESEARCH            = 32;
+static const int32_t SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT     = 33;
+static const int32_t SYSTEM_EVENTS__KIQ_IPC_MESSAGE             = 34;
+static const int32_t SYSTEM_EVENTS__TERM_HITS                   = 35;
+static const int32_t SYSTEM_EVENTS__IPC_REQUEST                 = 36;
 
 static const uint8_t EVENT_PROCESS_OUTPUT_INDEX{0x00};
 static const uint8_t EVENT_PROCESS_MASK_INDEX  {0x01};

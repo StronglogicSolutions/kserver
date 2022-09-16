@@ -9,7 +9,7 @@ namespace kiq {
 bool KSession::active() const
 {
   bool active = (!(expired()) && status == SESSION_ACTIVE);
-  VLOG("Client {} with username {} is {}", fd, user.name, (active) ? "active" : "not active");
+  VLOG("{} is {} on {}", user.name, (active) ? "active" : "not active", fd);
   return active;
 }
 
@@ -33,12 +33,10 @@ bool KSession::expired() const
   return (waiting_time() > Timer::ONE_MINUTE);
 }
 
-uint32_t KSession::waiting_time() const
+uint64_t KSession::waiting_time() const
 {
   using Duration = Timer::Duration;
-  const TimePoint now     = std::chrono::system_clock::now();
-  const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - last_ping).count();
-  return elapsed;
+  return std::chrono::duration_cast<Duration>(std::chrono::system_clock::now() - last_ping).count();
 }
 
 std::string KSession::info() const
@@ -47,7 +45,7 @@ std::string KSession::info() const
   { switch(status) { case(1): return "ACTIVE"; case (2): return "INACTIVE"; default: return "INVALID"; } };
   return fmt::format(
     "┌──────────────────────────────────────────────┐\n"\
-    "User:   {}\nFD:     {}\nStatus: {}\nID:     {}\nTX:     {}\nRX:     {}\nPing:   {} ms\n"\
+    " User:   {}\n FD:     {}\n Status: {}\n ID:     {}\n TX:     {}\n RX:     {}\n Ping:   {} ms\n"\
     "└──────────────────────────────────────────────┘\n",
     user.name, fd, GetString(status), uuids::to_string(id), tx, rx, waiting_time());
 }
@@ -59,7 +57,12 @@ SessionMap::Sessions::const_iterator SessionMap::begin() const
 
 SessionMap::Sessions::const_iterator SessionMap::end() const
 {
-  return m_sessions.end();
+  return m_sessions.cend();
+}
+
+SessionMap::FDMap::const_iterator SessionMap::fdend() const
+{
+  return m_session_ptrs.cend();
 }
 
 SessionMap::Sessions::iterator SessionMap::begin()
@@ -72,34 +75,62 @@ SessionMap::Sessions::iterator SessionMap::end()
   return m_sessions.end();
 }
 
-SessionMap::Sessions::const_iterator SessionMap::find(int32_t fd) const
+SessionMap::Sessions::iterator SessionMap::erase(SessionMap::Sessions::iterator it)
 {
-  return m_sessions.find(fd);
+  if (auto ptr_it = find(it->second.fd); ptr_it != m_session_ptrs.end())
+    m_session_ptrs.erase(ptr_it);
+  return m_sessions.erase(it);
+}
+
+SessionMap::Sessions::const_iterator SessionMap::find(const std::string& name) const
+{
+  return m_sessions.find(name);
+}
+
+SessionMap::FDMap::const_iterator SessionMap::find(int32_t fd) const
+{
+  return m_session_ptrs.find(fd);
+}
+
+bool SessionMap::has(const std::string& name) const
+{
+  return (find(name) != m_sessions.end());
 }
 
 bool SessionMap::has(int32_t fd) const
 {
-  return (find(fd) != m_sessions.end());
+  return (find(fd) != m_session_ptrs.end());
 }
 
-bool SessionMap::init(int32_t fd, const KSession& new_session)
+bool SessionMap::init(const std::string& name, const KSession& new_session)
 {
   bool result{true};
 
-  if (m_sessions.find(fd) == m_sessions.end())
-    m_sessions.emplace(fd, new_session);
+  if (!has(name))
+    m_sessions.emplace(name, new_session);
   else
   if (logged_in(new_session.user))
     result = false;
   else
-    m_sessions[fd] = new_session;
+    m_sessions[name] = new_session;
+
+  if (result)
+  {
+    m_session_ptrs[new_session.fd] = &m_sessions[name];
+    m_sessions[name].notify();
+  }
 
   return result;
 }
 
+KSession& SessionMap::at(const std::string& name)
+{
+  return m_sessions.at(name);
+}
+
 KSession& SessionMap::at(int32_t fd)
 {
-  return m_sessions.at(fd);
+  return *m_session_ptrs.at(fd);
 }
 
 bool SessionMap::logged_in(const User& user) const

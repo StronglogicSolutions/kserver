@@ -36,26 +36,33 @@ void        notify();
 void        verify();
 bool        expired()      const;
 std::string info()         const;
-uint32_t    waiting_time() const;
+uint64_t    waiting_time() const;
 };
 
 struct SessionMap
 {
 public:
-using Sessions = std::unordered_map<int32_t, KSession>;
-SessionMap::Sessions::const_iterator begin()                                       const;
-SessionMap::Sessions::const_iterator end()                                         const;
-SessionMap::Sessions::iterator       begin();
-SessionMap::Sessions::iterator       end();
-SessionMap::Sessions::const_iterator find(int32_t fd)                              const;
-bool                                 has(int32_t fd)                               const;
-bool                                 init(int32_t fd, const KSession& new_session);
-KSession&                            at(int32_t fd);
-bool                                 logged_in(const User& user)                   const;
+using Sessions = std::unordered_map<std::string, KSession>;
+using FDMap    = std::unordered_map<int32_t, KSession*>;
+Sessions::const_iterator begin()                                                    const;
+Sessions::const_iterator end()                                                      const;
+FDMap::const_iterator    fdend()                                                    const;
+Sessions::iterator       begin();
+Sessions::iterator       end();
+Sessions::iterator       erase(Sessions::iterator);
+Sessions::const_iterator find(const std::string& name)                              const;
+FDMap::const_iterator    find(int32_t fd)                                           const;
+bool                     has (const std::string& name)                              const;
+bool                     has (int32_t fd)                                           const;
+bool                     init(const std::string& name, const KSession& new_session);
+KSession&                at  (const std::string& name);
+KSession&                at(int32_t fd);
+bool                     logged_in(const User& user)                                const;
 
 private:
 
 Sessions m_sessions;
+FDMap    m_session_ptrs;
 };
 
 bool ValidateToken(User user);

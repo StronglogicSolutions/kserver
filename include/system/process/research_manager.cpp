@@ -11,38 +11,22 @@ bool VerifyTerm(const std::string &term)
   using VerifyFunction = std::function<bool(const std::string &)>;
 
   static const size_t npos = std::string::npos;
-  static const std::vector<const char *> RejectPatterns{
-    "&amp;", "Thu Feb", "Wed Feb", "Sun Nov", "Wed Nov", "@…", "Thu Oct"};
+  static const std::vector<const char *> RejectPatterns{"&amp;", "Thu Feb", "Wed Feb",
+                                                        "Sun Nov", "Wed Nov", "@…", "Thu Oct",
+                                                        "//twitter ."};
   static const std::vector<VerifyFunction> VerifyFunctions{
-    [](const std::string &s)
-    {
-      size_t i{}, x{};
-      while (i++ < 2)
-      {
-        x = s.find("@", x);
-        if (x == npos)
-          return true;
-        else
-          x++;
-      }
-      return false;
-    },
-    [](const std::string &s)
-    {
-      for (const auto &p : RejectPatterns)
-        if (s.find(p) != npos)
-          return false;
-      return true;
-    }};
+    [](const std::string &s) { size_t i{}, x{}; while (i++ < 2)
+                               { x = s.find("@", x); if (x == npos) return true; else x++; } return false; },
+    [](const std::string &s) { for (const auto &p : RejectPatterns) if (s.find(p) != npos) return false; return true; }};
 
-  for (const auto &fn : VerifyFunctions)
-    if (!fn(term))
-    {
-      KLOG("Term {} was rejected", term);
-      return false;
-    }
+for (const auto &fn : VerifyFunctions)
+  if (!fn(term))
+  {
+    KLOG("Term {} was rejected", term);
+    return false;
+  }
 
-  return true;
+return true;
 }
 
 /**
@@ -512,7 +496,14 @@ void ResearchManager::GenerateMLData()
 void ResearchManager::FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data)
 {
   VLOG("Adding data to model input data generator from research with ID {}", id);
-  m_ml_generator.at(id).poll_results = data; // TODO: poll results must be parsed
+  if (m_ml_generator.has(id))
+    m_ml_generator.at(id).poll_results = data;
+  else
+  {
+    auto err = fmt::format("Failed to finalize model data with ID {}", id);
+    SystemUtils::SendMail(config::System::admin(), err, "KIQ Error");
+    ELOG(err);
+  }
 }
 
 template <typename T>

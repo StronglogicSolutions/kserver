@@ -35,9 +35,10 @@ TaskQueue::~TaskQueue()
  */
 void TaskQueue::pushToQueue(std::function<void()> fn)
 {
-  std::unique_lock<std::mutex> lock(m_mutex_lock);  // obtain mutex
-  m_task_queue.push(fn);                            // add work to queue
-  lock.unlock();
+  {
+    std::unique_lock<std::mutex> lock(m_mutex_lock);  // obtain mutex
+    m_task_queue.push(fn);                            // add work to queue
+  }
   pool_condition.notify_one();                      // one worker can wait for work
 }
 
