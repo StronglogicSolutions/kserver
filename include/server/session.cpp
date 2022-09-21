@@ -112,13 +112,18 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
   if (logged_in(new_session.user))
     result = false;
   else
+  {
+    m_session_ptrs.erase(m_sessions[name].fd);
     m_sessions[name] = new_session;
+  }
 
   if (result)
   {
     m_session_ptrs[new_session.fd] = &m_sessions[name];
     m_sessions[name].notify();
   }
+  else
+    m_sessions.erase(name);
 
   return result;
 }
