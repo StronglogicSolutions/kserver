@@ -162,6 +162,7 @@ bool                      m_file_sending;
 int32_t                   m_file_sending_fd;
 bool                      m_message_pending;
 int32_t                   m_message_pending_fd;
+uint32_t                  m_errors{0};
 };
 
 };     // namespace kiq
