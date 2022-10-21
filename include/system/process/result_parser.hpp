@@ -246,6 +246,30 @@ std::vector<TGVoteItem> m_items;
 std::string             m_app_name;
 };
 
+struct KTFeedItem
+{
+using media_t = std::vector<std::string>;
+std::string id;
+std::string date;
+std::string user;
+std::string text;
+media_t     media;
+};
+
+class KTFeedResultParser : public ProcessParseInterface {
+public:
+KTFeedResultParser(const std::string& app_name);
+virtual ~KTFeedResultParser() final;
+
+virtual bool               read(const std::string& s) override;
+static ProcessEventData    ReadEventData(const TWFeedItem& item, const std::string& app_name, const int32_t& event);
+virtual ProcessParseResult get_result() override;
+
+protected:
+std::string             m_app_name;
+std::vector<KTFeedItem> m_feed_items;
+};
+
 
 class ResultProcessor {
 public:
