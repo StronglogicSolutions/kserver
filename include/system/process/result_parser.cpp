@@ -576,6 +576,13 @@ KTFeedResultParser::~KTFeedResultParser() {}
 
 bool KTFeedResultParser::read(const std::string& s)
 {
+  auto get_date     = [](const auto& t)
+  {
+    auto s = std::to_string(t);
+    if (s.size() == 13)
+      return std::string{s.begin(), s.end() - 3};
+    return s;
+  };
   auto GetJSONError = [](auto& d)                { return GetParseError_En(d.GetParseError());   };
   auto ParseOK      = [](auto& d, const auto& s) { return !(d.Parse(s.c_str()).HasParseError()); };
   rapidjson::Document d{};
@@ -596,7 +603,7 @@ bool KTFeedResultParser::read(const std::string& s)
       if (item.HasMember("text"))
           kt_item.text = item["text"].GetString();
       if (item.HasMember("date"))
-          kt_item.date = item["date"].GetString();
+          kt_item.date = get_date(item["date"].GetInt64());
       if (item.HasMember("user"))
           kt_item.user = item["user"].GetString();
       if (item.HasMember("media"))
@@ -616,24 +623,20 @@ ProcessParseResult KTFeedResultParser::get_result()
 {
   ProcessParseResult result;
 
-   for (const auto& item : m_feed_items)
-  {
-    result.events.emplace_back(
-      ProcessEventData{
-        .code =SYSTEM_EVENTS__PLATFORM_NEW_POST,
-        .payload = std::vector<std::string>{
-          m_app_name,
-          item.id,
-          "DEFAULT_USER",
-          item.date,
-          item.text,
-          {},
-          constants::SHOULD_REPOST,
-          constants::PLATFORM_PROCESS_METHOD
-        }
-      }
-    );
-  }
+  for (const auto& item : m_feed_items)
+    result.events.emplace_back(ProcessEventData{
+      .code    = SYSTEM_EVENTS__PLATFORM_NEW_POST,
+      .payload = {
+        m_app_name,
+        item.id,
+        "DEFAULT_USER",
+        item.date,
+        item.text,
+        {},
+        constants::SHOULD_REPOST,
+        constants::PLATFORM_PROCESS_METHOD}});
+
+  return result;
 }
 ProcessEventData KTFeedResultParser::ReadEventData(const TWFeedItem& item, const std::string& app_name, const int32_t& event)
 {
