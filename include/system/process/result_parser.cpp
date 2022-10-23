@@ -621,6 +621,7 @@ bool KTFeedResultParser::read(const std::string& s)
 
 ProcessParseResult KTFeedResultParser::get_result()
 {
+
   ProcessParseResult result;
 
   for (const auto& item : m_feed_items)
@@ -632,7 +633,7 @@ ProcessParseResult KTFeedResultParser::get_result()
         "DEFAULT_USER",
         item.date,
         item.text,
-        {},
+        url_string(item.media),
         constants::SHOULD_REPOST,
         constants::PLATFORM_PROCESS_METHOD}});
 
