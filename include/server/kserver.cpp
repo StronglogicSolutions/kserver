@@ -321,8 +321,8 @@ void KServer::EndSession(const int32_t& client_fd, int32_t status)
 void KServer::CloseConnections()
 {
   for (const int& fd : m_client_connections)
-    if (m_sessions.at(fd).active())
-      EndSession(fd);
+    // if (m_sessions.at(fd).active())
+    EndSession(fd);
 }
 
 
@@ -446,14 +446,14 @@ bool KServer::HandlingFile(const int32_t& fd)
 void KServer::onConnectionClose(int32_t client_fd)
 {
   KLOG("Connection closed for {}", client_fd);
-  auto session = GetSession(client_fd);
-  if (session.active())
-  {
+  // auto session = GetSession(client_fd);
+  // if (session.active())
+  // {
     KLOG("Ending session");
     EndSession(client_fd);
-  }
-  else
-    KLOG("Session retrieved but not active. Will not end session");
+  // }
+  // else
+    // KLOG("Session retrieved but not active. Will not end session");
   OnClientExit(client_fd);
 }
 
