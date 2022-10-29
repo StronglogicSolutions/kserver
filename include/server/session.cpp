@@ -77,6 +77,7 @@ SessionMap::Sessions::iterator SessionMap::end()
 
 SessionMap::Sessions::iterator SessionMap::erase(SessionMap::Sessions::iterator it)
 {
+  VLOG("SessionMap erasing FD {} and Name {}", it->second.fd, it->first);
   if (auto ptr_it = find(it->second.fd); ptr_it != m_session_ptrs.end())
     m_session_ptrs.erase(ptr_it);
   else
