@@ -280,7 +280,7 @@ void KServer::onMessageReceived(int                      client_fd,
 
   try
   {
-    std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
+    const auto s_buffer_ptr = w_buffer_ptr.lock();
     (m_file_pending) ?
       ReceiveFileData(s_buffer_ptr, size, client_fd) :
       ReceiveMessage (s_buffer_ptr, size, client_fd);
