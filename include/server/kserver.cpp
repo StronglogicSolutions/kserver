@@ -374,7 +374,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       m_message_handlers.at(fd).setID(fd);
       m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
     }
-    TrackDataStats(fd, size);
+    // TrackDataStats(fd, size);
   }
   catch(const std::exception& e)
   {
