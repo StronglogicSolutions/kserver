@@ -159,7 +159,7 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
     SocketListener::sendMessage(client_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 
-  m_sessions.at(client_fd).tx += iterator.GetBytesRead();
+  // m_sessions.at(client_fd).tx += iterator.GetBytesRead();
 }
 
 /**
