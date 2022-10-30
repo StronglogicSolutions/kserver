@@ -138,7 +138,16 @@ KSession& SessionMap::at(const std::string& name)
 
 KSession& SessionMap::at(int32_t fd)
 {
-  return *m_session_ptrs.at(fd);
+  // return *m_session_ptrs.at(fd);
+  if (auto it = m_session_ptrs.find(fd); it != m_session_ptrs.end())
+  {
+    return *it->second;
+  }
+  else
+  {
+    ELOG("No session pointer matching file descriptor: {}. Returning first element", fd);
+    return m_sessions.begin()->second;
+  }
 }
 
 bool SessionMap::logged_in(const User& user) const
