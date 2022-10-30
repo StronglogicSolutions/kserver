@@ -116,7 +116,7 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
     result = false;
   else
   {
-    m_session_ptrs.erase(m_sessions[name].fd);
+    // m_session_ptrs.erase(m_sessions[name].fd);
     m_sessions[name] = new_session;
   }
 
