@@ -262,11 +262,40 @@ void KServer::ScheduleRequest(const std::vector<std::string>& task, const int32_
 void KServer::OperationRequest(const std::string& message, const int32_t& client_fd)
 {
   const KOperation op = GetOperation(message);
-  if      (IsStartOperation     (op)) InitClient(message, client_fd);
-  else if (IsStopOperation      (op)) EndSession(client_fd);
-  else if (IsFileUploadOperation(op)) WaitForFile(client_fd);
-  else if (IsIPCOperation       (op)) m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, {message});
-  else                                m_controller.ProcessClientRequest(client_fd, message);
+  if      (IsStartOperation     (op))
+  {
+    try
+    {
+      InitClient(message, client_fd);
+    }
+    catch (const std::exception& e)
+    {
+      ELOG("Exception thrown during InitClient: {}", e.what());
+    }
+  }
+  else if (IsStopOperation      (op))
+  {
+    EndSession(client_fd);
+  }
+  else if (IsFileUploadOperation(op))
+  {
+    WaitForFile(client_fd);
+  }
+  else if (IsIPCOperation       (op))
+  {
+    m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, {message});
+  }
+  else
+  {
+    try
+    {
+      m_controller.ProcessClientRequest(client_fd, message);
+    }
+    catch (const std::exception& e)
+    {
+      ELOG("Exception thrown during Controller::ProcessClientRequest: {}", e.what());
+    }
+  }
 }
 
 /**
@@ -366,7 +395,16 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
             EndSession(fd);
           else
           if (IsOperation(message))
-            OperationRequest(message, fd);
+          {
+            try
+            {
+              OperationRequest(message, fd);
+            }
+            catch (const std::exception& e)
+            {
+              ELOG("Exception thrown during OperationRequest: {}", e.what());
+            }
+          }
           else
           if (IsMessage(message))
             SendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
