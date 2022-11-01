@@ -468,6 +468,8 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
   Payload     args = GetArgs(message);
   RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
+  VLOG("Controller processing client request of type {}", request_type_to_string(type));
+
   switch (type)
   {
     case(RequestType::GET_APPLICATION):
