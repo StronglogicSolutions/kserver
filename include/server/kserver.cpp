@@ -294,8 +294,16 @@ void KServer::onMessageReceived(int                      client_fd,
 
 void KServer::SendPong(int32_t client_fd)
 {
-  m_sessions.at(client_fd).notify();
-  SendMessage(client_fd, PONG);
+  try
+  {
+    m_sessions.at(client_fd).notify();
+    SendMessage(client_fd, PONG);
+
+  }
+  catch (const std::exception& e)
+  {
+    ELOG("Exception thrown from SendPong: {}", e.what());
+  }
 }
 
 void KServer::EndSession(const int32_t& client_fd, int32_t status)
@@ -334,24 +342,42 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
   {
     DecodeMessage(m_ptr).leftMap([this, fd](auto&& message)
     {
-      auto HasValidToken  = [this](int fd, const auto& msg) { return (GetToken(msg) == m_sessions.at(fd).user.token); };
+      auto HasValidToken  = [this](int fd, const auto& msg)
+      {
+        try
+        {
+          return (GetToken(msg) == m_sessions.at(fd).user.token);
+        }
+        catch (const std::exception& e)
+        {
+          ELOG("Exception thrown from HasValidToken: {}", e.what());
+        }
+      };
 
-      if (message.empty())
-        ELOG("Failed to decode message");
-      else
-      if (IsPing(message))
-        SendPong(fd);
-      else
-      if (m_sessions.has(fd) && m_sessions.at(fd).active() && !HasValidToken(fd, message))
-        EndSession(fd);
-      else
-      if (IsOperation(message))
-        OperationRequest(message, fd);
-      else
-      if (IsMessage(message))
-        SendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
-      else
-        EndSession(fd);
+        try
+        {
+          if (message.empty())
+            ELOG("Failed to decode message");
+          else
+          if (IsPing(message))
+            SendPong(fd);
+          else
+          if (m_sessions.has(fd) && m_sessions.at(fd).active() && !HasValidToken(fd, message))
+            EndSession(fd);
+          else
+          if (IsOperation(message))
+            OperationRequest(message, fd);
+          else
+          if (IsMessage(message))
+            SendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
+          else
+            EndSession(fd);
+        }
+        catch (const std::exception& e)
+        {
+          ELOG("Exception thrown from DecodeMessage LEFT callback: {}", e.what());
+        }
+
       return message;
     })
     .rightMap([this, fd](auto&& args)
@@ -365,14 +391,21 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
   try
   {
     auto it = m_message_handlers.find(fd);
-    if (it != m_message_handlers.end())
-      it->second.processPacket(s_buffer_ptr.get(), size);
-    else
+    try
     {
-      KLOG("Creating message handler for {}", fd);
-      m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
-      m_message_handlers.at(fd).setID(fd);
-      m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
+      if (it != m_message_handlers.end())
+        it->second.processPacket(s_buffer_ptr.get(), size);
+      else
+      {
+        KLOG("Creating message handler for {}", fd);
+        m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
+        m_message_handlers.at(fd).setID(fd);
+        m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
+      }
+    }
+    catch (const std::exception& e)
+    {
+      ELOG("Exception thrown from ReceiveMessage while processing a packet?: {}", e.what());
     }
     // TrackDataStats(fd, size);
   }
@@ -459,8 +492,15 @@ void KServer::onConnectionClose(int32_t client_fd)
 
 KSession KServer::GetSession(const int32_t& client_fd) const
 {
-  auto it = m_sessions.find(client_fd);
-  return (it != m_sessions.fdend()) ? *it->second : KSession{};
+  try
+  {
+    auto it = m_sessions.find(client_fd);
+    return (it != m_sessions.fdend()) ? *it->second : KSession{};
+  }
+  catch (const std::exception& e)
+  {
+    ELOG ("Exception thrown in GetSession: {}", e.what());
+  }
 }
 
 void KServer::Status()
