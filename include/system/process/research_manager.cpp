@@ -510,7 +510,7 @@ template <typename T>
 void ResearchManager::AddMLInput(const std::string& id, const T& input)
 {
   if (!m_ml_generator.has_data())
-    m_ml_generator.init("id,emo1,emo2,emo3,emo4,emo5,emo6,emo7,sen1,poll1,poll2,poll3,poll4");
+    m_ml_generator.init("id,emo1,emo2,emo3,emo4,emo5,emo6,sen1,poll1,poll2,poll3,poll4");
 
   VLOG("Adding research data with ID {}");
   m_ml_generator.operator()(id, input);

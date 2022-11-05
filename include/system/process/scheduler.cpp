@@ -887,8 +887,8 @@ bool Scheduler::SavePlatformPost(std::vector<std::string> payload)
  */
 void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
 {
-  auto DefaultTGOP = []() { return CreateOperation("Bot", {config::Process::tg_dest()}); };
-  auto GetMLData = [this]() -> std::string { return "ML Input string generated:\n" + m_research_manager.GetMLData(); };
+  auto DefaultTGOP = []       -> auto { return CreateOperation("Bot", {config::Process::tg_dest()}); };
+  auto GetMLData   = [this]   -> auto { return m_research_manager.GetMLData(); };
   static const auto  plat_req = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
          const auto& platform = payload[constants::PLATFORM_REQUEST_PLATFORM_INDEX];
          const auto& id       = payload[constants::PLATFORM_REQUEST_ID_INDEX];
@@ -964,16 +964,16 @@ bool Scheduler::addTrigger(const std::vector<std::string> &payload)
   {
     TriggerConfig config{};
     const int32_t TRIGGER_MAP_NUM_INDEX = 5;
-    const int32_t mask = std::stoi(payload.at(1));
-    const int32_t trigger_mask = std::stoi(payload.at(2));
-    const int32_t map_num = std::stoi(payload.at(5));
-    const int32_t config_num = std::stoi(payload.at(6));
-    const KApplication app = ProcessExecutor::GetAppInfo(mask);
-    const KApplication trigger_app = ProcessExecutor::GetAppInfo(trigger_mask);
+    const int32_t mask                  = std::stoi(payload.at(1));
+    const int32_t trigger_mask          = std::stoi(payload.at(2));
+    const int32_t map_num               = std::stoi(payload.at(5));
+    const int32_t config_num            = std::stoi(payload.at(6));
+    const KApplication app              = ProcessExecutor::GetAppInfo(mask);
+    const KApplication trigger_app      = ProcessExecutor::GetAppInfo(trigger_mask);
 
     if (app.is_valid() && trigger_app.is_valid())
     {
-      config.token_name = payload.at(3);
+      config.token_name  = payload.at(3);
       config.token_value = payload.at(4);
 
       for (int i = 0; i < map_num; i++)
@@ -1074,11 +1074,9 @@ template int32_t Scheduler::CreateChild(const std::string &id, const std::string
 
 int32_t Scheduler::FindMask(const std::string &application_name)
 {
-  auto it = std::find_if(m_app_map.begin(), m_app_map.end(),
-                          [&application_name](const ApplicationInfo &a)
-                          { return a.second == application_name; });
-  if (it != m_app_map.end())
-    return it->first;
+  for (auto it = m_app_map.begin(); it != m_app_map.end();)
+    if (it->second == application_name)
+      return it->first;
   return INVALID_MASK;
 }
 
