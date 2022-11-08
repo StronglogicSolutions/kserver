@@ -887,8 +887,8 @@ bool Scheduler::SavePlatformPost(std::vector<std::string> payload)
  */
 void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
 {
-  auto DefaultTGOP = []       -> auto { return CreateOperation("Bot", {config::Process::tg_dest()}); };
-  auto GetMLData   = [this]   -> auto { return m_research_manager.GetMLData(); };
+  auto DefaultTGOP = []       { return CreateOperation("Bot", {config::Process::tg_dest()}); };
+  auto GetMLData   = [this]   { return m_research_manager.GetMLData(); };
   static const auto  plat_req = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
          const auto& platform = payload[constants::PLATFORM_REQUEST_PLATFORM_INDEX];
          const auto& id       = payload[constants::PLATFORM_REQUEST_ID_INDEX];
