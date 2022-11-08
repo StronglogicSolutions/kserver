@@ -133,20 +133,18 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
 
 KSession& SessionMap::at(const std::string& name)
 {
-  if (auto it = m_sessions.find(name); it != m_sessions.end())
-    VLOG("SessionMap::at() successfully found {}", name);
-  else
+  const auto it = m_sessions.find(name);
+  if (it == m_sessions.end())
     ELOG("SessionMap::at() Unable to find {}. Exception will be thrown", name);
   return m_sessions.at(name);
 }
 
 KSession& SessionMap::at(int32_t fd)
 {
-  if (auto it = m_session_ptrs.find(fd); it != m_session_ptrs.end())
-    VLOG("SessionMap::at() successfully found {}", fd);
-  else
+  const auto it = m_session_ptrs.find(fd);
+  if (it == m_session_ptrs.end())
     ELOG("SessionMap::at() Unable to find {}. Exception will be thrown", fd);
- return *m_session_ptrs.at(fd);
+  return *m_session_ptrs.at(fd);
 }
 
 bool SessionMap::logged_in(const User& user) const
