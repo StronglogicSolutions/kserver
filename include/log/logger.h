@@ -12,10 +12,12 @@
 
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-#define KLOG SPDLOG_INFO
-#define ELOG SPDLOG_ERROR
 #define VLOG SPDLOG_TRACE
+#define DLOG SPDLOG_DEBUG
+#define KLOG SPDLOG_INFO
 #define WLOG SPDLOG_WARN
+#define ELOG SPDLOG_ERROR
+#define CLOG SPDLOG_CRITICAL
 
 namespace kiq::LOG {
 using LogPtr = std::shared_ptr<spdlog::logger>;
