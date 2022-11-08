@@ -444,6 +444,11 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
  */
 void Platform::ProcessPlatform()
 {
+  auto pending_requests_string = [this] { std::string s; for (auto [post, status] : m_platform_map)
+                                          s += '\n' + post.second + " on " + GetPlatform(post.first);
+    return s;
+  };
+
   static Timer timer{Timer::TEN_MINUTES};
   if (!timer.active())
     timer.start();
@@ -460,8 +465,7 @@ void Platform::ProcessPlatform()
     }
     timer.stop();
   }
-
-  if (IsProcessingPlatform()) return KLOG("Platform requests are still being processed");
+  if (IsProcessingPlatform()) return KLOG("Platform requests are still being processed: {}", pending_requests_string());
 
   for (auto&& platform_post : FetchPendingPlatformPosts())
   {
