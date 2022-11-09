@@ -59,7 +59,7 @@ namespace kiq
 
     if (m_clients.find(broker_peer) == m_clients.end())
     {
-      std::thread{[this, event, &args]
+      std::thread{[this, event, args]
       {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         ReceiveEvent(event, args);
