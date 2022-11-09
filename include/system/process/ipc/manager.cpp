@@ -57,6 +57,13 @@ namespace kiq
   {
     KLOG("Processing IPC message for event {}", event);
 
+    if (m_clients.find(broker_peer) == m_clients.end())
+      std::thread{[this, event, &args]
+      {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        ReceiveEvent(event, args);
+      }}.detach();
+
     switch (event)
     {
     case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
