@@ -9,11 +9,9 @@ namespace kiq
   //*******************************************************************//
   static void log_message(ipc_message* msg)
   {
-    const auto type = msg->type();
-    if (type != ::constants::IPC_KEEPALIVE_TYPE)
+    if (const auto type = msg->type(); type != ::constants::IPC_KEEPALIVE_TYPE)
       VLOG("Processing message of type {}", ::constants::IPC_MESSAGE_NAMES.at(type));
   }
-
   //*******************************************************************//
   std::unique_ptr<platform_message> deserialize(const Payload &args)
   {
@@ -56,12 +54,15 @@ namespace kiq
   IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string> args)
   {
     KLOG("Processing IPC message for event {}", event);
-
     if (m_clients.find(broker_peer) == m_clients.end())
     {
       std::thread{[this, event, args]
       {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        while (m_clients.find(broker_peer) == m_clients.end())
+        {
+          VLOG("Delaying handling of IPC message");
+          std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
         ReceiveEvent(event, args);
       }}.detach();
       return false;
@@ -69,15 +70,15 @@ namespace kiq
 
     switch (event)
     {
-    case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
-    case SYSTEM_EVENTS__PLATFORM_EVENT:
-      m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
-      break;
-    case SYSTEM_EVENTS__IPC_REQUEST:
-      m_clients.at(broker_peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
-      break;
-    default:
-      return false;
+      case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
+      case SYSTEM_EVENTS__PLATFORM_EVENT:
+        m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
+        break;
+      case SYSTEM_EVENTS__IPC_REQUEST:
+        m_clients.at(broker_peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
+        break;
+      default:
+        return false;
     }
     return true;
   }
