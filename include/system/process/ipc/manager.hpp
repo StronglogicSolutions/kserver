@@ -26,7 +26,7 @@ public:
 
 IPCManager(SystemCallback_fn_ptr system_event_fn);
 ~IPCManager() final;
-bool ReceiveEvent(int32_t event, const std::vector<std::string> args);
+bool ReceiveEvent(int32_t event, const std::vector<std::string>& args);
 void close(int32_t fd);
 void process_message(u_ipc_msg_ptr msg);
 void start();
@@ -34,6 +34,7 @@ void on_heartbeat(std::string_view peer);
 
 private:
   void loop();
+  void delay_event(int32_t event, const std::vector<std::string>& args);
 
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
   {::constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},

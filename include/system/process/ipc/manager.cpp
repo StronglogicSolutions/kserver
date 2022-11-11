@@ -3,9 +3,8 @@
 
 namespace kiq
 {
-  static const char *broker_peer = "botbroker";
-  static const char *kygui_peer  = "kygui";
-
+  static const char* broker_peer = "botbroker";
+  static const char* kygui_peer  = "kygui";
   //*******************************************************************//
   static void log_message(ipc_message* msg)
   {
@@ -51,20 +50,12 @@ namespace kiq
   }
   //*******************************************************************//
   bool
-  IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string> args)
+  IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
     KLOG("Processing IPC message for event {}", event);
     if (m_clients.find(broker_peer) == m_clients.end())
     {
-      std::thread{[this, event, args]
-      {
-        while (m_clients.find(broker_peer) == m_clients.end())
-        {
-          VLOG("Delaying handling of IPC message");
-          std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        }
-        ReceiveEvent(event, args);
-      }}.detach();
+      delay_event(event, args);
       return false;
     }
 
@@ -104,5 +95,25 @@ namespace kiq
   {
     if (!m_daemon.validate(peer))
       VLOG("Couldn't validate heartbeat for {}", peer);
+  }
+  //*******************************************************************//
+  void
+  IPCManager::delay_event(int32_t event, const std::vector<std::string>& args)
+  {
+    static const int   delay_limit{5};
+    static       int   delay_count{0};
+
+    if (++delay_count > delay_limit)
+      throw std::runtime_error{"Exceeded IPC event delay limit"};
+
+    std::thread{[this, event, args]
+    {
+      while (m_clients.find(broker_peer) == m_clients.end())
+      {
+        VLOG("Delaying handling of IPC message");
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      }
+      ReceiveEvent(event, args);
+    }}.detach();
   }
 } // ns kiq
