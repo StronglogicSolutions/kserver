@@ -33,8 +33,8 @@ class GenericTaskHandler : public TaskHandler {
   virtual Task prepareTask(const std::vector<std::string>& argv,
                            const std::string&              uuid,
                            Task*                           task_ptr = nullptr) override;
-
-  static  Task Create(const std::string&              mask,
+  template <typename T = std::string>
+  static  Task Create(const T&                        mask,
                       const std::string&              description = "",
                       const std::string&              header      = "",
                       const std::string&              user        = "",
