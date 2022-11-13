@@ -79,6 +79,8 @@ SessionMap::Sessions::iterator SessionMap::erase(SessionMap::Sessions::iterator 
 {
   if (auto ptr_it = find(it->second.fd); ptr_it != m_session_ptrs.end())
     m_session_ptrs.erase(ptr_it);
+  else
+    ELOG("attempted to end session for {}, but was unable to find session pointer. Incomplete erasure", it->first);
   return m_sessions.erase(it);
 }
 
@@ -161,7 +163,7 @@ bool ValidateToken(User user)
   static const Verifier    verifier    = jwt::verify()
     .allow_algorithm(jwt::algorithm::es256k(public_key, private_key, "", ""))
     .with_issuer    ("kiq");
-        const std::string token        = ReadFileSimple(path + '/' + user.name);
+         const std::string token       = ReadFileSimple(path + '/' + user.name);
   try
   {
     const auto decoded = jwt::decode(user.token);

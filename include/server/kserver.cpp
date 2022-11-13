@@ -288,6 +288,7 @@ void KServer::onMessageReceived(int                      client_fd,
   catch(const std::exception& e)
   {
     ELOG("Exception thrown while handling message.\n{}", e.what());
+    m_errors++;
   }
 }
 
@@ -445,8 +446,14 @@ bool KServer::HandlingFile(const int32_t& fd)
 void KServer::onConnectionClose(int32_t client_fd)
 {
   KLOG("Connection closed for {}", client_fd);
-  if (GetSession(client_fd).active())
+  auto session = GetSession(client_fd);
+  if (session.active())
+  {
+    KLOG("Ending session");
     EndSession(client_fd);
+  }
+  else
+    KLOG("Session retrieved but not active. Will not end session");
   OnClientExit(client_fd);
 }
 
@@ -478,7 +485,7 @@ void KServer::Status()
       it++;
   }
 
-  VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nClients:\n{}", tx, rx, client_s);
+  VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nErrors: {}\nClients:\n{}", tx, rx, m_errors, client_s);
   VLOG("Thread pool: there are currently {} active workers tending to sockets", SocketListener::count());
 }
 

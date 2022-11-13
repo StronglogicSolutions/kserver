@@ -568,6 +568,105 @@ ProcessParseResult TWResearchParser::get_result()
   return result;
 }
 
+KTFeedResultParser::KTFeedResultParser(const std::string& app_name)
+: m_app_name{app_name}
+{}
+
+KTFeedResultParser::~KTFeedResultParser() {}
+
+bool KTFeedResultParser::read(const std::string& s)
+{
+  auto get_date     = [](const auto& t)
+  {
+    auto s = std::to_string(t);
+    if (s.size() == 13)
+      return std::string{s.begin(), s.end() - 3};
+    return s;
+  };
+  auto GetJSONError = [](auto& d)                { return GetParseError_En(d.GetParseError());   };
+  auto ParseOK      = [](auto& d, const auto& s) { return !(d.Parse(s.c_str()).HasParseError()); };
+  rapidjson::Document d{};
+
+  if (!ParseOK(d, s))
+    ELOG("Error parsing JSON: {}", GetJSONError(d));
+  else
+  if (d.IsArray())
+  {
+    for (const auto& item : d.GetArray())
+    {
+      KTFeedItem kt_item{};
+      if (!item.IsObject())
+        continue;
+
+      if (item.HasMember("id"))
+        kt_item.id = item["id"].GetString();
+      if (item.HasMember("text"))
+          kt_item.text = item["text"].GetString();
+      if (item.HasMember("date"))
+          kt_item.date = get_date(item["date"].GetInt64());
+      if (item.HasMember("user"))
+          kt_item.user = item["user"].GetString();
+      if (item.HasMember("media"))
+        for (const auto& url : item["media"].GetArray())
+          kt_item.media.push_back(url.GetString());
+
+      m_feed_items.emplace_back(std::move(kt_item));
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+ProcessParseResult KTFeedResultParser::get_result()
+{
+
+  ProcessParseResult result;
+
+  for (const auto& item : m_feed_items)
+    result.events.emplace_back(ProcessEventData{
+      .code    = SYSTEM_EVENTS__PLATFORM_NEW_POST,
+      .payload = {
+        m_app_name,
+        item.id,
+        "DEFAULT_USER",
+        item.date,
+        item.text,
+        url_string(item.media),
+        constants::SHOULD_REPOST,
+        constants::PLATFORM_PROCESS_METHOD}});
+
+  return result;
+}
+ProcessEventData KTFeedResultParser::ReadEventData(const TWFeedItem& item, const std::string& app_name, const int32_t& event)
+{
+  std::string content{};
+
+  if (!item.mentions.empty())
+    content += item.mentions + '\n';
+  content += item.content;
+  if (!item.hashtags.empty())
+    content += '\n' + item.hashtags;
+  content += "\nPosted:   " + item.date;
+  content += "\nLikes:    " + item.likes;
+  content += "\nRetweets: " + item.retweets;
+
+  return ProcessEventData{
+    .code    = event,
+    .payload = std::vector<std::string>{
+      app_name,
+      item.id,
+      item.user,
+      item.time,
+      content,
+      item.media_urls,
+      constants::SHOULD_REPOST,
+      constants::PLATFORM_PROCESS_METHOD
+    }
+  };
+}
+
 PollResultParser::PollResultParser()
 : m_app_name{"TelegramPollResult"}
 {}
@@ -645,6 +744,9 @@ ProcessParseResult ResultProcessor::process(const std::string& output, const T& 
       else
       if (app.name == "KNLP - Sentiment")
         u_parser_ptr.reset(new SentimentResultParser{app.name});
+      else
+      if (app.name == "KETTR")
+        u_parser_ptr.reset(new KTFeedResultParser{app.name});
     }
     else
       ELOG("Could not process result from unknown application");
