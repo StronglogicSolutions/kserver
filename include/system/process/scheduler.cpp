@@ -322,29 +322,29 @@ std::vector<Task> Scheduler::parseTasks(QueryValues &&result, bool parse_files, 
  *
  * @return [out] {std::vector<Task>} A vector of Task objects
  */
-std::vector<Task> Scheduler::fetchTasks(const std::string &mask, const std::string &date_range_s, const std::string &count, const std::string &limit, const std::string &order)
+std::vector<Task> Scheduler::fetchTasks(const std::string& mask, const std::string& date_range_s, const std::string& count, const std::string& limit, const std::string& order)
 {
-  using DateRange = std::pair<std::string, std::string>;
-  using Filter_t = std::vector<std::variant<CompBetweenFilter, QueryFilter>>;
   static const std::string MAX_INT = std::to_string(std::numeric_limits<int32_t>::max());
+
+  using DateRange = std::pair<std::string, std::string>;
+  using Filter_t  = std::vector<std::variant<CompBetweenFilter, QueryFilter>>;
   const auto GetDateRange = [](const std::string &date_range_s) -> DateRange
   {
     if (date_range_s.front() == '0')
       return DateRange{"0", MAX_INT};
 
-    const auto split_idx = date_range_s.find_first_of("TO");
-    return DateRange{date_range_s.substr(0, (date_range_s.size() - split_idx - 2)),
-                      date_range_s.substr(split_idx + 1)};
+    const auto pos = date_range_s.find_first_of("TO");
+    return DateRange{date_range_s.substr(0, (date_range_s.size() - pos - 2)), date_range_s.substr(pos + 1)};
   };
-  static const Fields fields{Field::ID, Field::TIME, Field::MASK, Field::FLAGS, Field::ENVFILE,
-                              Field::COMPLETED, Field::NOTIFY, Field::RECURRING};
-  const DateRange date_range = GetDateRange(date_range_s);
-  const auto result_limit = (limit == "0") ? MAX_INT : limit;
-  const auto row_order = order;
-  const Filter_t filters = {CompBetweenFilter{Field::TIME, date_range.first, date_range.second},
-                            CreateFilter(Field::MASK, mask)},
-                  OrderFilter{Field::ID, row_order},
-                  LimitFilter{count};
+
+  static const Fields fields{Field::ID,      Field::TIME,      Field::MASK, Field::FLAGS,
+                             Field::ENVFILE, Field::COMPLETED, Field::NOTIFY, Field::RECURRING};
+  const DateRange date_range   = GetDateRange(date_range_s);
+  const auto      result_limit = (limit == "0") ? MAX_INT : limit;
+  const auto      row_order    = order;
+  const Filter_t  filters      = {CompBetweenFilter{Field::TIME, date_range.first, date_range.second},
+                                  CreateFilter(Field::MASK, mask), OrderFilter{Field::ID, row_order}, LimitFilter{count}};
+
   return parseTasks(std::move(m_kdb.selectMultiFilter<CompBetweenFilter, QueryFilter>("schedule", fields, filters)));
 }
 
