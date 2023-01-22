@@ -81,6 +81,7 @@ namespace kiq
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{m_context, broker_peer, this, true});
     m_daemon.add_observer(broker_peer, [] { ELOG("Heartbeat timed out for {}", broker_peer); });
+    m_daemon.reset();
   }
   //*******************************************************************//
   void
