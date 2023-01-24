@@ -73,11 +73,11 @@ OutboundFile& OutboundNext()
   return m_outbound_files.front();
 }
 
-OutboundFile&& Dequeue()
+OutboundFile Dequeue()
 {
-  auto& file = m_outbound_files.front();
+  const auto file = OutboundNext();
   m_outbound_files.pop_front();
-  return std::move(file);
+  return file;
 }
 
 private:

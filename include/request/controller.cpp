@@ -622,8 +622,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
 
     case (FETCH_FILE):
     {
-      auto files = m_scheduler.getFiles(std::vector<std::string>{args.begin() + 1, args.end()});
-      if (!files.empty())
+      if (const auto files = m_scheduler.getFiles(Payload{args.begin() + 1, args.end()}); !files.empty())
         m_system_event(client_fd, SYSTEM_EVENTS__FILES_SEND, FileMetaData::MetaDataToPayload(files));
     }
     break;
