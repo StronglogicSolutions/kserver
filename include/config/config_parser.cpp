@@ -45,6 +45,7 @@ namespace Process {
 const std::string executor()     { return reader.Get("process", "executor",   RequiredConfig("[process] executor"));   }
 const std::string ipc_port()     { return reader.Get("process", "ipc_port",   "28473");                                }
 const std::string tg_dest ()     { return reader.Get("process", "tg_dest",    "-1");                                   }
+const std::string broker_address() { return reader.Get("process", "broker_address", RequiredConfig("[process] broker_address")); }
 } // namespace Process
 
 namespace Email {
@@ -62,6 +63,11 @@ const std::string affiliate_content(const std::string& type)
 }
 const std::string default_user() { return reader.Get("platform", "default_user", "");                                  }
 } // namespace Platform
+
+namespace ML {
+const std::string keural_path()
+{ return reader.Get("machine_learning", "keural_path", RequiredConfig("[machine_learning] input_path"));        }
+}
 
 namespace Security {
 const std::string token_path()   { return reader.Get("security", "token_path",  ""); }

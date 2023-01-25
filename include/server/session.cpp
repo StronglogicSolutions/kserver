@@ -77,10 +77,11 @@ SessionMap::Sessions::iterator SessionMap::end()
 
 SessionMap::Sessions::iterator SessionMap::erase(SessionMap::Sessions::iterator it)
 {
-  if (auto ptr_it = find(it->second.fd); ptr_it != m_session_ptrs.end())
-    m_session_ptrs.erase(ptr_it);
-  else
-    ELOG("attempted to end session for {}, but was unable to find session pointer. Incomplete erasure", it->first);
+  VLOG("SessionMap erasing FD {} and Name {}", it->second.fd, it->first);
+  // if (auto ptr_it = find(it->second.fd); ptr_it != m_session_ptrs.end())
+  //   m_session_ptrs.erase(ptr_it);
+  // else
+  //   ELOG("attempted to end session for {}, but was unable to find session pointer. Incomplete erasure", it->first);
   return m_sessions.erase(it);
 }
 
@@ -115,7 +116,7 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
     result = false;
   else
   {
-    m_session_ptrs.erase(m_sessions[name].fd);
+    // m_session_ptrs.erase(m_sessions[name].fd);
     m_sessions[name] = new_session;
   }
 
@@ -132,11 +133,17 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
 
 KSession& SessionMap::at(const std::string& name)
 {
+  const auto it = m_sessions.find(name);
+  if (it == m_sessions.end())
+    ELOG("SessionMap::at() Unable to find {}. Exception will be thrown", name);
   return m_sessions.at(name);
 }
 
 KSession& SessionMap::at(int32_t fd)
 {
+  const auto it = m_session_ptrs.find(fd);
+  if (it == m_session_ptrs.end())
+    ELOG("SessionMap::at() Unable to find {}. Exception will be thrown", fd);
   return *m_session_ptrs.at(fd);
 }
 

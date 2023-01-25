@@ -3,17 +3,14 @@
 
 namespace kiq
 {
-  static const char *broker_peer = "botbroker";
-  static const char *kygui_peer  = "kygui";
-
+  static const char* broker_peer = "botbroker";
+  static const char* kygui_peer  = "kygui";
   //*******************************************************************//
   static void log_message(ipc_message* msg)
   {
-    const auto type = msg->type();
-    if (type != ::constants::IPC_KEEPALIVE_TYPE)
+    if (const auto type = msg->type(); type != ::constants::IPC_KEEPALIVE_TYPE)
       VLOG("Processing message of type {}", ::constants::IPC_MESSAGE_NAMES.at(type));
   }
-
   //*******************************************************************//
   std::unique_ptr<platform_message> deserialize(const Payload &args)
   {
@@ -53,21 +50,26 @@ namespace kiq
   }
   //*******************************************************************//
   bool
-  IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string> args)
+  IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
     KLOG("Processing IPC message for event {}", event);
+    if (m_clients.find(broker_peer) == m_clients.end())
+    {
+      delay_event(event, args);
+      return false;
+    }
 
     switch (event)
     {
-    case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
-    case SYSTEM_EVENTS__PLATFORM_EVENT:
-      m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
-      break;
-    case SYSTEM_EVENTS__IPC_REQUEST:
-      m_clients.at(broker_peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
-      break;
-    default:
-      return false;
+      case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
+      case SYSTEM_EVENTS__PLATFORM_EVENT:
+        m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
+        break;
+      case SYSTEM_EVENTS__IPC_REQUEST:
+        m_clients.at(broker_peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
+        break;
+      default:
+        return false;
     }
     return true;
   }
@@ -79,6 +81,7 @@ namespace kiq
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{m_context, broker_peer, this, true});
     m_daemon.add_observer(broker_peer, [] { ELOG("Heartbeat timed out for {}", broker_peer); });
+    m_daemon.reset();
   }
   //*******************************************************************//
   void
@@ -93,5 +96,25 @@ namespace kiq
   {
     if (!m_daemon.validate(peer))
       VLOG("Couldn't validate heartbeat for {}", peer);
+  }
+  //*******************************************************************//
+  void
+  IPCManager::delay_event(int32_t event, const std::vector<std::string>& args)
+  {
+    static const int   delay_limit{5};
+    static       int   delay_count{0};
+
+    if (++delay_count > delay_limit)
+      throw std::runtime_error{"Exceeded IPC event delay limit"};
+
+    std::thread{[this, event, args]
+    {
+      while (m_clients.find(broker_peer) == m_clients.end())
+      {
+        VLOG("Delaying handling of IPC message");
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      }
+      ReceiveEvent(event, args);
+    }}.detach();
   }
 } // ns kiq

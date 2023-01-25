@@ -468,6 +468,8 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
   Payload     args = GetArgs(message);
   RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
+  VLOG("Controller processing client request of type {}", request_type_to_string(type));
+
   switch (type)
   {
     case(RequestType::GET_APPLICATION):
@@ -510,15 +512,38 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
 
     case (RequestType::FETCH_SCHEDULE):
     {
-      std::vector<Task>    tasks             = m_scheduler.fetchAllTasks();
+      std::vector<Task>    tasks;
+      try
+      {
+        tasks             = m_scheduler.fetchAllTasks();
+      }
+      catch(const std::exception& e)
+      {
+        ELOG("Exception thrown from while fetching tasks: {}", e.what());
+      }
+
       const auto           size              = tasks.size();
       Payload              payload{"Schedule"};
       KLOG("Processing schedule fetch request");
       KLOG("Fetched {} scheduled tasks for client", size);
 
-      for (const auto& task : tasks) ReadTask(task, payload);
-      m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
-      m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
+      try
+      {
+        for (const auto& task : tasks) ReadTask(task, payload);
+      }
+      catch(const std::exception& e)
+      {
+        ELOG("Exception thrown from while reading tasks: {}", e.what());
+      }
+      try
+      {
+        m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
+        m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
+      }
+      catch(const std::exception& e)
+      {
+        ELOG("Exception thrown passing tasks to system callback: {}", e.what());
+      }
     }
     break;
     case (RequestType::UPDATE_SCHEDULE):
@@ -597,8 +622,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
 
     case (FETCH_FILE):
     {
-      auto files = m_scheduler.getFiles(std::vector<std::string>{args.begin() + 1, args.end()});
-      if (!files.empty())
+      if (const auto files = m_scheduler.getFiles(Payload{args.begin() + 1, args.end()}); !files.empty())
         m_system_event(client_fd, SYSTEM_EVENTS__FILES_SEND, FileMetaData::MetaDataToPayload(files));
     }
     break;

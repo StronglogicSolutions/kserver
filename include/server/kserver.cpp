@@ -159,7 +159,7 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
     SocketListener::sendMessage(client_fd, reinterpret_cast<const char*>(packet.data()), packet.size);
   }
 
-  m_sessions.at(client_fd).tx += iterator.GetBytesRead();
+  // m_sessions.at(client_fd).tx += iterator.GetBytesRead();
 }
 
 /**
@@ -262,11 +262,40 @@ void KServer::ScheduleRequest(const std::vector<std::string>& task, const int32_
 void KServer::OperationRequest(const std::string& message, const int32_t& client_fd)
 {
   const KOperation op = GetOperation(message);
-  if      (IsStartOperation     (op)) InitClient(message, client_fd);
-  else if (IsStopOperation      (op)) EndSession(client_fd);
-  else if (IsFileUploadOperation(op)) WaitForFile(client_fd);
-  else if (IsIPCOperation       (op)) m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, {message});
-  else                                m_controller.ProcessClientRequest(client_fd, message);
+  if      (IsStartOperation     (op))
+  {
+    try
+    {
+      InitClient(message, client_fd);
+    }
+    catch (const std::exception& e)
+    {
+      ELOG("Exception thrown during InitClient: {}", e.what());
+    }
+  }
+  else if (IsStopOperation      (op))
+  {
+    EndSession(client_fd);
+  }
+  else if (IsFileUploadOperation(op))
+  {
+    WaitForFile(client_fd);
+  }
+  else if (IsIPCOperation       (op))
+  {
+    m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, {message});
+  }
+  else
+  {
+    try
+    {
+      m_controller.ProcessClientRequest(client_fd, message);
+    }
+    catch (const std::exception& e)
+    {
+      ELOG("Exception thrown during Controller::ProcessClientRequest: {}", e.what());
+    }
+  }
 }
 
 /**
@@ -280,7 +309,7 @@ void KServer::onMessageReceived(int                      client_fd,
 
   try
   {
-    std::shared_ptr<uint8_t[]> s_buffer_ptr = w_buffer_ptr.lock();
+    const auto s_buffer_ptr = w_buffer_ptr.lock();
     (m_file_pending) ?
       ReceiveFileData(s_buffer_ptr, size, client_fd) :
       ReceiveMessage (s_buffer_ptr, size, client_fd);
@@ -294,8 +323,16 @@ void KServer::onMessageReceived(int                      client_fd,
 
 void KServer::SendPong(int32_t client_fd)
 {
-  m_sessions.at(client_fd).notify();
-  SendMessage(client_fd, PONG);
+  try
+  {
+    m_sessions.at(client_fd).notify();
+    SendMessage(client_fd, PONG);
+
+  }
+  catch (const std::exception& e)
+  {
+    ELOG("Exception thrown from SendPong: {}", e.what());
+  }
 }
 
 void KServer::EndSession(const int32_t& client_fd, int32_t status)
@@ -321,8 +358,7 @@ void KServer::EndSession(const int32_t& client_fd, int32_t status)
 void KServer::CloseConnections()
 {
   for (const int& fd : m_client_connections)
-    if (m_sessions.at(fd).active())
-      EndSession(fd);
+    EndSession(fd);
 }
 
 
@@ -334,24 +370,40 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
   {
     DecodeMessage(m_ptr).leftMap([this, fd](auto&& message)
     {
-      auto HasValidToken  = [this](int fd, const auto& msg) { return (GetToken(msg) == m_sessions.at(fd).user.token); };
+      auto HasValidToken  = [this](int fd, const auto& msg){ return (GetToken(msg) == m_sessions.at(fd).user.token); };
+      try
+      {
+        if (message.empty())
+          ELOG("Failed to decode message");
+        else
+        if (IsPing(message))
+          SendPong(fd);
+        else
+        if (m_sessions.has(fd) && m_sessions.at(fd).active() && !HasValidToken(fd, message))
+          EndSession(fd);
+        else
+        if (IsOperation(message))
+        {
+          try
+          {
+            OperationRequest(message, fd);
+          }
+          catch (const std::exception& e)
+          {
+            ELOG("Exception thrown during OperationRequest: {}", e.what());
+          }
+        }
+        else
+        if (IsMessage(message))
+          SendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
+        else
+          EndSession(fd);
+        }
+        catch (const std::exception& e)
+        {
+          ELOG("Exception thrown from DecodeMessage LEFT callback: {}", e.what());
+        }
 
-      if (message.empty())
-        ELOG("Failed to decode message");
-      else
-      if (IsPing(message))
-        SendPong(fd);
-      else
-      if (m_sessions.has(fd) && m_sessions.at(fd).active() && !HasValidToken(fd, message))
-        EndSession(fd);
-      else
-      if (IsOperation(message))
-        OperationRequest(message, fd);
-      else
-      if (IsMessage(message))
-        SendEvent(fd, "Message Received", {RECV_MSG, "Message", GetMessage(message)});
-      else
-        EndSession(fd);
       return message;
     })
     .rightMap([this, fd](auto&& args)
@@ -365,16 +417,23 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
   try
   {
     auto it = m_message_handlers.find(fd);
-    if (it != m_message_handlers.end())
-      it->second.processPacket(s_buffer_ptr.get(), size);
-    else
+    try
     {
-      KLOG("Creating message handler for {}", fd);
-      m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
-      m_message_handlers.at(fd).setID(fd);
-      m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
+      if (it != m_message_handlers.end())
+        it->second.processPacket(s_buffer_ptr.get(), size);
+      else
+      {
+        KLOG("Creating message handler for {}", fd);
+        m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
+        m_message_handlers.at(fd).setID(fd);
+        m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
+      }
     }
-    TrackDataStats(fd, size);
+    catch (const std::exception& e)
+    {
+      ELOG("Exception thrown from ReceiveMessage while processing a packet?: {}", e.what());
+    }
+    // TrackDataStats(fd, size);
   }
   catch(const std::exception& e)
   {
@@ -446,21 +505,30 @@ bool KServer::HandlingFile(const int32_t& fd)
 void KServer::onConnectionClose(int32_t client_fd)
 {
   KLOG("Connection closed for {}", client_fd);
-  auto session = GetSession(client_fd);
-  if (session.active())
-  {
+  // auto session = GetSession(client_fd);
+  // if (session.active())
+  // {
     KLOG("Ending session");
     EndSession(client_fd);
-  }
-  else
-    KLOG("Session retrieved but not active. Will not end session");
+  // }
+  // else
+    // KLOG("Session retrieved but not active. Will not end session");
   OnClientExit(client_fd);
 }
 
 KSession KServer::GetSession(const int32_t& client_fd) const
 {
-  auto it = m_sessions.find(client_fd);
-  return (it != m_sessions.fdend()) ? *it->second : KSession{};
+  try
+  {
+    auto it = m_sessions.find(client_fd);
+    if (it != m_sessions.fdend())
+      *it->second;
+  }
+  catch (const std::exception& e)
+  {
+    ELOG ("Exception thrown in GetSession: {}", e.what());
+  }
+  return KSession{};
 }
 
 void KServer::Status()

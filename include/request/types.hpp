@@ -39,7 +39,8 @@ enum RequestType {
  *
  * @param [in] {int} Signed integer should represent a byte value
  */
-static RequestType int_to_request_type(int byte) {
+static RequestType int_to_request_type(int byte)
+{
   switch (byte)
   {
     case(REGISTER_APPLICATION):
@@ -76,5 +77,45 @@ static RequestType int_to_request_type(int byte) {
       return UPDATE_POST;
   }
   return UNKNOWN;
+}
+
+static std::string request_type_to_string(RequestType type)
+{
+  switch (type)
+  {
+    case(REGISTER_APPLICATION):
+      return "REGISTER_APPLICATION";
+    case (UPDATE_APPLICATION):
+      return "UPDATE_APPLICATION";
+    case (REMOVE_APPLICATION):
+      return "REMOVE_APPLICATION";
+    case (GET_APPLICATION):
+      return "GET_APPLICATION";
+    case (FETCH_SCHEDULE):
+      return "FETCH_SCHEDULE";
+    case (UPDATE_SCHEDULE):
+      return "UPDATE_SCHEDULE";
+    case (FETCH_SCHEDULE_TOKENS):
+      return "FETCH_SCHEDULE_TOKENS";
+    case (TASK_FLAGS):
+      return "TASK_FLAGS";
+    case (FETCH_FILE):
+      return "FETCH_FILE";
+    case (FETCH_FILE_ACK):
+      return "FETCH_FILE_ACK";
+    case (FETCH_FILE_READY):
+      return "FETCH_FILE_READY";
+    case (FETCH_TASK_DATA):
+      return "FETCH_TASK_DATA";
+    case (FETCH_TERM_HITS):
+      return "FETCH_TERM_HITS";
+    case (EXECUTE):
+      return "EXECUTE";
+    case (FETCH_POSTS):
+      return "FETCH_POSTS";
+    case (UPDATE_POST):
+      return "UPDATE_POST";
+  }
+  return "UNKNOWN";
 }
 } // ns kiq::Request

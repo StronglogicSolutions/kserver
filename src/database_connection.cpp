@@ -9,6 +9,9 @@
 #include "database/database_connection.hpp"
 #include "helpers.hpp"
 
+DatabaseConnection::DatabaseConnection(DatabaseConnection&& c)
+: m_config(std::move(c.m_config)) {}
+
 bool DatabaseConnection::set_config(DatabaseConfiguration config)
 {
   m_config = config;

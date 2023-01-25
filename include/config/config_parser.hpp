@@ -47,6 +47,7 @@ namespace Process {
 const std::string executor();
 const std::string ipc_port();
 const std::string tg_dest ();
+const std::string broker_address();
 } // namespace Process
 
 namespace Email {
@@ -59,6 +60,10 @@ namespace Platform {
 const std::string affiliate_content(const std::string& type);
 const std::string default_user();
 } // namespace Platform
+
+namespace ML {
+const std::string keural_path();
+} // ns ML
 
 namespace Security {
 const std::string token_path();
