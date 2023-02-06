@@ -292,6 +292,7 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
 
   if (IsProcessingPlatform())
   {
+    KLOG("Platform still processing. Attempting to resolve PID {} and ID {}", post.pid, post.id);
     auto it = m_platform_map.find({post.pid, post.id});
     if (it != m_platform_map.end())
     {
@@ -303,6 +304,8 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
     else
       ELOG("Failed to update platform post in processing queue");
   }
+  else
+    KLOG("Platform isn't currently processing");
 
   return SavePlatformPost(post);
 }
@@ -471,7 +474,7 @@ void Platform::ProcessPlatform()
   {
     if (PopulatePlatformPost(platform_post))
     {
-      KLOG("Processing platform post\n Platform: {}\nID: {}\nUser: {}\nContent: {}",
+      KLOG("Processing platform post\nPlatform: {}\nID: {}\nUser: {}\nContent: {}",
             platform_post.name, platform_post.id, platform_post.user, platform_post.content);
 
       m_platform_map.insert({{platform_post.pid, platform_post.id}, {platform_post, PlatformPostState::PROCESSING}});
