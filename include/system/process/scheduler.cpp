@@ -363,7 +363,7 @@ std::vector<Task> Scheduler::fetchRecurringTasks()
 //----------------------------------------------------------------------------------------------------------------
 std::vector<Task> Scheduler::fetchAllTasks()
 {
-  static const char *FILEQUERY{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
+  static const char*  FILEQUERY{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
   static const Fields fields{Field::ID, Field::TIME, Field::MASK, Field::FLAGS, Field::ENVFILE,
                               Field::COMPLETED, Field::RECURRING, Field::NOTIFY, FILEQUERY};
   static const Joins joins{{"file", "sid", "schedule", "id", JoinType::OUTER}};
