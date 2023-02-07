@@ -420,6 +420,7 @@ void Controller::ProcessSystemEvent(const int32_t&                    event,
                                       const std::vector<std::string>& payload,
                                       const int32_t&                  id)
 {
+  VLOG("Processing event {}", event);
   switch (event)
   {
     case (SYSTEM_EVENTS__PLATFORM_REQUEST):

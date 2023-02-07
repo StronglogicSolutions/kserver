@@ -288,7 +288,10 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
   post.pid = GetPlatformID(post.name);
 
   if (post.pid.empty())
+  {
+    VLOG("===Post has no platform ID:\n{}\n******\nReturning", post.ToString());
     return false;
+  }
 
   if (IsProcessingPlatform())
   {
