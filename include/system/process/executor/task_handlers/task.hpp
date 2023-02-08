@@ -424,9 +424,11 @@ class TaskHandler {
 
 enum class PlatformPostState{ PROCESSING = 0x00, SUCCESS = 0x01, FAILURE = 0x02};
 
-const std::string PLATFORM_STATUS_PENDING{"0"};
-const std::string PLATFORM_STATUS_SUCCESS{"1"};
-const std::string PLATFORM_STATUS_FAILURE{"2"};
+std::string GetPostStatus(PlatformPostState state);
+
+static const std::string PLATFORM_STATUS_PENDING{"0"};
+static const std::string PLATFORM_STATUS_SUCCESS{"1"};
+static const std::string PLATFORM_STATUS_FAILURE{"2"};
 
 struct platform_pair_hash
 {

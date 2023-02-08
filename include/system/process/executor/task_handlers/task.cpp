@@ -4,6 +4,17 @@
 #define TIMESTAMP_LENGTH 10
 
 namespace kiq {
+std::string GetPostStatus(PlatformPostState state)
+{
+  switch (state)
+  {
+    case (PlatformPostState::PROCESSING): return "PROCESSING"; break;
+    case (PlatformPostState::SUCCESS   ): return "SUCCESS   "; break;
+    case (PlatformPostState::FAILURE   ): return "FAILURE   "; break;
+  }
+  return "UNKNOWN";
+}
+
 std::string AppendExecutionFlag(std::string flag_s, const std::string& flag)
 {
   const std::string exec_flag = constants::PARAM_KEY_MAP.at(flag);

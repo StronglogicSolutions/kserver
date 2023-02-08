@@ -341,7 +341,6 @@ std::string Platform::GetPlatformID(const std::string& name)
     for (const auto& value : m_db.select("platform", {"id"}, CreateFilter("name", name)))
       if (value.first == "id")
         return value.second;
-
   return "";
 }
 
@@ -443,15 +442,16 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
   else
     ELOG("Platform error had no associated post", error);
 }
-
-/**
- * @brief
- *
- */
-void Platform::ProcessPlatform()
+//-------------------------------------------------------------------------------------
+void
+Platform::ProcessPlatform()
 {
-  auto pending_requests_string = [this] { std::string s; for (auto [post, status] : m_platform_map)
-                                          s += '\n' + post.second + " on " + GetPlatform(post.first);
+  auto get_pending_reqs = [this]
+  {
+    std::string s;
+    for (const auto& [post, status] : m_platform_map)
+      s += '\n' + post.second + " for " + GetPlatform(post.first) +
+      ". Status: "                      + GetPostStatus(status.second);
     return s;
   };
 
@@ -471,7 +471,8 @@ void Platform::ProcessPlatform()
     }
     timer.stop();
   }
-  if (IsProcessingPlatform()) return KLOG("Platform requests are still being processed: {}", pending_requests_string());
+
+  if (IsProcessingPlatform()) return KLOG("Platform requests are still being processed: {}", get_pending_reqs());
 
   for (auto&& platform_post : FetchPendingPlatformPosts())
   {
