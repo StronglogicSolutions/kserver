@@ -56,6 +56,7 @@ static bool HasBasePlatform(const std::string& name)
   }
 }
 
+using platform_key_t = std::pair<std::string, std::string>;
 class Platform
 {
 public:
