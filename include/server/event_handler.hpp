@@ -11,171 +11,171 @@ static const char*   FILE_FAIL_MSG   {"File Save Failure"};
 
 class KServer;
 
-using EventPayload        = std::vector<std::string>;
-using EventHandler  = std::function<void(int32_t, int32_t, const EventPayload&)>;
-using SystemDispatchTable = std::map<int32_t, EventHandler>;
+using event_payload_t = std::vector<std::string>;
+using event_handler_t = std::function<void(int32_t, int32_t, const event_payload_t&)>;
+using sys_dispatch_t  = std::map<int32_t, event_handler_t>;
 
 class SystemEventHandler
 {
 public:
   explicit SystemEventHandler(KServer* server);
-  void operator()(int32_t fd, int32_t event, const EventPayload& payload);
-  void HandleFile_Update                 (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleProcess_Execution_Requested (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleScheduled_Tasks_Ready       (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleScheduled_Tasks_None        (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleScheduler_Fetch             (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleScheduler_Fetch_Tokens      (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleScheduler_Update            (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleScheduler_Success           (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleScheduler_Fail              (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleRegistrar_Success           (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleRegistrar_Fail              (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleTask_Fetch_Flags            (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleApplication_Fetch_Success   (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleApplication_Fetch_Fail      (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandlePlatform_New_Post           (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandlePlatform_Post_Requested     (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandlePlatform_Error              (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandlePlatform_Request            (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandlePlatform_Event              (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandlePlatform_Info               (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandlePlatform_Fetch_Posts        (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandlePlatform_Update             (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleProcess_Complete            (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleScheduler_Request           (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleTrigger_Add_Success         (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleTrigger_Add_Fail            (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleFiles_Send                  (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleFiles_Send_Ack              (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleFiles_Send_Ready            (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleTask_Data                   (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleTask_Data_Final             (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleProcess_Research            (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleProcess_Research_Result     (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleKIQ_IPC_Message             (int32_t client_fd, int32_t event, const EventPayload& payload);
-  void HandleTerm_Hits                   (int32_t client_fd, int32_t event, const EventPayload& payload);
+  void operator()                     (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_file_update                 (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_execution_requested         (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_tasks_ready                 (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_tasks_none                  (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_scheduler_fetch             (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_scheduler_tokens            (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_scheduler_update            (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_scheduler_success           (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_scheduler_fail              (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_registrar_success           (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_registrar_fail              (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_task_flags                  (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_application_fetch_success   (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_application_fetch_fail      (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_new_post           (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_post_request       (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_error              (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_request            (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_event              (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_info               (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_fetch_posts        (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_update             (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_process_complete            (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_scheduler_request           (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_trigger_add_success         (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_trigger_add_fail            (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_files_send                  (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_files_send_ack              (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_files_send_ready            (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_task_data                   (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_task_data_final             (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_process_research            (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_process_research_result     (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_KIQ_ipc_Message             (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_term_hits                   (int32_t fd, int32_t evt, const event_payload_t& data);
 
 private:
   KServer* m_server;
 
-  SystemDispatchTable m_dispatch_table
+  sys_dispatch_t m_dispatch_table
   {
     { SYSTEM_EVENTS__FILE_UPDATE,
-      [this](auto fd, auto evt, const auto& data) { HandleFile_Update(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_file_update(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PROCESS_EXECUTION_REQUESTED,
-      [this](auto fd, auto evt, const auto& data) { HandleProcess_Execution_Requested(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_execution_requested(fd, evt, data); }
     },
     { SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
-      [this](auto fd, auto evt, const auto& data) { HandleScheduled_Tasks_Ready(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_tasks_ready(fd, evt, data); }
     },
     { SYSTEM_EVENTS__SCHEDULED_TASKS_NONE,
-      [this](auto fd, auto evt, const auto& data) { HandleScheduled_Tasks_None(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_tasks_none(fd, evt, data); }
     },
     { SYSTEM_EVENTS__SCHEDULER_FETCH,
-      [this](auto fd, auto evt, const auto& data) { HandleScheduler_Fetch(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_scheduler_fetch(fd, evt, data); }
     },
     { SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
-      [this](auto fd, auto evt, const auto& data) { HandleScheduler_Fetch_Tokens(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_scheduler_tokens(fd, evt, data); }
     },
     { SYSTEM_EVENTS__SCHEDULER_UPDATE,
-      [this](auto fd, auto evt, const auto& data) { HandleScheduler_Update(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_scheduler_update(fd, evt, data); }
     },
     { SYSTEM_EVENTS__SCHEDULER_SUCCESS,
-      [this](auto fd, auto evt, const auto& data) { HandleScheduler_Success(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_scheduler_success(fd, evt, data); }
     },
     { SYSTEM_EVENTS__SCHEDULER_FAIL,
-      [this](auto fd, auto evt, const auto& data) { HandleScheduler_Fail(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_scheduler_fail(fd, evt, data); }
     },
     { SYSTEM_EVENTS__REGISTRAR_SUCCESS,
-      [this](auto fd, auto evt, const auto& data) { HandleRegistrar_Success(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_registrar_success(fd, evt, data); }
     },
     { SYSTEM_EVENTS__REGISTRAR_FAIL,
-      [this](auto fd, auto evt, const auto& data) { HandleRegistrar_Fail(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_registrar_fail(fd, evt, data); }
     },
     { SYSTEM_EVENTS__TASK_FETCH_FLAGS,
-      [this](auto fd, auto evt, const auto& data) { HandleTask_Fetch_Flags(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_task_flags(fd, evt, data); }
     },
     { SYSTEM_EVENTS__APPLICATION_FETCH_SUCCESS,
-      [this](auto fd, auto evt, const auto& data) { HandleApplication_Fetch_Success(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_application_fetch_success(fd, evt, data); }
     },
     { SYSTEM_EVENTS__APPLICATION_FETCH_FAIL,
-      [this](auto fd, auto evt, const auto& data) { HandleApplication_Fetch_Fail(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_application_fetch_fail(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_NEW_POST,
-      [this](auto fd, auto evt, const auto& data) { HandlePlatform_New_Post(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_platform_new_post(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_POST_REQUESTED,
-      [this](auto fd, auto evt, const auto& data) { HandlePlatform_Post_Requested(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_platform_post_request(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_ERROR,
-      [this](auto fd, auto evt, const auto& data) { HandlePlatform_Error(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_platform_error(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_REQUEST,
-      [this](auto fd, auto evt, const auto& data) { HandlePlatform_Request(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_platform_request(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_EVENT,
-      [this](auto fd, auto evt, const auto& data) { HandlePlatform_Event(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_platform_event(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_INFO,
-      [this](auto fd, auto evt, const auto& data) { HandlePlatform_Info(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_platform_info(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_FETCH_POSTS,
-      [this](auto fd, auto evt, const auto& data) { HandlePlatform_Fetch_Posts(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_platform_fetch_posts(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_UPDATE,
-      [this](auto fd, auto evt, const auto& data) { HandlePlatform_Update(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_platform_update(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PROCESS_COMPLETE,
-      [this](auto fd, auto evt, const auto& data) { HandleProcess_Complete(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_process_complete(fd, evt, data); }
     },
     { SYSTEM_EVENTS__SCHEDULER_REQUEST,
-      [this](auto fd, auto evt, const auto& data) { HandleScheduler_Request(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_scheduler_request(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__TRIGGER_ADD_SUCCESS,
-      [this](auto fd, auto evt, const auto& data) { HandleTrigger_Add_Success(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_trigger_add_success(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__TRIGGER_ADD_FAIL,
-      [this](auto fd, auto evt, const auto& data) { HandleTrigger_Add_Fail(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_trigger_add_fail(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__FILES_SEND,
-      [this](auto fd, auto evt, const auto& data) { HandleFiles_Send(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_files_send(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__FILES_SEND_ACK,
-      [this](auto fd, auto evt, const auto& data) { HandleFiles_Send_Ack(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_files_send_ack(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__FILES_SEND_READY,
-      [this](auto fd, auto evt, const auto& data) { HandleFiles_Send_Ready(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_files_send_ready(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__TASK_DATA,
-      [this](auto fd, auto evt, const auto& data) { HandleTask_Data(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_task_data(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__TASK_DATA_FINAL,
-      [this](auto fd, auto evt, const auto& data) { HandleTask_Data_Final(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_task_data_final(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__PROCESS_RESEARCH,
-      [this](auto fd, auto evt, const auto& data) { HandleProcess_Research(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_process_research(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT,
-      [this](auto fd, auto evt, const auto& data) { HandleProcess_Research_Result(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_process_research_result(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__KIQ_IPC_MESSAGE,
-      [this](auto fd, auto evt, const auto& data) { HandleKIQ_IPC_Message(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_KIQ_ipc_Message(fd, evt, data); }
     },
     {
       SYSTEM_EVENTS__TERM_HITS,
-      [this](auto fd, auto evt, const auto& data) { HandleTerm_Hits(fd, evt, data); }
+      [this](auto fd, auto evt, const auto& data) { on_term_hits(fd, evt, data); }
     }
   };
 };

@@ -4,11 +4,12 @@
 #include "INIReader.h"
 
 namespace kiq {
-struct RuntimeConfig {
-bool        timestamp{true};
-std::string loglevel{"trace"};
+struct RuntimeConfig
+{
+  bool        timestamp{true};
+  std::string loglevel{"trace"};
 };
-
+//----------------------------------------------------------
 static RuntimeConfig ParseRuntimeArguments(int argc, char** argv)
 {
   RuntimeConfig config{};
@@ -21,7 +22,7 @@ static RuntimeConfig ParseRuntimeArguments(int argc, char** argv)
   }
   return config;
 }
-
+//----------------------------------------------------------
 namespace config {
 std::string query(const std::string& section, const std::string& name);
 

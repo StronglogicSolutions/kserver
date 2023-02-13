@@ -10,3 +10,6 @@
 [submodule "third_party/jwt-cpp"]
 	path = third_party/jwt-cpp
 	url = https://github.com/Thalhammer/jwt-cpp
+[submodule "third_party/klogger"]
+	path = third_party/klogger
+	url = https://github.com/StronglogicSolutions/klogger

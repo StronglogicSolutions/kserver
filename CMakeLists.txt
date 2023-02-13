@@ -61,7 +61,8 @@ set(SOURCE_FILES
   "include/system/process/executor/task_handlers/instagram.cpp"
   "include/common/util.cpp"
   "include/common/time.cpp"
-  "include/log/logger.cpp"
+  #"include/log/logger.cpp"
+  "third_party/klogger/src/logger.cpp"
 )
 
 # Sources
@@ -72,7 +73,7 @@ else ()
 endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
+# add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 
 # Linking
 target_link_libraries(
@@ -86,28 +87,29 @@ target_link_libraries(
   zmq ${CMAKE_THREAD_LIBS_INIT}
 )
 
-target_link_libraries(
-  ${PROJECT_NAME}_lib
-  PRIVATE
-  ${UUID}
-  ${PQXX_LIB}
-  ${PQ_LIB}
-  Threads::Threads
-  ${OPENSSL_LIBRARIES}
-  zmq ${CMAKE_THREAD_LIBS_INIT}
-)
+# target_link_libraries(
+#   ${PROJECT_NAME}_lib
+#   PRIVATE
+#   ${UUID}
+#   ${PQXX_LIB}
+#   ${PQ_LIB}
+#   Threads::Threads
+#   ${OPENSSL_LIBRARIES}
+#   zmq ${CMAKE_THREAD_LIBS_INIT}
+# )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
   "include"
   "third_party"
+  "third_party/kiq/src"
   ${JWT_INCLUDE}
 )
 
-target_include_directories(${PROJECT_NAME}_lib PRIVATE
-  "include"
-  "third_party"
-  ${JWT_INCLUDE}
-)
+# target_include_directories(${PROJECT_NAME}_lib PRIVATE
+#   "include"
+#   "third_party"
+#   ${JWT_INCLUDE}
+# )
 
 
-add_subdirectory(test)
+# add_subdirectory(test)

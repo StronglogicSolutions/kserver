@@ -2,6 +2,7 @@
 
 #include "interface/worker_interface.hpp"
 #include "server/types.hpp"
+#include "config/config_parser.hpp"
 #include "worker.hpp"
 #include "client.hpp"
 

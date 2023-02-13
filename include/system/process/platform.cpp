@@ -288,10 +288,14 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
   post.pid = GetPlatformID(post.name);
 
   if (post.pid.empty())
+  {
+    VLOG("===Post has no platform ID:\n{}\n******\nReturning", post.ToString());
     return false;
+  }
 
   if (IsProcessingPlatform())
   {
+    KLOG("Platform still processing. Attempting to resolve PID {} and ID {}", post.pid, post.id);
     auto it = m_platform_map.find({post.pid, post.id});
     if (it != m_platform_map.end())
     {
@@ -303,6 +307,8 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
     else
       ELOG("Failed to update platform post in processing queue");
   }
+  else
+    KLOG("Platform isn't currently processing");
 
   return SavePlatformPost(post);
 }
@@ -335,7 +341,6 @@ std::string Platform::GetPlatformID(const std::string& name)
     for (const auto& value : m_db.select("platform", {"id"}, CreateFilter("name", name)))
       if (value.first == "id")
         return value.second;
-
   return "";
 }
 
@@ -437,15 +442,16 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
   else
     ELOG("Platform error had no associated post", error);
 }
-
-/**
- * @brief
- *
- */
-void Platform::ProcessPlatform()
+//-------------------------------------------------------------------------------------
+void
+Platform::ProcessPlatform()
 {
-  auto pending_requests_string = [this] { std::string s; for (auto [post, status] : m_platform_map)
-                                          s += '\n' + post.second + " on " + GetPlatform(post.first);
+  auto get_pending_reqs = [this]
+  {
+    std::string s;
+    for (const auto& [post, status] : m_platform_map)
+      s += '\n' + post.second + " for " + GetPlatform(post.first) +
+      ". Status: "                      + GetPostStatus(status.second);
     return s;
   };
 
@@ -465,57 +471,40 @@ void Platform::ProcessPlatform()
     }
     timer.stop();
   }
-  if (IsProcessingPlatform()) return KLOG("Platform requests are still being processed: {}", pending_requests_string());
+
+  if (IsProcessingPlatform())
+    return KLOG("Platform requests are still being processed: {}", get_pending_reqs());
 
   for (auto&& platform_post : FetchPendingPlatformPosts())
   {
-    if (PopulatePlatformPost(platform_post))
-    {
-      KLOG("Processing platform post\n Platform: {}\nID: {}\nUser: {}\nContent: {}",
-            platform_post.name, platform_post.id, platform_post.user, platform_post.content);
+    KLOG("Processing platform post\nPlatform: {}\nID: {}\nUser: {}\nContent: {}",
+          platform_post.name, platform_post.id, platform_post.user, platform_post.content);
 
-      m_platform_map.insert({{platform_post.pid, platform_post.id}, {platform_post, PlatformPostState::PROCESSING}});
+    if (const platform_key_t key{platform_post.pid, platform_post.id}; m_platform_map.find(key) == m_platform_map.end())
+    {
+      if (!PopulatePlatformPost(platform_post))
+      {
+        ELOG("Failed to retrieve values for {} platform post with id {}", platform_post.name, platform_post.id);
+        return;
+      }
+
+      m_platform_map[key] = {platform_post, PlatformPostState::PROCESSING};
       m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, platform_post.GetPayload());
       m_pending++;
     }
-    else
-      ELOG("Failed to retrieve values for {} platform post with id {}", platform_post.name, platform_post.id);
   }
 }
-
-/**
- * @brief
- *
- * @param pid
- * @param username
- * @return true
- * @return false
- */
+//-------------------------------------------------------------------------------------
 bool Platform::UserExists(const std::string& pid, const std::string& name)
 {
   return !m_db.select("platform_user", {"id"}, CreateFilter("pid", pid, "name", name)).empty();
 }
-
-/**
- * @brief
- *
- * @param pid
- * @param username
- * @param type
- * @return std::string
- */
+//-------------------------------------------------------------------------------------
 std::string Platform::AddUser(const std::string& pid, const std::string& name, const std::string& type)
 {
   return m_db.insert("platform_user", {"pid", "name", "type"}, {pid, name, type}, "id");
 }
-
-/**
- * @brief
- *
- * @param pid
- * @param username
- * @return std::string
- */
+//-------------------------------------------------------------------------------------
 std::string Platform::GetUID(const std::string& pid, const std::string& name)
 {
   for (const auto& v : m_db.select("platform_user", {"id"}, CreateFilter("pid", pid, "name", name)))
@@ -523,15 +512,7 @@ std::string Platform::GetUID(const std::string& pid, const std::string& name)
       return v.second;
   return "";
 }
-
-
-/**
- * @brief
- *
- * @param pid
- * @param uid
- * @return std::string
- */
+//-------------------------------------------------------------------------------------
 std::string Platform::GetUser(const std::string& uid, const std::string& pid, bool use_default) const
 {
   static const auto   table  = "platform_user";
@@ -552,7 +533,7 @@ std::string Platform::GetUser(const std::string& uid, const std::string& pid, bo
 
   return "";
 }
-
+//-------------------------------------------------------------------------------------
 std::string Platform::GetPlatform(const std::string& pid)
 {
   for (const auto& value : m_db.select("platform", {"name"}, CreateFilter("id", pid)))
@@ -560,12 +541,12 @@ std::string Platform::GetPlatform(const std::string& pid)
       return value.second;
   return "";
 }
-
+//-------------------------------------------------------------------------------------
 void Platform::Status() const
 {
   VLOG("Platform Status: Pending {} Complete {} Errors {}", m_pending, m_posted, m_errors);
 }
-
+//-------------------------------------------------------------------------------------
 std::vector<PlatformPost> Platform::Fetch(bool pending) const
 {
   return ParsePlatformPosts(m_db.selectJoin("platform_post", {"platform_post.pid", "platform_post.o_pid", "platform_post.unique_id",
@@ -574,7 +555,7 @@ std::vector<PlatformPost> Platform::Fetch(bool pending) const
     Joins{{"platform", "id", "platform_post", "pid",      JoinType::INNER},
           {"platform_user", "id", "platform_post", "uid", JoinType::OUTER}}));
 }
-
+//-------------------------------------------------------------------------------------
 void Platform::FetchPosts() const
 {
   static bool              not_only_pending = false;

@@ -6,13 +6,15 @@ namespace kiq
 SystemEventHandler::SystemEventHandler(KServer* server)
 : m_server(server)
 {}
-//**********************************************************//
-void SystemEventHandler::operator()(int32_t fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::operator()(int32_t fd, int32_t event, const event_payload_t& payload)
 {
   m_dispatch_table[event](fd, event, payload);
 }
-//*****************************File_Update******************//
-void SystemEventHandler::HandleFile_Update (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_file_update (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   const std::string& filename     = payload.at(0);
   const auto&        timestamp    = payload.at(1);
@@ -35,83 +37,98 @@ void SystemEventHandler::HandleFile_Update (int32_t client_fd, int32_t event, co
     m_server->SendEvent(client_fd, FILE_FAIL_MSG, {timestamp});
   }
 }
-//*****************************Process_Execution_Requested**//
-void SystemEventHandler::HandleProcess_Execution_Requested (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_execution_requested (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Process Execution Requested", payload);
 }
-//*****************************Scheduled_Tasks_Ready********//
-void SystemEventHandler::HandleScheduled_Tasks_Ready (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_tasks_ready (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   KLOG("Maintenance worker found tasks");
   m_server->SendEvent(client_fd, "Scheduled Tasks Ready", payload);
 }
-//*****************************Scheduled_Tasks_None*********//
-void SystemEventHandler::HandleScheduled_Tasks_None (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_tasks_none (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   KLOG("There are currently no tasks ready for execution.");
   m_server->SendEvent(client_fd, "No tasks ready", payload);
 }
-//*****************************Scheduler_Fetch**************//
-void SystemEventHandler::HandleScheduler_Fetch (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_scheduler_fetch (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Scheduled Tasks", payload);
 }
-//*****************************Scheduler_Fetch_Tokens*******//
-void SystemEventHandler::HandleScheduler_Fetch_Tokens (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_scheduler_tokens (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Schedule Tokens", payload);
 }
-//*****************************Scheduler_Update*************//
-void SystemEventHandler::HandleScheduler_Update (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_scheduler_update (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Schedule PUT", payload);
 }
-//*****************************Scheduler_Success************//
-void SystemEventHandler::HandleScheduler_Success (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_scheduler_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   KLOG("Task successfully scheduled");
   m_server->SendEvent(client_fd, "Task Scheduled", payload);
 }
-//*****************************Scheduler_Fail***************//
-void SystemEventHandler::HandleScheduler_Fail (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_scheduler_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
 
 }
-//*****************************Registrar_Success************//
-void SystemEventHandler::HandleRegistrar_Success (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_registrar_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Application was registered", payload);
 }
-//*****************************Registrar_Fail***************//
-void SystemEventHandler::HandleRegistrar_Fail (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_registrar_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Failed to register application", payload);
 }
-//*****************************Task_Fetch_Flags*************//
-void SystemEventHandler::HandleTask_Fetch_Flags (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_task_flags (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Application Flags", payload);
 }
-//*****************************Application_Fetch_Success****//
-void SystemEventHandler::HandleApplication_Fetch_Success (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_application_fetch_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Application was found", payload);
 }
-//*****************************Application_Fetch_Fail*******//
-void SystemEventHandler::HandleApplication_Fetch_Fail (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_application_fetch_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Application was not found", payload);
 }
-//*****************************Platform_New_Post************//
-void SystemEventHandler::HandlePlatform_New_Post (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_platform_new_post (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   VLOG("Handling Platform New Post");
   m_server->GetController().ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
   m_server->SendEvent(client_fd, "Platform Post", payload);
 }
-//*****************************Platform_Post_Requested******//
-void SystemEventHandler::HandlePlatform_Post_Requested (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_platform_post_request (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   VLOG("Handling Platform Post Requested");
    if (payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
@@ -119,107 +136,131 @@ void SystemEventHandler::HandlePlatform_Post_Requested (int32_t client_fd, int32
   else
     m_server->GetController().ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_ERROR, payload);
 }
-//*****************************Platform_Error***************//
-void SystemEventHandler::HandlePlatform_Error(int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_platform_error(int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->GetController().ProcessSystemEvent(event, payload);
   ELOG("Error processing platform post: {}", payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
   m_server->Broadcast("Platform Error", payload);
 }
-//*****************************Platform_Request*************//
-void SystemEventHandler::HandlePlatform_Request    (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_platform_request    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   VLOG("Handling Platform Request");
   m_server->GetController().ProcessSystemEvent(event, payload);
 }
-//*****************************Platform_Event***************//
-void SystemEventHandler::HandlePlatform_Event      (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_platform_event      (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->GetIPCMgr().ReceiveEvent(event, payload);
 }
-//*****************************Platform_Info****************//
-void SystemEventHandler::HandlePlatform_Info       (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_platform_info       (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Platform Info", payload);
 }
-//*****************************Platform_Fetch_Posts*********//
-void SystemEventHandler::HandlePlatform_Fetch_Posts(int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_platform_fetch_posts(int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->Broadcast("Platform Posts", payload);
 }
-//*****************************Platform_Update**************//
-void SystemEventHandler::HandlePlatform_Update     (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_platform_update     (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   VLOG("Handling Platform Update");
   m_server->Broadcast("Platform Update", payload);
 }
-//*****************************Process_Complete*************//
-void SystemEventHandler::HandleProcess_Complete    (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_process_complete    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
 
 }
-//*****************************Scheduler_Request************//
-void SystemEventHandler::HandleScheduler_Request   (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_scheduler_request   (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
 
 }
-//*****************************Trigger_Add_Success**********//
-void SystemEventHandler::HandleTrigger_Add_Success (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_trigger_add_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
 
 }
-//*****************************Trigger_Add_Fail*************//
-void SystemEventHandler::HandleTrigger_Add_Fail    (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_trigger_add_fail    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
 
 }
-//*****************************Files_Send*******************//
-void SystemEventHandler::HandleFiles_Send          (int32_t fd, int32_t event, const EventPayload& files)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_files_send          (int32_t fd, int32_t event, const event_payload_t& files)
 {
+  KLOG("Enqueuing and sending files");
   m_server->GetFileMgr().EnqueueOutbound(fd, files);
   m_server->SendEvent(fd, "File Upload", files);
 }
-//*****************************Files_Send_Ack***************//
-void SystemEventHandler::HandleFiles_Send_Ack (int32_t fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_files_send_ack (int32_t fd, int32_t event, const event_payload_t& payload)
 {
+  KLOG("Acknowledging file send request. Sending file metadata");
   auto& file = m_server->GetFileMgr().OutboundNext();
   m_server->SendEvent(file.fd, "File Upload Meta", file.file.to_string_v());
 }
-//*****************************Files_Send_Ready*************//
-void SystemEventHandler::HandleFiles_Send_Ready (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_files_send_ready (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
+  KLOG("Ready. Sending one file");
   auto&& file = m_server->GetFileMgr().Dequeue();
   m_server->SendFile(file.fd, file.file.name);
 }
-//*****************************Task_Data********************//
-void SystemEventHandler::HandleTask_Data (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_task_data (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
+  KLOG("Sending task data");
   m_server->SendEvent(client_fd, "Task Data", payload);
 }
-//*****************************Task_Data_Final**************//
-void SystemEventHandler::HandleTask_Data_Final (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_task_data_final (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
+  KLOG("Sending FINAL task data");
   m_server->SendEvent(client_fd, "Task Data Final", payload);
 }
-//*****************************Process_Research*************//
-void SystemEventHandler::HandleProcess_Research (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_process_research (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-
+  VLOG("not implemented");
 }
-//*****************************Process_Research_Result******//
-void SystemEventHandler::HandleProcess_Research_Result (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_process_research_result (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-
+  VLOG("not implemented");
 }
-//*****************************KIQ_IPC_Message**************//
-void SystemEventHandler::HandleKIQ_IPC_Message (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_KIQ_ipc_Message (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->GetIPCMgr().ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, payload);
 }
-//*****************************Term_Hits********************//
-void SystemEventHandler::HandleTerm_Hits (int32_t client_fd, int32_t event, const EventPayload& payload)
+//------------------------------------------------------------
+void
+SystemEventHandler::on_term_hits (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Term Hits", payload);
 }
-//**********************************************************//
+//------------------------------------------------------------
 }
