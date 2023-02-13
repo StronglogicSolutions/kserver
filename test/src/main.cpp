@@ -38,7 +38,7 @@ class KServerTestEnvironment {
  */
 
 int main(int argc, char** argv) {
-  LOG::KLogger::Init("error");
+  kiq::log::klogger::init("error");
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
