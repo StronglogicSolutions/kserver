@@ -14,7 +14,8 @@
  *
  * Testing helper to provide values and repeatably behaviour
  */
-class KServerTestEnvironment {
+class KServerTestEnvironment
+{
  public:
   KServerTestEnvironment() { setUp(); }
 
@@ -22,7 +23,8 @@ class KServerTestEnvironment {
   int getArgc() { return argc; };
 
  private:
-  void setUp() {
+  void setUp()
+  {
     int arg_num = 3;
     const char* char_args[3] = {"127.0.0.1", "9876", "argument_string"};
     argv = const_cast<char**>(char_args);
@@ -37,7 +39,8 @@ class KServerTestEnvironment {
  * TESTING GLOBALS
  */
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
   kiq::log::klogger::init("error");
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
