@@ -1,5 +1,6 @@
 #include "session.hpp"
 #include "log/logger.h"
+#include "config/config_parser.hpp"
 #include <jwt-cpp/jwt.h>
 #include <fstream>
 #include <sstream>

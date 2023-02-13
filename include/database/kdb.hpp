@@ -4,6 +4,7 @@
 #include <iostream>
 #include "database_connection.hpp"
 #include <memory>
+#include "config/config_parser.hpp"
 
 namespace Database {
 class KDB {

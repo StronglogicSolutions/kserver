@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "config/config_parser.hpp"
 
 namespace kiq
 {
