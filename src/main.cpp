@@ -6,11 +6,10 @@ static const int32_t ERROR{0x01};
 
 int main(int argc, char** argv)
 {
-  kiq::RuntimeConfig config = kiq::ParseRuntimeArguments(argc, argv);
-  int32_t            code{};
+  const auto config = kiq::ParseRuntimeArguments(argc, argv);
+  int32_t    code   = 0x00;
 
-  kiq::LOG::KLogger::Init(config.loglevel);
-
+  kiq::log::klogger::init(config.loglevel);
   try
   {
     kiq::KServer server(argc, argv);
