@@ -33,9 +33,9 @@ set(KSERVER_HEADERS "-I include -I third_party -I ${JWT_INCLUDE}")
 
 # Flags
 if ($ENV{BUILD_ENV} STREQUAL "CIRCLECI")
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wno-deprecated-declarations -std=c++17 -g -lzmq -lpqxx -lpq -lpthread -pthread -luuid -lstdc++fs ${KSERVER_HEADERS} -L /usr/include/pqxx")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wno-deprecated-declarations -fprofile-arcs -std=c++17 -g -lzmq -lpqxx -lpq -lpthread -pthread -luuid -lstdc++fs ${KSERVER_HEADERS} -L /usr/include/pqxx")
 else ()
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wno-deprecated-declarations -std=c++17 -g -lzmq -lpqxx -lpq -lpthread -pthread -luuid ${KSERVER_HEADERS} -L /usr/local/include/pqxx")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wno-deprecated-declarations -fprofile-arcs -std=c++17 -g -lzmq -lpqxx -lpq -lpthread -pthread -luuid ${KSERVER_HEADERS} -L /usr/local/include/pqxx")
 endif()
 
 set(SOURCE_FILES
@@ -61,7 +61,8 @@ set(SOURCE_FILES
   "include/system/process/executor/task_handlers/instagram.cpp"
   "include/common/util.cpp"
   "include/common/time.cpp"
-  "include/log/logger.cpp"
+  #"include/log/logger.cpp"
+  "third_party/klogger/src/logger.cpp"
 )
 
 # Sources
@@ -72,7 +73,7 @@ else ()
 endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
+# add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 
 # Linking
 target_link_libraries(
@@ -86,28 +87,29 @@ target_link_libraries(
   zmq ${CMAKE_THREAD_LIBS_INIT}
 )
 
-target_link_libraries(
-  ${PROJECT_NAME}_lib
-  PRIVATE
-  ${UUID}
-  ${PQXX_LIB}
-  ${PQ_LIB}
-  Threads::Threads
-  ${OPENSSL_LIBRARIES}
-  zmq ${CMAKE_THREAD_LIBS_INIT}
-)
+# target_link_libraries(
+#   ${PROJECT_NAME}_lib
+#   PRIVATE
+#   ${UUID}
+#   ${PQXX_LIB}
+#   ${PQ_LIB}
+#   Threads::Threads
+#   ${OPENSSL_LIBRARIES}
+#   zmq ${CMAKE_THREAD_LIBS_INIT}
+# )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
   "include"
   "third_party"
+  "third_party/kiq/src"
   ${JWT_INCLUDE}
 )
 
-target_include_directories(${PROJECT_NAME}_lib PRIVATE
-  "include"
-  "third_party"
-  ${JWT_INCLUDE}
-)
+# target_include_directories(${PROJECT_NAME}_lib PRIVATE
+#   "include"
+#   "third_party"
+#   ${JWT_INCLUDE}
+# )
 
 
-add_subdirectory(test)
+# add_subdirectory(test)
