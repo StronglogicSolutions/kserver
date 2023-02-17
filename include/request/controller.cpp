@@ -94,6 +94,9 @@ Controller::~Controller()
     KLOG("Waiting for maintenance worker to complete");
     m_maintenance_worker.join();
   }
+
+  if (m_sentinel_future.valid())
+    m_sentinel_future.wait();
 }
 
 /**
