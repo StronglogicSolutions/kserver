@@ -38,7 +38,8 @@ using namespace KData;
  *
  * Handles incoming requests coming from the KY_GUI Application
  */
-class Controller {
+class Controller
+{
  using ProcessCallbackFn = std::function<void(std::string, int, std::string, int, bool)>;
  using SystemCallbackFn  = std::function<void(int, int, std::vector<std::string>)>;
  using StatusCallbackFn  = std::function<void(void)>;
@@ -100,6 +101,8 @@ class Controller {
   Scheduler                         m_scheduler;
   std::thread                       m_maintenance_worker;
   Database::KDB                     m_kdb;
+  Timer                             m_timer;
+  std::future<void>                 m_sentinel_future;
 
   uint32_t                          m_ps_exec_count;
   uint32_t                          m_client_rq_count;

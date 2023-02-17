@@ -12,7 +12,7 @@ static const uint64_t TWENTY_MINUTES = 1200UL;
 Timer(const uint64_t duration_ = TWENTY_MINUTES);
 bool active()  const;
 bool expired() const;
-void start();
+void reset();
 void stop();
 
 private:

@@ -126,6 +126,26 @@ void Controller::Initialize(ProcessCallbackFn process_callback_fn,
   m_server_status      = status_callback_fn;
   m_maintenance_worker = std::thread(std::bind(&Controller::InfiniteLoop, this));
 
+  if (m_sentinel_future.valid())
+    m_sentinel_future.wait();
+
+  m_sentinel_future = std::async(std::launch::deferred, [this] {
+    if (m_timer.expired())
+    {
+      while (m_active)
+      {
+        if (m_timer.expired())
+        {
+          const auto message = "Controller's worker seems deadlocked";
+          VLOG(message);
+          SystemUtils::SendMail(config::Email::notification(), message);
+          m_active = false;
+        }
+          std::this_thread::sleep_for(std::chrono::minutes(1));
+      }
+    }
+  });
+
   SetWait(false);
   KLOG("Initialization complete");
 }
@@ -163,7 +183,6 @@ void Controller::InfiniteLoop()
   static const int32_t client_fd{ALL_CLIENTS};
   static       Timer   timer{Timer::TEN_MINUTES};
   KLOG("Worker starting");
-  timer.start();
   while (m_active)
   {
     std::unique_lock<std::mutex> lock(m_mutex);
@@ -188,23 +207,20 @@ void Controller::InfiniteLoop()
       m_system_event(client_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
         {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times});
 
-      auto it = m_tasks_map.find(client_fd);
-      if (it == m_tasks_map.end())
+      if (auto it = m_tasks_map.find(client_fd); it == m_tasks_map.end())
         m_tasks_map.insert(std::pair<int, std::vector<Task>>(client_fd, tasks));
       else
         it->second.insert(it->second.end(), tasks.begin(), tasks.end());
 
-      KLOG("KServer has {} {} pending execution",
-        m_tasks_map.at(client_fd).size(),
-        m_tasks_map.at(client_fd).size() == 1 ? "task" : "tasks");
+      KLOG("Tasks pending execution: ", m_tasks_map.at(client_fd).size());
     }
 
-    if (m_tasks_map.size()) HandlePendingTasks();
+    HandlePendingTasks();
 
     if (timer.expired())
     {
       Status();
-      timer.start();
+      timer.reset();
     }
 
     m_scheduler.ProcessIPC();
@@ -222,7 +238,6 @@ void Controller::InfiniteLoop()
  */
 void Controller::HandlePendingTasks()
 {
-  auto MakeError = [](const char* e_msg) { return fmt::format("Exception caught while executing process: {}", e_msg); };
   try
   {
     for (const auto& client_tasks : m_tasks_map)
@@ -232,7 +247,7 @@ void Controller::HandlePendingTasks()
   }
   catch(const std::exception& e)
   {
-    const auto error = MakeError(e.what());
+    const auto error = fmt::format("Exception caught while executing process: {}", e.what());
     ELOG(error);
     SystemUtils::SendMail(config::System::admin(), error);
   }
@@ -794,6 +809,7 @@ void Controller::Status() const
   VLOG("Controller Status Update\nProcesses Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
     m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count);
   m_scheduler.Status();
+
 }
 
 }  // ns kiq::Request

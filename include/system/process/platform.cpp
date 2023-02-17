@@ -457,7 +457,7 @@ Platform::ProcessPlatform()
 
   static Timer timer{Timer::TEN_MINUTES};
   if (!timer.active())
-    timer.start();
+    timer.reset();
   else
   if (timer.active() && timer.expired())
   {

@@ -877,7 +877,7 @@ Scheduler::TermEvents Scheduler::FetchTermEvents() const
 void Scheduler::SetIPCCommand(const uint8_t &command)
 {
   m_ipc_command = command;
-  timer.start();
+  timer.reset();
 }
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::IPCNotPending() const
