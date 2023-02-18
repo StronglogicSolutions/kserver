@@ -69,12 +69,14 @@ Controller& Controller::operator=(const Controller &handler)
  */
 Controller& Controller::operator=(Controller&& handler)
 {
-  if (&handler != this) {
+  if (&handler != this)
+  {
     delete m_executor;
     m_executor          = handler.m_executor;
     m_active            = handler.m_active;
     handler.m_executor  = nullptr;
   }
+
   return *this;
 }
 
@@ -185,7 +187,9 @@ void Controller::InfiniteLoop()
 {
   static const int32_t client_fd{ALL_CLIENTS};
   static       Timer   timer{Timer::TEN_MINUTES};
+
   KLOG("Worker starting");
+
   while (m_active)
   {
     std::unique_lock<std::mutex> lock(m_mutex);
