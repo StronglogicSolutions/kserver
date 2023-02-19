@@ -185,8 +185,9 @@ void Controller::SetWait(const bool& wait)
  */
 void Controller::InfiniteLoop()
 {
+  static const bool    autostart{true};
   static const int32_t client_fd{ALL_CLIENTS};
-  static       Timer   timer{Timer::TEN_MINUTES};
+  static       Timer   timer{Timer::TEN_MINUTES, autostart};
 
   KLOG("Worker starting");
 

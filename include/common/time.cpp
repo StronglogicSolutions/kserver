@@ -2,9 +2,11 @@
 
 namespace kiq
 {
-  Timer::Timer(const uint64_t duration_)
+  Timer::Timer(const uint64_t duration_, bool autostart)
       : duration(duration_)
   {
+    if (autostart)
+      reset();
   }
 
   bool Timer::active() const

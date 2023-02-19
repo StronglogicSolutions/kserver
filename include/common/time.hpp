@@ -9,7 +9,7 @@ static const uint64_t ONE_MINUTE     = 60UL;
 static const uint64_t TWO_MINUTES    = 120UL;
 static const uint64_t TEN_MINUTES    = 600UL;
 static const uint64_t TWENTY_MINUTES = 1200UL;
-Timer(const uint64_t duration_ = TWENTY_MINUTES);
+Timer(const uint64_t duration_ = TWENTY_MINUTES, bool autostart = false);
 bool active()  const;
 bool expired() const;
 void reset();
