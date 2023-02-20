@@ -596,6 +596,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     {
       if (!PollExists(root.id))
       {
+        VLOG("Adding poll for {}", root.id);
         std::string dest = config::Process::tg_dest();
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::message, request.data, CreateOperation("Bot", {dest})));
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::poll, request.title, CreateOperation("Bot", {dest, "High", "Some", "Little", "None"})));
@@ -877,7 +878,7 @@ Scheduler::TermEvents Scheduler::FetchTermEvents() const
 void Scheduler::SetIPCCommand(const uint8_t &command)
 {
   m_ipc_command = command;
-  timer.start();
+  timer.reset();
 }
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::IPCNotPending() const
@@ -941,7 +942,7 @@ template int32_t Scheduler::CreateChild(const std::string &id, const std::string
 //----------------------------------------------------------------------------------------------------------------
 int32_t Scheduler::FindMask(const std::string &application_name)
 {
-  for (auto it = m_app_map.begin(); it != m_app_map.end();)
+  for (auto it = m_app_map.begin(); it != m_app_map.end(); it++)
     if (it->second == application_name)
       return it->first;
   return INVALID_MASK;

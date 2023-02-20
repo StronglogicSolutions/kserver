@@ -462,8 +462,11 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
   const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
   const Hits        hits           = GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
 
+  VLOG("Analysis found {} related term hits", hits.size());
+
   for (const TermHit& hit : hits)
   {
+    VLOG("Sending request for term {}", hit.term);
     requests.emplace_back(ResearchRequest{
       hit,
       MakePollMessage(child_text, child_emo, child_sts, hit.ToString()),

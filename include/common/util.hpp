@@ -52,6 +52,12 @@ typedef std::vector<std::pair<std::string, std::string>> SessionInfo;
 typedef std::vector<KApplication>                        ServerData;
 typedef std::pair<std::string, std::string>              FileInfo;
 
+class kiq_error : public std::runtime_error
+{
+public:
+  using std::runtime_error::runtime_error;
+};
+
 std::string GetCWD();
 std::string GetExecutableCWD();
 

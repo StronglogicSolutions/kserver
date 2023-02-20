@@ -144,7 +144,7 @@ KSession& SessionMap::at(int32_t fd)
 {
   const auto it = m_session_ptrs.find(fd);
   if (it == m_session_ptrs.end())
-    ELOG("SessionMap::at() Unable to find {}. Exception will be thrown", fd);
+    throw kiq_error{fmt::format("SessionMap::at() Unable to find {}. Exception will be thrown", fd)};
   return *m_session_ptrs.at(fd);
 }
 
