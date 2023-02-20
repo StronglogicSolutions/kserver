@@ -116,7 +116,10 @@ void TaskQueue::initialize()
 void TaskQueue::joinThreads()
 {
   pool_condition.notify_all();
-  for (std::thread& t : m_thread_pool) if (t.joinable()) t.join();
+
+  for (std::thread& t : m_thread_pool)
+    if (t.joinable())
+      t.join();
 }
 
 size_t TaskQueue::size() const
