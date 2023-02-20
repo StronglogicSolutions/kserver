@@ -942,7 +942,7 @@ template int32_t Scheduler::CreateChild(const std::string &id, const std::string
 //----------------------------------------------------------------------------------------------------------------
 int32_t Scheduler::FindMask(const std::string &application_name)
 {
-  for (auto it = m_app_map.begin(); it != m_app_map.end();)
+  for (auto it = m_app_map.begin(); it != m_app_map.end(); it++)
     if (it->second == application_name)
       return it->first;
   return INVALID_MASK;
