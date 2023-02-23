@@ -1,13 +1,11 @@
 #pragma once
 
-
 #include <future>
-#include <system/process/ipc/ipc.hpp>
+#include <kproto/ipc.hpp>
 #include "log/logger.h"
 
 namespace kiq
 {
-
 class botbroker_handler : public IPCHandlerInterface
 {
 public:

@@ -38,12 +38,12 @@ private:
   void delay_event(int32_t event, const std::vector<std::string>& args);
 
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
-  {::constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},
-  {::constants::IPC_PLATFORM_REQUEST, [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_REQUEST,  GetRequest(static_cast<platform_request*>(it.get()))); }},
-  {::constants::IPC_PLATFORM_INFO   , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_INFO,     GetInfo   (static_cast<platform_info*>   (it.get()))); }},
-  {::constants::IPC_PLATFORM_ERROR  , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR,    GetError  (static_cast<platform_error*>  (it.get()))); }},
-  {::constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
-  {::constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
+  {constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},
+  {constants::IPC_PLATFORM_REQUEST, [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_REQUEST,  GetRequest(static_cast<platform_request*>(it.get()))); }},
+  {constants::IPC_PLATFORM_INFO   , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_INFO,     GetInfo   (static_cast<platform_info*>   (it.get()))); }},
+  {constants::IPC_PLATFORM_ERROR  , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR,    GetError  (static_cast<platform_error*>  (it.get()))); }},
+  {constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
+  {constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
 
   using workers_t = std::vector<IPCWorker>;
 

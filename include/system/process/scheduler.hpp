@@ -1,7 +1,5 @@
 #pragma once
 
-#include <type_traits>
-#include <vector>
 #include <deque>
 #include <unordered_set>
 #include "log/logger.h"
@@ -11,6 +9,8 @@
 #include "platform.hpp"
 #include "trigger.hpp"
 #include "research_manager.hpp"
+#include <kproto/ipc.hpp>
+#include <kproto/ipc_structs.hpp>
 
 #define NO_COMPLETED_VALUE 99
 
@@ -22,6 +22,9 @@ static const char* TIMESTAMP_TIME_AS_TODAY{"(extract(epoch from (TIMESTAMPTZ 'to
 static const char* UNIXTIME_NOW           {"extract(epoch from (now()))::int"};
 
 class ResearchManager;
+// class IPCSendEvent;
+// class PlatformIPC;
+// class TGCommand;
 
 struct TaskParams
 {

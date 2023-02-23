@@ -557,7 +557,7 @@ void KServer::Status()
   VLOG("Thread pool: there are currently {} active workers tending to sockets", SocketListener::count());
 }
 
-Request::Controller& KServer::GetController()
+Controller& KServer::GetController()
 {
   return m_controller;
 }

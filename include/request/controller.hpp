@@ -23,9 +23,8 @@
 #include "system/process/executor/task_handlers/generic.hpp"
 #include "server/types.hpp"
 #include "system/cron.hpp"
-#include "types.hpp"
 
-namespace kiq::Request {
+namespace kiq {
 enum DevTest {
   Schedule = 1,
   ExecuteTask = 2
@@ -109,4 +108,4 @@ class Controller
   uint32_t                          m_system_rq_count;
   uint32_t                          m_err_count;
 };
-}  // ns kiq::Request
+}  // ns kiq

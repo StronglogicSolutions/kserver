@@ -99,14 +99,13 @@ public:
 KServer(int argc, char **argv);
 ~KServer();
 
-void     Broadcast                (const std::string& event, const std::vector<std::string>& argv);
-
-void     SendEvent                (const int32_t& client_fd, const std::string& event,
-                                    const std::vector<std::string>& argv);
-void     SendFile                 (const int32_t& client_fd, const std::string& filename);
-void     EraseMessageHandler      (const int32_t& client_fd);
-void     EraseFileHandler         (const int32_t& client_fd);
-Request::Controller& GetController();
+void            Broadcast                (const std::string& event, const std::vector<std::string>& argv);
+void            SendEvent                (const int32_t& client_fd, const std::string& event,
+                                          const std::vector<std::string>& argv);
+void            SendFile                 (const int32_t& client_fd, const std::string& filename);
+void            EraseMessageHandler      (const int32_t& client_fd);
+void            EraseFileHandler         (const int32_t& client_fd);
+Controller&     GetController();
 IPCManager&     GetIPCMgr();
 FileManager&    GetFileMgr();
 
@@ -146,7 +145,7 @@ void     SendPong                 (int32_t client_fd);
 void     Status                   ();
 KSession GetSession               (const int32_t& client_fd) const;
 
-Request::Controller       m_controller;
+Controller                m_controller;
 IPCManager                m_ipc_manager;
 SystemEventHandler        m_event_handler;
 std::vector<int>          m_client_connections;
