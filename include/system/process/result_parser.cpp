@@ -1,5 +1,6 @@
 
 #include "result_parser.hpp"
+#include <kproto/ipc_structs.hpp>
 
 static const uint8_t JOY_INDEX      = 0x00;
 static const uint8_t SADNESS_INDEX  = 0x01;

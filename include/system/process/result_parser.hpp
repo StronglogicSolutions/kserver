@@ -12,7 +12,6 @@
 #include "codec/rapidjson/writer.h"
 
 #include "server/types.hpp"
-#include "ipc/ipc_structs.hpp"
 #include "log/logger.h"
 
 namespace kiq {

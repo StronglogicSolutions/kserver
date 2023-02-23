@@ -1,8 +1,8 @@
 #pragma once
 
 #include <future>
-#include <system/process/ipc/ipc.hpp>
 #include "log/logger.h"
+#include "kproto/ipc.hpp"
 
 namespace kiq {
 const std::string  REQ_ADDRESS{"tcp://localhost:28473"};

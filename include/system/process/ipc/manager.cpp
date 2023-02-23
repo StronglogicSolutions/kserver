@@ -8,8 +8,8 @@ namespace kiq
   //*******************************************************************//
   static void log_message(ipc_message* msg)
   {
-    if (const auto type = msg->type(); type != ::constants::IPC_KEEPALIVE_TYPE)
-      VLOG("Processing message of type {}", ::constants::IPC_MESSAGE_NAMES.at(type));
+    if (const auto type = msg->type(); type != constants::IPC_KEEPALIVE_TYPE)
+      VLOG("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
   }
   //*******************************************************************//
   std::unique_ptr<platform_message> deserialize(const Payload &args)

@@ -1,12 +1,10 @@
-#include "scheduler.hpp"
-#include "executor/task_handlers/generic.hpp"
-#include "ipc/ipc.hpp"
 #include "codec/uuid.h"
 #include "common/time.hpp"
+#include "scheduler.hpp"
+#include "executor/task_handlers/generic.hpp"
 
 namespace kiq
 {
-using namespace ::constants;
 static Timer timer;
 static const bool         IMMEDIATELY           = false;
 static const size_t       QUEUE_LIMIT           = 0x05;
@@ -102,7 +100,7 @@ Scheduler::Scheduler(SystemEventcallback fn)
       m_app_map(FetchApplicationMap(m_kdb)),
       m_research_manager(&m_kdb, &m_platform, [this](const auto &name)
                           { return FindMask(name); }),
-      m_ipc_command(NO_COMMAND_INDEX)
+      m_ipc_command(constants::NO_COMMAND_INDEX)
 {
   const auto AppExists = [this](const std::string &name) -> bool
   {
@@ -657,7 +655,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
             OnTermEvent(term_event);
     }
 
-    if (IPCNotPending()) SetIPCCommand(TELEGRAM_COMMAND_INDEX);
+    if (IPCNotPending()) SetIPCCommand(constants::TELEGRAM_COMMAND_INDEX);
   }
   else
   if (initiating_application == NER_APP && responding_application == NER_APP)
@@ -883,7 +881,7 @@ void Scheduler::SetIPCCommand(const uint8_t &command)
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::IPCNotPending() const
 {
-  return (m_ipc_command == NO_COMMAND_INDEX || !timer.active());
+  return (m_ipc_command == constants::NO_COMMAND_INDEX || !timer.active());
 }
 //----------------------------------------------------------------------------------------------------------------
 void Scheduler::ResolvePending(const bool &check_timer)
@@ -900,7 +898,7 @@ void Scheduler::ResolvePending(const bool &check_timer)
   m_message_queue.clear();
   m_postexec_map.clear();
   m_postexec_lists.clear();
-  SetIPCCommand(NO_COMMAND_INDEX);
+  SetIPCCommand(constants::NO_COMMAND_INDEX);
   timer.stop();
 }
 //----------------------------------------------------------------------------------------------------------------

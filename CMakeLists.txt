@@ -100,13 +100,16 @@ target_link_libraries(
 target_include_directories(${PROJECT_NAME} PRIVATE
   "include"
   "third_party"
-  "third_party/kiq/src"
+  "third_party/klogger/src"
+  "third_party/kproto/include"
   ${JWT_INCLUDE}
 )
 
 target_include_directories(${PROJECT_NAME}_lib PRIVATE
   "include"
   "third_party"
+  "third_party/klogger/src"
+  "third_party/kproto/include"
   ${JWT_INCLUDE}
 )
 

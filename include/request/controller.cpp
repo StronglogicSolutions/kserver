@@ -1,16 +1,11 @@
 #include "controller.hpp"
 #include "common/time.hpp"
+#include "kproto/types.hpp"
 
-namespace kiq::Request {
+namespace kiq
+{
 static flatbuffers::FlatBufferBuilder builder(1024);
-
-/**
- * Controller()
- * @constructor
- *
- * Loads configuration and instantiates a DatabaseConfiguration object
- *
- */
+//----------------------------------------------------------------------------------
 Controller::Controller()
 : m_active(true),
   m_executor(nullptr),
@@ -26,12 +21,7 @@ Controller::Controller()
   m_system_rq_count(0),
   m_err_count(0)
 {}
-
-/**
- * @constructor
- *
- * The move constructor
- */
+//----------------------------------------------------------------------------------
 Controller::Controller(Controller &&r)
 : m_active(r.m_active),
   m_executor(r.m_executor),
@@ -39,34 +29,19 @@ Controller::Controller(Controller &&r)
 {
   r.m_executor = nullptr;
 }
-
-/**
- * @constructor
- *
- * The copy constructor
- */
+//----------------------------------------------------------------------------------
 Controller::Controller(const Controller &r)
 : m_active(r.m_active),
   m_executor(nullptr),
   m_scheduler(nullptr)
 {}
-
-/**
- * @operator
- *
- * The copy assignment operator
- */
+//----------------------------------------------------------------------------------
 Controller& Controller::operator=(const Controller &handler)
 {
   this->m_executor  = nullptr;
   return *this;
 }
-
-/**
- * @operator
- *
- * The move assignment operator
- */
+//----------------------------------------------------------------------------------
 Controller& Controller::operator=(Controller&& handler)
 {
   if (&handler != this)
@@ -79,13 +54,7 @@ Controller& Controller::operator=(Controller&& handler)
 
   return *this;
 }
-
-/**
- * @destructor
- *
- * Deletes the process executor and ensures that the maintenance worker thread
- * completes
- */
+//----------------------------------------------------------------------------------
 Controller::~Controller()
 {
   if (m_executor != nullptr)
@@ -100,15 +69,7 @@ Controller::~Controller()
   if (m_sentinel_future.valid())
     m_sentinel_future.wait();
 }
-
-/**
- * Initialize
- *
- * Initializes the Controller with callbacks for sending system events and
- * process execution results. Instantiates a ProcessExecutor and provides a
- * callback. Starts a thread to perform work on the InfiniteLoop
- *
- */
+//----------------------------------------------------------------------------------
 void Controller::Initialize(ProcessCallbackFn process_callback_fn,
                             SystemCallbackFn  system_callback_fn,
                             StatusCallbackFn  status_callback_fn)
@@ -154,19 +115,12 @@ void Controller::Initialize(ProcessCallbackFn process_callback_fn,
   SetWait(false);
   KLOG("Initialization complete");
 }
-
+//----------------------------------------------------------------------------------
 void Controller::Shutdown()
 {
   m_active = false;
 }
-
-/**
- * SetWaiting
- *
- * Sets the `is_handling` class member
- *
- * @param[in] {bool} is_handling    Whether the system is currently receiving packets of data
- */
+//----------------------------------------------------------------------------------
 void Controller::SetWait(const bool& wait)
 {
   {
@@ -175,14 +129,7 @@ void Controller::SetWait(const bool& wait)
   }
   m_condition.notify_one();
 }
-
-/**
- * InfiniteLoop
- *
- * Work performed on a separate thread. Includs checking for
- * scheduled tasks, invoking the process executor and delegating work to the
- * system cron.
- */
+//----------------------------------------------------------------------------------
 void Controller::InfiniteLoop()
 {
   static const bool    autostart{true};
@@ -238,12 +185,7 @@ void Controller::InfiniteLoop()
 
   SystemUtils::SendMail(config::System::admin(), "Worker loop has ended");
 }
-
-/**
- * HandlePendingTasks
- *
- * Iterates pending tasks and requests their execution
- */
+//----------------------------------------------------------------------------------
 void Controller::HandlePendingTasks()
 {
   try
@@ -260,20 +202,7 @@ void Controller::HandlePendingTasks()
     SystemUtils::SendMail(config::System::admin(), error);
   }
 }
-
-/**
- * \b SCHEDULE \b TASK
- *
- * \overload
- * @request
- *
- * Processes requests to schedule a task
- *
- * @param[in] {KOperation}               `op`        The operation requested
- * @param[in] {std::vector<std::string>} `argv`      The task
- * @param[in] {int}                      `client_fd` The client socket file descriptor
- * @param[in] {std::string>              `uuid`      The unique universal identifier
- */
+//----------------------------------------------------------------------------------
 void Controller::operator()(const KOperation&               op,
                             const std::vector<std::string>& argv,
                             const int32_t&                  client_fd,
@@ -341,20 +270,7 @@ void Controller::operator()(const KOperation&               op,
   else
     KLOG("Task scheduling failed to match app to mask {}", mask);
 }
-
-/**
- * \b FETCH \b PROCESSES
- *
- * \overload
- *
- * @request
- *
- * Fetches the available applications that can be requested for execution by
- * clients using KY_GUI
- *
- * @param[in] {KOperation} `op` The operation requested
- *
- */
+//----------------------------------------------------------------------------------
 std::vector<KApplication> Controller::CreateSession()
 {
   uint8_t                   i{};
@@ -387,22 +303,7 @@ std::vector<KApplication> Controller::CreateSession()
   }
   return commands;
 }
-
-/**
- * \b EXECUTE \b PROCESS
- *
- * \overload
- *
- * @request
- *
- * Calls on the ProcessExecutor and requests that it execute an application
- * whose mask value matches those contained within the value passed as a
- * parameter
- *
- * @param[in] {uint32_t} `mask` The requested mask
- * @param[in] {int} `client_socket_fd` The file descriptor of the client
- * making the request
- */
+//----------------------------------------------------------------------------------
 void Controller::Execute(const uint32_t&    mask,
                          const std::string& request_id,
                          const int32_t&     client_socket_fd)
@@ -432,13 +333,7 @@ void Controller::Execute(const uint32_t&    mask,
     executor.request(row.second, mask, client_socket_fd, request_id, {}, constants::IMMEDIATE_REQUEST);
   }
 }
-
-/**
- * @brief ProcessSystemEvent
- *
- * @param [in] {int32_t}                  event
- * @param [in] {std::vector<std::string>> payload
- */
+//----------------------------------------------------------------------------------
 void Controller::ProcessSystemEvent(const int32_t&                    event,
                                       const std::vector<std::string>& payload,
                                       const int32_t&                  id)
@@ -465,16 +360,11 @@ void Controller::ProcessSystemEvent(const int32_t&                    event,
   }
   m_system_rq_count++;
 }
-
-/**
- * ProcessClientRequest
- *
- * @param [in] {int32_t}     client_fd The client socket file descripqqqQQQr
- * @param [in] {std::string} message
- */
+//----------------------------------------------------------------------------------
 void Controller::ProcessClientRequest(const int32_t&     client_fd,
                                       const std::string& message)
 {
+  using namespace Request;
   using Payload = std::vector<std::string>;
   auto ReadTask = [](const Task& task, Payload& payload)
   {
@@ -683,22 +573,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
   }
   m_client_rq_count++;
 }
-
-/**
- * onProcessComplete
- *
- * The callback function called by the ProcessExecutor after completing a
- * process
- *
- * @param[in] <std::string> `value`      The stdout from value from the
- *                                       executed process
- * @param[in] <int> `mask`               The bitmask associated with the
- *                                       process
- * @param[in] <std::string> `id`         The request ID for the process
- * @param[in] <int> `client_socket_fd`   The file descriptor for the client
- * who made the request
- *
- */
+//----------------------------------------------------------------------------------
 void Controller::onProcessComplete(const std::string& value,
                                    const int32_t&     mask,
                                    const std::string& id,
@@ -778,32 +653,7 @@ void Controller::onProcessComplete(const std::string& value,
     }
   }
 }
-
-/**
- * onScheduledTaskComplete
- *
- * @request
- *
- * The callback function called by the Scheduler after a scheduled
- * task completes
- *
- * @param[in] <std::string> `value`             The stdout from value from the
- * executed process
- * @param[in] <int>         `mask`              The bitmask associated with
- * the process
- * @param[in] <std::string> `id`                The task ID as it is tracked
- * in the DB
- * @param[in] <int>         `event`             The type of event
- *
- * @param[in] <int>         `client_socket_fd`  The file descriptor of the
- * client requesting the task
- *
- * TODO: We need to move away from sending process execution results via the
- * scheduler's callback, and only use this to inform of scheduling events.
- * Process execution results should come from the ProcessExecutor and its
- * respective callback.
- */
-
+//----------------------------------------------------------------------------------
 void Controller::onSchedulerEvent(const int32_t&                  client_socket_fd,
                                   const int32_t&                  event,
                                   const std::vector<std::string>& args)
@@ -820,4 +670,4 @@ void Controller::Status() const
 
 }
 
-}  // ns kiq::Request
+}  // ns kiq
