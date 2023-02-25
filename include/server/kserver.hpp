@@ -142,7 +142,8 @@ void     SetFileNotPending        ();
 void     SetFilePending           (const int32_t& client_fd);
 bool     HandlingFile             (const int32_t& client_fd);
 void     SendPong                 (int32_t client_fd);
-void     Status                   ();
+void     ValidateClients          ();
+std::string Status                ()                         const;
 KSession GetSession               (const int32_t& client_fd) const;
 
 Controller                m_controller;

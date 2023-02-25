@@ -263,4 +263,10 @@ SystemEventHandler::on_term_hits (int32_t client_fd, int32_t event, const event_
   m_server->SendEvent(client_fd, "Term Hits", payload);
 }
 //------------------------------------------------------------
+void
+SystemEventHandler::on_status_report (int32_t client_fd, int32_t event, const event_payload_t& payload)
+{
+  m_server->SendEvent(client_fd, "Status Report", payload);
+}
+//------------------------------------------------------------
 }

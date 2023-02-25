@@ -66,7 +66,7 @@ void                      OnPlatformError(const std::vector<std::string>& payloa
 void                      ProcessPlatform();
 std::vector<PlatformPost> Fetch(bool pending = false) const;
 void                      FetchPosts() const;
-void                      Status() const;
+std::string               Status() const;
 std::string               GetPlatform(const std::string& pid);
 std::string               GetPlatformID(const std::string& name);
 std::string               GetPlatformID(uint32_t mask);

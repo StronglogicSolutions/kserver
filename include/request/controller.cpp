@@ -72,7 +72,8 @@ Controller::~Controller()
 //----------------------------------------------------------------------------------
 void Controller::Initialize(ProcessCallbackFn process_callback_fn,
                             SystemCallbackFn  system_callback_fn,
-                            StatusCallbackFn  status_callback_fn)
+                            StatusCallbackFn  status_callback_fn,
+                            ClientValidateFn  validate_client_fn)
 {
   const bool scheduled_task{true};
   m_executor = new ProcessExecutor();
@@ -90,6 +91,7 @@ void Controller::Initialize(ProcessCallbackFn process_callback_fn,
   m_process_event      = process_callback_fn;
   m_system_event       = system_callback_fn;
   m_server_status      = status_callback_fn;
+  m_validate_client    = validate_client_fn;
   m_maintenance_worker = std::thread(std::bind(&Controller::InfiniteLoop, this));
 
   if (m_sentinel_future.valid())
@@ -174,8 +176,9 @@ void Controller::InfiniteLoop()
 
     if (timer.expired())
     {
-      Status();
+      VLOG(Status());
       timer.reset();
+      m_validate_client();
     }
 
     m_scheduler.ProcessIPC();
@@ -566,6 +569,9 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     case(UPDATE_POST):
       m_scheduler.SavePlatformPost({args.begin() + 1, args.end()});
     break;
+    case(KIQ_STATUS):
+      m_system_event(client_fd, SYSTEM_EVENTS__STATUS_REPORT, { Status() });
+    break;
     case (RequestType::UNKNOWN):
       [[ fallthrough ]];
     default:
@@ -660,14 +666,11 @@ void Controller::onSchedulerEvent(const int32_t&                  client_socket_
 {
   m_system_event(client_socket_fd, event, args);
 }
-
-void Controller::Status() const
+//----------------------------------------------------------------------------------
+std::string Controller::Status() const
 {
-  m_server_status();
-  VLOG("Controller Status Update\nProcesses Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
-    m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count);
-  m_scheduler.Status();
-
+  return m_server_status() + "\n\n" + fmt::format("Controller Status Update\nProcesses Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
+    m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count) + "\n\n" + m_scheduler.Status();
 }
 
 }  // ns kiq

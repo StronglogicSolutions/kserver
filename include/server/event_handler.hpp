@@ -55,6 +55,7 @@ public:
   void on_process_research_result     (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_KIQ_ipc_Message             (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_term_hits                   (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_status_report               (int32_t fd, int32_t evt, const event_payload_t& data);
 
 private:
   KServer* m_server;
@@ -176,6 +177,10 @@ private:
     {
       SYSTEM_EVENTS__TERM_HITS,
       [this](auto fd, auto evt, const auto& data) { on_term_hits(fd, evt, data); }
+    },
+    {
+      SYSTEM_EVENTS__STATUS_REPORT,
+      [this](auto fd, auto evt, const auto& data) { on_status_report(fd, evt, data); }
     }
   };
 };
