@@ -127,7 +127,7 @@ virtual std::vector<Task>         fetchTasks() override;
         int32_t                   FindPostExec(const int32_t& id);
         TermEvents                FetchTermEvents() const;
         void                      ResolvePending(const bool& check_timer = true);
-        void                      Status() const;
+        std::string               Status() const;
         void                      FetchPosts();
 
         template <typename T>

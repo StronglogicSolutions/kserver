@@ -41,7 +41,8 @@ class Controller
 {
  using ProcessCallbackFn = std::function<void(std::string, int, std::string, int, bool)>;
  using SystemCallbackFn  = std::function<void(int, int, std::vector<std::string>)>;
- using StatusCallbackFn  = std::function<void(void)>;
+ using StatusCallbackFn  = std::function<std::string(void)>;
+ using ClientValidateFn  = std::function<void(void)>;
 
  public:
   Controller();
@@ -54,7 +55,8 @@ class Controller
 
   void                      Initialize(ProcessCallbackFn event_callback_fn,
                                        SystemCallbackFn  system_callback_fn,
-                                       StatusCallbackFn  status_callback_fn);
+                                       StatusCallbackFn  status_callback_fn,
+                                       ClientValidateFn  cvalid_callback_fn);
   void                      Shutdown();
   void                      SetWait(const bool& wait);
   void                      InfiniteLoop();
@@ -83,11 +85,12 @@ class Controller
   void onSchedulerEvent (const int32_t&                  client_socket_fd,
                          const int32_t&                  event,
                          const std::vector<std::string>& args = {});
-  void Status() const;
+  std::string Status() const;
 
   ProcessCallbackFn                 m_process_event;
   SystemCallbackFn                  m_system_event;
   StatusCallbackFn                  m_server_status;
+  ClientValidateFn                  m_validate_client;
 
   std::map<int, std::vector<Task>>  m_tasks_map;
   std::mutex                        m_mutex;

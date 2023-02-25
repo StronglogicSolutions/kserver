@@ -542,9 +542,9 @@ std::string Platform::GetPlatform(const std::string& pid)
   return "";
 }
 //-------------------------------------------------------------------------------------
-void Platform::Status() const
+std::string Platform::Status() const
 {
-  VLOG("Platform Status: Pending {} Complete {} Errors {}", m_pending, m_posted, m_errors);
+  return fmt::format("Platform Status: Pending {} Complete {} Errors {}", m_pending, m_posted, m_errors);
 }
 //-------------------------------------------------------------------------------------
 std::vector<PlatformPost> Platform::Fetch(bool pending) const

@@ -1037,10 +1037,10 @@ bool Scheduler::OnIPCReceived(const std::string &uuid)
   return true;
 }
 //----------------------------------------------------------------------------------------------------------------
-void Scheduler::Status() const
+std::string Scheduler::Status() const
 {
-  m_platform.Status();
-  VLOG("Scheduler Status\nMessage queue: {}\nDispatched IPC: {}\nPostExec Tasks: {}",
+  return m_platform.Status() + "\n\n" + fmt::format(
+    "Scheduler Status\nMessage queue: {}\nDispatched IPC: {}\nPostExec Tasks: {}",
     m_message_queue.size(), m_dispatched_ipc.size(), m_postexec_map.size());
 }
 //----------------------------------------------------------------------------------------------------------------

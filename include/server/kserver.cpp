@@ -45,7 +45,11 @@ KServer::KServer(int argc, char **argv)
     },
     [this]()
     {
-      Status();
+      return Status();
+    },
+    [this]()
+    {
+      ValidateClients();
     });
 
     KLOG("Starting IPC manager");
@@ -531,19 +535,28 @@ KSession KServer::GetSession(const int32_t& client_fd) const
   return KSession{};
 }
 
-void KServer::Status()
+std::string KServer::Status() const
 {
   size_t      tx{};
   size_t      rx{};
   std::string client_s;
 
+  for (const auto& [_, session] : m_sessions)
+  {
+    client_s += session.info();
+    tx       += session.tx;
+    rx       += session.rx;
+  }
+
+  return fmt::format("Server Status\nBytes sent: {}\nBytes recv: {}\nErrors: {}\nClients:\n{}\nThread pool: there are currently {} active workers tending to sockets", tx, rx, m_errors, client_s, SocketListener::count());
+}
+
+void KServer::ValidateClients()
+{
   for (auto it = m_sessions.begin(); it != m_sessions.end();)
   {
     auto& session = it->second;
     session.verify();
-    client_s += session.info();
-    tx += session.tx;
-    rx += session.rx;
     if (session.expired())
     {
       EndSession(session.fd);
@@ -552,9 +565,6 @@ void KServer::Status()
     else
       it++;
   }
-
-  VLOG("Server Status\nBytes sent: {}\nBytes recv: {}\nErrors: {}\nClients:\n{}", tx, rx, m_errors, client_s);
-  VLOG("Thread pool: there are currently {} active workers tending to sockets", SocketListener::count());
 }
 
 Controller& KServer::GetController()

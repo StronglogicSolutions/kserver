@@ -55,6 +55,7 @@ static const int32_t SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT     = 33;
 static const int32_t SYSTEM_EVENTS__KIQ_IPC_MESSAGE             = 34;
 static const int32_t SYSTEM_EVENTS__TERM_HITS                   = 35;
 static const int32_t SYSTEM_EVENTS__IPC_REQUEST                 = 36;
+static const int32_t SYSTEM_EVENTS__STATUS_REPORT               = 37;
 
 static const uint8_t EVENT_PROCESS_OUTPUT_INDEX{0x00};
 static const uint8_t EVENT_PROCESS_MASK_INDEX  {0x01};
