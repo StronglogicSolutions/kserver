@@ -977,7 +977,7 @@ void Scheduler::ProcessIPC()
   std::string id, pid, data, command, time;
   for (const auto &value : query)
   {
-    if (value.first == "id")
+    if      (value.first == "id")
       id = value.second;
     else if (value.first == "pid")
       pid = value.second;
