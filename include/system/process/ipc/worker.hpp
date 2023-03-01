@@ -30,7 +30,7 @@ private:
   zmq::context_t&     ctx_;
   zmq::socket_t       backend_;
   client_handlers_t*  handlers_;
-  bool                active_;
+  bool                active_{true};
   std::future<void>   future_;
 };
 } // ns kiq
