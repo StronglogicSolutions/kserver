@@ -159,7 +159,7 @@ ResultProcessor     m_result_processor;
 Platform            m_platform;
 Trigger             m_trigger;
 PostExecLists       m_postexec_lists;     // -> These two need to be converted to a single class
-PostExecMap         m_postexec_map;       // -> where the root has access to a map of all the  task lists
+PostExecMap         m_postexec_map;       // -> where the root has access to a map of all the task lists
 ApplicationMap      m_app_map;
 ResearchManager     m_research_manager;
 MessageQueue        m_message_queue;
