@@ -167,6 +167,8 @@ uint8_t             m_ipc_command;
 DispatchedIPC       m_dispatched_ipc;
 ResearchPolls       m_research_polls;     // -> should become responsibility of Research Manager (along with much more)
 TermIDs             m_term_ids;           // -> same as above
+uint32_t            m_postexec_tasks{0};
+uint32_t            m_tx_ipc        {0};
 };
 
 bool           HasPendingTasks(TaskWrapper* root);

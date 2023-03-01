@@ -891,12 +891,14 @@ void Scheduler::ResolvePending(const bool &check_timer)
   KLOG("Resolving pending IPC messages");
   for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
   {
+    m_tx_ipc++;
     const auto ipc_event = *(buffer);
     m_event_callback(ALL_CLIENTS, ipc_event.event, ipc_event.data);
   }
 
-  m_message_queue.clear();
-  m_postexec_map.clear();
+  m_postexec_tasks += m_postexec_map.size();
+  m_message_queue .clear();
+  m_postexec_map  .clear();
   m_postexec_lists.clear();
   SetIPCCommand(constants::NO_COMMAND_INDEX);
   timer.stop();
@@ -977,7 +979,7 @@ void Scheduler::ProcessIPC()
   std::string id, pid, data, command, time;
   for (const auto &value : query)
   {
-    if (value.first == "id")
+    if      (value.first == "id")
       id = value.second;
     else if (value.first == "pid")
       pid = value.second;
@@ -1013,8 +1015,8 @@ void Scheduler::SendIPCRequest(const std::string &id, const std::string &pid, co
   const Payload payload = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
-
   m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
+  m_tx_ipc++;
   VLOG("Dispatched IPC with ID {} command {} and data {}", id, command, data);
 }
 //----------------------------------------------------------------------------------------------------------------
@@ -1040,8 +1042,8 @@ bool Scheduler::OnIPCReceived(const std::string &uuid)
 std::string Scheduler::Status() const
 {
   return m_platform.Status() + "\n\n" + fmt::format(
-    "Scheduler Status\nMessage queue: {}\nDispatched IPC: {}\nPostExec Tasks: {}",
-    m_message_queue.size(), m_dispatched_ipc.size(), m_postexec_map.size());
+    "Scheduler Status\nMessages sent: {}\nMessage queue: {}\nDispatched requests: {}\nPostExec Tasks: {}",
+    m_tx_ipc, m_message_queue.size(), m_dispatched_ipc.size(), m_postexec_tasks);
 }
 //----------------------------------------------------------------------------------------------------------------
 std::string Scheduler::GetUUID(const std::string& id) const
