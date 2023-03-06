@@ -566,7 +566,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
         const auto& data  = prms.data;
         const auto  match = std::find_if(map.begin(), map.end(), [&data, &mask](auto tup)
         {
-          TaskWrapper wrap = tup.second.secondgi;
+          TaskWrapper wrap = tup.second.second;
           const auto& task = wrap.task;
           return (task.execution_mask == mask && task.GetToken(constants::DESCRIPTION_KEY) == data);
         });
