@@ -119,7 +119,7 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      OnProcessOutput(const std::string& output, const int32_t mask, int32_t id);
         static bool               isKIQProcess(uint32_t mask);
 
-        bool                      SavePlatformPost(std::vector<std::string> payload);
+        bool                      SavePlatformPost(const std::vector<std::string>& payload);
         void                      OnPlatformError(const std::vector<std::string>& payload);
         void                      OnPlatformRequest(const std::vector<std::string>& payload);
         bool                      processTriggers(Task*              task);

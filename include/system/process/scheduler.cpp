@@ -142,7 +142,7 @@ bool Scheduler::HasRecurring(const T& id)
   return !(m_kdb.select("recurring", {"id"}, CreateFilter("sid", task_id)).empty());
 }
 //----------------------------------------------------------------------------------------------------------------
-template bool Scheduler::HasRecurring(const std::string &id);
+template bool Scheduler::HasRecurring(const std::string& id);
 template bool Scheduler::HasRecurring(const int32_t &id);
 //----------------------------------------------------------------------------------------------------------------
 std::string Scheduler::schedule(Task task)
@@ -155,7 +155,7 @@ std::string Scheduler::schedule(Task task)
   {
     return ((ext == "mp4") || (ext == "avi") || (ext == "mkv") || (ext == "webm"));
   };
-  const auto GetFileType = [IsImageExtension, IsVideoExtension](const std::string &filename) -> const std::string
+  const auto GetFileType = [IsImageExtension, IsVideoExtension](const std::string& filename) -> const std::string
   {
     std::string extension = filename.substr(filename.find_last_of('.') + 1);
     const std::string ext = StringUtils::ToLower(extension);
@@ -374,7 +374,7 @@ std::vector<Task> Scheduler::fetchAllTasks()
   return parseTasks(m_kdb.selectJoin<QueryFilter>("schedule", fields, {}, joins), true);
 }
 //----------------------------------------------------------------------------------------------------------------
-[[deprecated]] Task Scheduler::GetTask(const std::string &id)
+[[deprecated]] Task Scheduler::GetTask(const std::string& id)
 {
   static const Fields fields{Field::ID, Field::MASK, Field::FLAGS, Field::ENVFILE, Field::TIME, Field::COMPLETED};
 
@@ -419,7 +419,7 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::vector<std::string>& si
   return files;
 }
 //----------------------------------------------------------------------------------------------------------------
-std::vector<FileMetaData> Scheduler::getFiles(const std::string &sid, const std::string &type)
+std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std::string& type)
 {
   std::vector<FileMetaData> files{};
   const QueryFilter filter = (type.empty()) ? CreateFilter("sid", sid) : CreateFilter("sid", sid, "type", type);
@@ -518,7 +518,7 @@ bool Scheduler::updateRecurring(Task* task)
   return !m_kdb.update("recurring", {"time"}, {time}, CreateFilter("sid", task->id()), "id").empty();
 }
 //----------------------------------------------------------------------------------------------------------------
-bool Scheduler::updateEnvfile(const std::string &id, const std::string &env)
+bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
 {
   for (const auto &value : m_kdb.select("schedule", {"envfile"}, CreateFilter("id", id)))
     if (value.first == "envfile")
@@ -602,28 +602,24 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
       v.emplace_back(JSONItem{p[i], p[i + 1]});
     return v;
   };
-  auto OnTermEvent = [this](const TermEvent &term_info)
+  auto OnTermEvent = [this](const TermEvent& term_info)
   {
-    const auto tid = std::stoi(term_info.tid);
-    if (m_term_ids.find(tid) == m_term_ids.end())
+    if (const auto tid = std::stoi(term_info.tid); m_term_ids.find(tid) == m_term_ids.end())
     {
       m_message_queue.front().append_msg(term_info.to_str());
       m_term_ids.insert(tid);
     }
   };
-  auto AnalyzeTW = [this, &event, &GetTokens](const auto &root, const auto &child, const auto &subchild)
+  auto AnalyzeTW = [this, &event, &GetTokens](const auto& root, const auto& child, const auto& subchild)
   {
-    auto QueueFull = [this]
-    { return m_message_queue.size() > QUEUE_LIMIT; };
-    auto PollExists = [this](const auto &id)
-    { return m_research_polls.find(id) != m_research_polls.end(); };
+    auto QueueFull  = [this]                 { return m_message_queue.size() > QUEUE_LIMIT; };
+    auto PollExists = [this](const auto &id) { return m_research_polls.find(id) != m_research_polls.end(); };
 
     if (QueueFull())
       return VLOG("Outbound IPC queue is full");
 
     const auto event = IPC_PLATFORM_REQUEST;
-    const auto requests = m_research_manager.AnalyzeTW(root, child, subchild);
-    for (const auto &request : requests)
+    for (const auto &request : m_research_manager.AnalyzeTW(root, child, subchild))
     {
       if (!PollExists(root.id))
       {
@@ -639,13 +635,13 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     }
   };
 
-  const auto &init_id = applications.first;
-  const auto &resp_id = applications.second;
-  const auto init_task = FindTask(init_id);
-  const auto resp_task = FindTask(resp_id);
-  const auto &init_mask = init_task.execution_mask;
-  const auto &resp_mask = resp_task.execution_mask;
-  auto &t_wrapper = m_postexec_map.at(resp_id).second;
+  const auto& init_id   = applications.first;
+  const auto& resp_id   = applications.second;
+  const auto  init_task = FindTask(init_id);
+  const auto  resp_task = FindTask(resp_id);
+  const auto& init_mask = init_task.execution_mask;
+  const auto& resp_mask = resp_task.execution_mask;
+        auto& t_wrapper = m_postexec_map.at(resp_id).second;
 
   if (event.payload.empty())
     return Finalize(resp_id);
@@ -661,8 +657,8 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     return;
   }
 
-  const auto &initiating_application = GetAppName(init_mask);
-  const auto &responding_application = GetAppName(resp_mask);
+  const auto& initiating_application = GetAppName(init_mask);
+  const auto& responding_application = GetAppName(resp_mask);
 
   if (initiating_application == TW_RESEARCH_APP && responding_application == NER_APP)
   {
@@ -681,7 +677,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
       const auto term_hits  = m_research_manager.GetTermHits(item.value);
       const auto term_event = m_research_manager.RecordTermEvent(std::move(item), user, initiating_application, root, time);
       if (term_hits.size())
-        for (auto &&hit : term_hits)
+        for (auto&& hit : term_hits)
           if (!(hit.sid.empty()) && NotScheduled(hit.sid))
             CreateChild(resp_id, GetTask(hit.sid).GetToken(constants::DESCRIPTION_KEY),
                         NER_APP, {"entity"});
@@ -694,13 +690,12 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   }
   else
   if (initiating_application == NER_APP && responding_application == NER_APP)
-    SequenceTasks({
-      {init_id, init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}},
-      {resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}}});
+    SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}},
+                   {         resp_task.GetToken(constants::DESCRIPTION_KEY), EMOTION_APP, {"emotion"}}});
   else
   if (initiating_application == EMOTION_APP && responding_application == EMOTION_APP)
     SequenceTasks({{init_id, init_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}},
-                    {resp_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}}});
+                   {         resp_task.GetToken(constants::DESCRIPTION_KEY), SENTIMENT_APP, {"sentiment"}}});
   else
   if (initiating_application == SENTIMENT_APP && responding_application == SENTIMENT_APP)
   {
@@ -718,7 +713,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
 }
 //----------------------------------------------------------------------------------------------------------------
 template <typename T>
-void Scheduler::PostExecWait(const int32_t &i, const T &r_)
+void Scheduler::PostExecWait(const int32_t& i, const T& r_)
 {
   static const bool always_complete{true};
   int32_t r;
@@ -727,31 +722,30 @@ void Scheduler::PostExecWait(const int32_t &i, const T &r_)
   else
     r = std::stoi(r_);
 
-  auto &lists = m_postexec_lists;
-  auto &map = m_postexec_map;
+  auto& lists = m_postexec_lists;
+  auto& map   = m_postexec_map;
 
-  const auto HasKey = [&lists](const int32_t &k) -> bool
-  { return lists.find(k) != lists.end(); };
-  const auto AddRoot = [&lists, &map, this](const int32_t &k) -> void
+  const auto HasKey  = [&lists]            (auto k) { return lists.find(k) != lists.end(); };
+  const auto AddRoot = [&lists, &map, this](auto k)
   {
-    map.insert({k, PostExecTuple{k, TaskWrapper{GetTask(k), always_complete}}});
+    map  .insert({k, PostExecTuple{k, TaskWrapper{GetTask(k), always_complete}}});
     lists.insert({k, &(map.at(k).second)});
   };
-  const auto AddNode = [&lists, &map, this](const int32_t &p, const int32_t &v) -> void
+  const auto AddNode = [&lists, &map, this](auto p, auto v)
   {
     map.insert({v, PostExecTuple{p, TaskWrapper{GetTask(v)}}});
 
-    TaskWrapper *inserted_ptr = &(map.at(v).second);
-    TaskWrapper *root = lists.at(p);
-    TaskWrapper *next = root->child;
-    TaskWrapper *parent = root;
+    TaskWrapper* inserted_ptr = &(map.at(v).second);
+    TaskWrapper* root         = lists.at(p);
+    TaskWrapper* next         = root->child;
+    TaskWrapper* parent       = root;
 
     while (next)
     {
       parent = next;
-      next = next->child;
+      next   = next->child;
     }
-    parent->child = inserted_ptr;
+    parent->child        = inserted_ptr;
     inserted_ptr->parent = parent;
   };
 
@@ -760,7 +754,7 @@ void Scheduler::PostExecWait(const int32_t &i, const T &r_)
   AddNode(i, r);
 }
 //----------------------------------------------------------------------------------------------------------------
-bool Scheduler::OnProcessOutput(const std::string &output, const int32_t mask, const int32_t id)
+bool Scheduler::OnProcessOutput(const std::string& output, const int32_t mask, const int32_t id)
 {
   auto GetValidArgument = [this](const auto &id)
   {
@@ -795,7 +789,7 @@ bool Scheduler::OnProcessOutput(const std::string &output, const int32_t mask, c
   return !(result.events.empty());
 }
 //----------------------------------------------------------------------------------------------------------------
-bool Scheduler::SavePlatformPost(std::vector<std::string> payload)
+bool Scheduler::SavePlatformPost(const std::vector<std::string>& payload)
 {
   return m_platform.SavePlatformPost(payload);
 }
@@ -804,20 +798,20 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
 {
   auto DefaultTGOP = []
   { return CreateOperation("Bot", {config::Process::tg_dest()}); };
-  auto GetMLData = [this]
-  { return m_research_manager.GetMLData(); };
+  auto GetMLData = [this] { return m_research_manager.GetMLData(); };
   static const auto plat_req = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
-  const auto &platform = payload[constants::PLATFORM_REQUEST_PLATFORM_INDEX];
-  const auto &id = payload[constants::PLATFORM_REQUEST_ID_INDEX];
-  const auto &user = payload[constants::PLATFORM_REQUEST_USER_INDEX];
-  const auto &message = payload[constants::PLATFORM_REQUEST_MESSAGE_INDEX];
-  const auto &args = payload[constants::PLATFORM_REQUEST_ARGS_INDEX];
+  const auto& platform = payload[constants::PLATFORM_REQUEST_PLATFORM_INDEX];
+  const auto& id       = payload[constants::PLATFORM_REQUEST_ID_INDEX];
+  const auto& user     = payload[constants::PLATFORM_REQUEST_USER_INDEX];
+  const auto& message  = payload[constants::PLATFORM_REQUEST_MESSAGE_INDEX];
+  const auto& args     = payload[constants::PLATFORM_REQUEST_ARGS_INDEX];
 
   KLOG("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
 
   if (message == REQUEST_SCHEDULE_POLL_STOP)
     ScheduleIPC({platform, message, args}, id);
-  else if (message == REQUEST_PROCESS_POLL_RESULT)
+  else
+  if (message == REQUEST_PROCESS_POLL_RESULT)
   {
     if (!OnIPCReceived(id))
       return ELOG("Unable to match unknown IPC response {} from {}", id, platform);
@@ -826,12 +820,12 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
     for (const ProcessEventData &event : result.events)
       switch (event.code)
       {
-      case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
-        KLOG("Finalizing research data for ML input");
-        m_research_manager.FinalizeMLInputs(GetUUID(m_dispatched_ipc.at(id).id), event.payload);
+        case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
+          KLOG("Finalizing research data for ML input");
+          m_research_manager.FinalizeMLInputs(GetUUID(m_dispatched_ipc.at(id).id), event.payload);
         break;
-      default:
-        ELOG("Unable to complete processing result from {} IPC request: Unknown event with code {}", platform, event.code);
+        default:
+          ELOG("Unable to complete processing result from {} IPC request: Unknown event with code {}", platform, event.code);
       }
 
     if (IPCResponseReceived() && m_research_manager.MLInputReady())
@@ -844,13 +838,13 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
   }
 }
 //----------------------------------------------------------------------------------------------------------------
-void Scheduler::OnPlatformError(const std::vector<std::string> &payload)
+void Scheduler::OnPlatformError(const std::vector<std::string>& payload)
 { // TODO: Check ID and resolve pending IPC failures
   m_platform.OnPlatformError(payload);
   OnIPCReceived(payload.at(constants::PLATFORM_ERROR_ID_INDEX));
 }
 
-bool Scheduler::processTriggers(Task *task_ptr)
+bool Scheduler::processTriggers(Task* task_ptr)
 {
   bool processed_triggers = true;
 
@@ -863,22 +857,22 @@ bool Scheduler::processTriggers(Task *task_ptr)
   return processed_triggers;
 }
 //----------------------------------------------------------------------------------------------------------------
-bool Scheduler::addTrigger(const std::vector<std::string> &payload)
+bool Scheduler::addTrigger(const std::vector<std::string>& payload)
 {
   if (!payload.empty())
   {
-    TriggerConfig config{};
-    const int32_t TRIGGER_MAP_NUM_INDEX = 5;
-    const int32_t mask = std::stoi(payload.at(1));
-    const int32_t trigger_mask = std::stoi(payload.at(2));
-    const int32_t map_num = std::stoi(payload.at(5));
-    const int32_t config_num = std::stoi(payload.at(6));
-    const KApplication app = ProcessExecutor::GetAppInfo(mask);
-    const KApplication trigger_app = ProcessExecutor::GetAppInfo(trigger_mask);
+    TriggerConfig      config{};
+    const int32_t      TRIGGER_MAP_NUM_INDEX = 5;
+    const int32_t      mask                  = std::stoi(payload.at(1));
+    const int32_t      trigger_mask          = std::stoi(payload.at(2));
+    const int32_t      map_num               = std::stoi(payload.at(5));
+    const int32_t      config_num            = std::stoi(payload.at(6));
+    const KApplication app                   = ProcessExecutor::GetAppInfo(mask);
+    const KApplication trigger_app           = ProcessExecutor::GetAppInfo(trigger_mask);
 
     if (app.is_valid() && trigger_app.is_valid())
     {
-      config.token_name = payload.at(3);
+      config.token_name  = payload.at(3);
       config.token_value = payload.at(4);
 
       for (int i = 0; i < map_num; i++)
@@ -886,11 +880,10 @@ bool Scheduler::addTrigger(const std::vector<std::string> &payload)
                                 payload.at((TRIGGER_MAP_NUM_INDEX + i + 2))});
 
       for (int i = 0; i < config_num; i++)
-        config.info.config_info_v.emplace_back(
-            ParamConfigInfo{
-                .token_name = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 1)),
-                .config_section = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 2)),
-                .config_name = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 3))});
+        config.info.config_info_v.emplace_back(ParamConfigInfo{
+          .token_name     = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 1)),
+          .config_section = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 2)),
+          .config_name    = payload.at((TRIGGER_MAP_NUM_INDEX + map_num + i + 3))});
 
       return m_trigger.add(config);
     }
@@ -899,9 +892,9 @@ bool Scheduler::addTrigger(const std::vector<std::string> &payload)
   return false;
 }
 //----------------------------------------------------------------------------------------------------------------
-int32_t Scheduler::FindPostExec(const int32_t &id)
+int32_t Scheduler::FindPostExec(const int32_t& id)
 {
-  for (const auto &[initiator, task_wrapper] : m_postexec_map)
+  for (const auto& [_, task_wrapper] : m_postexec_map)
     if (task_wrapper.second.id == id)
       return task_wrapper.first;
   return INVALID_ID;
@@ -912,7 +905,7 @@ Scheduler::TermEvents Scheduler::FetchTermEvents() const
   return m_research_manager.GetAllTermEvents();
 }
 //----------------------------------------------------------------------------------------------------------------
-void Scheduler::SetIPCCommand(const uint8_t &command)
+void Scheduler::SetIPCCommand(const uint8_t& command)
 {
   m_ipc_command = command;
   timer.reset();
@@ -923,13 +916,13 @@ bool Scheduler::IPCNotPending() const
   return (m_ipc_command == constants::NO_COMMAND_INDEX || !timer.active());
 }
 //----------------------------------------------------------------------------------------------------------------
-void Scheduler::ResolvePending(const bool &check_timer)
+void Scheduler::ResolvePending(const bool& check_timer)
 {
   if (check_timer && (!timer.active() || !timer.expired()))
     return;
 
   KLOG("Resolving pending IPC messages");
-  for (auto &&buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
+  for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
   {
     m_tx_ipc++;
     const auto ipc_event = *(buffer);
@@ -937,15 +930,18 @@ void Scheduler::ResolvePending(const bool &check_timer)
   }
 
   m_postexec_tasks += m_postexec_map.size();
-  m_message_queue.clear();
-  m_postexec_map.clear();
+  m_message_queue .clear();
+  m_postexec_map  .clear();
   m_postexec_lists.clear();
   SetIPCCommand(constants::NO_COMMAND_INDEX);
   timer.stop();
 }
 //----------------------------------------------------------------------------------------------------------------
 template <typename T, typename S>
-int32_t Scheduler::CreateChild(const T &id, const std::string &data, const S &application_name, const std::vector<std::string> &args)
+int32_t Scheduler::CreateChild(const T&                        id,
+                               const std::string&              data,
+                               const S&                        application_name,
+                               const std::vector<std::string>& args)
 { /* 4. Sentences from previous hits
     * 5. Analyze (KNLP)
     * 6. Analyze-comparison (KNLP)
@@ -961,8 +957,7 @@ int32_t Scheduler::CreateChild(const T &id, const std::string &data, const S &ap
   KApplication app = ProcessExecutor::GetAppInfo(-1, application_name);
   if (app.is_valid())
   {
-    const auto new_task_id = schedule(GenericTaskHandler::Create(app.mask, data, "", "", args));
-    if (new_task_id.size())
+    if (const auto new_task_id = schedule(GenericTaskHandler::Create(app.mask, data, "", "", args)); new_task_id.size())
     {
       PostExecWait(task_id, new_task_id);
       KLOG("{} scheduled as a child of {}", new_task_id, task_id);
@@ -977,10 +972,10 @@ int32_t Scheduler::CreateChild(const T &id, const std::string &data, const S &ap
   return INVALID_ID;
 };
 //----------------------------------------------------------------------------------------------------------------
-template int32_t Scheduler::CreateChild(const uint32_t &id, const std::string &data, const std::string &application_name, const std::vector<std::string> &args);
-template int32_t Scheduler::CreateChild(const std::string &id, const std::string &data, const std::string &application_name, const std::vector<std::string> &args);
+template int32_t Scheduler::CreateChild(const uint32_t&, const std::string&, const std::string&, const std::vector<std::string>&);
+template int32_t Scheduler::CreateChild(const std::string&, const std::string&, const std::string&, const std::vector<std::string>&);
 //----------------------------------------------------------------------------------------------------------------
-int32_t Scheduler::FindMask(const std::string &application_name)
+int32_t Scheduler::FindMask(const std::string& application_name)
 {
   for (auto it = m_app_map.begin(); it != m_app_map.end(); it++)
     if (it->second == application_name)
@@ -988,17 +983,16 @@ int32_t Scheduler::FindMask(const std::string &application_name)
   return INVALID_MASK;
 }
 //----------------------------------------------------------------------------------------------------------------
-std::string Scheduler::ScheduleIPC(const std::vector<std::string> &v, const std::string &uuid)
+std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid)
 { // NOTE: Events run after 1 hour
-  auto GetTime = [](const auto &interval)
-  { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(interval)); };
-  const auto platform = v[0];
-  const auto command = v[1];
-  const auto data = v[2];
-  const auto platname = m_platform.GetPlatformID(platform);
-  const auto time = std::to_string(GetTime(Constants::Recurring::HOURLY));
-  const Fields fields = {"pid", "command", "data", "time", "p_uuid"};
-  const Values values = {platname, command, data, time, uuid};
+  auto GetTime = [](const auto &intv) { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(intv)); };
+  const auto   platform = v[0];
+  const auto   command  = v[1];
+  const auto   data     = v[2];
+  const auto   platname = m_platform.GetPlatformID(platform);
+  const auto   time     = std::to_string(GetTime(Constants::Recurring::HOURLY));
+  const Fields fields   = {"pid", "command", "data", "time", "p_uuid"};
+  const Values values   = {platname, command, data, time, uuid};
 
   KLOG("Scheduling IPC. ID origin {} for platform {} with command {} at {}", uuid, platname, command, time);
   return m_kdb.insert("ipc", fields, values, "id");
@@ -1007,28 +1001,27 @@ std::string Scheduler::ScheduleIPC(const std::vector<std::string> &v, const std:
 void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
-  static const auto table = "ipc";
+  static const auto   table  = "ipc";
   static const Fields fields = {"id", "pid", "command", "data", "time"};
 
   if (!IPCResponseReceived())
     return;
 
   const auto filter = QueryComparisonFilter{{"time", "<", TimeUtils::Now()}};
-  const auto query = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(
-      table, fields, {filter, CreateFilter("status", "0")});
+  const auto query  = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(
+    table, fields, {filter, CreateFilter("status", "0")});
   std::string id, pid, data, command, time;
   for (const auto &value : query)
   {
-    if (value.first == "id")
-      id = value.second;
-    else if (value.first == "pid")
-      pid = value.second;
-    else if (value.first == "command")
-      command = value.second;
-    else if (value.first == "data")
-      data = value.second;
-    else if (value.first == "time")
-      time = value.second;
+    if (value.first == "id")      id = value.second;
+    else
+    if (value.first == "pid")     pid = value.second;
+    else
+    if (value.first == "command") command = value.second;
+    else
+    if (value.first == "data")    data = value.second;
+    else
+    if (value.first == "time")    time = value.second;
 
     if (NoEmptyArgs(id, pid, command, data, time))
     {
@@ -1040,19 +1033,19 @@ void Scheduler::ProcessIPC()
   m_platform.ProcessPlatform();
 }
 //----------------------------------------------------------------------------------------------------------------
-void Scheduler::SendIPCRequest(const std::string &id, const std::string &pid, const std::string &command, const std::string &data, const std::string &time)
+void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time)
 {
   using namespace StringUtils;
   using Payload = std::vector<std::string>;
-  static const auto no_repost = constants::NO_REPOST;
-  static const auto no_urls = constants::NO_URLS;
-  static const auto no_cmd = std::to_string(std::numeric_limits<uint32_t>::max());
-  const auto uuid = GenerateUUIDString();
-  const auto platform = m_platform.GetPlatform(pid);
-  const auto user = m_platform.GetUser("", pid, true);
-  const auto code_s = std::to_string(IPC_CMD_CODES.at(command));
-  const auto args = CreateOperation("bot", {config::Process::tg_dest(), data});
-  const Payload payload = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
+  static const auto    no_repost = constants::NO_REPOST;
+  static const auto    no_urls   = constants::NO_URLS;
+  static const auto    no_cmd    = std::to_string(std::numeric_limits<uint32_t>::max());
+         const auto    uuid      = GenerateUUIDString();
+         const auto    platform  = m_platform.GetPlatform(pid);
+         const auto    user      = m_platform.GetUser("", pid, true);
+         const auto    code_s    = std::to_string(IPC_CMD_CODES.at(command));
+         const auto    args      = CreateOperation("bot", {config::Process::tg_dest(), data});
+         const Payload payload   = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
   m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
@@ -1068,7 +1061,7 @@ bool Scheduler::IPCResponseReceived() const
   return true;
 }
 //----------------------------------------------------------------------------------------------------------------
-bool Scheduler::OnIPCReceived(const std::string &uuid)
+bool Scheduler::OnIPCReceived(const std::string& uuid)
 {
   auto UpdateStatus = [this](auto id)
   { m_kdb.update("ipc", {"status"}, {"1"}, CreateFilter("id", id)); };
@@ -1082,10 +1075,12 @@ bool Scheduler::OnIPCReceived(const std::string &uuid)
 //----------------------------------------------------------------------------------------------------------------
 std::string Scheduler::Status() const
 {
-  return m_platform.Status() + "\n\n" + fmt::format("Scheduler Status\nMessages sent: {}\nMessage queue: {}\nDispatched requests: {}\nPostExec Tasks: {}", m_tx_ipc, m_message_queue.size(), m_dispatched_ipc.size(), m_postexec_tasks);
+  return m_platform.Status() + "\n\n" + fmt::format(
+    "Scheduler Status\nMessages sent: {}\nMessage queue: {}\nDispatched requests: {}\nPostExec Tasks: {}",
+    m_tx_ipc, m_message_queue.size(), m_dispatched_ipc.size(), m_postexec_tasks);
 }
 //----------------------------------------------------------------------------------------------------------------
-std::string Scheduler::GetUUID(const std::string &id) const
+std::string Scheduler::GetUUID(const std::string& id) const
 {
   for (const auto &row : m_kdb.select("ipc", {"p_uuid"}, QueryFilter{"id", id}))
     if (row.first == "p_uuid")
