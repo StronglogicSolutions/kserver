@@ -14,6 +14,9 @@ botbroker_handler::botbroker_handler(zmq::context_t& ctx, std::string_view targe
 {
   tx_sink_.set(zmq::sockopt::linger, 0);
   tx_sink_.set(zmq::sockopt::routing_id, name_);
+  tx_sink_.set(zmq::sockopt::tcp_keepalive, 1);
+  tx_sink_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+  tx_sink_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
   tx_sink_.connect(config::Process::broker_address());
 
   if (send_hb_)

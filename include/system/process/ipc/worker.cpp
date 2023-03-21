@@ -9,6 +9,9 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers
 {
   backend_.set(zmq::sockopt::linger, 0);
   backend_.set(zmq::sockopt::routing_id, name);
+  backend_.set(zmq::sockopt::tcp_keepalive, 1);
+  backend_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+  backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
 }
 //*******************************************************************//
 void
