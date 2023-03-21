@@ -577,17 +577,28 @@ KTFeedResultParser::~KTFeedResultParser() {}
 
 bool KTFeedResultParser::read(const std::string& s)
 {
-  auto get_date     = [](const auto& t)
-  {
-    auto s = std::to_string(t);
-    if (s.size() == 13)
-      return std::string{s.begin(), s.end() - 3};
-    return s;
-  };
   auto GetJSONError = [](auto& d)                { return GetParseError_En(d.GetParseError());   };
   auto ParseOK      = [](auto& d, const auto& s) { return !(d.Parse(s.c_str()).HasParseError()); };
   rapidjson::Document d{};
-
+  auto parse_object = [](auto& item)
+  {
+    auto get_date     = [](const auto& t) { if (const auto s = std::to_string(t); s.size() == 13)
+                                              return std::string{s.begin(), s.end() - 3};
+                                            else return s; };
+    KTFeedItem kt_item;
+    if (item.HasMember("id"))
+      kt_item.id = item["id"].GetString();
+    if (item.HasMember("text"))
+        kt_item.text = item["text"].GetString();
+    if (item.HasMember("date"))
+        kt_item.date = get_date(item["date"].GetInt64());
+    if (item.HasMember("user"))
+        kt_item.user = item["user"].GetString();
+    if (item.HasMember("media"))
+      for (const auto& url : item["media"].GetArray())
+        kt_item.media.push_back(url.GetString());
+    return kt_item;
+  };
   if (!ParseOK(d, s))
     ELOG("Error parsing JSON: {}", GetJSONError(d));
   else
@@ -598,22 +609,14 @@ bool KTFeedResultParser::read(const std::string& s)
       KTFeedItem kt_item{};
       if (!item.IsObject())
         continue;
-
-      if (item.HasMember("id"))
-        kt_item.id = item["id"].GetString();
-      if (item.HasMember("text"))
-          kt_item.text = item["text"].GetString();
-      if (item.HasMember("date"))
-          kt_item.date = get_date(item["date"].GetInt64());
-      if (item.HasMember("user"))
-          kt_item.user = item["user"].GetString();
-      if (item.HasMember("media"))
-        for (const auto& url : item["media"].GetArray())
-          kt_item.media.push_back(url.GetString());
-
-      m_feed_items.emplace_back(std::move(kt_item));
+      m_feed_items.push_back(parse_object(item));
     }
-
+    return true;
+  }
+  else
+  if (d.IsObject())
+  {
+    m_feed_items.push_back(parse_object(d));
     return true;
   }
 
@@ -765,6 +768,7 @@ ProcessParseResult ResultProcessor::process(const std::string& output, const T& 
   }
 
   u_parser_ptr->read(output);
+
   return u_parser_ptr->get_result();
 }
 
