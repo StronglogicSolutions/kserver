@@ -370,6 +370,13 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) con
       post.name   = map["platform.name"];
       post.method = map["platform.method"];
       post.status = map["platform_post.status"];
+
+      if (!PopulatePlatformPost(post))
+      {
+        ELOG("Failed to retrieve values for {} platform post with id {}", post.name, post.id);
+        continue;
+      }
+
       posts.emplace_back(std::move(post));
       map.clear();
     }
@@ -461,38 +468,53 @@ Platform::ProcessPlatform()
   else
   if (timer.active() && timer.expired())
   {
-    for (auto& platform_request : m_platform_map)
-    if (platform_request.second.second == PlatformPostState::PROCESSING)
-    {
-      platform_request.second.second = PlatformPostState::FAILURE;
-      Update(platform_request.second.first, PLATFORM_STATUS_FAILURE);
-      m_errors++;
-      m_pending--;
-    }
+    fail_pending_posts();
     timer.stop();
   }
 
   if (IsProcessingPlatform())
     return KLOG("Platform requests are still being processed: {}", get_pending_reqs());
 
-  for (auto&& platform_post : FetchPendingPlatformPosts())
+  for (const auto& post : FetchPendingPlatformPosts())
   {
-    KLOG("Processing platform post\nPlatform: {}\nID: {}\nUser: {}\nContent: {}",
-          platform_post.name, platform_post.id, platform_post.user, platform_post.content);
-
-    if (const platform_key_t key{platform_post.pid, platform_post.id}; m_platform_map.find(key) == m_platform_map.end())
+    KLOG("Processing post {} for {} by {}", post.name, post.id, post.user);
+    if (insert_or_update(post))
     {
-      if (!PopulatePlatformPost(platform_post))
-      {
-        ELOG("Failed to retrieve values for {} platform post with id {}", platform_post.name, platform_post.id);
-        return;
-      }
-
-      m_platform_map[key] = {platform_post, PlatformPostState::PROCESSING};
-      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, platform_post.GetPayload());
+      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, post.GetPayload());
       m_pending++;
     }
   }
+}
+//--------------------------------------------------------------------------------------
+bool Platform::insert_or_update(const PlatformPost& p)
+{
+  const platform_key_t key{p.pid, p.id};
+  if (auto it = m_platform_map.find(key); it->second.second == PlatformPostState::PROCESSING)
+  {
+    WLOG("Platform is already processing {} for {}", p.id, p.name);
+    return false;
+  }
+  else
+  if (it->second.second == PlatformPostState::FAILURE)
+  {
+    DLOG("Post previously failed. Retrying");
+    it->second.second == PlatformPostState::PROCESSING;
+    return true;
+  }
+  m_platform_map[key] = {p, PlatformPostState::PROCESSING};
+  return true;
+}
+//-------------------------------------------------------------------------------------
+void Platform::fail_pending_posts()
+{
+  for (auto&& post : m_platform_map)
+    if (post.second.second == PlatformPostState::PROCESSING)
+    {
+      post.second.second = PlatformPostState::FAILURE;
+      Update(post.second.first, PLATFORM_STATUS_FAILURE);
+      m_errors++;
+      m_pending--;
+    }
 }
 //-------------------------------------------------------------------------------------
 bool Platform::UserExists(const std::string& pid, const std::string& name)

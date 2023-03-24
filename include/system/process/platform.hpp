@@ -86,6 +86,8 @@ bool                      UserExists(const std::string& pid, const std::string& 
 std::string               AddUser(const std::string& pid, const std::string& name, const std::string& type
 = "default");
 std::string               GetUID(const std::string& pid, const std::string& name);
+bool                      insert_or_update(const PlatformPost&);
+void                      fail_pending_posts();
 
 // Members
 Database::KDB       m_db;
