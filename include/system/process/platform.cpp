@@ -300,7 +300,7 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
     if (it != m_platform_map.end())
     {
       KLOG("Completed {} platform request {}", post.name, post.id);
-      it->second.second = PlatformPostState::SUCCESS;
+      m_platform_map.erase(it);
       m_posted++;
       m_pending--;
     }
