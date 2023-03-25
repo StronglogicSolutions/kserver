@@ -285,7 +285,7 @@ QueryValues select(std::string table, Fields fields,
   }
 
   std::string update(std::string table, Fields fields, Values values,
-                     QueryFilter filter, std::string returning = "id")
+                     QueryFilter filter, std::string returning = "id") const
   {
   try
   {
@@ -343,7 +343,7 @@ QueryValues select(std::string table, Fields fields,
     return "";
   }
 
-  bool insert(std::string table, Fields fields, Values values)
+  bool insert(std::string table, Fields fields, Values values) const
   {
     try
     {
@@ -371,7 +371,7 @@ QueryValues select(std::string table, Fields fields,
   }
 
   std::string insert(std::string table, Fields fields, Values values,
-                     std::string returning)
+                     std::string returning) const
   {
     try
     {

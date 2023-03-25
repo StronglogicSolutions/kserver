@@ -7,7 +7,10 @@
 #include "server/types.hpp"
 
 namespace kiq {
-std::string SavePlatformEnv(const PlatformPost& post);
+using post_t  = PlatformPost;
+using posts_t = std::vector<PlatformPost>;
+
+std::string SavePlatformEnv(const post_t& post);
 bool        PopulatePost(PlatformPost& post);
 
 static const std::vector<std::string> PLATFORM_KEYS{
@@ -60,39 +63,42 @@ using platform_key_t = std::pair<std::string, std::string>;
 class Platform
 {
 public:
-explicit Platform(SystemEventcallback fn);
-bool                      SavePlatformPost(std::vector<std::string> payload);
-void                      OnPlatformError(const std::vector<std::string>& payload);
-void                      ProcessPlatform();
-std::vector<PlatformPost> Fetch(bool pending = false) const;
-void                      FetchPosts() const;
-std::string               Status() const;
-std::string               GetPlatform(const std::string& pid);
-std::string               GetPlatformID(const std::string& name);
-std::string               GetPlatformID(uint32_t mask);
-std::string               GetUser  (const std::string& uid, const std::string& pid = "", bool use_default = false) const;
+  explicit Platform(SystemEventcallback fn);
+  bool                      SavePlatformPost        (post_t, const std::string& status = constants::PLATFORM_POST_COMPLETE) const;
+  bool                      SavePlatformPost        (std::vector<std::string>);
+  void                      OnPlatformError         (const std::vector<std::string>&);
+  void                      ProcessPlatform         ();
+  posts_t                   Fetch                   (bool pending = false)                                                  const;
+  void                      FetchPosts              ()                                                                      const;
+  std::string               Status                  ()                                                                      const;
+  std::string               GetPlatform             (const std::string&)                                                    const;
+  std::string               GetPlatformID           (const std::string&)                                                    const;
+  std::string               GetPlatformID           (uint32_t)                                                              const;
+  std::string               GetUser                 (const std::string&, const std::string& pid = "",
+                                                     bool  use_default = false)                                             const;
 
 private:
-std::vector<std::string>  FetchRepostIDs(const std::string& pid);
-std::vector<PlatformPost> FetchPendingPlatformPosts() const;
-std::vector<PlatformPost> ParsePlatformPosts(QueryValues&& result) const;
-bool                      SavePlatformPost(PlatformPost       post,
-                                           const std::string& status = constants::PLATFORM_POST_COMPLETE);
-const std::vector<PlatformPost> MakeAffiliatePosts(const PlatformPost& post);
-bool                      Update(const PlatformPost& post, const std::string& status);
-bool                      PostAlreadyExists(const PlatformPost& post);
-bool                      IsProcessingPlatform();
-bool                      UserExists(const std::string& pid, const std::string& name);
-std::string               AddUser(const std::string& pid, const std::string& name, const std::string& type
-= "default");
-std::string               GetUID(const std::string& pid, const std::string& name);
+  std::string               GetUID                   (const std::string&, const std::string&)                               const;
+  void                      print_pending            ()                                                                     const;
+  std::vector<std::string>  FetchRepostIDs           (const std::string&)                                                   const;
+  posts_t                   FetchPendingPlatformPosts()                                                                     const;
+  posts_t                   ParsePlatformPosts       (QueryValues&&)                                                        const;
+  const posts_t             MakeAffiliatePosts       (const post_t&)                                                        const;
+  bool                      Update                   (const post_t&, const std::string&)                                    const;
+  bool                      PostAlreadyExists        (const post_t&)                                                        const;
+  bool                      IsProcessingPlatform     ();
+  bool                      UserExists               (const std::string&, const std::string&)                               const;
+  std::string               AddUser                  (const std::string&, const std::string&,
+                                                      const std::string& type = "default")                                  const;
+  bool                      insert_or_update         (const post_t&);
+  void                      fail_pending_posts       ();
+  bool                      complete_post            (const post_t&);
 
-// Members
-Database::KDB       m_db;
-PlatformRequestMap  m_platform_map;
-SystemEventcallback m_event_callback;
-unsigned int        m_pending{0};
-unsigned int        m_errors {0};
-unsigned int        m_posted {0};
+  Database::KDB       m_db;
+  PlatformRequestMap  m_platform_map;
+  SystemEventcallback m_event_callback;
+  unsigned int        m_pending{0};
+  unsigned int        m_errors {0};
+  unsigned int        m_posted {0};
 };
 } // ns kiq
