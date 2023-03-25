@@ -156,7 +156,7 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const post_t& post)
  * 4. If reposting platforms have affiliate users, save posts for them too
  * 5. If original platform has affiliate users, save posts for them too.             */
 //-------------------------------------------------------------------------------------
-bool Platform::SavePlatformPost(PlatformPost post, const std::string& status) const
+bool Platform::SavePlatformPost(post_t post, const std::string& status) const
 {
   auto GetValidUser = [this](auto o_pid, auto name) { return (GetPlatform(o_pid) == "TW Search") ? config::Platform::default_user() : name; };
 
@@ -416,7 +416,7 @@ bool Platform::complete_post(const post_t& post)
   return false;
 }
 //-------------------------------------------------------------------------------------
-bool Platform::UserExists(const std::string& pid, const std::string& name)
+bool Platform::UserExists(const std::string& pid, const std::string& name) const
 {
   return !m_db.select("platform_user", {"id"}, CreateFilter("pid", pid, "name", name)).empty();
 }
