@@ -217,6 +217,7 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
 bool Platform::SavePlatformPost(std::vector<std::string> payload)
 {
   PlatformPost post = PlatformPost::FromPayload(payload);
+  post.pid = GetPlatformID(post.name);
   if (!complete_post(post))
     ELOG("Failed to update platform post in processing queue");
 
@@ -367,10 +368,18 @@ Platform::print_pending() const
     return s;
   };
   KLOG("Platform requests are still being processed: {}", get_pending_reqs());
-}bool Platform::insert_or_update(const post_t& p)
+}
+//--------------------------------------------------------------------------------------
+bool Platform::insert_or_update(const post_t& p)
 {
   const platform_key_t key{p.pid, p.id};
-  if (auto it = m_platform_map.find(key); it->second.second == PlatformPostState::PROCESSING)
+  if (auto it = m_platform_map.find(key); it == m_platform_map.end())
+  {
+    m_platform_map[key] = {p, PlatformPostState::PROCESSING};
+    return true;
+  }
+  else
+  if (it->second.second == PlatformPostState::PROCESSING)
   {
     WLOG("Platform is already processing {} for {}", p.id, p.name);
     return false;
@@ -382,7 +391,7 @@ Platform::print_pending() const
     it->second.second == PlatformPostState::PROCESSING;
     return true;
   }
-  m_platform_map[key] = {p, PlatformPostState::PROCESSING};
+
   return true;
 }
 //-------------------------------------------------------------------------------------
