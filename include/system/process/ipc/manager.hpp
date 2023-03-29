@@ -5,6 +5,7 @@
 #include "config/config_parser.hpp"
 #include "worker.hpp"
 #include "client.hpp"
+#include "server/event_handler.hpp"
 
 namespace kiq {
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
@@ -25,7 +26,7 @@ class IPCManager : public IPCBrokerInterface
 {
 public:
 
-IPCManager(SystemCallback_fn_ptr system_event_fn);
+IPCManager();
 ~IPCManager() final;
 bool ReceiveEvent(int32_t event, const std::vector<std::string>& args);
 void close(int32_t fd);
@@ -37,11 +38,13 @@ private:
   void loop();
   void delay_event(int32_t event, const std::vector<std::string>& args);
 
+  using evt = event_handler;
+
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
-  {constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},
-  {constants::IPC_PLATFORM_REQUEST, [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_REQUEST,  GetRequest(static_cast<platform_request*>(it.get()))); }},
-  {constants::IPC_PLATFORM_INFO   , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_INFO,     GetInfo   (static_cast<platform_info*>   (it.get()))); }},
-  {constants::IPC_PLATFORM_ERROR  , [&, this](auto it) { m_system_event_fn(SYSTEM_EVENTS__PLATFORM_ERROR,    GetError  (static_cast<platform_error*>  (it.get()))); }},
+  {constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},
+  {constants::IPC_PLATFORM_REQUEST, [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_REQUEST,  GetRequest(static_cast<platform_request*>(it.get()))); }},
+  {constants::IPC_PLATFORM_INFO   , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_INFO,     GetInfo   (static_cast<platform_info*>   (it.get()))); }},
+  {constants::IPC_PLATFORM_ERROR  , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_ERROR,    GetError  (static_cast<platform_error*>  (it.get()))); }},
   {constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
   {constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
 
@@ -49,7 +52,6 @@ private:
 
   workers_t             m_workers;
   client_handlers_t     m_clients;
-  SystemCallback_fn_ptr m_system_event_fn;
   std::mutex            m_mutex;
   bool                  m_req_ready;
   session_daemon        m_daemon;

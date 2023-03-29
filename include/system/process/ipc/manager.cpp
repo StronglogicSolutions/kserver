@@ -21,9 +21,8 @@ namespace kiq
       std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)), args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX));
   };
   //*******************************************************************//
-  IPCManager::IPCManager(SystemCallback_fn_ptr system_event_fn)
-      : m_system_event_fn(system_event_fn),
-        m_req_ready(true),
+  IPCManager::IPCManager()
+      : m_req_ready(true),
         m_context(1),
         m_public_(m_context, ZMQ_ROUTER),
         m_backend_(m_context, ZMQ_DEALER)
