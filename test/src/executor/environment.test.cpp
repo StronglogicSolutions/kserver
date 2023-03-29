@@ -8,12 +8,12 @@ TEST(EnvironmentTest, DISABLED_ParseFlagsFromString) {
   std::string env_file{"data/mock_v_2.env"};
 
   kiq::Task test_task{
-    .execution_mask = 16,
+    .mask = 16,
     .datetime = "1590776872",
     .file = true,
     .files = {kiq::FileInfo{std::pair<std::string, std::string>{"testfile.txt", "1590776872"}}},
-    .envfile = env_file,
-    .execution_flags = flag_string,
+    .env = env_file,
+    .flags = flag_string,
     .task_id   = 0, // default initialized value in Task struct
     .completed = 0,
     .recurring = kiq::Constants::Recurring::YEARLY,

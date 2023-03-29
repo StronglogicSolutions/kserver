@@ -100,12 +100,12 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
   if (!task_ptr)
   {
     return Task{
-      .execution_mask  = std::stoi(mask),
+      .mask  = std::stoi(mask),
       .datetime        = datetime,
       .file            = (!task_files.empty()),
       .files           = task_files,
-      .envfile         = env_filename,
-      .execution_flags = GENERIC_TASK_EXECUTION_FLAGS,
+      .env         = env_filename,
+      .flags = GENERIC_TASK_EXECUTION_FLAGS,
       .task_id         = 0,
       .completed       = 0,
       .recurring       = std::stoi(recurring),
@@ -114,12 +114,12 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
   }
   else
   {
-    task_ptr->execution_mask  = std::stoi(mask);
+    task_ptr->mask  = std::stoi(mask);
     task_ptr->datetime        = datetime;
     task_ptr->file            = (!task_files.empty());
     task_ptr->files           = task_files;
-    task_ptr->envfile         = env_filename;
-    task_ptr->execution_flags = GENERIC_TASK_EXECUTION_FLAGS,
+    task_ptr->env         = env_filename;
+    task_ptr->flags = GENERIC_TASK_EXECUTION_FLAGS,
     task_ptr->recurring       = std::stoi(recurring);
     task_ptr->notify          = notify.compare("1") == 0;
 

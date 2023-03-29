@@ -5,6 +5,7 @@
 
 namespace kiq
 {
+using Payload = std::vector<std::string>;
 static flatbuffers::FlatBufferBuilder builder(1024);
 //----------------------------------------------------------------------------------
 Controller::Controller()
@@ -78,13 +79,13 @@ void Controller::Initialize(ProcessCallbackFn process_callback_fn,
   const bool scheduled_task{true};
   m_executor = new ProcessExecutor();
   m_executor->setEventCallback(
-    [this, scheduled_task](const std::string&  result,
-                            const int32_t&     mask,
-                            const std::string& id,
-                            const int32_t&     client_socket_fd,
-                            const bool&        error)
+    [this, scheduled_task](const std::string& result,
+                           const int32_t&     mask,
+                           const std::string& id,
+                           const int32_t&     fd,
+                           const bool&        error)
     {
-      onProcessComplete(result, mask, id, client_socket_fd, error, scheduled_task);
+      onProcessComplete(result, mask, id, fd, error, scheduled_task);
     }
   );
 
@@ -108,7 +109,7 @@ void Controller::Initialize(ProcessCallbackFn process_callback_fn,
           SystemUtils::SendMail(config::Email::notification(), message);
           m_active = false;
         }
-          std::this_thread::sleep_for(std::chrono::minutes(1));
+        std::this_thread::sleep_for(std::chrono::minutes(1));
       }
     }
   });
@@ -157,7 +158,7 @@ void Controller::InfiniteLoop()
       {
         const auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
         scheduled_times += formatted_time + " ";
-        KLOG("Task - Time: {} - Mask: {}\nEnv: {}", formatted_time, task.execution_mask, task.envfile);
+        KLOG("Task - Time: {} - Mask: {}\nEnv: {}", formatted_time, task.mask, task.env);
       }
 
       evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
@@ -210,58 +211,54 @@ void Controller::operator()(const KOperation&               op,
                             const int32_t&                  client_fd,
                             const std::string&              uuid)
 {
+  using namespace FileUtils;
+
   if (op != "Schedule" || argv.empty()) return;
 
   const auto mask = argv.at(TaskIndexes::MASK);
   const auto application = ProcessExecutor::GetAppInfo(std::stoi(mask));
-
   KLOG("Handling schedule request application {} with mask {}", application.name, mask);
 
   if (application.is_valid())
   {
-    Task task{};
+    Task tk;
     if (application.name == Name::INSTAGRAM)
     {
       KLOG("Instagram Task requested");
       IGTaskHandler ig_task_handler{};
-      ig_task_handler.prepareTask(argv, uuid, &task);
+      ig_task_handler.prepareTask(argv, uuid, &tk);
     }
     else
     {
       KLOG("Generic Task requested");
       GenericTaskHandler generic_task_handler{};
-      generic_task_handler.prepareTask(argv, uuid, &task);
+      generic_task_handler.prepareTask(argv, uuid, &tk);
     }
 
-    for (const auto &file_info : task.files)
+    for (const auto& info : tk.files)
     {
-      KLOG("Task file: {}", file_info.first);
-      std::vector<std::string> callback_args{file_info.first, file_info.second, uuid};
+      KLOG("Task file: {}", info.first);
+      Payload args{info.first, info.second, uuid};
 
-      if (task.files.size() == 1) callback_args.push_back("final file");
+      if (tk.files.size() == 1) args.push_back("final file");
 
-      evt::instance()(client_fd, SYSTEM_EVENTS__FILE_UPDATE, callback_args);
+      evt::instance()(client_fd, SYSTEM_EVENTS__FILE_UPDATE, args);
     }
 
-    if (task.validate())
+    if (tk.validate())
     {
       KLOG("Sending task request to Scheduler");
 
-      auto id = m_scheduler.schedule(task);
+      auto id = m_scheduler.schedule(tk);
       if (!id.empty())
       {
-        std::vector<std::string> callback_args{};
-        callback_args.reserve((5 + task.files.size()));
-        callback_args.insert(callback_args.end(), {
-          uuid, id,                            // UUID and database ID
-          std::to_string(task.execution_mask), // Application mask
-          FileUtils::ReadEnvFile(task.envfile),// Environment file
-          std::to_string(task.files.size())    // File number
-        });
+        Payload args;
+        args.insert(args.end(), {uuid, id,std::to_string(tk.mask), ReadEnvFile(tk.env), std::to_string(tk.files.size())});
 
-        for (auto&& file : task.files) callback_args.emplace_back(file.first);
+        for (auto&& file : tk.files)
+          args.push_back(file.first);
 
-        evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, callback_args);
+        evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULER_SUCCESS, args);
       }
       else
         KLOG("Task with UUID {} was validated, but scheduling failed", uuid);
@@ -367,18 +364,17 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
                                       const std::string& message)
 {
   using namespace Request;
-  using Payload = std::vector<std::string>;
-  auto ReadTask = [](const Task& task, Payload& payload)
+  auto ReadTask = [](const Task& tk, Payload& payload)
   {
-    payload.emplace_back(               task.id());
-    payload.emplace_back(               task.name);
-    payload.emplace_back(               task.datetime);
-    payload.emplace_back(               task.execution_flags);
-    payload.emplace_back(std::to_string(task.completed));
-    payload.emplace_back(std::to_string(task.recurring));
-    payload.emplace_back(std::to_string(task.notify));
-    payload.emplace_back(               task.runtime);
-    payload.emplace_back(               task.filesToString());
+    payload.emplace_back(               tk.id());
+    payload.emplace_back(               tk.name);
+    payload.emplace_back(               tk.datetime);
+    payload.emplace_back(               tk.flags);
+    payload.emplace_back(std::to_string(tk.completed));
+    payload.emplace_back(std::to_string(tk.recurring));
+    payload.emplace_back(std::to_string(tk.notify));
+    payload.emplace_back(               tk.runtime);
+    payload.emplace_back(               tk.filesToString());
   };
 
   Payload     args = GetArgs(message);
@@ -392,9 +388,8 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     {
       KApplication application = Registrar::args_to_application(args);
         evt::instance()(client_fd,
-          (m_registrar.find(Registrar::args_to_application(args))) ?
-            SYSTEM_EVENTS__REGISTRAR_SUCCESS :
-            SYSTEM_EVENTS__REGISTRAR_FAIL,
+          (m_registrar.find(Registrar::args_to_application(args))) ? SYSTEM_EVENTS__REGISTRAR_SUCCESS :
+                                                                     SYSTEM_EVENTS__REGISTRAR_FAIL,
           application.vector());
       break;
     }
@@ -445,7 +440,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
 
       try
       {
-        for (const auto& task : tasks) ReadTask(task, payload);
+        for (const auto& tk : tasks) ReadTask(tk, payload);
       }
       catch(const std::exception& e)
       {
@@ -467,7 +462,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       Task               recvd_task   = args_to_task(args);
       const std::string& task_id      = recvd_task.id();
       bool               save_success = m_scheduler.update(recvd_task);
-      bool               env_updated  = m_scheduler.updateEnvfile(task_id, recvd_task.envfile);
+      bool               env_updated  = m_scheduler.updateEnvfile(task_id, recvd_task.env);
 
       evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULER_UPDATE, {task_id, (save_success) ? "Success" : "Failure"});
 
@@ -481,7 +476,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       Task task = m_scheduler.GetTask(id);
       if (task.validate())
         evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH_TOKENS,
-          DataUtils::VAbsorb(std::move(FileUtils::ReadFlagTokens(task.envfile, task.execution_flags)),
+          DataUtils::VAbsorb(std::move(FileUtils::ReadFlagTokens(task.env, task.flags)),
                                     std::move(id)));
       break;
     }
@@ -498,13 +493,13 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
 
       payload.emplace_back(std::to_string(tasks.size()));
 
-      for (auto&& task : tasks)
+      for (auto&& tk : tasks)
       {
-        payload.emplace_back(task.id());
-        for (const auto& flag : FileUtils::ExtractFlagTokens(task.execution_flags))
+        payload.emplace_back(tk.id());
+        for (const auto& flag : FileUtils::ExtractFlagTokens(tk.flags))
         {
           payload.emplace_back(flag);
-          payload.emplace_back(FileUtils::ReadEnvToken(task.envfile, flag));
+          payload.emplace_back(FileUtils::ReadEnvToken(tk.env, flag));
         }
       }
 
@@ -633,7 +628,7 @@ void Controller::onProcessComplete(const std::string& value,
           status = task_it->recurring ? Completed::SCHEDULED :
                                         Completed::SUCCESS;
           if (!m_scheduler.processTriggers(&*task_it))
-            KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id(), task_it->execution_mask);
+            KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id(), task_it->mask);
           m_ps_exec_count++;
         }
 

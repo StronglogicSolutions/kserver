@@ -2,12 +2,6 @@
 
 namespace kiq
 {
-// evt::evt(KServer* server)
-// : m_server(server)
-// {
-//   s_instance_ptr_ = this;
-// }
-//------------------------------------------------------------
 void
 evt::operator()(int32_t fd, int32_t event, const event_payload_t& payload)
 {
@@ -93,7 +87,7 @@ evt::on_scheduler_success (int32_t client_fd, int32_t event, const event_payload
 void
 evt::on_scheduler_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-
+  WLOG("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void
@@ -187,25 +181,25 @@ evt::on_platform_update     (int32_t client_fd, int32_t event, const event_paylo
 void
 evt::on_process_complete    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-
+  WLOG("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void
 evt::on_scheduler_request   (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-
+  WLOG("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void
 evt::on_trigger_add_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-
+  WLOG("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void
 evt::on_trigger_add_fail    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-
+  WLOG("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void

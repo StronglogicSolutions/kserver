@@ -88,8 +88,8 @@ virtual void setTask(Task task) override {
  */
 virtual bool prepareRuntime() override {
   if (m_task.validate()) {
-    std::string  envfile = FileUtils::ReadEnvFile(m_task.envfile, true);
-    KApplication app     = get_app_info(m_task.execution_mask);
+    std::string  envfile = FileUtils::ReadEnvFile(m_task.env, true);
+    KApplication app     = get_app_info(m_task.mask);
 
     m_state.path = app.path;
 
@@ -97,7 +97,7 @@ virtual bool prepareRuntime() override {
     for (const auto& runtime_arg : StringUtils::Split(parseExecArguments(envfile), ' '))
       m_state.argv.emplace_back(StringUtils::SanitizeArg(runtime_arg));
 
-    for (const auto& runtime_flag : exec_flags_to_vector(m_task.execution_flags)) {
+    for (const auto& runtime_flag : exec_flags_to_vector(m_task.flags)) {
       auto arg = parseNamedArgument(runtime_flag, envfile);
       if (!arg.empty()) m_state.argv.emplace_back(arg);
     }
