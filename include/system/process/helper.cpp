@@ -21,7 +21,7 @@ bool HasPendingTasks(TaskWrapper* root)
 TaskWrapper* FindParent(const TaskWrapper* node, const int32_t& mask)
 {
   auto parent = node->parent;
-  while (parent && parent->task.execution_mask != mask)
+  while (parent && parent->task.mask != mask)
     parent = parent->parent;
   return parent;
 }
@@ -87,15 +87,15 @@ Task args_to_task(std::vector<std::string> args)
     if (mask != NO_APP_MASK)
     {
       task.task_id         = std::stoi(args.at(constants::PAYLOAD_ID_INDEX));
-      task.execution_mask  = mask;
+      task.mask  = mask;
       task.datetime        = args.at(constants::PAYLOAD_TIME_INDEX);
-      task.execution_flags = args.at(constants::PAYLOAD_FLAGS_INDEX);
+      task.flags = args.at(constants::PAYLOAD_FLAGS_INDEX);
       task.completed       = std::stoi(args.at(constants::PAYLOAD_COMPLETED_INDEX));
       task.recurring       = std::stoi(args.at(constants::PAYLOAD_RECURRING_INDEX));
       task.notify          = args.at(constants::PAYLOAD_NOTIFY_INDEX).compare("1") == 0;
       task.runtime         = StripSQuotes(args.at(constants::PAYLOAD_RUNTIME_INDEX));
       // task.filenames = args.at(constants::PAYLOAD_ID_INDEX;
-      task.envfile         = args.at(constants::PAYLOAD_ENVFILE_INDEX);
+      task.env         = args.at(constants::PAYLOAD_ENVFILE_INDEX);
       KLOG("Can't parse files from schedule payload. Must be implemented");
     }
   }

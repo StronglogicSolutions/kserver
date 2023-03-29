@@ -169,8 +169,8 @@ std::string Scheduler::schedule(Task task)
   std::string  id;
   const auto   table {"schedule"};
   const Fields fields{"time", "mask", "flags", "envfile", "recurring", "notify"};
-  const Values values{task.datetime, std::to_string(task.execution_mask), task.execution_flags,
-                      task.envfile,  std::to_string(task.recurring),      std::to_string(task.notify)};
+  const Values values{task.datetime, std::to_string(task.mask), task.flags,
+                      task.env,  std::to_string(task.recurring),      std::to_string(task.notify)};
 
   if (task.validate())
   {
@@ -212,13 +212,13 @@ Task Scheduler::parseTask(QueryValues&& result)
   Task task{};
   for (const auto &v : result)
     if (v.first == Field::MASK)
-      task.execution_mask = std::stoi(v.second);
+      task.mask = std::stoi(v.second);
     else
     if (v.first == Field::FLAGS)
-      task.execution_flags = v.second;
+      task.flags = v.second;
     else
     if (v.first == Field::ENVFILE)
-      task.envfile = v.second;
+      task.env = v.second;
     else
     if (v.first == Field::TIME)
       task.datetime = v.second;
@@ -242,7 +242,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
 {
   const std::string files_field{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
   int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
-  std::string mask, flags, envfile, time, filenames;
+  std::string mask, flags, env, time, filenames;
   std::vector<Task> tasks;
   bool checked_for_files{false};
   std::string TIME_FIELD = (is_recurring) ? Field::REC_TIME : Field::TIME;
@@ -253,7 +253,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
     else
     if (v.first == Field::FLAGS)     flags = v.second;
     else
-    if (v.first == Field::ENVFILE)   envfile = v.second;
+    if (v.first == Field::ENVFILE)   env = v.second;
     else
     if (v.first == TIME_FIELD)       time = v.second;
     else
@@ -267,7 +267,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
     else
     if (v.first == files_field) {    filenames = v.second; checked_for_files = true; }
 
-    if (!envfile.empty() && !flags.empty() && !time.empty() &&
+    if (!env.empty() && !flags.empty() && !time.empty() &&
         !mask.empty()    && completed != NO_COMPLETED_VALUE &&
         id > 0           && recurring > -1 && notify > -1)
     {
@@ -282,25 +282,25 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
         if (recurring != Constants::Recurring::NO)
           time = TimeUtils::time_as_today(time);
         tasks.push_back(Task{
-            .execution_mask  = std::stoi(mask),
-            .datetime        = time,
-            .file            = true,
-            .files           = {},
-            .envfile         = envfile,
-            .execution_flags = flags,
-            .task_id         = id,
-            .completed       = completed,
-            .recurring       = recurring,
-            .notify          = (notify == 1),
-            .runtime         = FileUtils::ReadRunArgs(envfile), // ⬅ set from DB?
-            .filenames       = StringUtils::Split(filenames, ' '),
-            .name            = m_app_map.at(std::stoi(mask))});
+            .mask         = std::stoi(mask),
+            .datetime     = time,
+            .file         = true,
+            .files        = {},
+            .env          = env,
+            .flags        = flags,
+            .task_id      = id,
+            .completed    = completed,
+            .recurring    = recurring,
+            .notify       = (notify == 1),
+            .runtime      = FileUtils::ReadRunArgs(env), // ⬅ set from DB?
+            .filenames    = StringUtils::Split(filenames, ' '),
+            .name         = m_app_map.at(std::stoi(mask))});
         id                = 0;
         recurring         = -1;
         notify            = -1;
         completed         = NO_COMPLETED_VALUE;
         checked_for_files = false;
-        DataUtils::ClearArgs(filenames, envfile, flags, time, mask);
+        DataUtils::ClearArgs(filenames, env, flags, time, mask);
       }
     }
   }
@@ -504,7 +504,7 @@ bool Scheduler::update(Task task)
                     CreateFilter("sid", task.id()));
 
   return !m_kdb.update("schedule", {"mask", "time", "flags", "completed", "recurring", "notify", "runtime"},
-                        {std::to_string(task.execution_mask), task.datetime, task.execution_flags, std::to_string(task.completed),
+                        {std::to_string(task.mask), task.datetime, task.flags, std::to_string(task.completed),
                         std::to_string(task.recurring), std::to_string(task.notify), task.runtime},
                         CreateFilter("id", task.id()),
                         "id")
@@ -568,7 +568,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
         {
           TaskWrapper wrap = tup.second.second;
           const auto& task = wrap.task;
-          return (task.execution_mask == mask && task.GetToken(constants::DESCRIPTION_KEY) == data);
+          return (task.mask == mask && task.GetToken(constants::DESCRIPTION_KEY) == data);
         });
         if (match != map.end())
           continue;
@@ -639,8 +639,8 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   const auto& resp_id   = applications.second;
   const auto  init_task = FindTask(init_id);
   const auto  resp_task = FindTask(resp_id);
-  const auto& init_mask = init_task.execution_mask;
-  const auto& resp_mask = resp_task.execution_mask;
+  const auto& init_mask = init_task.mask;
+  const auto& resp_mask = resp_task.mask;
         auto& t_wrapper = m_postexec_map.at(resp_id).second;
 
   if (event.payload.empty())
@@ -703,7 +703,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     const auto resp_node = map.at(resp_id).second;
     const auto init_root = FindMasterRoot(&init_node);
     const auto resp_root = FindMasterRoot(&resp_node);
-    if (init_root == resp_root && GetAppName(init_root->task.execution_mask) == TW_RESEARCH_APP)
+    if (init_root == resp_root && GetAppName(init_root->task.mask) == TW_RESEARCH_APP)
       AnalyzeTW(*(init_root), init_node, resp_node);
     else
       KLOG("All tasks originating from {} have completed", init_root->id);
@@ -758,7 +758,7 @@ bool Scheduler::OnProcessOutput(const std::string& output, const int32_t mask, c
 {
   auto GetValidArgument = [this](const auto &id)
   {
-    const auto value = FileUtils::ReadEnvToken(GetTask(id).envfile, constants::HEADER_KEY);
+    const auto value = FileUtils::ReadEnvToken(GetTask(id).env, constants::HEADER_KEY);
     return (value != constants::GENERIC_HEADER) ? value : "";
   };
 

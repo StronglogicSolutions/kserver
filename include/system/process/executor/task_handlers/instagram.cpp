@@ -52,24 +52,24 @@ Task IGTaskHandler::prepareTask(const std::vector<std::string>& argv,
 
   if (!task_ptr)
     return Task{
-      .execution_mask = std::stoi(mask),
+      .mask = std::stoi(mask),
       .datetime = datetime,
       .file = (!task_files.empty()),
       .files = task_files,
-      .envfile = env_filename,
-      .execution_flags = // TODO: this should come from the database
+      .env = env_filename,
+      .flags = // TODO: this should come from the database
         "--description=$DESCRIPTION --hashtags=$HASHTAGS "
         "--requested_by=$REQUESTED_BY --media=$FILE_TYPE "
         "--requested_by_phrase=$REQUESTED_BY_PHRASE "
         "--promote_share=$PROMOTE_SHARE --link_bio=$LINK_BIO "
         "--header=$HEADER --user=$USER"};
 
-  task_ptr->execution_mask = std::stoi(mask);
+  task_ptr->mask = std::stoi(mask);
   task_ptr->datetime = datetime;
   task_ptr->file = (!task_files.empty());
   task_ptr->files = task_files;
-  task_ptr->envfile = env_filename;
-  task_ptr->execution_flags =
+  task_ptr->env = env_filename;
+  task_ptr->flags =
     "--description=$DESCRIPTION --hashtags=$HASHTAGS "
     "--requested_by=$REQUESTED_BY --media=$FILE_TYPE "
     "--requested_by_phrase=$REQUESTED_BY_PHRASE "

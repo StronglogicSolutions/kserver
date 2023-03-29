@@ -24,7 +24,8 @@
 #include "server/types.hpp"
 #include "system/cron.hpp"
 
-namespace kiq {
+namespace kiq
+{
 enum DevTest {
   Schedule = 1,
   ExecuteTask = 2
@@ -46,10 +47,10 @@ class Controller
 
  public:
   Controller();
-  Controller(Controller &&r);
-  Controller(const Controller &r);
-  Controller &operator=(const Controller &handler);
-  Controller &operator=(Controller &&handler);
+  Controller(Controller&& r);
+  Controller(const Controller& r);
+  Controller &operator=(const Controller& handler);
+  Controller &operator=(Controller&& handler);
   ~Controller();
 
 
@@ -65,29 +66,28 @@ class Controller
                                                  const int32_t&                  client_socket_fd,
                                                  const std::string&              uuid);
   std::vector<KApplication> CreateSession();
-  void                      Execute             (const uint32_t&    mask,
-                                                 const std::string& request_id,
-                                                 const int32_t&     client_socket_fd);
+  void                      Execute             (const uint32_t&                 mask,
+                                                 const std::string&              request_id,
+                                                 const int32_t&                  client_socket_fd);
   void                      ProcessSystemEvent  (const int32_t&                  event,
                                                  const std::vector<std::string>& payload,
                                                  const int32_t&                  id = 0);
-  void                      ProcessClientRequest(const int32_t&     client_fd,
-                                                 const std::string& message);
+  void                      ProcessClientRequest(const int32_t&                  client_fd,
+                                                 const std::string&              message);
 
  private:
-  void onProcessComplete(const std::string& value,
-                         const int32_t&     mask,
-                         const std::string& id,
-                         const int32_t&     client_socket_fd,
-                         const bool&        error,
-                         const bool&        scheduled_task = false);
+  void onProcessComplete(const std::string&              value,
+                         const int32_t&                  mask,
+                         const std::string&              id,
+                         const int32_t&                  client_socket_fd,
+                         const bool&                     error,
+                         const bool&                     scheduled_task = false);
   void onSchedulerEvent (const int32_t&                  client_socket_fd,
                          const int32_t&                  event,
                          const std::vector<std::string>& args = {});
   std::string Status() const;
 
   ProcessCallbackFn                 m_process_event;
-  // SystemCallbackFn                  m_system_event;
   StatusCallbackFn                  m_server_status;
   ClientValidateFn                  m_validate_client;
 

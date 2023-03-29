@@ -178,7 +178,7 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task)
     ExecutionState exec_state = environment.get();
     request(
       exec_state.path,
-      task.execution_mask,
+      task.mask,
       client_socket_fd,
       task.id(),
       exec_state.argv,

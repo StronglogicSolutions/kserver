@@ -168,8 +168,7 @@ static const std::vector<std::string> NAMES{
 }  // namespace Completed
 
 namespace Messages {
-static constexpr const char* TASK_ERROR_EMAIL =
-    "Scheduled task ran but returned an error:\n";
+static constexpr const char* TASK_ERROR_EMAIL = "Scheduled task ran but returned an error:\n";
 }
 
 namespace Field {
@@ -189,12 +188,12 @@ using TaskArguments = std::vector<std::string>;
 
 static const uint8_t TASK_PAYLOAD_SIZE{12};
 struct Task {
-int32_t                  execution_mask;
+int32_t                  mask;
 std::string              datetime;
 bool                     file;
 std::vector<FileInfo>    files;
-std::string              envfile;
-std::string              execution_flags;
+std::string              env;
+std::string              flags;
 int32_t                  task_id{0};
 int32_t                  completed;
 int32_t                  recurring;
@@ -210,21 +209,21 @@ std::string id() const
 
 static Task clone_basic(const Task& task, int new_mask = -1, bool recurring = false)
 {
-  Task new_task{};
+  Task new_task;
   new_task.datetime        = task.datetime;
-  new_task.execution_mask  = (new_mask >= 0) ? new_mask : task.execution_mask;
+  new_task.mask            = (new_mask >= 0) ? new_mask : task.mask;
   new_task.file            = task.file;
   new_task.files           = task.files;
-  new_task.execution_flags = task.execution_flags;
+  new_task.flags = task.flags;
   new_task.runtime         = task.runtime;
   new_task.filenames       = task.filenames;
 
   return new_task;
 }
 
-bool validate() {
-  return !datetime.empty() && !envfile.empty() &&
-        !execution_flags.empty();
+bool validate()
+{
+  return (!datetime.empty() && !env.empty() && !flags.empty());
 }
 
 std::vector<std::string> payload()
@@ -233,7 +232,7 @@ std::vector<std::string> payload()
   payload.reserve(8);
   payload.emplace_back(id());
   payload.emplace_back(datetime);
-  payload.emplace_back(execution_flags);
+  payload.emplace_back(flags);
   payload.emplace_back(std::to_string(completed));
   payload.emplace_back(std::to_string(recurring));
   payload.emplace_back(std::to_string(notify));
@@ -246,7 +245,7 @@ std::string toString() const {
   std::string return_string{};
   return_string.reserve(100);
   return_string += "ID: " + id();
-  return_string += "\nMask: " + std::to_string(execution_mask);
+  return_string += "\nMask: " + std::to_string(mask);
   return_string += "\nTime: " + datetime;
   return_string += "\nFiles: " + std::to_string(files.size());
   return_string += "\nCompleted: " + std::to_string(completed);
@@ -270,7 +269,7 @@ std::string filesToString() const
 
 std::string GetToken(const std::string& flag) const
 {
-  return FileUtils::ReadEnvToken(envfile, flag);
+  return FileUtils::ReadEnvToken(env, flag);
 }
 
 friend std::ostream &operator<<(std::ostream &out, const Task &task) {
@@ -282,17 +281,17 @@ friend bool operator!=(const Task& t1, const Task& t2);
 
 friend bool operator==(const Task& t1, const Task& t2) {
   return (
-    t1.completed       == t2.completed       &&
-    t1.datetime        == t2.datetime        &&
-    t1.envfile         == t2.envfile         &&
-    t1.execution_flags == t2.execution_flags &&
-    t1.execution_mask  == t2.execution_mask  &&
-    t1.file            == t2.file            &&
-    t1.files.size()    == t2.files.size()    && // TODO: implement comparison for FileInfo
-    t1.task_id         == t2.task_id         &&
-    t1.recurring       == t2.recurring       &&
-    t1.notify          == t2.notify,
-    t1.runtime         == t1.runtime
+    t1.completed    == t2.completed       &&
+    t1.datetime     == t2.datetime        &&
+    t1.env          == t2.env         &&
+    t1.flags        == t2.flags &&
+    t1.mask         == t2.mask  &&
+    t1.file         == t2.file            &&
+    t1.files.size() == t2.files.size()    && // TODO: implement comparison for FileInfo
+    t1.task_id      == t2.task_id         &&
+    t1.recurring    == t2.recurring       &&
+    t1.notify       == t2.notify,
+    t1.runtime      == t1.runtime
   );
 }
 
@@ -357,7 +356,7 @@ std::string type;
 
 bool complete() const
 {
-  return (!id.empty() && !name.empty() && !type.empty()); // TODO: task_id ?
+  return (!id.empty() && !name.empty() && !type.empty());
 }
 
 void clear()
@@ -403,21 +402,12 @@ static std::vector<FileMetaData> PayloadToMetaData(const std::vector<std::string
 }
 };
 
-std::string AppendExecutionFlag(std::string flag_s, const std::string& flag);
-std::string AsExecutionFlag(const std::string& flag, const std::string& prefix = " ");
-
-  /**
- * parseFileInfo
- *
- * Deduces information about a files sent by a client using KY_GUI
- *
- * @param[in] {std::string} `file_info` The information string
- * @returns {std::vector<FileInfo>} A vector of FileInfo objects
- *
- */
+std::string           AppendExecutionFlag(std::string flag_s, const std::string& flag);
+std::string           AsExecutionFlag(const std::string& flag, const std::string& prefix = " ");
 std::vector<FileInfo> parseFileInfo(std::string file_info);
 
-class TaskHandler {
+class TaskHandler
+{
   public:
     virtual Task prepareTask(const TaskArguments& argv, const std::string& uuid, Task* task = nullptr) = 0;
 };
@@ -477,13 +467,6 @@ const std::string ToString() const
 
 std::vector<std::string> GetPayload() const
 {
-  /**
-   * TODO: Args need to be JSON string:
-   *
-   * const auto  args  = kbot::keleqram::GetArgs(request.args);
-     const auto  dest  = args[0];
-     const auto  type  = args[1];
-  */
   std::vector<std::string> payload{};
   payload.resize(11);
   payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = name;
@@ -503,22 +486,18 @@ std::vector<std::string> GetPayload() const
 
 static PlatformPost FromPayload(const std::vector<std::string>& payload)
 {
-  const std::string& name        = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
-  const std::string& id          = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
-  const std::string& user        = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
-  const std::string& time        = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
-  const std::string& content     = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX);
-  const std::string& urls        = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX);
-  const std::string& repost      = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX);
-  const std::string& method      = payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
-
-
-  const std::string& args        = payload.size() > 8 ? payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX) :
-                                                        "";
-  const std::string& cmd         = payload.size() > 9 ? payload.at(constants::PLATFORM_PAYLOAD_CMD_INDEX) :
-                                                        std::to_string(constants::PLATFORM_DEFAULT_COMMAND);
-  const std::string& status      = payload.size() > 10? payload.at(constants::PLATFORM_PAYLOAD_STATUS_INDEX) :
-                                                        "";
+  const std::string& name    = payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX);
+  const std::string& id      = payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX);
+  const std::string& user    = payload.at(constants::PLATFORM_PAYLOAD_USER_INDEX);
+  const std::string& time    = payload.at(constants::PLATFORM_PAYLOAD_TIME_INDEX);
+  const std::string& content = payload.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX);
+  const std::string& urls    = payload.at(constants::PLATFORM_PAYLOAD_URL_INDEX);
+  const std::string& repost  = payload.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX);
+  const std::string& method  = payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX);
+  const std::string& args    = payload.size() > 8 ? payload.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX) : "";
+  const std::string& cmd     = payload.size() > 9 ? payload.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)  :
+                                                    std::to_string(constants::PLATFORM_DEFAULT_COMMAND);
+  const std::string& status  = payload.size() > 10? payload.at(constants::PLATFORM_PAYLOAD_STATUS_INDEX) : "";
 
   return PlatformPost{
     .pid     = "",

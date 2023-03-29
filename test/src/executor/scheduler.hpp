@@ -25,8 +25,8 @@ TEST(SchedulerTest, ScheduleInvalidTaskReturnsEmptyString) {
   kiq::Scheduler scheduler{std::move(kdb)};
 
   kiq::Task generic_task = generic_task_hander.prepareTask(argv, uuid);
-  generic_task.execution_mask = 0; // invalidate task
-  generic_task.execution_flags.clear(); // invalidate task
+  generic_task.mask = 0; // invalidate task
+  generic_task.flags.clear(); // invalidate task
   try {
     auto id = scheduler.schedule(generic_task);
     EXPECT_EQ(id, "");

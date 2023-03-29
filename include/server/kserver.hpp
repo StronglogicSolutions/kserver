@@ -23,8 +23,8 @@ namespace kiq {
 
 struct OutboundFile
 {
-int32_t      fd;
-FileMetaData file;
+  int32_t      fd;
+  FileMetaData file;
 };
 
 class FileManager
@@ -119,32 +119,32 @@ private:
   virtual void onConnectionClose(int32_t client_fd)             override;
 
 
-  void     SystemEvent              (int32_t fd, int32_t event, const std::vector<std::string>& args);
-  void     CloseConnections         ();
-  void     OnProcessEvent           (const std::string& result, int32_t mask, const std::string& id,
-                                  int32_t client_fd, bool error);
-  void     SendMessage              (const int32_t& client_socket_fd, const std::string& message);
-  void     OnFileHandled            (const int& socket_fd, uint8_t *&&f_ptr = NULL,
-                                      size_t size = 0);
-  void     ReceiveFileData          (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
-                                    const size_t                      size,
-                                    const int32_t                     client_fd);
-  void     InitClient               (const std::string& message, const int32_t& client_fd);
-  void     WaitForFile              (const int32_t& client_fd);
-  void     EnqueueFiles             (const int32_t& client_fd, const std::vector<std::string>& files);
-  void     ScheduleRequest          (const std::vector<std::string>& task, const int32_t& client_fd);
-  void     OperationRequest         (const std::string& message, const int32_t& client_fd);
-  void     EndSession               (const int32_t& client_fd, int32_t status = SESSION_INACTIVE);
-  void     ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_fd);
-  void     OnClientExit             (const int32_t& client_fd);
-  void     DeleteClientFiles        (const int32_t& client_fd);
-  void     SetFileNotPending        ();
-  void     SetFilePending           (const int32_t& client_fd);
-  bool     HandlingFile             (const int32_t& client_fd);
-  void     SendPong                 (int32_t client_fd);
-  void     ValidateClients          ();
-  std::string Status                ()                         const;
-  KSession GetSession               (const int32_t& client_fd) const;
+  void        SystemEvent      (int32_t fd, int32_t event, const std::vector<std::string>& args);
+  void        CloseConnections ();
+  void        OnProcessEvent   (const std::string& result, int32_t mask, const std::string& id,
+                                int32_t client_fd, bool error);
+  void        SendMessage      (const int32_t& client_socket_fd, const std::string& message);
+  void        OnFileHandled    (const int& socket_fd, uint8_t *&&f_ptr = NULL,
+                                size_t size = 0);
+  void        ReceiveFileData  (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
+                                const size_t                      size,
+                                const int32_t                     client_fd);
+  void        InitClient       (const std::string& message, const int32_t& client_fd);
+  void        WaitForFile      (const int32_t& client_fd);
+  void        EnqueueFiles     (const int32_t& client_fd, const std::vector<std::string>& files);
+  void        ScheduleRequest  (const std::vector<std::string>& task, const int32_t& client_fd);
+  void        OperationRequest (const std::string& message, const int32_t& client_fd);
+  void        EndSession       (const int32_t& client_fd, int32_t status = SESSION_INACTIVE);
+  void        ReceiveMessage   (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_fd);
+  void        OnClientExit     (const int32_t& client_fd);
+  void        DeleteClientFiles(const int32_t& client_fd);
+  void        SetFileNotPending();
+  void        SetFilePending   (const int32_t& client_fd);
+  bool        HandlingFile     (const int32_t& client_fd);
+  void        SendPong         (int32_t client_fd);
+  void        ValidateClients  ();
+  std::string Status           ()                         const;
+  KSession    GetSession       (const int32_t& client_fd) const;
 
   Controller                m_controller;
   IPCManager                m_ipc_manager;
