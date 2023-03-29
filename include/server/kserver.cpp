@@ -21,24 +21,15 @@ static const char*   RECV_MSG     {"Received by KServer"};
 
 KServer::KServer(int argc, char **argv)
 : SocketListener(argc, argv),
-  m_ipc_manager(
-    [this](int32_t event, const std::vector<std::string> &payload) -> void
-    {
-      SystemEvent(ALL_CLIENTS, event, payload);
-    }),
-  m_event_handler(this),
   m_file_pending(false),
   m_file_pending_fd(NONE_PENDING)
 {
+  evt::instance().set_server(this);
   KLOG("Initializing controller");
   m_controller.Initialize(
     [this](std::string result, int mask, std::string request_id, const int32_t &client_fd, bool error)
     {
       OnProcessEvent(result, mask, request_id, client_fd, error);
-    },
-    [this](const int32_t &client_fd, int system_event, std::vector<std::string> args)
-    {
-      SystemEvent(client_fd, system_event, args);
     },
     [this]()
     {
@@ -65,7 +56,7 @@ KServer::~KServer()
 //-----------------------------------------------------------------------------------------------------
 void KServer::SystemEvent(int32_t client_fd, int32_t system_event, const std::vector<std::string>& args)
 {
-  m_event_handler(client_fd, system_event, args);
+  evt::instance()(client_fd, system_event, args);
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std::string& id, int32_t client_fd, bool error)

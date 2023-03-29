@@ -54,7 +54,6 @@ class Controller
 
 
   void                      Initialize(ProcessCallbackFn event_callback_fn,
-                                       SystemCallbackFn  system_callback_fn,
                                        StatusCallbackFn  status_callback_fn,
                                        ClientValidateFn  cvalid_callback_fn);
   void                      Shutdown();
@@ -88,7 +87,7 @@ class Controller
   std::string Status() const;
 
   ProcessCallbackFn                 m_process_event;
-  SystemCallbackFn                  m_system_event;
+  // SystemCallbackFn                  m_system_event;
   StatusCallbackFn                  m_server_status;
   ClientValidateFn                  m_validate_client;
 

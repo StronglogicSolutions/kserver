@@ -15,7 +15,6 @@
 #include "request/controller.hpp"
 #include "system/process/ipc/manager.hpp"
 #include "session.hpp"
-#include "event_handler.hpp"
 
 #define IF_NOT_HANDLING_PACKETS_FOR_CLIENT(x) if (m_file_pending_fd != x)
 
@@ -91,78 +90,78 @@ private:
  * \mainpage The KServer implements logicp's SocketListener and provides the KIQ
  * service to KStyleYo
  */
-class KServer : public SocketListener {
+class KServer : public SocketListener
+{
 public:
-/**
- * Constructor
- */
-KServer(int argc, char **argv);
-~KServer();
+  /**
+   * Constructor
+   */
+  KServer(int argc, char **argv);
+  ~KServer();
 
-void            Broadcast                (const std::string& event, const std::vector<std::string>& argv);
-void            SendEvent                (const int32_t& client_fd, const std::string& event,
-                                          const std::vector<std::string>& argv);
-void            SendFile                 (const int32_t& client_fd, const std::string& filename);
-void            EraseMessageHandler      (const int32_t& client_fd);
-void            EraseFileHandler         (const int32_t& client_fd);
-Controller&     GetController();
-IPCManager&     GetIPCMgr();
-FileManager&    GetFileMgr();
+  void            Broadcast                (const std::string& event, const std::vector<std::string>& argv);
+  void            SendEvent                (const int32_t& client_fd, const std::string& event,
+                                            const std::vector<std::string>& argv);
+  void            SendFile                 (const int32_t& client_fd, const std::string& filename);
+  void            EraseMessageHandler      (const int32_t& client_fd);
+  void            EraseFileHandler         (const int32_t& client_fd);
+  Controller&     GetController();
+  IPCManager&     GetIPCMgr();
+  FileManager&    GetFileMgr();
 
 private:
-using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
+  using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
 
 
-virtual void onMessageReceived(int                      client_fd,
-                                std::weak_ptr<uint8_t[]> w_buffer_ptr,
-                                ssize_t&                 size) override;
-virtual void onConnectionClose(int32_t client_fd)             override;
+  virtual void onMessageReceived(int                      client_fd,
+                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
+                                  ssize_t&                 size) override;
+  virtual void onConnectionClose(int32_t client_fd)             override;
 
 
-void     SystemEvent              (int32_t fd, int32_t event, const std::vector<std::string>& args);
-void     CloseConnections         ();
-void     OnProcessEvent           (const std::string& result, int32_t mask, const std::string& id,
-                                int32_t client_fd, bool error);
-void     SendMessage              (const int32_t& client_socket_fd, const std::string& message);
-void     OnFileHandled            (const int& socket_fd, uint8_t *&&f_ptr = NULL,
-                                    size_t size = 0);
-void     ReceiveFileData          (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
-                                   const size_t                      size,
-                                   const int32_t                     client_fd);
-void     InitClient               (const std::string& message, const int32_t& client_fd);
-void     WaitForFile              (const int32_t& client_fd);
-void     EnqueueFiles             (const int32_t& client_fd, const std::vector<std::string>& files);
-void     ScheduleRequest          (const std::vector<std::string>& task, const int32_t& client_fd);
-void     OperationRequest         (const std::string& message, const int32_t& client_fd);
-void     EndSession               (const int32_t& client_fd, int32_t status = SESSION_INACTIVE);
-void     ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_fd);
-void     OnClientExit             (const int32_t& client_fd);
-void     DeleteClientFiles        (const int32_t& client_fd);
-void     SetFileNotPending        ();
-void     SetFilePending           (const int32_t& client_fd);
-bool     HandlingFile             (const int32_t& client_fd);
-void     SendPong                 (int32_t client_fd);
-void     ValidateClients          ();
-std::string Status                ()                         const;
-KSession GetSession               (const int32_t& client_fd) const;
+  void     SystemEvent              (int32_t fd, int32_t event, const std::vector<std::string>& args);
+  void     CloseConnections         ();
+  void     OnProcessEvent           (const std::string& result, int32_t mask, const std::string& id,
+                                  int32_t client_fd, bool error);
+  void     SendMessage              (const int32_t& client_socket_fd, const std::string& message);
+  void     OnFileHandled            (const int& socket_fd, uint8_t *&&f_ptr = NULL,
+                                      size_t size = 0);
+  void     ReceiveFileData          (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
+                                    const size_t                      size,
+                                    const int32_t                     client_fd);
+  void     InitClient               (const std::string& message, const int32_t& client_fd);
+  void     WaitForFile              (const int32_t& client_fd);
+  void     EnqueueFiles             (const int32_t& client_fd, const std::vector<std::string>& files);
+  void     ScheduleRequest          (const std::vector<std::string>& task, const int32_t& client_fd);
+  void     OperationRequest         (const std::string& message, const int32_t& client_fd);
+  void     EndSession               (const int32_t& client_fd, int32_t status = SESSION_INACTIVE);
+  void     ReceiveMessage           (std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t client_fd);
+  void     OnClientExit             (const int32_t& client_fd);
+  void     DeleteClientFiles        (const int32_t& client_fd);
+  void     SetFileNotPending        ();
+  void     SetFilePending           (const int32_t& client_fd);
+  bool     HandlingFile             (const int32_t& client_fd);
+  void     SendPong                 (int32_t client_fd);
+  void     ValidateClients          ();
+  std::string Status                ()                         const;
+  KSession GetSession               (const int32_t& client_fd) const;
 
-Controller                m_controller;
-IPCManager                m_ipc_manager;
-SystemEventHandler        m_event_handler;
-std::vector<int>          m_client_connections;
-FileHandlers              m_file_handlers;
-FileHandlers              m_message_handlers;
-SessionMap                m_sessions;
-FileManager               m_file_manager;
+  Controller                m_controller;
+  IPCManager                m_ipc_manager;
+  std::vector<int>          m_client_connections;
+  FileHandlers              m_file_handlers;
+  FileHandlers              m_message_handlers;
+  SessionMap                m_sessions;
+  FileManager               m_file_manager;
 
-std::deque <OutboundFile> m_outbound_files;
-bool                      m_file_pending;
-int32_t                   m_file_pending_fd;
-bool                      m_file_sending;
-int32_t                   m_file_sending_fd;
-bool                      m_message_pending;
-int32_t                   m_message_pending_fd;
-uint32_t                  m_errors{0};
+  std::deque <OutboundFile> m_outbound_files;
+  bool                      m_file_pending;
+  int32_t                   m_file_pending_fd;
+  bool                      m_file_sending;
+  int32_t                   m_file_sending_fd;
+  bool                      m_message_pending;
+  int32_t                   m_message_pending_fd;
+  uint32_t                  m_errors{0};
 };
 
 };     // namespace kiq
