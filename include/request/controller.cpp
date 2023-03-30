@@ -574,83 +574,63 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
   m_client_rq_count++;
 }
 //----------------------------------------------------------------------------------
-void Controller::onProcessComplete(const std::string& value,
+void Controller::onProcessComplete(const std::string& out,
                                    const int32_t&     mask,
                                    const std::string& id,
-                                   const int32_t&     client_socket_fd,
-                                   const bool&        error,
-                                   const bool&        scheduled_task)
+                                   const int32_t&     fd,
+                                   const bool&        err,
+                                   const bool&        scheduled)
 {
   using TaskVectorMap = std::map<int, std::vector<Task>>;
   using TaskVector    = std::vector<Task>;
+  using namespace Completed;
 
-  KLOG("Process complete notification for client {}'s request {}",
-    client_socket_fd, id);
+  auto find_task = [id](const auto tk) { return tk.task_id == std::stoi(id); };
 
-  m_process_event( // Inform system of process result
-    value,
-    mask,
-    id,
-    client_socket_fd,
-    error
-  );
+  KLOG("Process complete notification for client {}'s request {}", fd, id);
+  m_process_event(out, mask, id, fd, err);
 
-  if (scheduled_task) // If it was a scheduled task, we need to update task map held in memory
+  if (!scheduled)
+    return;
+
+  (err) ? ELOG("Error was returned") : KLOG("Task {} for client {} complete: {}", id, fd);
+
+  const auto it = m_tasks_map.find(fd);
+  if (it == m_tasks_map.end())
+    return;
+
+  auto tk_it = std::find_if(it->second.begin(), it->second.end(), find_task);
+  if (tk_it == it->second.end())
+    return;
+
+  if (err)
   {
-    TaskVector::iterator task_it;
+    tk_it->completed = (tk_it->completed == FAILED) ? RETRY_FAIL : FAILED;
+    KLOG("Sending email to administrator about failed task.\nNew Status: {}", STRINGS[tk_it->completed]);
+    SystemUtils::SendMail(config::Email::notification(), Messages::TASK_ERROR_EMAIL + out);
+    m_err_count++;
+  }
+  else
+  {
+    tk_it->completed = tk_it->recurring ? SCHEDULED : SUCCESS;
+    if (!m_scheduler.processTriggers(&*tk_it))
+      KLOG("Error occurred processing triggers for task {} with mask {}", tk_it->id(), tk_it->mask);
+    m_ps_exec_count++;
+  }
 
-    KLOG("Task complete notification for client {}'s task {}{}",
-      client_socket_fd, id, error ? "\nERROR WAS RETURNED" : ""
-    );
+  m_scheduler.updateStatus(&*tk_it, out);                        // Failed tasks will re-run once more
+  m_executor->saveResult(mask, 1, TimeUtils::UnixTime());
 
-    TaskVectorMap::iterator it = m_tasks_map.find(client_socket_fd); // Find client's tasks
+  if (!err && tk_it->recurring)
+    m_scheduler.updateRecurring(&*tk_it);
 
-    if (it != m_tasks_map.end())
-    {                                   // Find task
-      task_it = std::find_if(it->second.begin(), it->second.end(),
-        [id](Task task) { return task.task_id == std::stoi(id); }
-      );
-
-      if (task_it != it->second.end())
-      {
-        uint8_t status{};
-
-        if (error)
-        {
-          status = (task_it->completed == Completed::FAILED) ? Completed::RETRY_FAIL :
-                                                               Completed::FAILED;
-          KLOG("Sending email to administrator about failed task.\nNew Status: {}", Completed::STRINGS[status]);
-          SystemUtils::SendMail(config::Email::notification(), Messages::TASK_ERROR_EMAIL + value);
-          m_err_count++;
-        }
-        else
-        {
-          status = task_it->recurring ? Completed::SCHEDULED :
-                                        Completed::SUCCESS;
-          if (!m_scheduler.processTriggers(&*task_it))
-            KLOG("Error occurred processing triggers for task {} with mask {}", task_it->id(), task_it->mask);
-          m_ps_exec_count++;
-        }
-
-        task_it->completed = status;                            // Update status
-        m_scheduler.updateStatus(&*task_it, value);             // Failed tasks will re-run once more
-        m_executor->saveResult(mask, 1, TimeUtils::UnixTime()); // Save execution result
-
-        if (!error && task_it->recurring) m_scheduler.updateRecurring(&*task_it);
-
-        if (task_it->notify)                                             // Send email notification
-        {
-          KLOG("Task notification enabled - emailing result to administrator");
-          std::string email_string{};
-          email_string.reserve(value.size() + 84);
-          email_string += task_it->toString();
-          email_string += error ? "\nError" : "\n";
-          email_string += value;
-
-          SystemUtils::SendMail(config::Email::notification(), email_string);
-        }
-      }
-    }
+  if (tk_it->notify)
+  {
+    KLOG("Task notification enabled - emailing result to administrator");
+    std::string email_s = tk_it->toString();
+    email_s += err ? "\nError" : "\n";
+    email_s += out;
+    SystemUtils::SendMail(config::Email::notification(), email_s);
   }
 }
 //----------------------------------------------------------------------------------

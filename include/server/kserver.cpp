@@ -43,20 +43,12 @@ KServer::KServer(int argc, char **argv)
   KLOG("Starting IPC manager");
   m_ipc_manager.start();
 }
-
-/**
- * @destructor
- */
+//-----------------------------------------------------------------------------------------------------
 KServer::~KServer()
 {
   KLOG("Server shutting down");
   CloseConnections();
   m_controller.Shutdown();
-}
-//-----------------------------------------------------------------------------------------------------
-void KServer::SystemEvent(int32_t client_fd, int32_t system_event, const std::vector<std::string>& args)
-{
-  evt::instance()(client_fd, system_event, args);
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std::string& id, int32_t client_fd, bool error)
@@ -76,7 +68,7 @@ void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std:
   if (Scheduler::isKIQProcess(mask))
     m_controller.ProcessSystemEvent(SYSTEM_EVENTS__PROCESS_COMPLETE, {result, std::to_string(mask)}, std::stoi(id));
 }
-
+//-----------------------------------------------------------------------------------------------------
 void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
 {
   using F_Iterator = Kiqoder::FileIterator<uint8_t>;

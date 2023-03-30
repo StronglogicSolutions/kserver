@@ -118,8 +118,6 @@ private:
                                   ssize_t&                 size) override;
   virtual void onConnectionClose(int32_t client_fd)             override;
 
-
-  void        SystemEvent      (int32_t fd, int32_t event, const std::vector<std::string>& args);
   void        CloseConnections ();
   void        OnProcessEvent   (const std::string& result, int32_t mask, const std::string& id,
                                 int32_t client_fd, bool error);
