@@ -161,8 +161,13 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
   using filter_t = std::pair<std::string, std::string>;
   auto GetFilters   = [this](auto pid) -> std::vector<filter_t>
   {
-    // select from platform_filter name, type
-    return {filter_t{"rbuckshi", "user"}};
+    std::string type, value;
+    for (const auto& r : m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid)))
+    {
+      if (r.first = "type" ) type  = r.second;
+      if (r.first = "value") value = r.second;
+    }
+    return {filter_t{type, value}};
   };
   auto ValidateRepost = [this](auto filters, auto post)
   {
