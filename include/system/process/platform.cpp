@@ -164,8 +164,8 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
     std::string type, value;
     for (const auto& r : m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid)))
     {
-      if (r.first = "type" ) type  = r.second;
-      if (r.first = "value") value = r.second;
+      if (r.first == "type" ) type  = r.second;
+      if (r.first == "value") value = r.second;
     }
     return {filter_t{type, value}};
   };
