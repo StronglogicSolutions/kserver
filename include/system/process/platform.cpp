@@ -158,6 +158,33 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const post_t& post)
 //-------------------------------------------------------------------------------------
 bool Platform::SavePlatformPost(post_t post, const std::string& status) const
 {
+  using filter_t  = std::pair<std::string, std::string>;
+  using filters_t = std::vector<filter_t>;
+  auto GetFilters   = [this](auto pid) -> filters_t
+  {
+    filters_t   result;
+    std::string type, value;
+    for (const auto& r : m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid)))
+    {
+      if (r.first == "type" ) type  = r.second;
+      else
+      if (r.first == "value") value = r.second;
+      else
+      if (DataUtils::NoEmptyArgs(type, value))
+      {
+        result.push_back({type, value});
+        DataUtils::ClearArgs(type, value);
+      }
+    }
+    return result;
+  };
+  auto ValidateRepost = [this](auto filters, auto post)
+  {
+    for (const auto& [type, value] : filters)
+      if (type == "user")
+        return (post.user == value);
+    return true;
+  };
   auto GetValidUser = [this](auto o_pid, auto name) { return (GetPlatform(o_pid) == "TW Search") ? config::Platform::default_user() : name; };
 
   if (PostAlreadyExists(post))
@@ -180,18 +207,21 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
   {
     for (const auto& platform_id : FetchRepostIDs(post.pid))
     {
+      if (!ValidateRepost(GetFilters(post.pid), post))
+        continue;
+
       const PlatformPost repost{
-        .pid     = platform_id,
-        .o_pid   = post.pid,
-        .id      = post.id,
-        .user    = GetValidUser(post.pid, post.user),
-        .time    = post.time,
-        .content = post.content,
-        .urls    = post.urls,
-        .repost  = post.repost,
-        .name    = post.name,
-        .args    = ToJSONArray({post.args}),
-        .method  = post.method};
+        platform_id,                        // pid
+        post.pid,                           // o_pid
+        post.id,                            // id
+        GetValidUser(post.pid, post.user),  // user
+        post.time,                          // time
+        post.content,                       // content
+        post.urls,                          // urls
+        post.repost,                        // repost
+        post.name,                          // name
+        ToJSONArray({post.args}),           // args
+        post.method};                       // method
 
       SavePlatformPost(repost, constants::PLATFORM_POST_INCOMPLETE);
 
