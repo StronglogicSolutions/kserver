@@ -158,16 +158,25 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const post_t& post)
 //-------------------------------------------------------------------------------------
 bool Platform::SavePlatformPost(post_t post, const std::string& status) const
 {
-  using filter_t = std::pair<std::string, std::string>;
-  auto GetFilters   = [this](auto pid) -> std::vector<filter_t>
+  using filter_t  = std::pair<std::string, std::string>;
+  using filters_t = std::vector<filter_t>;
+  auto GetFilters   = [this](auto pid) -> filters_t
   {
+    filters_t   result;
     std::string type, value;
     for (const auto& r : m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid)))
     {
       if (r.first == "type" ) type  = r.second;
+      else
       if (r.first == "value") value = r.second;
+      else
+      if (DataUtils::NoEmptyArgs(type, value))
+      {
+        result.push_back({type, value});
+        DataUtils::ClearArgs(type, value);
+      }
     }
-    return {filter_t{type, value}};
+    return result;
   };
   auto ValidateRepost = [this](auto filters, auto post)
   {
