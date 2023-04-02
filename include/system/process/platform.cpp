@@ -160,11 +160,11 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
 {
   using filter_t  = std::pair<std::string, std::string>;
   using filters_t = std::vector<filter_t>;
-  auto GetFilters   = [this](auto pid) -> filters_t
+  auto GetFilters   = [this](auto pid, auto rpid) -> filters_t
   {
     filters_t   result;
     std::string type, value;
-    for (const auto& r : m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid)))
+    for (const auto& r : m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid, "rpid", rpid)))
     {
       if (r.first == "type" ) type  = r.second;
       else
@@ -207,7 +207,7 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
   {
     for (const auto& platform_id : FetchRepostIDs(post.pid))
     {
-      if (!ValidateRepost(GetFilters(post.pid), post))
+      if (!ValidateRepost(GetFilters(post.pid, platform_id), post))
         continue;
 
       const PlatformPost repost{
