@@ -180,10 +180,16 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
   };
   auto ValidateRepost = [this](auto filters, auto post)
   {
+    auto IsTrue = [](auto s) { return (s == "true" || s == "t" || s == "1"); };
+    bool result = true;
     for (const auto& [type, value] : filters)
+    {
       if (type == "user")
         return (post.user == value);
-    return true;
+      if (type == "default")
+        result = IsTrue(value);
+    }
+    return result;
   };
   auto GetValidUser = [this](auto o_pid, auto name) { return (GetPlatform(o_pid) == "TW Search") ? config::Platform::default_user() : name; };
 
