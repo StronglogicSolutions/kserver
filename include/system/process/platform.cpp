@@ -164,22 +164,19 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
   {
     filters_t   result;
     std::string type, value;
-    auto query = m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid, "rpid", rpid));
-    DLOG("Querying DB for platform_filter from {} to {}", pid, rpid);
-    for (const auto& r : query)
+    for (const auto& r : m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid, "rpid", rpid)))
     {
       if (r.first == "type" ) type  = r.second;
       else
       if (r.first == "value") value = r.second;
-      else
+
       if (DataUtils::NoEmptyArgs(type, value))
       {
-        DLOG("Found {} filter with value {}", type, value);
         result.push_back({type, value});
         DataUtils::ClearArgs(type, value);
       }
     }
-    DLOG("Found {} filters", result.size());
+
     return result;
   };
   auto ValidateRepost = [this](auto filters, auto post)
@@ -188,19 +185,11 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
     bool result = true;
     for (const auto& [type, value] : filters)
     {
-      DLOG("Iterating {} filter with value {}", type, value);
       if (type == "user")
-      {
-        DLOG("Comparing {} to {}", post.user, value);
         return (post.user == value);
-      }
       if (type == "default")
-      {
         result = IsTrue(value);
-        DLOG("Found default filter with value {}", value);
-      }
     }
-    DLOG("Returning validation result {}", result);
     return result;
   };
   auto GetValidUser = [this](auto o_pid, auto name) { return (GetPlatform(o_pid) == "TW Search") ? config::Platform::default_user() : name; };
@@ -225,7 +214,6 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
   {
     for (const auto& platform_id : FetchRepostIDs(post.pid))
     {
-      DLOG("Validating to repost on {}", GetPlatform(platform_id));
       if (!ValidateRepost(GetFilters(post.pid, platform_id), post))
         continue;
 
