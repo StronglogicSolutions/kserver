@@ -185,7 +185,7 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
     bool result = filters.empty();
     for (const auto& [type, value] : filters)
     {
-      if (!result && type == "user")
+      if (type == "user")
         result = (post.user == value);
       if (type == "default")
         result = IsTrue(value);
