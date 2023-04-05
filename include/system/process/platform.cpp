@@ -182,13 +182,15 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
   auto ValidateRepost = [this](auto filters, auto post)
   {
     auto IsTrue = [](auto s) { return (s == "true" || s == "t" || s == "1"); };
-    bool result = true;
+    bool result = filters.empty();
     for (const auto& [type, value] : filters)
     {
       if (!result && type == "user")
         result = (post.user == value);
       if (type == "default")
         result = IsTrue(value);
+      if (result)
+        break;
     }
     return result;
   };
