@@ -169,25 +169,28 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
       if (r.first == "type" ) type  = r.second;
       else
       if (r.first == "value") value = r.second;
-      else
+
       if (DataUtils::NoEmptyArgs(type, value))
       {
         result.push_back({type, value});
         DataUtils::ClearArgs(type, value);
       }
     }
+
     return result;
   };
   auto ValidateRepost = [this](auto filters, auto post)
   {
     auto IsTrue = [](auto s) { return (s == "true" || s == "t" || s == "1"); };
-    bool result = true;
+    bool result = filters.empty();
     for (const auto& [type, value] : filters)
     {
       if (type == "user")
-        return (post.user == value);
+        result = (post.user == value);
       if (type == "default")
         result = IsTrue(value);
+      if (result)
+        break;
     }
     return result;
   };
