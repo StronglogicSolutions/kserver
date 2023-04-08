@@ -258,7 +258,7 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
   PlatformPost post = PlatformPost::FromPayload(payload);
   post.pid = GetPlatformID(post.name);
   if (!complete_post(post))
-    ELOG("Failed to update platform post in processing queue");
+    WLOG("Failed to update platform post in processing queue. Ignore if new post.");
 
   return SavePlatformPost(post);
 }
