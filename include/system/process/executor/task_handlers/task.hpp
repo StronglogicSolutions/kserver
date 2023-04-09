@@ -443,6 +443,7 @@ std::string args;
 std::string method;
 std::string cmd{std::to_string(constants::PLATFORM_DEFAULT_COMMAND)};
 std::string status;
+bool        retry{false};
 
 const bool is_valid() const
 {
