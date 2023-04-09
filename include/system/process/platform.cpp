@@ -350,7 +350,6 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
       if (it != m_platform_map.end())
       {
         it->second.second = PlatformPostState::FAILURE;
-        it->second.first.attempts++;
         m_errors++;
         m_pending--;
       }
@@ -448,7 +447,6 @@ void Platform::fail_pending_posts()
     {
       post.second.second = PlatformPostState::FAILURE;
       Update(post.second.first, PLATFORM_STATUS_FAILURE);
-      post.second.first.attempts++;
       m_errors++;
       m_pending--;
     }
