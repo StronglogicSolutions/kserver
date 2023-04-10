@@ -426,8 +426,14 @@ bool Platform::insert_or_update(const post_t& p)
   else
   if (it->second.second == PlatformPostState::FAILURE)
   {
+    if (it->second.first.retry)
+    {
+      WLOG("Failed post has already had a retry. Will not update");
+      return false;
+    }
     DLOG("Post previously failed. Retrying");
     it->second.second == PlatformPostState::PROCESSING;
+    it->second.first.retry = true;
     return true;
   }
 
