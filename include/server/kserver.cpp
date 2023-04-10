@@ -71,8 +71,8 @@ void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std:
 //-----------------------------------------------------------------------------------------------------
 void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
 {
-  using F_Iterator = Kiqoder::FileIterator<uint8_t>;
-  using P_Wrapper  = Kiqoder::FileIterator<uint8_t>::PacketWrapper;
+  using F_Iterator = kiqoder::FileIterator<uint8_t>;
+  using P_Wrapper  = kiqoder::FileIterator<uint8_t>::PacketWrapper;
 
   F_Iterator iterator{filename};
 
@@ -98,8 +98,8 @@ void KServer::SendEvent(const int32_t& client_fd, const std::string& event, cons
 //-----------------------------------------------------------------------------------------------------
 void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
 {
-  using F_Iterator = Kiqoder::FileIterator<char>;
-  using P_Wrapper  = Kiqoder::FileIterator<char>::PacketWrapper;
+  using F_Iterator = kiqoder::FileIterator<char>;
+  using P_Wrapper  = kiqoder::FileIterator<char>::PacketWrapper;
 
   const size_t& size    {message.size()};
   F_Iterator    iterator{message.data(), size};
@@ -132,10 +132,9 @@ void KServer::ReceiveFileData(const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
                               const size_t                      size,
                               const int32_t                     client_fd)
 {
-  using FileHandler = Kiqoder::FileHandler;
-  auto handler = m_file_handlers.find(client_fd);
+  using FileHandler = kiqoder::FileHandler;
 
-  if (handler != m_file_handlers.end())
+  if (auto handler = m_file_handlers.find(client_fd); handler != m_file_handlers.end())
     handler->second.processPacket(s_buffer_ptr.get(), size);
   else
   {
@@ -303,7 +302,7 @@ void KServer::CloseConnections()
 //-----------------------------------------------------------------------------------------------------
 void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t size, int32_t fd)
 {
-  using FileHandler = Kiqoder::FileHandler;
+  using FileHandler = kiqoder::FileHandler;
   auto TrackDataStats = [this](int fd, size_t size)
   { if (m_sessions.has(fd)) m_sessions.at(fd).rx += size; };
   auto ProcessMessage = [this](int fd, uint8_t *m_ptr, size_t buffer_size)

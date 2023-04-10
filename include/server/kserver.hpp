@@ -110,7 +110,7 @@ public:
   FileManager&    GetFileMgr();
 
 private:
-  using FileHandlers = std::unordered_map<int32_t, Kiqoder::FileHandler>;
+  using FileHandlers = std::unordered_map<int32_t, kiqoder::FileHandler>;
 
 
   virtual void onMessageReceived(int                      client_fd,
