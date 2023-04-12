@@ -517,16 +517,11 @@ bool TWFeedResultParser::read(const std::string& s)
 
 ProcessEventData TWFeedResultParser::ReadEventData(const TWFeedItem& item, const std::string& app_name, const int32_t& event)
 {
-  std::string content{};
-
+  std::string content{item.content};
   if (!item.mentions.empty())
     content += item.mentions + '\n';
-  content += item.content;
   if (!item.hashtags.empty())
     content += '\n' + item.hashtags;
-  content += "\nPosted:   " + item.date;
-  content += "\nLikes:    " + item.likes;
-  content += "\nRetweets: " + item.retweets;
 
   return ProcessEventData{
     .code    = event,
@@ -652,9 +647,6 @@ ProcessEventData KTFeedResultParser::ReadEventData(const TWFeedItem& item, const
   content += item.content;
   if (!item.hashtags.empty())
     content += '\n' + item.hashtags;
-  content += "\nPosted:   " + item.date;
-  content += "\nLikes:    " + item.likes;
-  content += "\nRetweets: " + item.retweets;
 
   return ProcessEventData{
     .code    = event,
