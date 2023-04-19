@@ -382,7 +382,8 @@ Platform::ProcessPlatform()
   }
 
   if (IsProcessingPlatform())
-    return print_pending();
+    return;
+    // return print_pending();
 
   for (const auto& post : FetchPendingPlatformPosts())
   {
