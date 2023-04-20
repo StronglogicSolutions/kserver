@@ -18,7 +18,8 @@ namespace kiq
       args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX), args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_USER_INDEX), args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_URL_INDEX), args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
-      std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)), args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX));
+      std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)), args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX),
+      args.at(constants::PLATFORM_PAYLOAD_TIME_INDEX));
   };
   //*******************************************************************//
   IPCManager::IPCManager()
