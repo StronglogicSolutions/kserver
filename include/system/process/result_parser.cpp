@@ -518,8 +518,7 @@ bool TWFeedResultParser::read(const std::string& s)
 ProcessEventData TWFeedResultParser::ReadEventData(const TWFeedItem& item, const std::string& app_name, const int32_t& event)
 {
   std::string content{item.content};
-  if (!item.mentions.empty())
-    content += item.mentions + '\n';
+
   if (!item.hashtags.empty())
     content += '\n' + item.hashtags;
 
