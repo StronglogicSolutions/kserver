@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <vector>
@@ -431,19 +432,19 @@ struct platform_pair_hash
 };
 
 struct PlatformPost {
-std::string pid;
+std::string pid{""};
 std::string o_pid = constants::NO_ORIGIN_PLATFORM_EXISTS;
-std::string id;
-std::string user;
-std::string time;
-std::string content;
-std::string urls;
-std::string repost;
-std::string name;
-std::string args;
-std::string method;
+std::string id{""};
+std::string user{""};
+std::string time{""};
+std::string content{""};
+std::string urls{""};
+std::string repost{""};
+std::string name{""};
+std::string args{""};
+std::string method{""};
 std::string cmd{std::to_string(constants::PLATFORM_DEFAULT_COMMAND)};
-std::string status;
+std::string status{""};
 bool        retry{false};
 
 const bool is_valid() const
