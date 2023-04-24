@@ -14,10 +14,6 @@ namespace kiq
   //*******************************************************************//
   std::unique_ptr<platform_message> deserialize(const Payload &args)
   {
-    for (const auto& arg : args)
-      VLOG("Manager deserializing arg: {}", arg);
-
-    DLOG("Received outgoing payload with time {}", args.at(constants::PLATFORM_PAYLOAD_TIME_INDEX));
     return std::make_unique<platform_message>(
       args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX), args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
       args.at(constants::PLATFORM_PAYLOAD_USER_INDEX), args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),

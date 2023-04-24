@@ -390,11 +390,7 @@ Platform::ProcessPlatform()
     KLOG("Processing post {} for {} by {}", post.name, post.id, post.user);
     if (insert_or_update(post))
     {
-      const auto payload = post.GetPayload();
-      for (const auto& payload_arg : payload)
-        DLOG("ProcessPlatform with arg {}", payload_arg);
-
-      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, payload);
+      m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, post.GetPayload());
       m_pending++;
     }
   }

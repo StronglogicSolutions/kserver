@@ -471,7 +471,6 @@ const std::string ToString() const
 std::vector<std::string> GetPayload() const
 {
   std::vector<std::string> payload{};
-  DLOG("Getting payload for following platform post:\n{}", ToString());
   payload.resize(11);
   payload.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX) = name;
   payload.at(constants::PLATFORM_PAYLOAD_ID_INDEX)       = id;
