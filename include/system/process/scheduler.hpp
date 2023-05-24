@@ -2,7 +2,6 @@
 
 #include <deque>
 #include <unordered_set>
-#include "log/logger.h"
 #include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"
 #include "result_parser.hpp"

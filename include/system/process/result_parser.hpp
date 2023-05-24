@@ -12,7 +12,6 @@
 #include "codec/rapidjson/writer.h"
 
 #include "server/types.hpp"
-#include "log/logger.h"
 
 namespace kiq {
 class ProcessParseInterface {

@@ -1,6 +1,9 @@
 #include "generic.hpp"
+#include <logger.hpp>
 
 namespace kiq {
+using namespace kiq::log;
+
 template <typename T>
 Task GenericTaskHandler::Create(const T&                        app_mask,
                                 const std::string&              description,
@@ -51,7 +54,7 @@ Task GenericTaskHandler::prepareTask(const std::vector<std::string>& argv,
 {
   if (!FileUtils::CreateTaskDirectory(uuid))
   {
-    ELOG("UNABLE TO CREATE TASK DIRECTORY! Returning empty task");
+    klog().e("UNABLE TO CREATE TASK DIRECTORY! Returning empty task");
     return Task{};
   }
 

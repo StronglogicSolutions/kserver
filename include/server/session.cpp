@@ -1,16 +1,17 @@
 #include "session.hpp"
-#include "log/logger.h"
 #include "config/config_parser.hpp"
 #include <jwt-cpp/jwt.h>
 #include <fstream>
 #include <sstream>
+#include <logger.hpp>
 
 namespace kiq {
+using namespace log;
 
 bool KSession::active() const
 {
   bool active = (!(expired()) && status == SESSION_ACTIVE);
-  VLOG("{} is {} on {}", user.name, (active) ? "active" : "not active", fd);
+  klog().t("{} is {} on {}", user.name, (active) ? "active" : "not active", fd);
   return active;
 }
 
@@ -24,7 +25,7 @@ void KSession::verify()
 {
   if (expired())
   {
-    VLOG("Session expired for {} on {}", user.name, fd);
+    klog().t("Session expired for {} on {}", user.name, fd);
     status = SESSION_INACTIVE;
   }
 }
@@ -78,11 +79,11 @@ SessionMap::Sessions::iterator SessionMap::end()
 
 SessionMap::Sessions::iterator SessionMap::erase(SessionMap::Sessions::iterator it)
 {
-  VLOG("SessionMap erasing FD {} and Name {}", it->second.fd, it->first);
+  klog().t("SessionMap erasing FD {} and Name {}", it->second.fd, it->first);
   if (auto ptr_it = find(it->second.fd); ptr_it != m_session_ptrs.end())
     m_session_ptrs.erase(ptr_it);
   else
-    ELOG("attempted to end session for {}, but was unable to find session pointer. Incomplete erasure", it->first);
+    klog().e("attempted to end session for {}, but was unable to find session pointer. Incomplete erasure", it->first);
   return m_sessions.erase(it);
 }
 
@@ -136,7 +137,7 @@ KSession& SessionMap::at(const std::string& name)
 {
   const auto it = m_sessions.find(name);
   if (it == m_sessions.end())
-    ELOG("SessionMap::at() Unable to find {}. Exception will be thrown", name);
+    klog().e("SessionMap::at() Unable to find {}. Exception will be thrown", name);
   return m_sessions.at(name);
 }
 
@@ -153,7 +154,7 @@ bool SessionMap::logged_in(const User& user) const
   for (const auto& [fd, session] : m_sessions)
     if (session.user.name == user.name && session.active())
     {
-      KLOG("User {} is already logged in  as client {}", user.name, session.fd);
+      klog().i("User {} is already logged in  as client {}", user.name, session.fd);
       return true;
     }
   return false;
@@ -178,22 +179,22 @@ bool ValidateToken(User user)
     verifier.verify(decoded);
 
     if (decoded.get_payload_claim("user").as_string() != user.name)
-      ELOG("Token does not belong to user");
+      klog().e("Token does not belong to user");
     else
     if (token != user.token)
-      ELOG("Token does not match");
+      klog().e("Token does not match");
     else
     if (Expired(decoded.get_expires_at()))
-      ELOG("Token has expired");
+      klog().e("Token has expired");
     else
     {
-      VLOG("Token valid for {}", user.name);
+      klog().t("Token valid for {}", user.name);
       return true;
     }
   }
   catch(const std::exception& e)
   {
-    ELOG("Exception thrown while validating token: {}", e.what());
+    klog().e("Exception thrown while validating token: {}", e.what());
   }
   return false;
 }

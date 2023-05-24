@@ -1,4 +1,5 @@
 #include "research_manager.hpp"
+#include <logger.hpp>
 
 namespace kiq {
 static const char* POLL_Q = "Rate the civilization impact:";
@@ -22,7 +23,7 @@ bool VerifyTerm(const std::string &term)
 for (const auto &fn : VerifyFunctions)
   if (!fn(term))
   {
-    KLOG("Term {} was rejected", term);
+    klog().i("Term {} was rejected", term);
     return false;
   }
 
@@ -359,7 +360,7 @@ std::vector<TermHit> ResearchManager::GetTermHits(const std::string &term)
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception from KDB: {}", e.what());
+      klog().e("Exception from KDB: {}", e.what());
     }
     return {};
   };
@@ -386,7 +387,7 @@ std::vector<TermHit> ResearchManager::GetTermHits(const std::string &term)
 
     if (DataUtils::NoEmptyArgs(id, time, person, organization, user, sid))
     {
-      KLOG("Term {} has previous hit: Person: {} - Time: {}", term, person, time);
+      klog().i("Term {} has previous hit: Person: {} - Time: {}", term, person, time);
       result.emplace_back(TermHit{id, person, user, organization, time, term, sid});
       DataUtils::ClearArgs(time, person, user, organization);
     }
@@ -444,7 +445,7 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
 
   ResearchManager::StudyRequests requests{};
 
-  KLOG("Performing final analysis on research triggered by {}", root.id);
+  klog().i("Performing final analysis on research triggered by {}", root.id);
   const std::string child_text     = child   .task.GetToken(constants::DESCRIPTION_KEY);
   const std::string sub_c_text     = subchild.task.GetToken(constants::DESCRIPTION_KEY);
   const auto        ner_parent     = *(FindParent(&child,        FindMask(NER_APP)));
@@ -462,11 +463,11 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
   const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
   const Hits        hits           = GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
 
-  VLOG("Analysis found {} related term hits", hits.size());
+  klog().t("Analysis found {} related term hits", hits.size());
 
   for (const TermHit& hit : hits)
   {
-    VLOG("Sending request for term {}", hit.term);
+    klog().t("Sending request for term {}", hit.term);
     requests.emplace_back(ResearchRequest{
       hit,
       MakePollMessage(child_text, child_emo, child_sts, hit.ToString()),
@@ -491,21 +492,21 @@ bool ResearchManager::TermHitExists(const std::string& term, const std::string& 
 
 void ResearchManager::GenerateMLData()
 {
-  KLOG("Generating model training data");
+  klog().i("Generating model training data");
   m_ml_generator.Generate();
 }
 
 
 void ResearchManager::FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data)
 {
-  VLOG("Adding data to model input data generator from research with ID {}", id);
+  klog().t("Adding data to model input data generator from research with ID {}", id);
   if (m_ml_generator.has(id))
     m_ml_generator.at(id).poll_results = data;
   else
   {
     auto err = fmt::format("Failed to finalize model data with ID {}", id);
     SystemUtils::SendMail(config::System::admin(), err, "KIQ Error");
-    ELOG(err);
+    klog().e(err);
   }
 }
 
@@ -515,14 +516,14 @@ void ResearchManager::AddMLInput(const std::string& id, const T& input)
   if (!m_ml_generator.has_data())
     m_ml_generator.init("id,emo1,emo2,emo3,emo4,emo5,emo6,sen1,poll1,poll2,poll3,poll4");
 
-  VLOG("Adding research data with ID {}");
+  klog().t("Adding research data with ID {}");
   m_ml_generator.operator()(id, input);
 }
 template void ResearchManager::AddMLInput(const std::string&, const TWResearchInputs&);
 
 std::string ResearchManager::GetMLData()
 {
-  VLOG("Getting model training data");
+  klog().t("Getting model training data");
   return m_ml_generator.GetResult();
 }
 

@@ -92,18 +92,18 @@ class Cron : public CronInterface<Job> {
   virtual void addJob(Job job) {
     std::system(createJobCommand(job).c_str());
     if (findJob(job.path)) {
-      KLOG("Successfully added job to cron: {}", job.path);
+      klog().i("Successfully added job to cron: {}", job.path);
     } else {
-      KLOG("Failed to add job to cron: {}", job.path);
+      klog().i("Failed to add job to cron: {}", job.path);
     }
   }
 
   virtual void deleteJob(Job job) {
     std::system(std::string{"crontab -l | grep -v \"" + job.path + "\" |crontab -"}.c_str());
      if (findJob(job.path)) { // This match only works if the execution string is identical
-       KLOG("Failed to remove job from cron: {}", job.path);
+       klog().i("Failed to remove job from cron: {}", job.path);
      } else {
-       KLOG("Successfully removed job from cron: {}", job.path);
+       klog().i("Successfully removed job from cron: {}", job.path);
      }
   }
 

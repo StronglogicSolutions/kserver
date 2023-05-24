@@ -1,7 +1,10 @@
 #include "worker.hpp"
+#include <logger.hpp>
 
 namespace kiq
 {
+using namespace kiq::log;
+
 IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers_t*  handlers)
 : ctx_(ctx),
   backend_(ctx_, ZMQ_DEALER),
@@ -23,11 +26,11 @@ IPCWorker::start()
 void
 IPCWorker::run()
 {
-  VLOG("{} is ready to receive IPC", name());
+  klog().t("{} is ready to receive IPC", name());
   backend_.connect(BACKEND_ADDRESS);
   while (active_)
     recv();
-  VLOG("{} no longer receiving IPC", name());
+  klog().t("{} no longer receiving IPC", name());
 }
 //*******************************************************************//
 void
@@ -51,7 +54,7 @@ IPCWorker::recv()
   {
     if (!backend_.recv(&message, static_cast<int>(zmq::recv_flags::none)))
     {
-      VLOG("IPC Worker {} failed to receive on socket", name());
+      klog().t("IPC Worker {} failed to receive on socket", name());
       return;
     }
 
@@ -68,7 +71,7 @@ IPCWorker::recv()
     handlers_->at(identity.to_string_view())->process_message(std::move(ipc_message));
   }
   else
-    ELOG("{} failed to deserialize IPC message", name());
+    klog().e("{} failed to deserialize IPC message", name());
 }
 //*******************************************************************//
 std::future<void>&

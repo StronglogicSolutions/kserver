@@ -1,6 +1,7 @@
 
 #include "result_parser.hpp"
 #include <kproto/ipc_structs.hpp>
+#include <logger.hpp>
 
 static const uint8_t JOY_INDEX      = 0x00;
 static const uint8_t SADNESS_INDEX  = 0x01;
@@ -11,6 +12,8 @@ static const uint8_t DISGUST_INDEX  = 0x05;
 static const uint8_t EMOTION_NUM    = 0x06;
 
 namespace kiq {
+
+using namespace kiq::log;
 
 static std::string url_string(const std::vector<std::string> urls)
 {
@@ -71,7 +74,7 @@ ProcessParseResult NERResultParser::get_result()
 {
   ProcessParseResult result{};
 
-  KLOG("Returning {} NLP tokens", m_items.size());
+  klog().i("Returning {} NLP tokens", m_items.size());
 
   if (m_items.empty()) return GetNOOPResult();
 
@@ -192,7 +195,7 @@ ProcessParseResult EmotionResultParser::get_result()
   };
   ProcessParseResult result{};
 
-  KLOG("Returning {} Emotion objects", m_items.size());
+  klog().i("Returning {} Emotion objects", m_items.size());
 
   if (m_items.empty()) return GetNOOPResult();
 
@@ -272,7 +275,7 @@ bool SentimentResultParser::read(const std::string& s)
 ProcessParseResult SentimentResultParser::get_result()
 {
   ProcessParseResult result{};
-  KLOG("Returning {} Sentiment objects", m_items.size());
+  klog().i("Returning {} Sentiment objects", m_items.size());
 
   if (m_items.empty()) return GetNOOPResult();
 
@@ -336,7 +339,7 @@ ProcessParseResult IGFeedResultParser::get_result()
 {
   ProcessParseResult result{};
 
-  KLOG("Returning {} IG Feed items", m_feed_items.size());
+  klog().i("Returning {} IG Feed items", m_feed_items.size());
 
   for (const auto& item : m_feed_items)
   {
@@ -418,7 +421,7 @@ ProcessParseResult YTFeedResultParser::get_result()
 {
   ProcessParseResult result{};
 
-  KLOG("Returning {} YT Feed items", m_feed_items.size());
+  klog().i("Returning {} YT Feed items", m_feed_items.size());
 
   for (const auto& item : m_feed_items)
   {
@@ -465,7 +468,7 @@ bool TWFeedResultParser::read(const std::string& s)
   rapidjson::Document d{};
 
   if (!ParseOK(d, s))
-    ELOG("Error parsing JSON: {}", GetJSONError(d));
+    klog().e("Error parsing JSON: {}", GetJSONError(d));
   else
   if (d.IsArray())
   {
@@ -540,7 +543,7 @@ ProcessEventData TWFeedResultParser::ReadEventData(const TWFeedItem& item, const
 ProcessParseResult TWFeedResultParser::get_result()
 {
   ProcessParseResult result{};
-  KLOG("Returning {} TW Feed items", m_feed_items.size());
+  klog().i("Returning {} TW Feed items", m_feed_items.size());
   for (const auto& item : m_feed_items)
     result.events.emplace_back(TWFeedResultParser::ReadEventData(item, m_app_name, SYSTEM_EVENTS__PLATFORM_NEW_POST));
 
@@ -556,7 +559,7 @@ TWResearchParser::~TWResearchParser() {}
 ProcessParseResult TWResearchParser::get_result()
 {
   ProcessParseResult result{};
-  KLOG("Returning {} TW Feed items", m_feed_items.size());
+  klog().i("Returning {} TW Feed items", m_feed_items.size());
   for (const auto& item : m_feed_items)
     result.events.emplace_back(TWFeedResultParser::ReadEventData(item, m_app_name, SYSTEM_EVENTS__PROCESS_RESEARCH));
 
@@ -594,7 +597,7 @@ bool KTFeedResultParser::read(const std::string& s)
     return kt_item;
   };
   if (!ParseOK(d, s))
-    ELOG("Error parsing JSON: {}", GetJSONError(d));
+    klog().e("Error parsing JSON: {}", GetJSONError(d));
   else
   if (d.IsArray())
   {
@@ -701,7 +704,7 @@ ProcessParseResult PollResultParser::get_result()
 {
   auto MakePayload = [](const auto& v) { std::vector<std::string> p; for (const auto& i : v) p.push_back(std::to_string(i.votes));
                                                                                                                   return p;     };
-  KLOG("Returning vote result with {} options", m_items.size());
+  klog().i("Returning vote result with {} options", m_items.size());
   return ProcessParseResult{{ProcessEventData{.code = SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT, .payload = MakePayload(m_items)}}};
 }
 
@@ -744,7 +747,7 @@ ProcessParseResult ResultProcessor::process(const std::string& output, const T& 
         u_parser_ptr.reset(new KTFeedResultParser{app.name});
     }
     else
-      ELOG("Could not process result from unknown application");
+      klog().e("Could not process result from unknown application");
   }
   else
   if constexpr (std::is_same_v<T, PlatformIPC>)

@@ -1,15 +1,17 @@
-#include <log/logger.h>
+#include <logger.hpp>
 #include <request/controller.hpp>
 #include <server/kserver.hpp>
 
 static const int32_t ERROR{0x01};
+
+using namespace kiq::log;
 
 int main(int argc, char** argv)
 {
   const auto config = kiq::ParseRuntimeArguments(argc, argv);
   int32_t    code   = 0x00;
 
-  kiq::log::klogger::init(config.loglevel);
+  klogger::init("kserver", config.loglevel);
   try
   {
     kiq::KServer server(argc, argv);
@@ -18,17 +20,17 @@ int main(int argc, char** argv)
   }
   catch (const std::runtime_error& e)
   {
-    ELOG("Runtime exception was caught: {}", e.what());
+    klog().e("Runtime exception was caught: {}", e.what());
     code = ERROR;
   }
   catch (const std::exception& e)
   {
-    ELOG("Exception was caught: {}", e.what());
+    klog().e("Exception was caught: {}", e.what());
     code = ERROR;
   }
   catch (...)
   {
-    ELOG("Caught unknown exception. Errno is currently {}", errno);
+    klog().e("Caught unknown exception. Errno is currently {}", errno);
     code = ERROR;
   }
 

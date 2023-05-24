@@ -1,4 +1,5 @@
 #include "executor.hpp"
+#include <logger.hpp>
 
 namespace kiq {
 namespace constants {
@@ -6,54 +7,52 @@ const uint8_t IMMEDIATE_REQUEST = 0;
 const uint8_t SCHEDULED_REQUEST = 1;
 const uint8_t RECURRING_REQUEST = 2;
 } // namespace constants
-
-const char* findWorkDir(std::string_view path) {
+//------------------------------------------------------------------------------
+const char* findWorkDir(std::string_view path)
+{
   return path.substr(0, path.find_last_of("/")).data();
 }
-
-/** Impl */
-ProcessResult run_(std::string_view path, std::vector<std::string> argv) {
-  std::vector<std::string> v_args{};
-  v_args.reserve(argv.size() + 1);
-  v_args.push_back(std::string(path));
-  for (auto&& arg : argv) {
-    v_args.push_back(arg);
-  }
-
-  std::string work_dir{findWorkDir(path)};
-
-  /* qx wraps calls to fork() and exec() */
-  return qx(v_args, work_dir);
+//------------------------------------------------------------------------------
+using namespace kiq::log;
+//------------------------------------------------------------------------------
+ProcessResult run_(std::string_view path, std::vector<std::string> argv)
+{
+  std::vector<std::string> v{path.data()};
+  v.insert(v.end(), std::make_move_iterator(argv.begin()), std::make_move_iterator(argv.end()));
+  return qx(v, findWorkDir(path));
 }
-
+//------------------------------------------------------------------------------
 ProcessDaemon::ProcessDaemon(std::string_view path, std::vector<std::string> argv)
-  : m_path(std::move(path)), m_argv(std::move(argv)) {}
-
-/** Uses async and future to call implementation*/
-ProcessResult ProcessDaemon::run() {
+: m_path(std::move(path)), m_argv(std::move(argv)) {}
+//------------------------------------------------------------------------------
+ProcessResult ProcessDaemon::run()
+{
   std::future<ProcessResult> result_future =
       std::async(std::launch::async, &run_, m_path, m_argv);
   return result_future.get();
 }
-
+//------------------------------------------------------------------------------
 ProcessExecutor::ProcessExecutor(const ProcessExecutor &e)
 : m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback) {}
-
+//------------------------------------------------------------------------------
 ProcessExecutor::ProcessExecutor(ProcessExecutor &&e)
-: m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback) {
+: m_callback(e.m_callback), m_tracked_callback(e.m_tracked_callback)
+{
   e.m_callback         = nullptr;
   e.m_tracked_callback = nullptr;
 }
-
-ProcessExecutor& ProcessExecutor::operator=(const ProcessExecutor &e) {
+//------------------------------------------------------------------------------
+ProcessExecutor& ProcessExecutor::operator=(const ProcessExecutor &e)
+{
   this->m_callback         = nullptr;
   this->m_tracked_callback = nullptr;
   this->m_callback         = e.m_callback;
   this->m_tracked_callback = e.m_tracked_callback;
   return *this;
 };
-
-ProcessExecutor& ProcessExecutor::operator=(ProcessExecutor &&e) {
+//------------------------------------------------------------------------------
+ProcessExecutor& ProcessExecutor::operator=(ProcessExecutor &&e)
+{
   if (&e != this) {
     m_callback           = e.m_callback;
     m_tracked_callback   = e.m_tracked_callback;
@@ -62,33 +61,39 @@ ProcessExecutor& ProcessExecutor::operator=(ProcessExecutor &&e) {
   }
   return *this;
 }
-
-void ProcessExecutor::setEventCallback(ProcessEventCallback f) {
+//------------------------------------------------------------------------------
+void ProcessExecutor::setEventCallback(ProcessEventCallback f)
+{
   m_callback = f;
 }
-void ProcessExecutor::setEventCallback(TrackedEventCallback f) {
+//------------------------------------------------------------------------------
+void ProcessExecutor::setEventCallback(TrackedEventCallback f)
+{
   m_tracked_callback = f;
 }
-
+//------------------------------------------------------------------------------
 void ProcessExecutor::notifyProcessEvent(std::string std_out,
                                          int         mask,
                                          int         client_socket_fd,
-                                         bool error) {
+                                         bool error)
+{
   m_callback(std_out, mask, client_socket_fd, error);
 }
-
+//------------------------------------------------------------------------------
 void ProcessExecutor::notifyTrackedProcessEvent(std::string std_out, int mask,
                                         std::string id, int client_socket_fd,
-                                        bool error) {
+                                        bool error)
+{
   m_tracked_callback(std_out, mask, id, client_socket_fd, error);
 }
-
-//   /* Request execution of an anonymous task */
+//------------------------------------------------------------------------------
 void ProcessExecutor::request(std::string_view         path,
                               int                      mask,
                               int                      client_socket_fd,
-                              std::vector<std::string> argv) {
-  if (path[0] != '\0') {
+                              std::vector<std::string> argv)
+{
+  if (path[0])
+  {
     ProcessDaemon *pd_ptr = new ProcessDaemon(path, argv);
     auto result = pd_ptr->run();
     if (!result.output.empty()) {
@@ -97,7 +102,7 @@ void ProcessExecutor::request(std::string_view         path,
     delete pd_ptr;
   }
 }
-//   /** Request the running of a process being tracked with an ID */
+//------------------------------------------------------------------------------
 void ProcessExecutor::request(std::string_view         path,
                               int                      mask,
                               int                      client_socket_fd,
@@ -105,7 +110,7 @@ void ProcessExecutor::request(std::string_view         path,
                               std::vector<std::string> argv,
                               uint8_t                  type)
 {
-  if (path[0] != '\0')
+  if (path[0])
   {
     ProcessDaemon* pd_ptr = new ProcessDaemon(path, argv);
     ProcessResult  result = pd_ptr->run();
@@ -113,13 +118,13 @@ void ProcessExecutor::request(std::string_view         path,
     notifyTrackedProcessEvent(result.output, mask, id, client_socket_fd, result.error);
     if (!result.error && type != constants::IMMEDIATE_REQUEST)
     {
-      Database::KDB kdb{};
+      Database::KDB kdb;
       auto COMPLETED =
         type == constants::RECURRING_REQUEST ?
           Completed::STRINGS[Completed::SCHEDULED] :
           Completed::STRINGS[Completed::SUCCESS];
       std::string result = kdb.update("schedule", {"completed"}, {COMPLETED}, CreateFilter("id", id), "id");
-      KLOG("Updated task {} to reflect its completion", result);
+      klog().i("Updated task {} to reflect its completion", result);
     }
 
     delete pd_ptr;
@@ -144,7 +149,7 @@ bool ProcessExecutor::saveResult(uint32_t mask, T status, uint32_t time) {
           std::to_string(status)},
           "id");                             // return
       if (!id.empty()) {
-        KLOG("Recorded process {} with result of {} at {}",
+        klog().i("Recorded process {} with result of {} at {}",
           app_info.name,
           Completed::NAMES[status],
           TimeUtils::FormatTimestamp(time)
@@ -154,9 +159,9 @@ bool ProcessExecutor::saveResult(uint32_t mask, T status, uint32_t time) {
       }
     }
   } catch (const pqxx::sql_error &e) {
-    ELOG("Insert query failed: {}", e.what());
+    klog().e("Insert query failed: {}", e.what());
   } catch (const std::exception &e) {
-    ELOG("Insert query failed: {}", e.what());
+    klog().e("Insert query failed: {}", e.what());
   }
 
   return false;
@@ -168,7 +173,7 @@ template bool ProcessExecutor::saveResult(uint32_t, char,    uint32_t);
 
 void ProcessExecutor::executeTask(int client_socket_fd, Task task)
 {
-  KLOG("Executing task {}", task.task_id);
+  klog().i("Executing task {}", task.task_id);
 
   Environment environment{};
   environment.setTask(task);
@@ -186,17 +191,17 @@ void ProcessExecutor::executeTask(int client_socket_fd, Task task)
         constants::RECURRING_REQUEST :
         constants::SCHEDULED_REQUEST
     );
-  } // TODO: Handle failed preparation -> tasks can get stuck in the request_handler's task map
+  } //
 }
-
+//------------------------------------------------------------------------------
 template <typename T>
 KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const T& name)
 {
   if (mask == -1 && name.empty())
     throw std::invalid_argument{"Must provide mask or name"};
 
-  Database::KDB kdb{};
-  KApplication  app{};
+  Database::KDB kdb;
+  KApplication  app;
   Fields        fields{"id", "path", "data", "name", "internal", "mask"};
   QueryFilter   filter{};
 
@@ -230,7 +235,7 @@ KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const T& name)
 
   return app;
 }
-
+//------------------------------------------------------------------------------
 template KApplication ProcessExecutor::GetAppInfo(const int32_t& mask = -1, const std::string& name = "");
 
 } // ns kiq

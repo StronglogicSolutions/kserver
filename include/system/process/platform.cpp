@@ -1,6 +1,10 @@
 #include "platform.hpp"
+#include <logger.hpp>
 
 namespace kiq {
+
+using namespace log;
+
 std::string SavePlatformEnvFile(const post_t& post)
 {
   using namespace FileUtils;
@@ -202,7 +206,7 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
     return Update(post, post.status);
   }
 
-  KLOG("Saving platform post on platform {} by user {}", post.pid, post.user);
+  klog().i("Saving platform post on platform {} by user {}", post.pid, post.user);
 
   std::string uid = GetUID(post.pid, post.user);
   if (uid.empty())
@@ -258,7 +262,7 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
   PlatformPost post = PlatformPost::FromPayload(payload);
   post.pid = GetPlatformID(post.name);
   if (!complete_post(post))
-    WLOG("Failed to update platform post in processing queue. Ignore if new post.");
+    klog().w("Failed to update platform post in processing queue. Ignore if new post.");
 
   return SavePlatformPost(post);
 }
@@ -306,7 +310,7 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) con
 
       if (!PopulatePlatformPost(post))
       {
-        ELOG("Failed to retrieve values for {} platform post with id {}", post.name, post.id);
+        klog().e("Failed to retrieve values for {} platform post with id {}", post.name, post.id);
         continue;
       }
 
@@ -339,7 +343,7 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
   const std::string& platform_id = GetPlatformID(name);
   const std::string& error       = payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX);
 
-  ELOG("{} platform error received for {}.\nError message: {}", name, id, error);
+  klog().e("{} platform error received for {}.\nError message: {}", name, id, error);
   SystemUtils::SendMail(config::Email::admin(), error);
 
   if (!id.empty())
@@ -364,7 +368,7 @@ void Platform::OnPlatformError(const std::vector<std::string>& payload)
     Update(post, PLATFORM_STATUS_FAILURE);
   }
   else
-    ELOG("Platform error had no associated post", error);
+    klog().e("Platform error had no associated post", error);
 }
 //-------------------------------------------------------------------------------------
 void
@@ -387,7 +391,7 @@ Platform::ProcessPlatform()
 
   for (const auto& post : FetchPendingPlatformPosts())
   {
-    KLOG("Processing post {} for {} by {}", post.name, post.id, post.user);
+    klog().i("Processing post {} for {} by {}", post.name, post.id, post.user);
     if (insert_or_update(post))
     {
       m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, post.GetPayload());
@@ -407,7 +411,7 @@ Platform::print_pending() const
       ". Status: "                      + GetPostStatus(status.second);
     return s;
   };
-  KLOG("Platform requests are still being processed: {}", get_pending_reqs());
+  klog().i("Platform requests are still being processed: {}", get_pending_reqs());
 }
 //--------------------------------------------------------------------------------------
 bool Platform::insert_or_update(const post_t& p)
@@ -421,7 +425,7 @@ bool Platform::insert_or_update(const post_t& p)
   else
   if (it->second.second == PlatformPostState::PROCESSING)
   {
-    WLOG("Platform is already processing {} for {}", p.id, p.name);
+    klog().w("Platform is already processing {} for {}", p.id, p.name);
     return false;
   }
   else
@@ -429,10 +433,10 @@ bool Platform::insert_or_update(const post_t& p)
   {
     if (it->second.first.retry)
     {
-      WLOG("Failed post has already had a retry. Will not update");
+      klog().w("Failed post has already had a retry. Will not update");
       return false;
     }
-    DLOG("Post previously failed. Retrying");
+    klog().d("Post previously failed. Retrying");
     it->second.second == PlatformPostState::PROCESSING;
     it->second.first.retry = true;
     return true;
@@ -455,7 +459,7 @@ void Platform::fail_pending_posts()
 //-------------------------------------------------------------------------------------
 bool Platform::complete_post(const post_t& post)
 {
-    KLOG("Attempting to complete PID {} and ID {}", post.pid, post.id);
+    klog().i("Attempting to complete PID {} and ID {}", post.pid, post.id);
     if (auto it = m_platform_map.find({post.pid, post.id}); it != m_platform_map.end())
     {
       if (it->second.second != PlatformPostState::SUCCESS)
@@ -464,7 +468,7 @@ bool Platform::complete_post(const post_t& post)
         m_pending--;
       }
 
-      KLOG("Completed {} platform request {}", post.name, post.id);
+      klog().i("Completed {} platform request {}", post.name, post.id);
       m_platform_map.erase(it);
       return true;
   }

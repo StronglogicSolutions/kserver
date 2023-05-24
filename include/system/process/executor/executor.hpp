@@ -6,7 +6,6 @@
 #include <string>
 #include <string_view>
 
-#include "log/logger.h"
 #include "execxx.hpp"
 #include "environment.hpp"
 #include "kapplication.hpp"
