@@ -5,8 +5,12 @@
 #include "database_connection.hpp"
 #include <memory>
 #include "config/config_parser.hpp"
+#include <logger.hpp>
 
-namespace Database {
+using namespace kiq::log;
+
+namespace Database
+{
 class KDB {
  public:
   KDB() : m_connection(std::move(std::unique_ptr<DatabaseConnection>{new DatabaseConnection})) {
@@ -34,6 +38,7 @@ class KDB {
     m_connection->set_config(config);
   }
 
+
 QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_t limit = 0) const
 {
   try
@@ -49,12 +54,12 @@ QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_
   }
   catch (const pqxx::sql_error& e)
   {
-    ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+    klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
     throw e;
   }
   catch (const std::exception& e)
   {
-    ELOG("Select error: {}", e.what());
+    klog().e("Select error: {}", e.what());
     throw e;
   }
 }
@@ -76,12 +81,12 @@ QueryValues select(std::string table, Fields fields,
   }
   catch (const pqxx::sql_error &e)
   {
-    ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+    klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
     throw e;
   }
   catch (const std::exception &e)
   {
-    ELOG("Exception caught: {}", e.what());
+    klog().e("Exception caught: {}", e.what());
     throw e;
   }
 }
@@ -103,12 +108,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -132,12 +137,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -156,12 +161,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw;
     }
   }
@@ -188,12 +193,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -219,12 +224,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -249,12 +254,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -274,12 +279,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
   }
@@ -301,12 +306,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
 
@@ -331,12 +336,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
 
@@ -358,12 +363,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
 
@@ -386,12 +391,12 @@ QueryValues select(std::string table, Fields fields,
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Exception caught: {}\nQuery: {}", e.what(), e.query());
+      klog().e("Exception caught: {}\nQuery: {}", e.what(), e.query());
       throw e;
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception caught: {}", e.what());
+      klog().e("Exception caught: {}", e.what());
       throw e;
     }
   }

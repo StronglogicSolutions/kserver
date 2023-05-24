@@ -96,7 +96,7 @@ Task args_to_task(std::vector<std::string> args)
       task.runtime         = StripSQuotes(args.at(constants::PAYLOAD_RUNTIME_INDEX));
       // task.filenames = args.at(constants::PAYLOAD_ID_INDEX;
       task.env         = args.at(constants::PAYLOAD_ENVFILE_INDEX);
-      KLOG("Can't parse files from schedule payload. Must be implemented");
+      klog().i("Can't parse files from schedule payload. Must be implemented");
     }
   }
   return task;

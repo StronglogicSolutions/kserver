@@ -1,9 +1,12 @@
 #include "event_handler.hpp"
 #include "kserver.hpp"
 #include "kiqoder/file_iterator.hpp"
+#include <logger.hpp>
 
 namespace kiq
 {
+using namespace kiq::log;
+
 static const int32_t NONE_PENDING {-1};
 static const bool    KEEP_HEADER  {true};
 static const char*   STATUS       {"status"};
@@ -25,7 +28,7 @@ KServer::KServer(int argc, char **argv)
   m_file_pending_fd(NONE_PENDING)
 {
   evt::instance().set_server(this);
-  KLOG("Initializing controller");
+  klog().i("Initializing controller");
   m_controller.Initialize(
     [this](std::string result, int mask, std::string request_id, const int32_t &client_fd, bool error)
     {
@@ -40,20 +43,20 @@ KServer::KServer(int argc, char **argv)
       ValidateClients();
     });
 
-  KLOG("Starting IPC manager");
+  klog().i("Starting IPC manager");
   m_ipc_manager.start();
 }
 //-----------------------------------------------------------------------------------------------------
 KServer::~KServer()
 {
-  KLOG("Server shutting down");
+  klog().i("Server shutting down");
   CloseConnections();
   m_controller.Shutdown();
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std::string& id, int32_t client_fd, bool error)
 {
-  VLOG("Task {} completed with result:\n{}", id, result);
+  klog().t("Task {} completed with result:\n{}", id, result);
   std::string process_executor_result_str{};
   std::vector<std::string> event_args{};
 
@@ -82,14 +85,14 @@ void KServer::SendFile(const int32_t& client_fd, const std::string& filename)
     SocketListener::sendMessage(client_fd, reinterpret_cast<const char *>(packet.data()), packet.size);
   }
 
-  VLOG("Sent {} file bytes", iterator.GetBytesRead());
+  klog().t("Sent {} file bytes", iterator.GetBytesRead());
   m_sessions.at(client_fd).tx += iterator.GetBytesRead();
   m_file_sending = false;
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::SendEvent(const int32_t& client_fd, const std::string& event, const std::vector<std::string>& argv)
 {
-  KLOG("Sending {} event to {}", event, client_fd);
+  klog().i("Sending {} event to {}", event, client_fd);
   if (client_fd == ALL_CLIENTS)
     Broadcast(event, argv);
   else
@@ -103,7 +106,7 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
 
   const size_t& size    {message.size()};
   F_Iterator    iterator{message.data(), size};
-  VLOG("Sending {} bytes to {}", size, client_fd);
+  klog().t("Sending {} bytes to {}", size, client_fd);
 
   while (iterator.has_data())
   {
@@ -117,12 +120,12 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
 void KServer::OnFileHandled(const int& socket_fd, uint8_t*&& f_ptr, size_t size)
 {
   if (m_file_pending_fd != socket_fd)
-    KLOG("Lost file intended for {}", socket_fd);
+    klog().i("Lost file intended for {}", socket_fd);
   else
   {
     const auto timestamp = TimeUtils::UnixTime();
     m_file_manager.Add({timestamp, socket_fd, f_ptr, size});
-    KLOG("Received file from {} at {}", socket_fd, timestamp);
+    klog().i("Received file from {} at {}", socket_fd, timestamp);
     SendEvent(socket_fd, "File Transfer Complete", {std::to_string(timestamp)});
     SetFileNotPending();
   }
@@ -138,7 +141,7 @@ void KServer::ReceiveFileData(const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
     handler->second.processPacket(s_buffer_ptr.get(), size);
   else
   {
-    KLOG("creating FileHandler for {}", client_fd);
+    klog().i("creating FileHandler for {}", client_fd);
     m_file_handlers.insert({client_fd, FileHandler{
                                             [this](int32_t fd, uint8_t *data, size_t size)
                                             { OnFileHandled(fd, std::move(data), size); }}});
@@ -175,13 +178,13 @@ void KServer::InitClient(const std::string& message, const int32_t& fd)
 
   if (m_sessions.init(user.name, NewSession(n_uuid, user)) && ValidateToken(user))
   {
-    KLOG("Started session {} for {}", uuid_s, fd);
+    klog().i("Started session {} for {}", uuid_s, fd);
     SendMessage(fd, GetData());
     SendMessage(fd, CreateSessionEvent(SESSION_ACTIVE, WELCOME_MSG, GetInfo(SESSION_ACTIVE, uuid_s)));
   }
   else
   {
-    ELOG("Rejected session request for {} on {}", user.name, fd);
+    klog().e("Rejected session request for {} on {}", user.name, fd);
     SendMessage(fd, CreateSessionEvent(SESSION_INVALID, REJECTED_MSG, GetError("Invalid token")));
     EndSession(fd, SESSION_INVALID);
   }
@@ -198,7 +201,7 @@ void KServer::ScheduleRequest(const std::vector<std::string>& task, const int32_
   const auto uuid = uuids::to_string(uuids::uuid_system_generator{}());
   SendEvent(client_fd, "Processing Schedule Request", {"Schedule Task", uuid});
   m_controller("Schedule", task, client_fd, uuid);
-  KLOG("Legacy Schedule Request: delivered to controller");
+  klog().i("Legacy Schedule Request: delivered to controller");
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::OperationRequest(const std::string& message, const int32_t& client_fd)
@@ -212,7 +215,7 @@ void KServer::OperationRequest(const std::string& message, const int32_t& client
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception thrown during InitClient: {}", e.what());
+      klog().e("Exception thrown during InitClient: {}", e.what());
     }
   }
   else if (IsStopOperation(op))
@@ -235,7 +238,7 @@ void KServer::OperationRequest(const std::string& message, const int32_t& client
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception thrown during Controller::ProcessClientRequest: {}", e.what());
+      klog().e("Exception thrown during Controller::ProcessClientRequest: {}", e.what());
     }
   }
 }
@@ -254,7 +257,7 @@ void KServer::onMessageReceived(int                      client_fd,
   }
   catch (const std::exception &e)
   {
-    ELOG("Exception thrown while handling message.\n{}", e.what());
+    klog().e("Exception thrown while handling message.\n{}", e.what());
     m_errors++;
   }
 }
@@ -268,7 +271,7 @@ void KServer::SendPong(int32_t client_fd)
   }
   catch (const std::exception &e)
   {
-    ELOG("Exception thrown from SendPong: {}", e.what());
+    klog().e("Exception thrown from SendPong: {}", e.what());
   }
 }
 //-----------------------------------------------------------------------------------------------------
@@ -281,17 +284,17 @@ void KServer::EndSession(const int32_t& client_fd, int32_t status)
 
   if (m_sessions.has(client_fd))
   {
-    KLOG("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
+    klog().i("Shutting down session for client {}.\nStatistics:\n{}", client_fd, GetStats(m_sessions.at(client_fd)));
     m_sessions.at(client_fd).status = status;
     if (HandlingFile(client_fd))
       SetFileNotPending();
   }
   else
-    KLOG("Shutting down socket for client with no session");
+    klog().i("Shutting down socket for client with no session");
 
-  VLOG("Calling shutdown on fd {}", client_fd);
+  klog().t("Calling shutdown on fd {}", client_fd);
   if (shutdown(client_fd, SHUT_RD) != SUCCESS)
-    ELOG("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
+    klog().e("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::CloseConnections()
@@ -313,7 +316,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
     try
     {
       if (message.empty())
-        ELOG("Failed to decode message");
+        klog().e("Failed to decode message");
       else
       if (IsPing(message))
         SendPong(fd);
@@ -329,7 +332,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
         }
         catch (const std::exception& e)
         {
-          ELOG("Exception thrown during OperationRequest: {}", e.what());
+          klog().e("Exception thrown during OperationRequest: {}", e.what());
         }
       }
       else
@@ -340,14 +343,14 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
       }
       catch (const std::exception& e)
       {
-        ELOG("Exception thrown from DecodeMessage LEFT callback: {}", e.what());
+        klog().e("Exception thrown from DecodeMessage LEFT callback: {}", e.what());
       }
 
     return message; })
         .rightMap([this, fd](auto &&args)
                   {
     (args.size()) ? ScheduleRequest(args, fd) :
-                    ELOG("Failed to decode message");
+                    klog().e("Failed to decode message");
     return args; });
   };
 
@@ -360,7 +363,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
         it->second.processPacket(s_buffer_ptr.get(), size);
       else
       {
-        KLOG("Creating message handler for {}", fd);
+        klog().i("Creating message handler for {}", fd);
         m_message_handlers.insert({fd, FileHandler{ProcessMessage, KEEP_HEADER}});
         m_message_handlers.at(fd).setID(fd);
         m_message_handlers.at(fd).processPacket(s_buffer_ptr.get(), size);
@@ -368,13 +371,13 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
     }
     catch (const std::exception &e)
     {
-      ELOG("Exception thrown from ReceiveMessage while processing a packet?: {}", e.what());
+      klog().e("Exception thrown from ReceiveMessage while processing a packet?: {}", e.what());
     }
     TrackDataStats(fd, size);
   }
   catch (const std::exception &e)
   {
-    ELOG("Exception caught while processing client message: {}", e.what());
+    klog().e("Exception caught while processing client message: {}", e.what());
     throw;
   }
 }
@@ -408,7 +411,7 @@ void KServer::EraseFileHandler(const int32_t& fd)
   if (it != m_file_handlers.end())
   {
     m_file_handlers.erase(it);
-    KLOG("Removed file handler");
+    klog().i("Removed file handler");
   }
 }
 //-----------------------------------------------------------------------------------------------------
@@ -418,7 +421,7 @@ void KServer::EraseMessageHandler(const int32_t& fd)
   if (it != m_message_handlers.end())
   {
     m_message_handlers.erase(it);
-    KLOG("Removed message handler");
+    klog().i("Removed message handler");
   }
 }
 //-----------------------------------------------------------------------------------------------------
@@ -441,8 +444,8 @@ bool KServer::HandlingFile(const int32_t& fd)
 //-----------------------------------------------------------------------------------------------------
 void KServer::onConnectionClose(int32_t client_fd)
 {
-  KLOG("Connection closed for {}", client_fd);
-  KLOG("Ending session");
+  klog().i("Connection closed for {}", client_fd);
+  klog().i("Ending session");
   EndSession(client_fd);
   OnClientExit(client_fd);
 }
@@ -457,7 +460,7 @@ KSession KServer::GetSession(const int32_t& client_fd) const
   }
   catch (const std::exception &e)
   {
-    ELOG("Exception thrown in GetSession: {}", e.what());
+    klog().e("Exception thrown in GetSession: {}", e.what());
   }
   return KSession{};
 }

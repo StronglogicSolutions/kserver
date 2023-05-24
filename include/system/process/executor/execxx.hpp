@@ -1,6 +1,5 @@
 #pragma once
 
-#include <log/logger.h>
 #include <sys/wait.h>
 #include <sys/poll.h>
 #include <unistd.h>
@@ -8,9 +7,13 @@
 #include <string>
 #include <vector>
 #include <future>
+#include <logger.hpp>
 
 namespace kiq
 {
+
+using namespace log;
+
 struct ProcessResult {
   std::string output;
   bool error = false;
@@ -42,7 +45,7 @@ inline ProcessResult qx(      std::vector<std::string> args,
 #ifndef NDEBUG
   std::string execution_command;
   for (const auto& arg : args) execution_command += arg + ' ';
-  VLOG("ProcessExecutor running the following command:\n {}", execution_command);
+  klog().t("ProcessExecutor running the following command:\n {}", execution_command);
 #endif
 
   int stdout_fds[2];
@@ -86,7 +89,7 @@ inline ProcessResult qx(      std::vector<std::string> args,
   for (;;)
   {
     ret = waitpid(pid, &status, (WNOHANG | WUNTRACED | WCONTINUED));
-    KLOG("waitpid returned {}", ret);
+    klog().i("waitpid returned {}", ret);
 
     if (!ret)
       break;
@@ -103,19 +106,19 @@ inline ProcessResult qx(      std::vector<std::string> args,
 
   pollfd poll_fds[2]{
     pollfd{
-      .fd       =   stdout_fds[0] & 0xFF,
-      .events   =   POLL_OUT | POLL_ERR | POLL_IN,
-      .revents  =   short{0}},
+      .fd      =   stdout_fds[0] & 0xFF,
+      .events  =   POLL_OUT | POLL_ERR | POLL_IN,
+      .revents =   short{0}},
     pollfd{
-      .fd       =   stderr_fds[0] & 0xFF,
-      .events   =   POLLHUP | POLLERR | POLLIN,
-      .revents  =   short{0}}};
+      .fd      =   stderr_fds[0] & 0xFF,
+      .events  =   POLLHUP | POLLERR | POLLIN,
+      .revents =   short{0}}};
 
   for (;;)
   {
 
     if (!poll(poll_fds, 2, 30000))
-      ELOG("Failed to poll file descriptor");
+      klog().e("Failed to poll file descriptor");
 
     if (poll_fds[1].revents & POLLIN)
     {

@@ -2,9 +2,12 @@
 #include "common/time.hpp"
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
+#include <logger.hpp>
 
 namespace kiq
 {
+using namespace kiq::log;
+
 static Timer timer;
 static const bool        IMMEDIATELY          = false;
 static const size_t      QUEUE_LIMIT          = 0x05;
@@ -65,7 +68,7 @@ Scheduler::Scheduler(Database::KDB&& kdb)
                           { return FindMask(name); }),
       m_research_polls{}
 {
-  KLOG("Scheduler instantiated for testing");
+  klog().i("Scheduler instantiated for testing");
 }
 //----------------------------------------------------------------------------------------------------------------
 static Scheduler::ApplicationMap FetchApplicationMap(Database::KDB& db)
@@ -120,14 +123,14 @@ Scheduler::Scheduler(SystemEventcallback fn)
   }
   catch (const std::exception &e)
   {
-    ELOG(e.what());
+    klog().e(e.what());
     throw;
   }
 }
 //----------------------------------------------------------------------------------------------------------------
 Scheduler::~Scheduler()
 {
-  KLOG("Scheduler destroyed");
+  klog().i("Scheduler destroyed");
 }
 //----------------------------------------------------------------------------------------------------------------
 template <typename T>
@@ -178,13 +181,13 @@ std::string Scheduler::schedule(Task task)
     {
       if (id = m_kdb.insert(table, fields, values, "id"); !id.empty())
       {
-        KLOG("Request to schedule task was accepted\nID {}", id);
+        klog().i("Request to schedule task was accepted\nID {}", id);
 
         for (const auto file : task.files)
         {
           const Fields f_fields = {"name", "sid", "type"};
           const Values f_values = {file.first, id, GetFileType(file.first)};
-          KLOG("Recording file in DB: {}", file.first);
+          klog().i("Recording file in DB: {}", file.first);
           m_kdb.insert("file", f_fields, f_values);
         }
 
@@ -197,11 +200,11 @@ std::string Scheduler::schedule(Task task)
     }
     catch (const pqxx::sql_error &e)
     {
-      ELOG("Insert query failed: {}", e.what());
+      klog().e("Insert query failed: {}", e.what());
     }
     catch (const std::exception &e)
     {
-      ELOG("Insert query failed: {}", e.what());
+      klog().e("Insert query failed: {}", e.what());
     }
   }
   return id;
@@ -479,7 +482,7 @@ std::vector<std::string> Scheduler::getFlags(const T& mask)
     if (row.first == Field::FLAGS)
       return StringUtils::Split(row.second, ' ');
 
-  ELOG("No task exists with that mask");
+  klog().e("No task exists with that mask");
   return {};
 }
 //----------------------------------------------------------------------------------------------------------------
@@ -514,7 +517,7 @@ bool Scheduler::update(Task task)
 bool Scheduler::updateRecurring(Task* task)
 {
   auto time = std::to_string(std::stoi(task->datetime) + GetIntervalSeconds(task->recurring));
-  KLOG("{} task {} scheduled for {}", Constants::Recurring::names[task->recurring], task->id(), time);
+  klog().i("{} task {} scheduled for {}", Constants::Recurring::names[task->recurring], task->id(), time);
   return !m_kdb.update("recurring", {"time"}, {time}, CreateFilter("sid", task->id()), "id").empty();
 }
 //----------------------------------------------------------------------------------------------------------------
@@ -588,10 +591,10 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     {
       if (m_message_queue.size() < 2)
       {
-        KLOG("Research results: no actions");
+        klog().i("Research results: no actions");
         m_message_queue.clear();
       }
-      KLOG("Resolving pending IPC from Finalize()");
+      klog().i("Resolving pending IPC from Finalize()");
       ResolvePending(IMMEDIATELY);
     }
   };
@@ -616,14 +619,14 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     auto PollExists = [this](const auto &id) { return m_research_polls.find(id) != m_research_polls.end(); };
 
     if (QueueFull())
-      return VLOG("Outbound IPC queue is full");
+      return klog().t("Outbound IPC queue is full");
 
     const auto event = IPC_PLATFORM_REQUEST;
     for (const auto &request : m_research_manager.AnalyzeTW(root, child, subchild))
     {
       if (!PollExists(root.id))
       {
-        VLOG("Adding poll for {}", root.id);
+        klog().t("Adding poll for {}", root.id);
         std::string dest = config::Process::tg_dest();
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::message, request.data, CreateOperation("Bot", {dest})));
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::poll, request.title, CreateOperation("Bot", {dest, "High", "Some", "Little", "None"})));
@@ -653,7 +656,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
   }
   catch (const std::exception &e)
   {
-    ELOG("Unknown application cannot be processed for post execution work. Exception: {}", e.what());
+    klog().e("Unknown application cannot be processed for post execution work. Exception: {}", e.what());
     return;
   }
 
@@ -706,7 +709,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     if (init_root == resp_root && GetAppName(init_root->task.mask) == TW_RESEARCH_APP)
       AnalyzeTW(*(init_root), init_node, resp_node);
     else
-      KLOG("All tasks originating from {} have completed", init_root->id);
+      klog().i("All tasks originating from {} have completed", init_root->id);
   };
 
   Finalize(resp_id);
@@ -783,7 +786,7 @@ bool Scheduler::OnProcessOutput(const std::string& output, const int32_t mask, c
       m_postexec_map.at(id).second.SetEvent(std::move(outgoing_event));
       break;
     default:
-      ELOG("Result processor returned unknown event with code {}", outgoing_event.code);
+      klog().e("Result processor returned unknown event with code {}", outgoing_event.code);
     }
 
   return !(result.events.empty());
@@ -806,7 +809,7 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
   const auto& message  = payload[constants::PLATFORM_REQUEST_MESSAGE_INDEX];
   const auto& args     = payload[constants::PLATFORM_REQUEST_ARGS_INDEX];
 
-  KLOG("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
+  klog().i("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
 
   if (message == REQUEST_SCHEDULE_POLL_STOP)
     ScheduleIPC({platform, message, args}, id);
@@ -814,18 +817,18 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
   if (message == REQUEST_PROCESS_POLL_RESULT)
   {
     if (!OnIPCReceived(id))
-      return ELOG("Unable to match unknown IPC response {} from {}", id, platform);
+      return klog().e("Unable to match unknown IPC response {} from {}", id, platform);
 
     const auto result = m_result_processor.process(args, PlatformIPC{platform, TGCommand::poll_result, id});
     for (const ProcessEventData &event : result.events)
       switch (event.code)
       {
         case (SYSTEM_EVENTS__PROCESS_RESEARCH_RESULT):
-          KLOG("Finalizing research data for ML input");
+          klog().i("Finalizing research data for ML input");
           m_research_manager.FinalizeMLInputs(GetUUID(m_dispatched_ipc.at(id).id), event.payload);
         break;
         default:
-          ELOG("Unable to complete processing result from {} IPC request: Unknown event with code {}", platform, event.code);
+          klog().e("Unable to complete processing result from {} IPC request: Unknown event with code {}", platform, event.code);
       }
 
     if (IPCResponseReceived() && m_research_manager.MLInputReady())
@@ -852,7 +855,7 @@ bool Scheduler::processTriggers(Task* task_ptr)
     if (schedule(task).empty())
       processed_triggers = false;
     else
-      KLOG("Task {} triggered scheduling of new task with ID {}", task_ptr->id(), task.id());
+      klog().i("Task {} triggered scheduling of new task with ID {}", task_ptr->id(), task.id());
 
   return processed_triggers;
 }
@@ -921,7 +924,7 @@ void Scheduler::ResolvePending(const bool& check_timer)
   if (check_timer && (!timer.active() || !timer.expired()))
     return;
 
-  KLOG("Resolving pending IPC messages");
+  klog().i("Resolving pending IPC messages");
   for (auto&& buffer = m_message_queue.begin(); buffer != m_message_queue.end(); buffer++)
   {
     m_tx_ipc++;
@@ -960,14 +963,14 @@ int32_t Scheduler::CreateChild(const T&                        id,
     if (const auto new_task_id = schedule(GenericTaskHandler::Create(app.mask, data, "", "", args)); new_task_id.size())
     {
       PostExecWait(task_id, new_task_id);
-      KLOG("{} scheduled as a child of {}", new_task_id, task_id);
+      klog().i("{} scheduled as a child of {}", new_task_id, task_id);
       return std::stoi(new_task_id);
     }
     else
-      ELOG("Failed to schedule {} task", app.name);
+      klog().e("Failed to schedule {} task", app.name);
   }
   else
-    ELOG("Application not found: {}", application_name);
+    klog().e("Application not found: {}", application_name);
 
   return INVALID_ID;
 };
@@ -994,7 +997,7 @@ std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std:
   const Fields fields   = {"pid", "command", "data", "time", "p_uuid"};
   const Values values   = {platname, command, data, time, uuid};
 
-  KLOG("Scheduling IPC. ID origin {} for platform {} with command {} at {}", uuid, platname, command, time);
+  klog().i("Scheduling IPC. ID origin {} for platform {} with command {} at {}", uuid, platname, command, time);
   return m_kdb.insert("ipc", fields, values, "id");
 }
 //----------------------------------------------------------------------------------------------------------------
@@ -1050,7 +1053,7 @@ void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, co
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
   m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
   m_tx_ipc++;
-  VLOG("Dispatched IPC with ID {} command {} and data {}", id, command, data);
+  klog().t("Dispatched IPC with ID {} command {} and data {}", id, command, data);
 }
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::IPCResponseReceived() const

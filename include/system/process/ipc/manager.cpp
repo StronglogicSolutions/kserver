@@ -1,15 +1,18 @@
 #include "manager.hpp"
 #include "system/process/executor/task_handlers/task.hpp"
+#include <logger.hpp>
 
 namespace kiq
 {
+  using namespace kiq::log;
+
   static const char* broker_peer = "botbroker";
   static const char* kygui_peer  = "kygui";
   //*******************************************************************//
   static void log_message(ipc_message* msg)
   {
     if (const auto type = msg->type(); type != constants::IPC_KEEPALIVE_TYPE)
-      VLOG("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
+      klog().t("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
   }
   //*******************************************************************//
   std::unique_ptr<platform_message> deserialize(const Payload &args)
@@ -28,7 +31,7 @@ namespace kiq
         m_public_(m_context, ZMQ_ROUTER),
         m_backend_(m_context, ZMQ_DEALER)
   {
-    set_log_fn([](const char* arg) { VLOG(arg); });
+    set_log_fn([](const char* arg) { klog().t(arg); });
     m_public_.bind(REP_ADDRESS);
     m_backend_.bind(BACKEND_ADDRESS);
     m_future = std::async(std::launch::async, [this]
@@ -52,7 +55,7 @@ namespace kiq
   bool
   IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
-    KLOG("Processing IPC message for event {}", event);
+    klog().i("Processing IPC message for event {}", event);
     if (m_clients.find(broker_peer) == m_clients.end())
     {
       delay_event(event, args);
@@ -80,7 +83,7 @@ namespace kiq
     m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{m_context, broker_peer, this, true});
-    m_daemon.add_observer(broker_peer, [] { ELOG("Heartbeat timed out for {}", broker_peer); });
+    m_daemon.add_observer(broker_peer, [] { klog().e("Heartbeat timed out for {}", broker_peer); });
     m_daemon.reset();
   }
   //*******************************************************************//
@@ -95,7 +98,7 @@ namespace kiq
   IPCManager::on_heartbeat(std::string_view peer)
   {
     if (!m_daemon.validate(peer))
-      VLOG("Couldn't validate heartbeat for {}", peer);
+      klog().t("Couldn't validate heartbeat for {}", peer);
   }
   //*******************************************************************//
   void
@@ -111,7 +114,7 @@ namespace kiq
     {
       while (m_clients.find(broker_peer) == m_clients.end())
       {
-        VLOG("Delaying handling of IPC message");
+        klog().t("Delaying handling of IPC message");
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
       }
       ReceiveEvent(event, args);

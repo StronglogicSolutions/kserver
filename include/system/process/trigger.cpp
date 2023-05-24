@@ -1,6 +1,9 @@
 #include "trigger.hpp"
+#include <logger.hpp>
 
 namespace kiq {
+using namespace kiq::log;
+
 /**
  * @brief processTriggers
  *
@@ -172,7 +175,7 @@ bool Trigger::add(TriggerConfig config)
 
     if (error)
     {
-      ELOG("Error inserting trigger into trigger table");
+      klog().e("Error inserting trigger into trigger table");
       return false;
     }
 
@@ -190,7 +193,7 @@ bool Trigger::add(TriggerConfig config)
 
     if (error)
     {
-      ELOG("Error inserting trigger map");
+      klog().e("Error inserting trigger map");
       return false;
     }
 
@@ -205,7 +208,7 @@ bool Trigger::add(TriggerConfig config)
 
     if (error)
     {
-      ELOG("Error inserting trigger config");
+      klog().e("Error inserting trigger config");
     }
   }
 

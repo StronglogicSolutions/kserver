@@ -1,6 +1,5 @@
 #pragma once
 
-#include "log/logger.h"
 #include "database/kdb.hpp"
 #include "executor/task_handlers/task.hpp"
 #include "executor/executor.hpp"
@@ -54,7 +53,7 @@ static bool HasBasePlatform(const std::string& name)
   }
   catch (const std::exception& e)
   {
-    KLOG("Exception thrown retrieving base platform {}. Exception: {}", name, e.what());
+    klog().i("Exception thrown retrieving base platform {}. Exception: {}", name, e.what());
     return false;
   }
 }

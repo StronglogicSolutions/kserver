@@ -1,7 +1,6 @@
 #pragma once
 
 #include <future>
-#include "log/logger.h"
 #include "kproto/ipc.hpp"
 
 namespace kiq {
