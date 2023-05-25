@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.6)
 
 # Compiler version
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # Project name
 project(kserver)
@@ -19,8 +19,9 @@ else ()
 endif()
 
 # External dependencies
-# set(LISTENERLIB "${CMAKE_SOURCE_DIR}/include/server/libsocket_listener.a")
+find_package(fmt CONFIG REQUIRED)
 set(LISTENERLIB "${CMAKE_SOURCE_DIR}/src/socket_listener.cpp" "${CMAKE_SOURCE_DIR}/src/task_queue.cpp")
+set(KLOGGER "${CMAKE_SOURCE_DIR}/third_party/klogger/build/libklog.a")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(JWT_INCLUDE "${CMAKE_SOURCE_DIR}/third_party/jwt-cpp/include")
 find_library(UUID uuid)
@@ -61,7 +62,7 @@ set(SOURCE_FILES
   "include/system/process/executor/task_handlers/instagram.cpp"
   "include/common/util.cpp"
   "include/common/time.cpp"
-  "third_party/klogger/src/logger.cpp"
+  #"third_party/klogger/src/logger.cpp"
 )
 
 # Sources
@@ -84,6 +85,8 @@ target_link_libraries(
   Threads::Threads
   ${OPENSSL_LIBRARIES}
   zmq ${CMAKE_THREAD_LIBS_INIT}
+  PUBLIC fmt::fmt
+  ${KLOGGER}
 )
 
 target_link_libraries(
@@ -95,6 +98,7 @@ target_link_libraries(
   Threads::Threads
   ${OPENSSL_LIBRARIES}
   zmq ${CMAKE_THREAD_LIBS_INIT}
+  PUBLIC fmt::fmt
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
