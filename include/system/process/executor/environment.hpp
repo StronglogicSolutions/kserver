@@ -42,13 +42,13 @@ static const std::string RUNTIME_FLAG{"R_ARGS"};
  * @param   [in]  {std::string}
  * @returns [out] {std::vector<std::string>}
  */
-inline std::vector<std::string> exec_flags_to_vector(std::string flag_s) {
-  std::vector<std::string> flags{};
-  for (const auto& expression : StringUtils::Split(flag_s, ' ')) {
-    flags.push_back(expression.substr(expression.find_first_of('$') + 1));
-  }
-  return flags;
-}
+// inline std::vector<std::string> exec_flags_to_vector(std::string flag_s) {
+//   std::vector<std::string> flags{};
+//   for (const auto& expression : StringUtils::Split(flag_s, ' ')) {
+//     flags.push_back(expression.substr(expression.find_first_of('$') + 1));
+//   }
+//   return flags;
+// }
 
 
 inline std::string parse_filename(std::string filename) {

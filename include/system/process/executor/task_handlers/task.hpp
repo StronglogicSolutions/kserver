@@ -183,7 +183,16 @@ namespace Field {
   static const char* const NOTIFY    = "schedule.notify";
   static const char* const RUNTIME   = "schedule.runtime";
 } // namespace Field
-
+//-------------------------------------------------------------------
+inline std::vector<std::string>
+exec_flags_to_vector(std::string flag_s)
+{
+  std::vector<std::string> flags;
+  for (const auto& expression : StringUtils::Split(flag_s, ' '))
+    flags.push_back(expression.substr(expression.find_first_of('$') + 1));
+  return flags;
+}
+//-------------------------------------------------------------------
 using TaskArguments = std::vector<std::string>;
 
 static const uint8_t TASK_PAYLOAD_SIZE{12};
@@ -521,5 +530,48 @@ static PlatformPost FromPayload(const std::vector<std::string>& payload)
 using PlatformStatePair = std::pair<PlatformPost, PlatformPostState>;
 using PlatformRequestMap =
 std::unordered_map<std::pair<std::string, std::string>, PlatformStatePair, platform_pair_hash>;
+
+static PlatformPost to_post(const Task& task)
+{
+  using namespace constants;
+  struct TaskParser
+  {
+    using arg_map_t = std::map<const char*, std::function<void(std::string)>>;
+
+    void parse(std::string_view flag, const std::string& arg)
+    {
+      arg_map[flag.data()](arg);
+    }
+
+    PlatformPost post_;
+    arg_map_t arg_map{
+      { DESCRIPTION_KEY,         [] (auto arg) {} },
+      { FILE_TYPE_KEY,           [] (auto arg) {} },
+      { HEADER_KEY,              [] (auto arg) {} },
+      { USER_KEY,                [] (auto arg) {} },
+      { HASHTAGS_KEY,            [] (auto arg) {} },
+      { LINK_BIO_KEY,            [] (auto arg) {} },
+      { REQUESTED_BY_KEY,        [] (auto arg) {} },
+      { REQUESTED_BY_PHRASE_KEY, [] (auto arg) {} },
+      { PROMOTE_SHARE_KEY,       [] (auto arg) {} },
+      { DIRECT_MESSAGE_KEY,      [] (auto arg) {} }
+    };
+
+    PlatformPost get() const
+    {
+      return post_;
+    }
+  };
+
+  TaskParser parser;
+  const auto flags = exec_flags_to_vector(task.flags);
+  for (const auto& flag : flags)
+  {
+    parser.parse(flag, task.GetToken(flag));
+  }
+
+  return parser.get();
+
+}
 
 } // ns kiq
