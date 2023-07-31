@@ -223,7 +223,7 @@ static Task clone_basic(const Task& task, int new_mask = -1, bool recurring = fa
   new_task.mask            = (new_mask >= 0) ? new_mask : task.mask;
   new_task.file            = task.file;
   new_task.files           = task.files;
-  new_task.flags = task.flags;
+  new_task.flags           = task.flags;
   new_task.runtime         = task.runtime;
   new_task.filenames       = task.filenames;
 
@@ -250,13 +250,14 @@ std::vector<std::string> payload()
   return payload;
 }
 
-std::string toString() const {
-  std::string return_string{};
-  return_string.reserve(100);
+std::string toString() const
+{
+  std::string return_string;
   return_string += "ID: " + id();
   return_string += "\nMask: " + std::to_string(mask);
+  return_string += "\nFlags: " + flags;
   return_string += "\nTime: " + datetime;
-  return_string += "\nFiles: " + std::to_string(files.size());
+  return_string += "\nFiles: " + std::to_string((files.empty()) ? filenames.size() : files.size());
   return_string += "\nCompleted: " + std::to_string(completed);
   return_string += "\nRuntime: " + runtime;
   return_string += "\nRecurring: ";
@@ -285,10 +286,11 @@ friend std::ostream &operator<<(std::ostream &out, const Task &task) {
   return out << task.toString();
 }
 
-friend bool operator==(const Task& t1, const Task& t2);
-friend bool operator!=(const Task& t1, const Task& t2);
+// friend bool operator==(const Task& t1, const Task& t2);
+// friend bool operator!=(const Task& t1, const Task& t2);
 
-friend bool operator==(const Task& t1, const Task& t2) {
+friend bool operator==(const Task& t1, const Task& t2)
+{
   return (
     t1.completed    == t2.completed       &&
     t1.datetime     == t2.datetime        &&
@@ -530,48 +532,59 @@ static PlatformPost FromPayload(const std::vector<std::string>& payload)
 using PlatformStatePair = std::pair<PlatformPost, PlatformPostState>;
 using PlatformRequestMap =
 std::unordered_map<std::pair<std::string, std::string>, PlatformStatePair, platform_pair_hash>;
-
+//----------------------------------------------------------------------------------------------
 static PlatformPost to_post(const Task& task)
 {
   using namespace constants;
   struct TaskParser
   {
-    using arg_map_t = std::map<const char*, std::function<void(std::string)>>;
+    using arg_map_t = std::map<std::string, std::function<void(std::string)>>;
 
-    void parse(std::string_view flag, const std::string& arg)
+    TaskParser(const std::string& id = "", const std::string& time = "", const std::string& name = "")
     {
-      arg_map[flag.data()](arg);
+      post_.id   = id;
+      post_.time = time;
+      post_.name = name;
     }
-
+  //-----------------------------
+    void parse(const std::string& flag, const std::string& arg)
+    {
+      arg_map[flag](arg);
+    }
+  //-----------------------------
+    void add_file(const std::string& file)
+    {
+      post_.urls += "file://" + file + '>';
+    }
+  //-----------------------------
     PlatformPost post_;
     arg_map_t arg_map{
-      { DESCRIPTION_KEY,         [] (auto arg) {} },
-      { FILE_TYPE_KEY,           [] (auto arg) {} },
-      { HEADER_KEY,              [] (auto arg) {} },
-      { USER_KEY,                [] (auto arg) {} },
-      { HASHTAGS_KEY,            [] (auto arg) {} },
-      { LINK_BIO_KEY,            [] (auto arg) {} },
-      { REQUESTED_BY_KEY,        [] (auto arg) {} },
-      { REQUESTED_BY_PHRASE_KEY, [] (auto arg) {} },
-      { PROMOTE_SHARE_KEY,       [] (auto arg) {} },
-      { DIRECT_MESSAGE_KEY,      [] (auto arg) {} }
+      { DESCRIPTION_KEY,         [this] (auto arg) { post_.content += arg + '\n'; } },
+      { HEADER_KEY,              [this] (auto arg) { post_.content += arg + '\n'; } },
+      { HASHTAGS_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
+      { LINK_BIO_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
+      { REQUESTED_BY_KEY,        [this] (auto arg) { post_.content += arg + '\n'; } },
+      { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { post_.content += arg + '\n'; } },
+      { PROMOTE_SHARE_KEY,       [this] (auto arg) { post_.content += arg + '\n'; } },
+      { USER_KEY,                [this] (auto arg) { post_.user     = arg;        } },
+      { FILE_TYPE_KEY,           [this] (auto arg) {                              } },
+      { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                              } }
     };
-
+  //-----------------------------
     PlatformPost get() const
     {
       return post_;
     }
   };
-
-  TaskParser parser;
-  const auto flags = exec_flags_to_vector(task.flags);
-  for (const auto& flag : flags)
-  {
+  //-----------------------------
+  TaskParser parser{task.id(), task.datetime};
+  for (const auto& flag : exec_flags_to_vector(task.flags))
     parser.parse(flag, task.GetToken(flag));
-  }
+  //-----------------------------
+  for (const auto& file : task.filenames)
+    parser.add_file(file);
 
   return parser.get();
-
 }
 
 } // ns kiq
