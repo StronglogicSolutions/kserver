@@ -297,7 +297,7 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) con
     map[v.first] = v.second;
     if (map.size() == post_size)
     {
-      PlatformPost post{};
+      PlatformPost post;
       post.pid    = map["platform_post.pid"];
       post.o_pid  = map["platform_post.o_pid"];
       post.id     = map["platform_post.unique_id"];

@@ -556,6 +556,14 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       evt::instance()(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
     }
     break;
+    case (CONVERT_TASK):
+    {
+      const auto id = args.at(constants::CONVERT_TASK_DATA_INDEX);
+      const auto task = m_scheduler.GetTask(id);
+      const auto post = to_post(task);
+      m_scheduler.SavePlatformPost(post.GetPayload());
+    }
+    break;
     case (EXECUTE):
       Execute(std::stoi(args.at(1)), args.at(2), client_fd);
     break;

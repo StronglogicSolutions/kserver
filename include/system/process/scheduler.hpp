@@ -84,6 +84,7 @@ using TermEvents      = std::vector<TermEvent>;
 
         Scheduler(Database::KDB&& kdb);
         Scheduler(SystemEventcallback fn);
+        Scheduler();
 
 virtual ~Scheduler() override;
 

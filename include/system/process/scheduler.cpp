@@ -2,6 +2,7 @@
 #include "common/time.hpp"
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
+#include "server/event_handler.hpp"
 #include <logger.hpp>
 
 namespace kiq
@@ -126,6 +127,10 @@ Scheduler::Scheduler(SystemEventcallback fn)
     klog().e(e.what());
     throw;
   }
+
+  const Task         task = GetTask(47476);
+  const PlatformPost post = to_post(task);
+  klog().i("Converted task to platform post.\nTask\n_____\n{}\nPost\n____\n{}", task.toString(), post.ToString());
 }
 //----------------------------------------------------------------------------------------------------------------
 Scheduler::~Scheduler()
@@ -794,7 +799,10 @@ bool Scheduler::OnProcessOutput(const std::string& output, const int32_t mask, c
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::SavePlatformPost(const std::vector<std::string>& payload)
 {
-  return m_platform.SavePlatformPost(payload);
+  const auto rc = m_platform.SavePlatformPost(payload);
+  const auto ev = (rc) ? SYSTEM_EVENTS__PLATFORM_CREATED : SYSTEM_EVENTS__PLATFORM_ERROR;
+  evt::instance()(ev, payload);
+  return rc;
 }
 //----------------------------------------------------------------------------------------------------------------
 void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)

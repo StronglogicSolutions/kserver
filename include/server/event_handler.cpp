@@ -124,6 +124,12 @@ evt::on_application_fetch_fail (int32_t client_fd, int32_t event, const event_pa
 }
 //------------------------------------------------------------
 void
+evt::on_platform_created (int32_t client_fd, int32_t event, const event_payload_t& payload)
+{
+  m_server->SendEvent(client_fd, "Platform post created", payload);
+}
+//------------------------------------------------------------
+void
 evt::on_platform_new_post (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().t("Handling Platform New Post");

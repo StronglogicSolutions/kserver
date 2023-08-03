@@ -108,6 +108,8 @@ static const uint8_t     FETCH_TASK_ROW_COUNT_INDEX      {0x03};
 static const uint8_t     FETCH_TASK_MAX_ID_INDEX         {0x04};
 static const uint8_t     FETCH_TASK_ORDER_INDEX          {0x05};
 
+static const uint8_t     CONVERT_TASK_DATA_INDEX         {0x01};
+
        const std::string SHOULD_REPOST                   {"true"};
 static const std::string NO_REPOST                       {"false"};
 static const std::string NO_URLS                         {""};
