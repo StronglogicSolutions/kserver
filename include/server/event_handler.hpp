@@ -36,6 +36,7 @@ public:
   void on_application_fetch_success   (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_application_fetch_fail      (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_platform_new_post           (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_created            (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_platform_post_request       (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_platform_error              (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_platform_request            (int32_t fd, int32_t evt, const event_payload_t& data);
@@ -59,8 +60,6 @@ public:
   void on_status_report               (int32_t fd, int32_t evt, const event_payload_t& data);
 
   static evt& instance();
-
-  void process(int32_t, int32_t, const event_payload_t&);
 
 private:
   evt() = default;
@@ -111,6 +110,10 @@ private:
     },
     { SYSTEM_EVENTS__APPLICATION_FETCH_FAIL,
       [this](auto fd, auto evt, const auto& data) { on_application_fetch_fail(fd, evt, data); }
+    },
+    {
+      SYSTEM_EVENTS__PLATFORM_CREATED,
+      [this](auto fd, auto evt, const auto& data) { on_platform_created(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_NEW_POST,
       [this](auto fd, auto evt, const auto& data) { on_platform_new_post(fd, evt, data); }

@@ -75,6 +75,7 @@ public:
   std::string               GetPlatformID           (uint32_t)                                                              const;
   std::string               GetUser                 (const std::string&, const std::string& pid = "",
                                                      bool  use_default = false)                                             const;
+  PlatformPost              to_post                  (const Task& task)                                                     const;
 
 private:
   std::string               GetUID                   (const std::string&, const std::string&)                               const;

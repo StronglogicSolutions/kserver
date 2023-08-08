@@ -335,9 +335,9 @@ void Controller::Execute(const uint32_t&    mask,
   }
 }
 //----------------------------------------------------------------------------------
-void Controller::ProcessSystemEvent(const int32_t&                    event,
-                                      const std::vector<std::string>& payload,
-                                      const int32_t&                  id)
+void Controller::ProcessSystemEvent(const int32_t&                  event,
+                                    const std::vector<std::string>& payload,
+                                    const int32_t&                  id)
 {
   klog().t("Processing event {}", event);
   switch (event)
@@ -346,7 +346,7 @@ void Controller::ProcessSystemEvent(const int32_t&                    event,
       m_scheduler.OnPlatformRequest(payload);
     break;
     case (SYSTEM_EVENTS__PLATFORM_NEW_POST):
-      m_scheduler.SavePlatformPost(payload);
+      m_scheduler.SavePlatformPost<std::vector<std::string>>(payload);
     break;
     case (SYSTEM_EVENTS__PLATFORM_ERROR):
       m_scheduler.OnPlatformError(payload);
@@ -425,37 +425,21 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
 
     case (RequestType::FETCH_SCHEDULE):
     {
-      std::vector<Task>    tasks;
       try
       {
-        tasks             = m_scheduler.fetchAllTasks();
-      }
-      catch(const std::exception& e)
-      {
-        klog().e("Exception thrown from while fetching tasks: {}", e.what());
-      }
-
-      const auto           size              = tasks.size();
-      Payload              payload{"Schedule"};
-      klog().i("Processing schedule fetch request");
-      klog().i("Fetched {} scheduled tasks for client", size);
-
-      try
-      {
-        for (const auto& tk : tasks) ReadTask(tk, payload);
-      }
-      catch(const std::exception& e)
-      {
-        klog().e("Exception thrown from while reading tasks: {}", e.what());
-      }
-      try
-      {
+        std::vector<Task>    tasks             = m_scheduler.fetchAllTasks();
+        const auto           size              = tasks.size();
+        Payload              payload{"Schedule"};
+        klog().i("Processing schedule fetch request");
+        klog().i("Fetched {} scheduled tasks for client", size);
+        for (const auto& tk : tasks)
+          ReadTask(tk, payload);
         evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
         evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, {"Schedule end", std::to_string(size)});
       }
       catch(const std::exception& e)
       {
-        klog().e("Exception thrown passing tasks to system callback: {}", e.what());
+        klog().e("Exception thrown from while fetching tasks: {}", e.what());
       }
     }
     break;
@@ -556,6 +540,9 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       evt::instance()(client_fd, SYSTEM_EVENTS__TERM_HITS, event_args);
     }
     break;
+    case (CONVERT_TASK):
+      m_scheduler.SavePlatformPost<std::string>(args.at(constants::CONVERT_TASK_DATA_INDEX));
+    break;
     case (EXECUTE):
       Execute(std::stoi(args.at(1)), args.at(2), client_fd);
     break;
@@ -563,7 +550,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       m_scheduler.FetchPosts();
     break;
     case(UPDATE_POST):
-      m_scheduler.SavePlatformPost({args.begin() + 1, args.end()});
+      m_scheduler.SavePlatformPost<Payload>({args.begin() + 1, args.end()});
     break;
     case(KIQ_STATUS):
       evt::instance()(client_fd, SYSTEM_EVENTS__STATUS_REPORT, { Status() });

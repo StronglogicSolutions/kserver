@@ -33,6 +33,7 @@ static const int32_t SYSTEM_EVENTS__REGISTRAR_FAIL              = 11;
 static const int32_t SYSTEM_EVENTS__TASK_FETCH_FLAGS            = 12;
 static const int32_t SYSTEM_EVENTS__APPLICATION_FETCH_SUCCESS   = 13;
 static const int32_t SYSTEM_EVENTS__APPLICATION_FETCH_FAIL      = 14;
+static const int32_t SYSTEM_EVENTS__PLATFORM_CREATED            = 38;
 static const int32_t SYSTEM_EVENTS__PLATFORM_NEW_POST           = 15;
 static const int32_t SYSTEM_EVENTS__PLATFORM_POST_REQUESTED     = 16;
 static const int32_t SYSTEM_EVENTS__PLATFORM_ERROR              = 17;

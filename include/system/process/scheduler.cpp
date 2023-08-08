@@ -2,6 +2,7 @@
 #include "common/time.hpp"
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
+#include "server/event_handler.hpp"
 #include <logger.hpp>
 
 namespace kiq
@@ -210,40 +211,76 @@ std::string Scheduler::schedule(Task task)
   return id;
 }
 //----------------------------------------------------------------------------------------------------------------
-Task Scheduler::parseTask(QueryValues&& result)
+Task Scheduler::parseTask(QueryValues&& result, bool parse_files, bool is_recurring)
 {
-  Task task{};
-  for (const auto &v : result)
-    if (v.first == Field::MASK)
-      task.mask = std::stoi(v.second);
-    else
-    if (v.first == Field::FLAGS)
-      task.flags = v.second;
-    else
-    if (v.first == Field::ENVFILE)
-      task.env = v.second;
-    else
-    if (v.first == Field::TIME)
-      task.datetime = v.second;
-    else
-    if (v.first == Field::ID)
-      task.task_id = std::stoi(v.second);
-    else
-    if (v.first == Field::COMPLETED)
-      task.completed = std::stoi(v.second);
-    else
-    if (v.first == Field::RECURRING)
-      task.recurring = std::stoi(v.second);
-    else
-    if (v.first == Field::NOTIFY)
-      task.notify = v.second.compare("t") == 0;
+  static const std::string files_field{"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
+  Task task;
+  int  notify{-1};
+  bool checked_for_files{false};
+  std::string TIME_FIELD = (is_recurring) ? Field::REC_TIME : Field::TIME;
 
+  for (const auto &v : result)
+  {
+    if (v.first == Field::MASK)      task.mask = std::stoi(v.second);
+    else
+    if (v.first == Field::FLAGS)     task.flags = v.second;
+    else
+    if (v.first == Field::ENVFILE)   task.env = v.second;
+    else
+    if (v.first == TIME_FIELD)       task.datetime = v.second;
+    else
+    if (v.first == Field::ID)        task.task_id = std::stoi(v.second);
+    else
+    if (v.first == Field::COMPLETED) task.completed = std::stoi(v.second);
+    else
+    if (v.first == Field::RECURRING) task.recurring = std::stoi(v.second);
+    else
+    if (v.first == Field::NOTIFY)    notify = v.second == "t";
+    else
+    if (v.first == "files")
+    {
+      // TODO: Why isn't this working?
+      // for (const auto& filename : StringUtils::Split(v.second, ' '))
+      //   TODO: get data
+      // checked_for_files = true;
+    }
+
+    if (DataUtils::NoEmptyArgs(task.env, task.flags, task.datetime) &&
+        task.completed != NO_COMPLETED_VALUE && task.mask &&
+        task.task_id > 0 && task.recurring > -1 && task.notify > -1)
+    {
+
+      if (parse_files && !checked_for_files)
+      {
+        checked_for_files = true;
+        continue;
+      }
+      else
+      {
+        if (task.recurring != Constants::Recurring::NO)
+          task.datetime = TimeUtils::time_as_today(task.datetime);
+        task.runtime  = FileUtils::ReadRunArgs(task.env);
+        task.name     = m_app_map.at(task.mask);
+        task.notify   = notify == 1;
+
+        if (task.filenames.empty())
+        {
+          for (const auto& file : getFiles({task.id()}))
+          {
+            task.filenames.push_back(file.name);
+            task.files.push_back({file.name, ""});
+          }
+        }
+        return task;
+      }
+    }
+  }
   return task;
 }
 //----------------------------------------------------------------------------------------------------------------
 std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, bool is_recurring)
 {
-  const std::string files_field{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
+  const std::string files_field{"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
   int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
   std::string mask, flags, env, time, filenames;
   std::vector<Task> tasks;
@@ -369,7 +406,7 @@ std::vector<Task> Scheduler::fetchRecurringTasks()
 //----------------------------------------------------------------------------------------------------------------
 std::vector<Task> Scheduler::fetchAllTasks()
 {
-  static const char *FILEQUERY{"(SELECT  string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
+  static const char *FILEQUERY{"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
   static const Fields fields  {Field::ID,        Field::TIME,      Field::MASK, Field::FLAGS, Field::ENVFILE,
                                Field::COMPLETED, Field::RECURRING, Field::NOTIFY, FILEQUERY};
   static const Joins joins{{"file", "sid", "schedule", "id", JoinType::OUTER}};
@@ -377,16 +414,14 @@ std::vector<Task> Scheduler::fetchAllTasks()
   return parseTasks(m_kdb.selectJoin<QueryFilter>("schedule", fields, {}, joins), true);
 }
 //----------------------------------------------------------------------------------------------------------------
-[[deprecated]] Task Scheduler::GetTask(const std::string& id)
+Task Scheduler::GetTask(const std::string& id)
 {
-  static const Fields fields{Field::ID, Field::MASK, Field::FLAGS, Field::ENVFILE, Field::TIME, Field::COMPLETED};
+  static const char *FILEQUERY{"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
+  static const Fields fields  {Field::ID,        Field::TIME,      Field::MASK, Field::FLAGS, Field::ENVFILE,
+                               Field::COMPLETED, Field::RECURRING, Field::NOTIFY, FILEQUERY};
+  static const Joins joins{{"file", "sid", "schedule", "id", JoinType::OUTER}};
 
-  Task task = parseTask(m_kdb.select("schedule", fields, {CreateFilter("id", id)}));
-
-  for (const auto &file : getFiles(id))
-    task.filenames.push_back(file.name);
-
-  return task;
+  return parseTask(m_kdb.selectJoin<QueryFilter>("schedule", fields, {CreateFilter("schedule.id", id)}, joins), true);
 }
 //----------------------------------------------------------------------------------------------------------------
 std::vector<FileMetaData> Scheduler::getFiles(const std::vector<std::string>& sids, const std::string& type)
@@ -792,9 +827,28 @@ bool Scheduler::OnProcessOutput(const std::string& output, const int32_t mask, c
   return !(result.events.empty());
 }
 //----------------------------------------------------------------------------------------------------------------
-bool Scheduler::SavePlatformPost(const std::vector<std::string>& payload)
+template <typename T>
+bool Scheduler::SavePlatformPost(const T& data)
 {
-  return m_platform.SavePlatformPost(payload);
+  if constexpr (std::is_same_v<T, std::vector<std::string>>)
+  {
+    const auto rc = m_platform.SavePlatformPost(data);
+    const auto ev = (rc) ? SYSTEM_EVENTS__PLATFORM_CREATED : SYSTEM_EVENTS__PLATFORM_ERROR;
+    evt::instance()(ev, data);
+    return rc;
+  }
+  else
+  if constexpr (std::is_same_v<T, std::string>)
+  {
+    if (const auto post = m_platform.to_post(GetTask(data)); post.is_valid() &&
+        m_platform.SavePlatformPost(post, constants::PLATFORM_POST_COMPLETE))
+    {
+      evt::instance()(SYSTEM_EVENTS__PLATFORM_CREATED, post.GetPayload());
+      return true;
+    }
+    evt::instance()(SYSTEM_EVENTS__PLATFORM_ERROR, { "Failed to create post from task", data });
+  }
+  return false;
 }
 //----------------------------------------------------------------------------------------------------------------
 void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
@@ -1095,4 +1149,7 @@ void Scheduler::FetchPosts()
 {
   m_platform.FetchPosts();
 }
+
+template bool Scheduler::SavePlatformPost(const std::vector<std::string>&);
+template bool Scheduler::SavePlatformPost(const std::string&);
 } // ns kiq

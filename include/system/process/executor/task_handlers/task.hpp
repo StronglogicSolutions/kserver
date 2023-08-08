@@ -108,6 +108,8 @@ static const uint8_t     FETCH_TASK_ROW_COUNT_INDEX      {0x03};
 static const uint8_t     FETCH_TASK_MAX_ID_INDEX         {0x04};
 static const uint8_t     FETCH_TASK_ORDER_INDEX          {0x05};
 
+static const uint8_t     CONVERT_TASK_DATA_INDEX         {0x02};
+
        const std::string SHOULD_REPOST                   {"true"};
 static const std::string NO_REPOST                       {"false"};
 static const std::string NO_URLS                         {""};
@@ -183,21 +185,30 @@ namespace Field {
   static const char* const NOTIFY    = "schedule.notify";
   static const char* const RUNTIME   = "schedule.runtime";
 } // namespace Field
-
+//-------------------------------------------------------------------
+inline std::vector<std::string>
+exec_flags_to_vector(std::string flag_s)
+{
+  std::vector<std::string> flags;
+  for (const auto& expression : StringUtils::Split(flag_s, ' '))
+    flags.push_back(expression.substr(expression.find_first_of('$') + 1));
+  return flags;
+}
+//-------------------------------------------------------------------
 using TaskArguments = std::vector<std::string>;
 
 static const uint8_t TASK_PAYLOAD_SIZE{12};
 struct Task {
-int32_t                  mask;
+int32_t                  mask       {0};
 std::string              datetime;
-bool                     file;
+bool                     file       {false};
 std::vector<FileInfo>    files;
 std::string              env;
 std::string              flags;
-int32_t                  task_id{0};
-int32_t                  completed;
-int32_t                  recurring;
-bool                     notify;
+int32_t                  task_id    {0};
+int32_t                  completed  {0};
+int32_t                  recurring  {0};
+bool                     notify     {false};
 std::string              runtime;
 std::vector<std::string> filenames;
 std::string              name;
@@ -214,7 +225,7 @@ static Task clone_basic(const Task& task, int new_mask = -1, bool recurring = fa
   new_task.mask            = (new_mask >= 0) ? new_mask : task.mask;
   new_task.file            = task.file;
   new_task.files           = task.files;
-  new_task.flags = task.flags;
+  new_task.flags           = task.flags;
   new_task.runtime         = task.runtime;
   new_task.filenames       = task.filenames;
 
@@ -241,13 +252,14 @@ std::vector<std::string> payload()
   return payload;
 }
 
-std::string toString() const {
-  std::string return_string{};
-  return_string.reserve(100);
+std::string toString() const
+{
+  std::string return_string;
   return_string += "ID: " + id();
   return_string += "\nMask: " + std::to_string(mask);
+  return_string += "\nFlags: " + flags;
   return_string += "\nTime: " + datetime;
-  return_string += "\nFiles: " + std::to_string(files.size());
+  return_string += "\nFiles: " + std::to_string((files.empty()) ? filenames.size() : files.size());
   return_string += "\nCompleted: " + std::to_string(completed);
   return_string += "\nRuntime: " + runtime;
   return_string += "\nRecurring: ";
@@ -276,10 +288,11 @@ friend std::ostream &operator<<(std::ostream &out, const Task &task) {
   return out << task.toString();
 }
 
-friend bool operator==(const Task& t1, const Task& t2);
-friend bool operator!=(const Task& t1, const Task& t2);
+// friend bool operator==(const Task& t1, const Task& t2);
+// friend bool operator!=(const Task& t1, const Task& t2);
 
-friend bool operator==(const Task& t1, const Task& t2) {
+friend bool operator==(const Task& t1, const Task& t2)
+{
   return (
     t1.completed    == t2.completed       &&
     t1.datetime     == t2.datetime        &&
