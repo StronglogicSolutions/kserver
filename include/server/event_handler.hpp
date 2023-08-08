@@ -61,8 +61,6 @@ public:
 
   static evt& instance();
 
-  void process(int32_t, int32_t, const event_payload_t&);
-
 private:
   evt() = default;
 
