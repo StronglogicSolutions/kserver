@@ -559,6 +559,23 @@ PlatformPost Platform::to_post(const Task& task) const
   {
     using arg_map_t = std::map<std::string, std::function<void(std::string)>>;
 
+    struct Content
+    {
+      std::string description;
+      std::string header;
+      std::string hashtags;
+      std::string link_bio;
+      std::string requested_by;
+      std::string requested_by_phrase;
+      std::string promote_share;
+
+      std::string value() const
+      {
+        return header       + '\n' + description + '\n' + requested_by_phrase + '\n' +
+               requested_by + '\n' + hashtags    + '\n' + promote_share       + '\n' + link_bio;
+      }
+    };
+
     TaskParser(const Task& task, std::string_view pid)
     {
       klog().i("Parsing task:\n{}", task.toString());
@@ -579,23 +596,24 @@ PlatformPost Platform::to_post(const Task& task) const
       post_.urls += "file://" + file + '>';
     }
   //-----------------------------
-  // TODO: post_.content is out of order. Use an intermediary struct to organize the data and then set the content
     PlatformPost post_;
+    Content      content_;
     arg_map_t arg_map{
-      { DESCRIPTION_KEY,         [this] (auto arg) { post_.content += arg + '\n'; } },
-      { HEADER_KEY,              [this] (auto arg) { post_.content += arg + '\n'; } },
-      { HASHTAGS_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
-      { LINK_BIO_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
-      { REQUESTED_BY_KEY,        [this] (auto arg) { post_.content += arg + '\n'; } },
-      { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { post_.content += arg + '\n'; } },
-      { PROMOTE_SHARE_KEY,       [this] (auto arg) { post_.content += arg + '\n'; } },
-      { USER_KEY,                [this] (auto arg) { post_.user     = arg;        } },
-      { FILE_TYPE_KEY,           [this] (auto arg) {                              } },
-      { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                              } }
+      { DESCRIPTION_KEY,         [this] (auto arg) { content_.description         = arg; } },
+      { HEADER_KEY,              [this] (auto arg) { content_.header              = arg; } },
+      { HASHTAGS_KEY,            [this] (auto arg) { content_.hashtags            = arg; } },
+      { LINK_BIO_KEY,            [this] (auto arg) { content_.link_bio            = arg; } },
+      { REQUESTED_BY_KEY,        [this] (auto arg) { content_.requested_by        = arg; } },
+      { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { content_.requested_by_phrase = arg; } },
+      { PROMOTE_SHARE_KEY,       [this] (auto arg) { content_.promote_share       = arg; } },
+      { USER_KEY,                [this] (auto arg) { post_.user                   = arg; } },
+      { FILE_TYPE_KEY,           [this] (auto arg) {                                     } },
+      { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                                     } }
     };
   //-----------------------------
-    PlatformPost get() const
+    PlatformPost get()
     {
+      post_.content = content_.value();
       return post_;
     }
   };
