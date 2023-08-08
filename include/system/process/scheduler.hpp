@@ -92,9 +92,11 @@ virtual std::string               schedule(Task task) override;
         std::string               ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid);
         void                      ProcessIPC();
 
-        Task                      parseTask(QueryValues&& result);
+        Task                      parseTask(QueryValues&& result,
+                                            bool parse_files = true,
+                                            bool is_recurring = false);
         std::vector<Task>         parseTasks(QueryValues&& result,
-                                             bool          parse_files = false,
+                                             bool          parse_files = true,
                                              bool          is_recurring = false);
 
 virtual std::vector<Task>         fetchTasks() override;
@@ -119,7 +121,8 @@ virtual std::vector<Task>         fetchTasks() override;
         bool                      OnProcessOutput(const std::string& output, const int32_t mask, int32_t id);
         static bool               isKIQProcess(uint32_t mask);
 
-        bool                      SavePlatformPost(const std::vector<std::string>& payload);
+        template <typename T>
+        bool                      SavePlatformPost(const T&);
         void                      OnPlatformError(const std::vector<std::string>& payload);
         void                      OnPlatformRequest(const std::vector<std::string>& payload);
         bool                      processTriggers(Task*              task);

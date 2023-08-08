@@ -108,7 +108,7 @@ static const uint8_t     FETCH_TASK_ROW_COUNT_INDEX      {0x03};
 static const uint8_t     FETCH_TASK_MAX_ID_INDEX         {0x04};
 static const uint8_t     FETCH_TASK_ORDER_INDEX          {0x05};
 
-static const uint8_t     CONVERT_TASK_DATA_INDEX         {0x01};
+static const uint8_t     CONVERT_TASK_DATA_INDEX         {0x02};
 
        const std::string SHOULD_REPOST                   {"true"};
 static const std::string NO_REPOST                       {"false"};
@@ -199,16 +199,16 @@ using TaskArguments = std::vector<std::string>;
 
 static const uint8_t TASK_PAYLOAD_SIZE{12};
 struct Task {
-int32_t                  mask;
+int32_t                  mask       {0};
 std::string              datetime;
-bool                     file;
+bool                     file       {false};
 std::vector<FileInfo>    files;
 std::string              env;
 std::string              flags;
-int32_t                  task_id{0};
-int32_t                  completed;
-int32_t                  recurring;
-bool                     notify;
+int32_t                  task_id    {0};
+int32_t                  completed  {0};
+int32_t                  recurring  {0};
+bool                     notify     {false};
 std::string              runtime;
 std::vector<std::string> filenames;
 std::string              name;
@@ -534,59 +534,5 @@ static PlatformPost FromPayload(const std::vector<std::string>& payload)
 using PlatformStatePair = std::pair<PlatformPost, PlatformPostState>;
 using PlatformRequestMap =
 std::unordered_map<std::pair<std::string, std::string>, PlatformStatePair, platform_pair_hash>;
-//----------------------------------------------------------------------------------------------
-static PlatformPost to_post(const Task& task)
-{
-  using namespace constants;
-  struct TaskParser
-  {
-    using arg_map_t = std::map<std::string, std::function<void(std::string)>>;
-
-    TaskParser(const std::string& id = "", const std::string& time = "", const std::string& name = "")
-    {
-      post_.id   = id;
-      post_.time = time;
-      post_.name = name;
-    }
-  //-----------------------------
-    void parse(const std::string& flag, const std::string& arg)
-    {
-      arg_map[flag](arg);
-    }
-  //-----------------------------
-    void add_file(const std::string& file)
-    {
-      post_.urls += "file://" + file + '>';
-    }
-  //-----------------------------
-    PlatformPost post_;
-    arg_map_t arg_map{
-      { DESCRIPTION_KEY,         [this] (auto arg) { post_.content += arg + '\n'; } },
-      { HEADER_KEY,              [this] (auto arg) { post_.content += arg + '\n'; } },
-      { HASHTAGS_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
-      { LINK_BIO_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
-      { REQUESTED_BY_KEY,        [this] (auto arg) { post_.content += arg + '\n'; } },
-      { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { post_.content += arg + '\n'; } },
-      { PROMOTE_SHARE_KEY,       [this] (auto arg) { post_.content += arg + '\n'; } },
-      { USER_KEY,                [this] (auto arg) { post_.user     = arg;        } },
-      { FILE_TYPE_KEY,           [this] (auto arg) {                              } },
-      { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                              } }
-    };
-  //-----------------------------
-    PlatformPost get() const
-    {
-      return post_;
-    }
-  };
-  //-----------------------------
-  TaskParser parser{task.id(), task.datetime};
-  for (const auto& flag : exec_flags_to_vector(task.flags))
-    parser.parse(flag, task.GetToken(flag));
-  //-----------------------------
-  for (const auto& file : task.filenames)
-    parser.add_file(file);
-
-  return parser.get();
-}
 
 } // ns kiq

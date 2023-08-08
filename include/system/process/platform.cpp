@@ -450,6 +450,7 @@ void Platform::fail_pending_posts()
   for (auto&& post : m_platform_map)
     if (post.second.second == PlatformPostState::PROCESSING)
     {
+      klog().e("{} post {} failed", post.second.first.name, post.second.first.id);
       post.second.second = PlatformPostState::FAILURE;
       Update(post.second.first, PLATFORM_STATUS_FAILURE);
       m_errors++;
@@ -549,4 +550,64 @@ void Platform::FetchPosts() const
 
   m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_FETCH_POSTS , payload);
 }
+
+//----------------------------------------------------------------------------------------------
+PlatformPost Platform::to_post(const Task& task) const
+{
+  using namespace constants;
+  struct TaskParser
+  {
+    using arg_map_t = std::map<std::string, std::function<void(std::string)>>;
+
+    TaskParser(const Task& task, std::string_view pid)
+    {
+      klog().i("Parsing task:\n{}", task.toString());
+      post_.id     = task.id();
+      post_.time   = task.datetime;
+      post_.name   = task.name;
+      post_.repost = "true";
+      post_.pid    = pid;
+    }
+  //-----------------------------
+    void parse(const std::string& flag, const std::string& arg)
+    {
+      arg_map[flag](arg);
+    }
+  //-----------------------------
+    void add_file(const std::string& file)
+    {
+      post_.urls += "file://" + file + '>';
+    }
+  //-----------------------------
+  // TODO: post_.content is out of order. Use an intermediary struct to organize the data and then set the content
+    PlatformPost post_;
+    arg_map_t arg_map{
+      { DESCRIPTION_KEY,         [this] (auto arg) { post_.content += arg + '\n'; } },
+      { HEADER_KEY,              [this] (auto arg) { post_.content += arg + '\n'; } },
+      { HASHTAGS_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
+      { LINK_BIO_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
+      { REQUESTED_BY_KEY,        [this] (auto arg) { post_.content += arg + '\n'; } },
+      { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { post_.content += arg + '\n'; } },
+      { PROMOTE_SHARE_KEY,       [this] (auto arg) { post_.content += arg + '\n'; } },
+      { USER_KEY,                [this] (auto arg) { post_.user     = arg;        } },
+      { FILE_TYPE_KEY,           [this] (auto arg) {                              } },
+      { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                              } }
+    };
+  //-----------------------------
+    PlatformPost get() const
+    {
+      return post_;
+    }
+  };
+  //-----------------------------
+  TaskParser parser{task, GetPlatformID(task.mask)};
+  for (const auto& flag : exec_flags_to_vector(task.flags))
+    parser.parse(flag, task.GetToken(flag));
+
+  for (const auto& file : task.filenames)
+    parser.add_file(file);
+
+  return parser.get();
+}
+
 } // ns kiq
