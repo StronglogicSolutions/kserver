@@ -4,41 +4,6 @@
 namespace kiq {
 
 using namespace log;
-
-std::string SavePlatformEnvFile(const post_t& post)
-{
-  using namespace FileUtils;
-  using Map = std::unordered_map<std::string, std::string>;
-  const std::string directory_name{post.time + post.id + post.pid};
-  const std::string filename      {directory_name};
-
-  CreateTaskDirectory(directory_name);
-
-  return SaveEnvFile(CreateEnvFile(
-    Map{{"content", post.content},
-        {"urls",    post.urls},
-        {"args",    post.args}}), filename);
-}
-//-------------------------------------------------------------------------------------
-static bool PopulatePlatformPost(PlatformPost& post)
-{
-  using namespace FileUtils;
-  const std::string              env_path    = "data/" + post.time + post.id + post.pid + "/v.env";
-  const std::vector<std::string> post_values = ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
-  const size_t                   size        = post_values.size();
-  const bool                     has_args    = (size == 3);
-  if (size > 1)
-  {
-    post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
-    post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
-    post.args    = (has_args) ? CreateOperation("Bot", GetJSONArray(ReadEnvToken(env_path, "args", true))) : "";
-    return true;
-  }
-
-  return false;
-}
-//-------------------------------------------------------------------------------------
-auto MustRepost = [](const std::string& s) { return (s == "1" || s == "true" || s == "t" ); };
 //-------------------------------------------------------------------------------------
 //----------------------------------PLATFORM-------------------------------------------
 //-------------------------------------------------------------------------------------
@@ -100,7 +65,7 @@ PlatformPost MakeAffiliatePost(const std::string user, const std::string type, c
   affiliate_post.time    = post.time;
   affiliate_post.urls    = post.urls;
   affiliate_post.method  = post.method;
-  affiliate_post.name    = post.name; // TODO: recent addition -> appropriate?
+  affiliate_post.name    = post.name;
   affiliate_post.args    = post.args;
   affiliate_post.repost  = DO_NOT_REPOST;
   affiliate_post.content = createAffiliateContent();
@@ -554,51 +519,6 @@ void Platform::FetchPosts() const
 //----------------------------------------------------------------------------------------------
 PlatformPost Platform::to_post(const Task& task) const
 {
-  using namespace constants;
-  struct TaskParser
-  {
-    using arg_map_t = std::map<std::string, std::function<void(std::string)>>;
-
-    TaskParser(const Task& task, std::string_view pid)
-    {
-      klog().i("Parsing task:\n{}", task.toString());
-      post_.id     = task.id();
-      post_.time   = task.datetime;
-      post_.name   = task.name;
-      post_.repost = "true";
-      post_.pid    = pid;
-    }
-  //-----------------------------
-    void parse(const std::string& flag, const std::string& arg)
-    {
-      arg_map[flag](arg);
-    }
-  //-----------------------------
-    void add_file(const std::string& file)
-    {
-      post_.urls += "file://" + file + '>';
-    }
-  //-----------------------------
-  // TODO: post_.content is out of order. Use an intermediary struct to organize the data and then set the content
-    PlatformPost post_;
-    arg_map_t arg_map{
-      { DESCRIPTION_KEY,         [this] (auto arg) { post_.content += arg + '\n'; } },
-      { HEADER_KEY,              [this] (auto arg) { post_.content += arg + '\n'; } },
-      { HASHTAGS_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
-      { LINK_BIO_KEY,            [this] (auto arg) { post_.content += arg + '\n'; } },
-      { REQUESTED_BY_KEY,        [this] (auto arg) { post_.content += arg + '\n'; } },
-      { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { post_.content += arg + '\n'; } },
-      { PROMOTE_SHARE_KEY,       [this] (auto arg) { post_.content += arg + '\n'; } },
-      { USER_KEY,                [this] (auto arg) { post_.user     = arg;        } },
-      { FILE_TYPE_KEY,           [this] (auto arg) {                              } },
-      { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                              } }
-    };
-  //-----------------------------
-    PlatformPost get() const
-    {
-      return post_;
-    }
-  };
   //-----------------------------
   TaskParser parser{task, GetPlatformID(task.mask)};
   for (const auto& flag : exec_flags_to_vector(task.flags))

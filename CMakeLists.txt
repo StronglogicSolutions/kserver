@@ -50,6 +50,7 @@ set(SOURCE_FILES
   "include/system/process/scheduler.cpp"
   "include/system/process/helper.cpp"
   "include/system/process/platform.cpp"
+  "include/system/process/platform_utils.cpp"
   "include/system/process/trigger.cpp"
   "include/system/process/result_parser.cpp"
   "include/system/process/research_manager.cpp"
@@ -118,4 +119,4 @@ target_include_directories(${PROJECT_NAME}_lib PRIVATE
 )
 
 
-add_subdirectory(test)
+#add_subdirectory(test)

@@ -13,9 +13,10 @@ static Timer timer;
 static const bool        IMMEDIATELY          = false;
 static const size_t      QUEUE_LIMIT          = 0x05;
 static const std::string IPC_MESSAGE_HEADER   = "KIQ is now tracking the following terms\n";
-static const uint32_t    IPC_PLATFORM_REQUEST = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
+static const uint32_t    PLATFORM_REQUEST     = SYSTEM_EVENTS__PLATFORM_POST_REQUESTED;
 static const Fields      DEFAULT_TASK_FIELDS  = {Field::ID, Field::TIME, Field::MASK, Field::FLAGS,
                                                  Field::ENVFILE, Field::COMPLETED, Field::NOTIFY, Field::RECURRING};
+static const std::string FILEQUERY            = {"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
 //----------------------------------------------------------------------------------------------------------------
 IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
 {
@@ -213,7 +214,6 @@ std::string Scheduler::schedule(Task task)
 //----------------------------------------------------------------------------------------------------------------
 Task Scheduler::parseTask(QueryValues&& result, bool parse_files, bool is_recurring)
 {
-  static const std::string files_field{"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
   Task task;
   int  notify{-1};
   bool checked_for_files{false};
@@ -237,7 +237,7 @@ Task Scheduler::parseTask(QueryValues&& result, bool parse_files, bool is_recurr
     else
     if (v.first == Field::NOTIFY)    notify = v.second == "t";
     else
-    if (v.first == "files")
+    if (v.first == FILEQUERY)
     {
       // TODO: Why isn't this working?
       // for (const auto& filename : StringUtils::Split(v.second, ' '))
@@ -280,7 +280,6 @@ Task Scheduler::parseTask(QueryValues&& result, bool parse_files, bool is_recurr
 //----------------------------------------------------------------------------------------------------------------
 std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, bool is_recurring)
 {
-  const std::string files_field{"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
   int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
   std::string mask, flags, env, time, filenames;
   std::vector<Task> tasks;
@@ -305,7 +304,7 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
     else
     if (v.first == Field::NOTIFY)    notify = v.second.compare("t") == 0;
     else
-    if (v.first == files_field) {    filenames = v.second; checked_for_files = true; }
+    if (v.first == FILEQUERY) {    filenames = v.second; checked_for_files = true; }
 
     if (!env.empty() && !flags.empty() && !time.empty() &&
         !mask.empty()    && completed != NO_COMPLETED_VALUE &&
@@ -387,11 +386,9 @@ std::vector<Task> Scheduler::fetchRecurringTasks()
   using Filters = std::vector<std::variant<CompFilter, CompBetweenFilter, MultiOptionFilter>>;
   static const bool parse_files{true};
   static const bool recurring  {true};
-  static const char *sub_q{"(SELECT  string_agg(file.name, ' ') "
-                            "FROM file WHERE file.sid = schedule.id) as files"};
   static const Fields fields{Field::ID,      Field::TIME,      Field::MASK, Field::FLAGS,
                              Field::ENVFILE, Field::COMPLETED, Field::RECURRING,
-                             Field::NOTIFY, "recurring.time", sub_q};
+                             Field::NOTIFY, "recurring.time", FILEQUERY};
   static const Filters filters{
       CompFilter{Field::RECURRING, "0", "<>"},
       CompFilter{UNIXTIME_NOW, "recurring.time", ">"},
@@ -406,7 +403,6 @@ std::vector<Task> Scheduler::fetchRecurringTasks()
 //----------------------------------------------------------------------------------------------------------------
 std::vector<Task> Scheduler::fetchAllTasks()
 {
-  static const char *FILEQUERY{"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
   static const Fields fields  {Field::ID,        Field::TIME,      Field::MASK, Field::FLAGS, Field::ENVFILE,
                                Field::COMPLETED, Field::RECURRING, Field::NOTIFY, FILEQUERY};
   static const Joins joins{{"file", "sid", "schedule", "id", JoinType::OUTER}};
@@ -416,7 +412,6 @@ std::vector<Task> Scheduler::fetchAllTasks()
 //----------------------------------------------------------------------------------------------------------------
 Task Scheduler::GetTask(const std::string& id)
 {
-  static const char *FILEQUERY{"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
   static const Fields fields  {Field::ID,        Field::TIME,      Field::MASK, Field::FLAGS, Field::ENVFILE,
                                Field::COMPLETED, Field::RECURRING, Field::NOTIFY, FILEQUERY};
   static const Joins joins{{"file", "sid", "schedule", "id", JoinType::OUTER}};
@@ -656,7 +651,7 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     if (QueueFull())
       return klog().t("Outbound IPC queue is full");
 
-    const auto event = IPC_PLATFORM_REQUEST;
+    const auto event = PLATFORM_REQUEST;
     for (const auto &request : m_research_manager.AnalyzeTW(root, child, subchild))
     {
       if (!PollExists(root.id))

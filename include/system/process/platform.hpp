@@ -4,14 +4,58 @@
 #include "executor/task_handlers/task.hpp"
 #include "executor/executor.hpp"
 #include "server/types.hpp"
+#include <logger.hpp>
 
 namespace kiq {
+
+using namespace log;
+using namespace constants;
 using post_t  = PlatformPost;
 using posts_t = std::vector<PlatformPost>;
 
-std::string SavePlatformEnv(const post_t& post);
-bool        PopulatePost(PlatformPost& post);
+struct TaskParser
+{
+  using arg_map_t = std::map<std::string, std::function<void(std::string)>>;
+  struct Content
+  {
+    std::string description;
+    std::string header;
+    std::string hashtags;
+    std::string link_bio;
+    std::string requested_by;
+    std::string requested_by_phrase;
+    std::string promote_share;
 
+    std::string value() const;
+  };
+
+  TaskParser(const Task& task, std::string_view pid);
+  void         parse   (const std::string& flag, const std::string& arg);
+  void         add_file(const std::string& file);
+  PlatformPost get     ();
+
+  PlatformPost post_;
+  Content      content_;
+  arg_map_t    arg_map{
+    { DESCRIPTION_KEY,         [this] (auto arg) { content_.description         = arg; } },
+    { HEADER_KEY,              [this] (auto arg) { content_.header              = arg; } },
+    { HASHTAGS_KEY,            [this] (auto arg) { content_.hashtags            = arg; } },
+    { LINK_BIO_KEY,            [this] (auto arg) { content_.link_bio            = arg; } },
+    { REQUESTED_BY_KEY,        [this] (auto arg) { content_.requested_by        = arg; } },
+    { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { content_.requested_by_phrase = arg; } },
+    { PROMOTE_SHARE_KEY,       [this] (auto arg) { content_.promote_share       = arg; } },
+    { USER_KEY,                [this] (auto arg) { post_.user                   = arg; } },
+    { FILE_TYPE_KEY,           [this] (auto arg) {                                     } },
+    { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                                     } }
+  };
+};
+//-------------------------------------------------------------------------------------
+std::string SavePlatformEnvFile (const post_t& post);
+std::string SavePlatformEnv     (const post_t& post);
+bool        PopulatePost        (PlatformPost& post);
+bool        PopulatePlatformPost(PlatformPost& post);
+bool        MustRepost          (const std::string& s);
+//-------------------------------------------------------------------------------------
 static const std::vector<std::string> PLATFORM_KEYS{
   "pid"
   "o_pid"
@@ -63,33 +107,33 @@ class Platform
 {
 public:
   explicit Platform(SystemEventcallback fn);
-  bool                      SavePlatformPost        (post_t, const std::string& status = constants::PLATFORM_POST_COMPLETE) const;
-  bool                      SavePlatformPost        (std::vector<std::string>);
-  void                      OnPlatformError         (const std::vector<std::string>&);
-  void                      ProcessPlatform         ();
-  posts_t                   Fetch                   (bool pending = false)                                                  const;
-  void                      FetchPosts              ()                                                                      const;
-  std::string               Status                  ()                                                                      const;
-  std::string               GetPlatform             (const std::string&)                                                    const;
-  std::string               GetPlatformID           (const std::string&)                                                    const;
-  std::string               GetPlatformID           (uint32_t)                                                              const;
-  std::string               GetUser                 (const std::string&, const std::string& pid = "",
-                                                     bool  use_default = false)                                             const;
-  PlatformPost              to_post                  (const Task& task)                                                     const;
+  bool                      SavePlatformPost         (post_t, const std::string& status = constants::PLATFORM_POST_COMPLETE) const;
+  bool                      SavePlatformPost         (std::vector<std::string>);
+  void                      OnPlatformError          (const std::vector<std::string>&);
+  void                      ProcessPlatform          ();
+  posts_t                   Fetch                    (bool pending = false)                                                  const;
+  void                      FetchPosts               ()                                                                      const;
+  std::string               Status                   ()                                                                      const;
+  std::string               GetPlatform              (const std::string&)                                                    const;
+  std::string               GetPlatformID            (const std::string&)                                                    const;
+  std::string               GetPlatformID            (uint32_t)                                                              const;
+  std::string               GetUser                  (const std::string&, const std::string& pid = "",
+                                                      bool  use_default = false)                                             const;
+  PlatformPost              to_post                  (const Task& task)                                                      const;
 
 private:
-  std::string               GetUID                   (const std::string&, const std::string&)                               const;
-  void                      print_pending            ()                                                                     const;
-  std::vector<std::string>  FetchRepostIDs           (const std::string&)                                                   const;
-  posts_t                   FetchPendingPlatformPosts()                                                                     const;
-  posts_t                   ParsePlatformPosts       (QueryValues&&)                                                        const;
-  const posts_t             MakeAffiliatePosts       (const post_t&)                                                        const;
-  bool                      Update                   (const post_t&, const std::string&)                                    const;
-  bool                      PostAlreadyExists        (const post_t&)                                                        const;
+  std::string               GetUID                   (const std::string&, const std::string&)                                const;
+  void                      print_pending            ()                                                                      const;
+  std::vector<std::string>  FetchRepostIDs           (const std::string&)                                                    const;
+  posts_t                   FetchPendingPlatformPosts()                                                                      const;
+  posts_t                   ParsePlatformPosts       (QueryValues&&)                                                         const;
+  const posts_t             MakeAffiliatePosts       (const post_t&)                                                         const;
+  bool                      Update                   (const post_t&, const std::string&)                                     const;
+  bool                      PostAlreadyExists        (const post_t&)                                                         const;
   bool                      IsProcessingPlatform     ();
-  bool                      UserExists               (const std::string&, const std::string&)                               const;
+  bool                      UserExists               (const std::string&, const std::string&)                                const;
   std::string               AddUser                  (const std::string&, const std::string&,
-                                                      const std::string& type = "default")                                  const;
+                                                      const std::string& type = "default")                                   const;
   bool                      insert_or_update         (const post_t&);
   void                      fail_pending_posts       ();
   bool                      complete_post            (const post_t&);
