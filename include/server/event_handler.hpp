@@ -2,7 +2,7 @@
 
 #include <map>
 #include "types.hpp"
-// #include "kserver.hpp"
+#include "kserver.hpp"
 
 namespace kiq
 {
