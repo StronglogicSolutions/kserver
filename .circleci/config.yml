@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   compile:
     docker:
-      - image: logicp/kserver:1.1.0
+      - image: logicp/kserver:1.2.0
     steps:
       - checkout
       - run: git submodule sync
