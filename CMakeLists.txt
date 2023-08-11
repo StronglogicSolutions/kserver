@@ -63,7 +63,6 @@ set(SOURCE_FILES
   "include/system/process/executor/task_handlers/instagram.cpp"
   "include/common/util.cpp"
   "include/common/time.cpp"
-  #"third_party/klogger/src/logger.cpp"
 )
 
 # Sources

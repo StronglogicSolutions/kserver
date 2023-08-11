@@ -15,7 +15,7 @@ using event_payload_t = std::vector<std::string>;
 using event_handler_t = std::function<void(int32_t, int32_t, const event_payload_t&)>;
 using sys_dispatch_t  = std::map<int32_t, event_handler_t>;
 
-class evt
+class event_handler
 {
 public:
   void set_server(KServer* server);
@@ -59,13 +59,13 @@ public:
   void on_term_hits                   (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_status_report               (int32_t fd, int32_t evt, const event_payload_t& data);
 
-  static evt& instance();
+  static event_handler& instance();
 
 private:
-  evt() = default;
+  event_handler() = default;
 
-  static evt* s_instance_ptr_;
-  KServer* m_server;
+  static event_handler* s_instance_ptr_;
+         KServer*       m_server;
 
   sys_dispatch_t m_dispatch_table
   {
@@ -196,5 +196,5 @@ private:
   };
 };
 
-using event_handler = evt;
+using evt = event_handler;
 } // ns kiq

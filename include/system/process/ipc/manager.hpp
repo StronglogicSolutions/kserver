@@ -1,18 +1,16 @@
 #pragma once
 
 #include "interface/worker_interface.hpp"
-#include "server/types.hpp"
 #include "config/config_parser.hpp"
 #include "worker.hpp"
 #include "client.hpp"
-#include "server/event_handler.hpp"
+#include "../../../server/event_handler.hpp"
 
 namespace kiq {
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
 using SystemCallback_fn_ptr = std::function<void(int32_t, const std::vector<std::string>&)>;
 using SystemDispatch_t      = std::function<void(u_ipc_msg_ptr)>;
 using Payload               = std::vector<std::string>;
-
 static auto GetPayload = [](auto m) { return Payload{m->platform(), m->id(),   m->user(), "", m->content(), m->urls(), std::to_string(m->repost()), m->args()}; };
 static auto GetInfo    = [](auto m) { return Payload{m->platform(), m->type(), m->info()};                                                                      };
 static auto GetError   = [](auto m) { return Payload{m->name(),     m->id(),   m->user(), m->error(), ""};                                                      };
@@ -38,15 +36,13 @@ private:
   void loop();
   void delay_event(int32_t event, const std::vector<std::string>& args);
 
-  using evt = event_handler;
-
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
   {constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},
   {constants::IPC_PLATFORM_REQUEST, [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_REQUEST,  GetRequest(static_cast<platform_request*>(it.get()))); }},
   {constants::IPC_PLATFORM_INFO   , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_INFO,     GetInfo   (static_cast<platform_info*>   (it.get()))); }},
   {constants::IPC_PLATFORM_ERROR  , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_ERROR,    GetError  (static_cast<platform_error*>  (it.get()))); }},
-  {constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                            }},
-  {constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                      }}};
+  {constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                        }},
+  {constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                  }}};
 
   using workers_t = std::vector<IPCWorker>;
 

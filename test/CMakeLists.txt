@@ -27,12 +27,12 @@ set(FULL_SOURCES ${TEST_SOURCES})
 add_executable(${PROJECT_NAME} ${FULL_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE
+   "."
    "../include"
    "../third_party"
-   "../third_party/kproto/include"
-   "."
-   ${JWT_INCLUDE}
    "../third_party/klogger/src"
+   "../third_party/kproto/include"
+   ${JWT_INCLUDE}
 )
 
 add_subdirectory(googletest)

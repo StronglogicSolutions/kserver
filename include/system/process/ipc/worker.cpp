@@ -42,7 +42,7 @@ IPCWorker::recv()
 
   zmq::message_t  identity;
   backend_.recv(&identity);
-
+  klog().d("{} receiving message with identity {}", name(), identity.to_string());
   if (identity.empty())
     return;
 
@@ -67,7 +67,7 @@ IPCWorker::recv()
   {
     if (!IsKeepAlive(ipc_message->type()))
       send_ipc_message(std::make_unique<okay_message>());
-
+    klog().d("Worker recv success");
     handlers_->at(identity.to_string_view())->process_message(std::move(ipc_message));
   }
   else

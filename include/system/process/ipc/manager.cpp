@@ -90,6 +90,7 @@ namespace kiq
   void
   IPCManager::process_message(u_ipc_msg_ptr msg)
   {
+    klog().d("Received IPC message: {}", msg ? msg->to_string() : "null");
     log_message(msg.get());
     m_dispatch_table[msg->type()](std::move(msg));
   }
