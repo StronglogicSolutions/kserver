@@ -11,7 +11,7 @@ jobs:
       - run:
           name: build deps
           command: |
-            cd ./third_party/klogger && mkdir build && cmake .. && make -j
+            cd ./third_party/klogger && mkdir build && cd build && cmake .. && make -j
       - run:
           name: compile
           command: |
