@@ -2,12 +2,20 @@ version: 2.1
 jobs:
   compile:
     docker:
-      - image: logicp/kserver:1.1.0
+      - image: logicp/kserver:1.2.0
     steps:
       - checkout
       - run: git submodule sync
       - run: git submodule update --recursive --init
       - run: git submodule update --recursive --remote
+      - run:
+          name: build deps
+          command: |
+            cd ./third_party/klogger && mkdir build && cd build && cmake .. && make -j
+      - run:
+          name: build messaging protocols
+          command: |
+            cd ./include/codec && flatc --cpp generictask.fbs && flatc --cpp instatask.fbs && flatc --cpp kmessage.fbs
       - run:
           name: compile
           command: |

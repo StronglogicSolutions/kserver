@@ -1,8 +1,9 @@
 #pragma once
 
 #include <map>
+#include <vector>
+#include <functional>
 #include "types.hpp"
-// #include "kserver.hpp"
 
 namespace kiq
 {
@@ -65,7 +66,7 @@ private:
   evt() = default;
 
   static evt* s_instance_ptr_;
-  KServer* m_server;
+         KServer*       m_server;
 
   sys_dispatch_t m_dispatch_table
   {

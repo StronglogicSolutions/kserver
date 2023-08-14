@@ -2,17 +2,18 @@
 
 #include <string>
 #include <cstring>
+#include <cstdint>
 #include <ostream>
-#include <functional>
-#include <map>
 
 namespace kiq {
 static const int MAX_PACKET_SIZE = 4096;
 static const int HEADER_SIZE     = 4;
 
 template <typename MessageProcessor>
-void MessageHandler(MessageProcessor processor, int client_socket_fd,
-                    std::string message) {
+void MessageHandler(MessageProcessor processor,
+                    int32_t          client_socket_fd,
+                    std::string      message)
+{
   processor(client_socket_fd, message);
 }
 

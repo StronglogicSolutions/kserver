@@ -2,7 +2,6 @@
 
 #include <future>
 #include <kproto/ipc.hpp>
-#include "log/logger.h"
 
 namespace kiq
 {

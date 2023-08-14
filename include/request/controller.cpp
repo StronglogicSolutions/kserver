@@ -558,7 +558,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     case (RequestType::UNKNOWN):
       [[ fallthrough ]];
     default:
-      klog().e("Controller could not process unknown client request: {}", type);
+      klog().e("Controller could not process unknown client request: {}", static_cast<uint8_t>(type));
   }
   m_client_rq_count++;
 }
