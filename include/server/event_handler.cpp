@@ -1,3 +1,4 @@
+#include "event_handler.hpp"
 #include "kserver.hpp"
 #include <logger.hpp>
 
@@ -6,19 +7,19 @@ namespace kiq
 using namespace kiq::log;
 
 void
-event_handler::operator()(int32_t fd, int32_t event, const event_payload_t& payload)
+evt::operator()(int32_t fd, int32_t event, const event_payload_t& payload)
 {
   m_dispatch_table[event](fd, event, payload);
 }
 //------------------------------------------------------------
 void
-event_handler::operator()(int32_t event, const event_payload_t& payload)
+evt::operator()(int32_t event, const event_payload_t& payload)
 {
   m_dispatch_table[event](ALL_CLIENTS, event, payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_file_update (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_file_update (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   const std::string& filename     = payload.at(0);
   const auto&        timestamp    = payload.at(1);
@@ -43,94 +44,94 @@ event_handler::on_file_update (int32_t client_fd, int32_t event, const event_pay
 }
 //------------------------------------------------------------
 void
-event_handler::on_execution_requested (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_execution_requested (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Process Execution Requested", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_tasks_ready (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_tasks_ready (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().i("Maintenance worker found tasks");
   m_server->SendEvent(client_fd, "Scheduled Tasks Ready", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_tasks_none (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_tasks_none (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().i("There are currently no tasks ready for execution.");
   m_server->SendEvent(client_fd, "No tasks ready", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_scheduler_fetch (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_scheduler_fetch (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Scheduled Tasks", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_scheduler_tokens (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_scheduler_tokens (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Schedule Tokens", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_scheduler_update (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_scheduler_update (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Schedule PUT", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_scheduler_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_scheduler_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().i("Task successfully scheduled");
   m_server->SendEvent(client_fd, "Task Scheduled", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_scheduler_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_scheduler_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().w("No action taken");
 }
 //------------------------------------------------------------
 void
-event_handler::on_registrar_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_registrar_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Application was registered", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_registrar_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_registrar_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Failed to register application", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_task_flags (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_task_flags (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Application Flags", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_application_fetch_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_application_fetch_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Application was found", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_application_fetch_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_application_fetch_fail (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Application was not found", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_created (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_created (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Platform post created", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_new_post (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_new_post (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().t("Handling Platform New Post");
   m_server->GetController().ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
@@ -138,7 +139,7 @@ event_handler::on_platform_new_post (int32_t client_fd, int32_t event, const eve
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_post_request (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_post_request (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().t("Handling Platform Post Requested");
    if (payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
@@ -148,7 +149,7 @@ event_handler::on_platform_post_request (int32_t client_fd, int32_t event, const
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_error(int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_error(int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->GetController().ProcessSystemEvent(event, payload);
   klog().e("Error processing platform post: {}", payload.at(constants::PLATFORM_PAYLOAD_ERROR_INDEX));
@@ -156,63 +157,63 @@ event_handler::on_platform_error(int32_t client_fd, int32_t event, const event_p
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_request    (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_request    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().t("Handling Platform Request");
   m_server->GetController().ProcessSystemEvent(event, payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_event      (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_event      (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->GetIPCMgr().ReceiveEvent(event, payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_info       (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_info       (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Platform Info", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_fetch_posts(int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_fetch_posts(int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->Broadcast("Platform Posts", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_platform_update     (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_platform_update     (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().t("Handling Platform Update");
   m_server->Broadcast("Platform Update", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_process_complete    (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_process_complete    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().w("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void
-event_handler::on_scheduler_request   (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_scheduler_request   (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().w("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void
-event_handler::on_trigger_add_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_trigger_add_success (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().w("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void
-event_handler::on_trigger_add_fail    (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_trigger_add_fail    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().w("{}() => No action taken", __PRETTY_FUNCTION__);
 }
 //------------------------------------------------------------
 void
-event_handler::on_files_send          (int32_t fd, int32_t event, const event_payload_t& files)
+evt::on_files_send          (int32_t fd, int32_t event, const event_payload_t& files)
 {
   klog().i("Enqueuing and sending files");
   m_server->GetFileMgr().EnqueueOutbound(fd, files);
@@ -220,7 +221,7 @@ event_handler::on_files_send          (int32_t fd, int32_t event, const event_pa
 }
 //------------------------------------------------------------
 void
-event_handler::on_files_send_ack (int32_t fd, int32_t event, const event_payload_t& payload)
+evt::on_files_send_ack (int32_t fd, int32_t event, const event_payload_t& payload)
 {
   klog().i("Acknowledging file send request. Sending file metadata");
   auto& file = m_server->GetFileMgr().OutboundNext();
@@ -228,7 +229,7 @@ event_handler::on_files_send_ack (int32_t fd, int32_t event, const event_payload
 }
 //------------------------------------------------------------
 void
-event_handler::on_files_send_ready (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_files_send_ready (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().i("Ready. Sending one file");
   auto&& file = m_server->GetFileMgr().Dequeue();
@@ -236,56 +237,56 @@ event_handler::on_files_send_ready (int32_t client_fd, int32_t event, const even
 }
 //------------------------------------------------------------
 void
-event_handler::on_task_data (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_task_data (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().i("Sending task data");
   m_server->SendEvent(client_fd, "Task Data", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_task_data_final (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_task_data_final (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().i("Sending FINAL task data");
   m_server->SendEvent(client_fd, "Task Data Final", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_process_research (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_process_research (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().t("not implemented");
 }
 //------------------------------------------------------------
 void
-event_handler::on_process_research_result (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_process_research_result (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   klog().t("not implemented");
 }
 //------------------------------------------------------------
 void
-event_handler::on_KIQ_ipc_Message (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_KIQ_ipc_Message (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->GetIPCMgr().ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_term_hits (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_term_hits (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Term Hits", payload);
 }
 //------------------------------------------------------------
 void
-event_handler::on_status_report (int32_t client_fd, int32_t event, const event_payload_t& payload)
+evt::on_status_report (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Status Report", payload);
 }
 //------------------------------------------------------------
-void event_handler::set_server(KServer* server)
+void evt::set_server(KServer* server)
 {
   m_server = server;
 }
 //------------------------------------------------------------
-evt* event_handler::s_instance_ptr_{nullptr};
-evt& event_handler::instance()
+evt* evt::s_instance_ptr_{nullptr};
+evt& evt::instance()
 {
   if (!s_instance_ptr_)
     s_instance_ptr_ = new evt;

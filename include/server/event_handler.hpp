@@ -1,8 +1,9 @@
 #pragma once
 
 #include <map>
+#include <vector>
+#include <functional>
 #include "types.hpp"
-#include "kserver.hpp"
 
 namespace kiq
 {
@@ -15,7 +16,7 @@ using event_payload_t = std::vector<std::string>;
 using event_handler_t = std::function<void(int32_t, int32_t, const event_payload_t&)>;
 using sys_dispatch_t  = std::map<int32_t, event_handler_t>;
 
-class event_handler
+class evt
 {
 public:
   void set_server(KServer* server);
@@ -59,12 +60,12 @@ public:
   void on_term_hits                   (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_status_report               (int32_t fd, int32_t evt, const event_payload_t& data);
 
-  static event_handler& instance();
+  static evt& instance();
 
 private:
-  event_handler() = default;
+  evt() = default;
 
-  static event_handler* s_instance_ptr_;
+  static evt* s_instance_ptr_;
          KServer*       m_server;
 
   sys_dispatch_t m_dispatch_table
@@ -196,5 +197,5 @@ private:
   };
 };
 
-using evt = event_handler;
+using event_handler = evt;
 } // ns kiq

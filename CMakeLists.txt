@@ -118,4 +118,4 @@ target_include_directories(${PROJECT_NAME}_lib PRIVATE
 )
 
 
-#add_subdirectory(test)
+add_subdirectory(test)

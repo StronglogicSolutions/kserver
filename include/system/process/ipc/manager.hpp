@@ -1,10 +1,11 @@
 #pragma once
 
 #include "interface/worker_interface.hpp"
+#include "server/types.hpp"
 #include "config/config_parser.hpp"
 #include "worker.hpp"
 #include "client.hpp"
-#include "../../../server/event_handler.hpp"
+#include "server/event_handler.hpp"
 
 namespace kiq {
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
@@ -35,6 +36,8 @@ void on_heartbeat(std::string_view peer);
 private:
   void loop();
   void delay_event(int32_t event, const std::vector<std::string>& args);
+
+  using evt = event_handler;
 
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
   {constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},
