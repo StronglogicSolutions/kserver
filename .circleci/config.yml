@@ -11,7 +11,11 @@ jobs:
       - run:
           name: build deps
           command: |
-            cd /kserver/third_party/klogger && mkdir build && cd build && cmake .. && make -j && cd /kserver/include/codec && /
+            cd ./third_party/klogger && mkdir build && cd build && cmake .. && make -j
+      - run:
+          name: build messaging protocols
+          command: |
+            cd ./include/codec && ls -la && /
             flatc --cpp generictask.fbs && flatc --cpp instatask.fbs && flatc --cpp kmessage.fbs
       - run:
           name: compile
