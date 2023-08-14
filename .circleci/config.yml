@@ -15,8 +15,7 @@ jobs:
       - run:
           name: build messaging protocols
           command: |
-            cd ./include/codec && ls -la && /
-            flatc --cpp generictask.fbs && flatc --cpp instatask.fbs && flatc --cpp kmessage.fbs
+            cd ./include/codec && flatc --cpp generictask.fbs && flatc --cpp instatask.fbs && flatc --cpp kmessage.fbs
       - run:
           name: compile
           command: |
