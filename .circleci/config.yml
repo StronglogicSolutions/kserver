@@ -11,8 +11,8 @@ jobs:
       - run:
           name: build deps
           command: |
-            pushd ./third_party/klogger && mkdir build && cd build && cmake .. && make -j && popd && /
-            cd include/codec && flatc --cpp generictask.fbs && flatc --cpp instatask.fbs && flatc --cpp kmessage.fbs
+            cd /kserver/third_party/klogger && mkdir build && cd build && cmake .. && make -j && cd /kserver/include/codec && /
+            flatc --cpp generictask.fbs && flatc --cpp instatask.fbs && flatc --cpp kmessage.fbs
       - run:
           name: compile
           command: |
