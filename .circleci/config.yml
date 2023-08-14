@@ -9,6 +9,10 @@ jobs:
       - run: git submodule update --recursive --init
       - run: git submodule update --recursive --remote
       - run:
+          name: build deps
+          command: |
+            cd ./third_party/klogger && mkdir build && cmake .. && make -j
+      - run:
           name: compile
           command: |
             BUILD_ENV=CIRCLECI cmake . && make
