@@ -199,6 +199,8 @@ std::string Scheduler::schedule(Task task)
           m_kdb.insert("recurring", {"sid", "time"}, {id, recurring});
         }
       }
+      else
+        klog().e("Failed to insert task into database: {}", task.toString());
     }
     catch (const pqxx::sql_error &e)
     {
@@ -209,6 +211,9 @@ std::string Scheduler::schedule(Task task)
       klog().e("Insert query failed: {}", e.what());
     }
   }
+  else
+    klog().e("Failed to validate task: {}", task.toString());
+
   return id;
 }
 //----------------------------------------------------------------------------------------------------------------
