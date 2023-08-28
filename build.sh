@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 BUILD_ENV=$1
 BUILD_TYPE=$2
-if [[ -z "$BUILD_ENV" ]]; then
+echo "Build type is $BUILD_TYPE"
+if [ -z "$BUILD_ENV" ]; then
   BUILD_ENV="LOCAL"
 fi
 
-if [[ -z "$BUILD_TYPE" ]]; then
+if [ -z "$BUILD_TYPE" ]; then
   BUILD_TYPE="Release"
 fi
 
