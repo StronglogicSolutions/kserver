@@ -13,7 +13,8 @@ using namespace constants;
 using post_t  = PlatformPost;
 using posts_t = std::vector<PlatformPost>;
 
-struct TaskParser
+
+struct TaskParserInterface
 {
   using arg_map_t = std::map<std::string, std::function<void(std::string)>>;
   struct Content
@@ -29,25 +30,24 @@ struct TaskParser
     std::string value() const;
   };
 
-  TaskParser(const Task& task, std::string_view pid);
-  void         parse   (const std::string& flag, const std::string& arg);
-  void         add_file(const std::string& file);
-  PlatformPost get     ();
+public:
 
+  virtual ~TaskParserInterface() = default;
+  virtual void parse(const std::string& flag, const std::string& arg) = 0;
+  void add_file(const std::string& file);
+  PlatformPost get();
+
+protected:
   PlatformPost post_;
   Content      content_;
-  arg_map_t    arg_map{
-    { DESCRIPTION_KEY,         [this] (auto arg) { content_.description         = arg; } },
-    { HEADER_KEY,              [this] (auto arg) { content_.header              = arg; } },
-    { HASHTAGS_KEY,            [this] (auto arg) { content_.hashtags            = arg; } },
-    { LINK_BIO_KEY,            [this] (auto arg) { content_.link_bio            = arg; } },
-    { REQUESTED_BY_KEY,        [this] (auto arg) { content_.requested_by        = arg; } },
-    { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { content_.requested_by_phrase = arg; } },
-    { PROMOTE_SHARE_KEY,       [this] (auto arg) { content_.promote_share       = arg; } },
-    { USER_KEY,                [this] (auto arg) { post_.user                   = arg; } },
-    { FILE_TYPE_KEY,           [this] (auto arg) {                                     } },
-    { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                                     } }
-  };
+  arg_map_t    arg_map;
+};
+
+struct TaskParser : public TaskParserInterface
+{
+
+  TaskParser(const Task& task, std::string_view pid);
+  void parse(const std::string& flag, const std::string& arg) final;
 };
 //-------------------------------------------------------------------------------------
 std::string SavePlatformEnvFile (const post_t& post);

@@ -3,7 +3,7 @@
 
 namespace kiq {
 using namespace log;
-std::string TaskParser::Content::value() const
+std::string TaskParserInterface::Content::value() const
 {
   return header       + '\n'     + description   + "\n\n\n" + requested_by_phrase + ' '  +
          requested_by + "\n\n\n" + promote_share + "\n\n"   + link_bio  + "\n\n"  + hashtags;
@@ -11,6 +11,19 @@ std::string TaskParser::Content::value() const
 //----------------------------
 TaskParser::TaskParser(const Task& task, std::string_view pid)
 {
+  arg_map = arg_map_t{
+    { DESCRIPTION_KEY,         [this] (auto arg) { content_.description         = arg; } },
+    { HEADER_KEY,              [this] (auto arg) { content_.header              = arg; } },
+    { HASHTAGS_KEY,            [this] (auto arg) { content_.hashtags            = arg; } },
+    { LINK_BIO_KEY,            [this] (auto arg) { content_.link_bio            = arg; } },
+    { REQUESTED_BY_KEY,        [this] (auto arg) { content_.requested_by        = arg; } },
+    { REQUESTED_BY_PHRASE_KEY, [this] (auto arg) { content_.requested_by_phrase = arg; } },
+    { PROMOTE_SHARE_KEY,       [this] (auto arg) { content_.promote_share       = arg; } },
+    { USER_KEY,                [this] (auto arg) { post_.user                   = arg; } },
+    { FILE_TYPE_KEY,           [this] (auto arg) {                                     } },
+    { DIRECT_MESSAGE_KEY,      [this] (auto arg) {                                     } }
+  };
+
   klog().i("Parsing task:\n{}", task.toString());
   post_.id     = task.id();
   post_.time   = task.datetime;
@@ -24,12 +37,12 @@ void TaskParser::parse(const std::string& flag, const std::string& arg)
   arg_map[flag](arg);
 }
 //-----------------------------
-void TaskParser::add_file(const std::string& file)
+void TaskParserInterface::add_file(const std::string& file)
 {
   post_.urls += "file://" + file + '>';
 }
 //-----------------------------
-PlatformPost TaskParser::get()
+PlatformPost TaskParserInterface::get()
 {
   post_.content = content_.value();
   return post_;
