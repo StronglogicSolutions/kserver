@@ -1,7 +1,7 @@
 #include <task/task_queue.hpp>
+#include <logger.hpp>
 
-#include <iostream>
-
+using namespace kiq::log;
 /**
  * @constructor
  * Nothing fancy
@@ -10,8 +10,7 @@ TaskQueue::TaskQueue()
 : m_active(true),
   m_num_threads(std::thread::hardware_concurrency() / 2),
   m_active_workers(0)
-{
-}
+{}
 
 /**
  * @destructor
@@ -57,11 +56,12 @@ void TaskQueue::workerLoop()
       std::unique_lock<std::mutex> lock(m_mutex_lock);
       pool_condition.wait(lock,
         [this]() { return !accepting_tasks || !m_task_queue.empty() || !m_active; });
-
+      klog().t("Thread pool condition met");
       if (!m_active) break;
 
       if (!accepting_tasks && m_task_queue.empty())
       {
+        klog().t("Was not accepting tasks but queue is empty. Switching to accepting tasks with {} active workers", m_active_workers);
         accepting_tasks.store(true);                     // Queue empty ∴ safe accept tasks
         continue;
       }
@@ -71,8 +71,10 @@ void TaskQueue::workerLoop()
       accepting_tasks.store(true);
     }
     m_active_workers++;
+    klog().t("Thread pool worker beginning work. Active workers: {}", m_active_workers);
     fn();                                            // Work
     m_active_workers--;
+    klog().t("Thread pool worker completed work. Active workers: {}", m_active_workers);
   }
 }
 
