@@ -105,8 +105,8 @@ namespace kiq
   void
   IPCManager::delay_event(int32_t event, const std::vector<std::string>& args)
   {
-    static const int   delay_limit{5};
-    static       int   delay_count{0};
+    static const int delay_limit{5};
+    static       int delay_count{0};
 
     if (++delay_count > delay_limit)
       throw std::runtime_error{"Exceeded IPC event delay limit"};
