@@ -139,8 +139,11 @@ void SocketListener::handleClientSocket(int32_t                           client
     if (size > 0)
       message_handler(size);
     else
+    if (size == -1 && (errno == EAGAIN) || (errno == EWOULDBLOCK))
+      continue; // timeout
+    else
     {
-      std::cout << "Client " << client_socket_fd << " disconnected" << std::endl;
+      std::cout << "Client " << client_socket_fd << " disconnected. Errno: " << errno << std::endl;
       onConnectionClose(client_socket_fd);
       memset(s_buffer_ptr.get(), 0, MAX_BUFFER_SIZE);
       break;
@@ -175,6 +178,11 @@ void SocketListener::run()
     {
       close(listening_socket_fd); // No longer needed
       {
+        struct timeval tv;
+        tv.tv_sec  = 10;
+        tv.tv_usec = 0;
+        setsockopt(client_socket_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+
         std::shared_ptr<uint8_t[]>   s_buffer_ptr(new uint8_t[MAX_BUFFER_SIZE]);
         std::weak_ptr<uint8_t[]>     w_buffer_ptr(s_buffer_ptr);
         std::function<void(ssize_t)> message_send_fn =
