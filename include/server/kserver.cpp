@@ -295,6 +295,8 @@ void KServer::EndSession(const int32_t& client_fd, int32_t status)
   klog().t("Calling shutdown on fd {}", client_fd);
   if (shutdown(client_fd, SHUT_RD) != SUCCESS)
     klog().e("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
+
+  SocketListener::revoke(client_fd);
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::CloseConnections()

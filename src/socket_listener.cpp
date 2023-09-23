@@ -134,13 +134,19 @@ void SocketListener::handleClientSocket(int32_t                           client
 {
   while(s_buffer_ptr.get())
   {
+    if (!m_fds[client_socket_fd])
+      break;
+
     memset(s_buffer_ptr.get(), 0, MAX_BUFFER_SIZE);
     ssize_t size = recv(client_socket_fd, s_buffer_ptr.get(), MAX_BUFFER_SIZE, 0);
     if (size > 0)
       message_handler(size);
     else
-    if (size == -1 && (errno == EAGAIN) || (errno == EWOULDBLOCK))
+    if (size == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+    {
+      std::cout << "## socket timeout ##" << std::endl;
       continue; // timeout
+    }
     else
     {
       std::cout << "Client " << client_socket_fd << " disconnected. Errno: " << errno << std::endl;
@@ -200,6 +206,8 @@ void SocketListener::run()
                       client_socket_fd, message_handler,
                       std::forward<std::shared_ptr<uint8_t[]>>(s_buffer_ptr)));
 
+        m_fds.insert_or_assign(client_socket_fd, true);
+
         if (m_test_mode)
           m_service_enabled = false;
       }
@@ -257,4 +265,10 @@ int SocketListener::waitForConnection(int listening_socket)
 size_t SocketListener::count() const
 {
   return u_task_queue_ptr->size();
+}
+
+void SocketListener::revoke(int32_t fd)
+{
+  if (m_fds.find(fd) != m_fds.end())
+    m_fds[fd] = false;
 }
