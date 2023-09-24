@@ -135,7 +135,10 @@ void SocketListener::handleClientSocket(int32_t                           client
   while(s_buffer_ptr.get())
   {
     if (!m_fds[client_socket_fd])
+    {
+      std::cout << client_socket_fd << " will no longer be handled" << std::endl;
       break;
+    }
 
     memset(s_buffer_ptr.get(), 0, MAX_BUFFER_SIZE);
     ssize_t size = recv(client_socket_fd, s_buffer_ptr.get(), MAX_BUFFER_SIZE, 0);
@@ -144,7 +147,7 @@ void SocketListener::handleClientSocket(int32_t                           client
     else
     if (size == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
     {
-      std::cout << "## socket timeout ##" << std::endl;
+      std::cout << "## socket timeout for " << client_socket_fd << std::endl;
       continue; // timeout
     }
     else
@@ -155,7 +158,8 @@ void SocketListener::handleClientSocket(int32_t                           client
       break;
     }
   }
-  ::close(client_socket_fd);
+  int rc = ::close(client_socket_fd);
+  std::cout << "Socket closed with return code " << rc << std::endl;
 }
 
 /**
@@ -191,11 +195,10 @@ void SocketListener::run()
 
         std::shared_ptr<uint8_t[]>   s_buffer_ptr(new uint8_t[MAX_BUFFER_SIZE]);
         std::weak_ptr<uint8_t[]>     w_buffer_ptr(s_buffer_ptr);
-        std::function<void(ssize_t)> message_send_fn =
-          [this, client_socket_fd, w_buffer_ptr](ssize_t size)
-          {
-            this->onMessageReceived(client_socket_fd, w_buffer_ptr, size);
-          };
+        std::function<void(ssize_t)> message_send_fn = [this, client_socket_fd, w_buffer_ptr](ssize_t size)
+        {
+          this->onMessageReceived(client_socket_fd, w_buffer_ptr, size);
+        };
 
         MessageHandler message_handler = createMessageHandler(message_send_fn);
 
@@ -269,6 +272,12 @@ size_t SocketListener::count() const
 
 void SocketListener::revoke(int32_t fd)
 {
+  std::cout << "Revoking " << fd << std::endl;
   if (m_fds.find(fd) != m_fds.end())
+  {
     m_fds[fd] = false;
+    std::cout << "Revocation successful" << std::endl;
+  }
+  else
+    std::cout << "Revocation failed " << std::endl;
 }
