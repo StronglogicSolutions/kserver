@@ -104,25 +104,25 @@ public:
   void            SendFile                 (const int32_t& client_fd, const std::string& filename);
   void            EraseMessageHandler      (const int32_t& client_fd);
   void            EraseFileHandler         (const int32_t& client_fd);
-  Controller&     GetController();
-  IPCManager&     GetIPCMgr();
-  FileManager&    GetFileMgr();
+  Controller&     GetController            ();
+  IPCManager&     GetIPCMgr                ();
+  FileManager&    GetFileMgr               ();
 
 private:
   using FileHandlers = std::unordered_map<int32_t, kiqoder::FileHandler>;
 
 
   virtual void onMessageReceived(int                      client_fd,
-                                  std::weak_ptr<uint8_t[]> w_buffer_ptr,
-                                  ssize_t&                 size) override;
-  virtual void onConnectionClose(int32_t client_fd)             override;
+                                 std::weak_ptr<uint8_t[]> w_buffer_ptr,
+                                 ssize_t&                 size)         final;
+  virtual void onConnectionClose(int32_t                  client_fd)    final;
 
   void        CloseConnections ();
   void        OnProcessEvent   (const std::string& result, int32_t mask, const std::string& id,
-                                int32_t client_fd, bool error);
-  void        SendMessage      (const int32_t& client_socket_fd, const std::string& message);
-  void        OnFileHandled    (const int& socket_fd, uint8_t *&&f_ptr = NULL,
-                                size_t size = 0);
+                                int32_t            client_fd, bool error);
+  void        SendMessage      (const int32_t&     client_socket_fd, const std::string& message);
+  void        OnFileHandled    (const int&         socket_fd, uint8_t *&&f_ptr = NULL,
+                                size_t             size = 0);
   void        ReceiveFileData  (const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
                                 const size_t                      size,
                                 const int32_t                     client_fd);

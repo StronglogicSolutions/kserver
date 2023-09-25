@@ -16,6 +16,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 
 // Project libraries
 #include "listen_interface.hpp"
@@ -87,6 +88,8 @@ class SocketListener : public SendInterface, public ListenInterface {
 
   size_t count() const;
 
+  bool revoke(int32_t fd);
+
  private:
   // private methods
   int createSocket();
@@ -105,9 +108,12 @@ class SocketListener : public SendInterface, public ListenInterface {
 
   /* private members */
   // Server arguments
+  using fd_map_t = std::map<int32_t, bool>;
+
   std::string                 m_ip_address;
   int                         m_port;
   std::unique_ptr<TaskQueue>  u_task_queue_ptr;
+  fd_map_t                    m_fds;
   bool                        m_service_enabled;
   bool                        m_test_mode;
 };

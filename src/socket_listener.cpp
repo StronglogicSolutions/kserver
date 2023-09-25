@@ -134,19 +134,32 @@ void SocketListener::handleClientSocket(int32_t                           client
 {
   while(s_buffer_ptr.get())
   {
+    if (!m_fds[client_socket_fd])
+    {
+      std::cout << client_socket_fd << " will no longer be handled" << std::endl;
+      break;
+    }
+
     memset(s_buffer_ptr.get(), 0, MAX_BUFFER_SIZE);
     ssize_t size = recv(client_socket_fd, s_buffer_ptr.get(), MAX_BUFFER_SIZE, 0);
     if (size > 0)
       message_handler(size);
     else
+    if (size == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
     {
-      std::cout << "Client " << client_socket_fd << " disconnected" << std::endl;
+      std::cout << "recv timeout on " << client_socket_fd << std::endl;
+      continue; // timeout
+    }
+    else
+    {
+      std::cout << client_socket_fd << " disconnected. Errno: " << errno << std::endl;
       onConnectionClose(client_socket_fd);
       memset(s_buffer_ptr.get(), 0, MAX_BUFFER_SIZE);
       break;
     }
   }
-  ::close(client_socket_fd);
+  int rc = ::close(client_socket_fd);
+  std::cout << "Socket closed with return code " << rc << std::endl;
 }
 
 /**
@@ -175,22 +188,29 @@ void SocketListener::run()
     {
       close(listening_socket_fd); // No longer needed
       {
+        struct timeval tv;
+        tv.tv_sec  = 10;
+        tv.tv_usec = 0;
+
+        setsockopt(client_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+
         std::shared_ptr<uint8_t[]>   s_buffer_ptr(new uint8_t[MAX_BUFFER_SIZE]);
         std::weak_ptr<uint8_t[]>     w_buffer_ptr(s_buffer_ptr);
-        std::function<void(ssize_t)> message_send_fn =
-          [this, client_socket_fd, w_buffer_ptr](ssize_t size)
-          {
-            this->onMessageReceived(client_socket_fd, w_buffer_ptr, size);
-          };
+        std::function<void(ssize_t)> message_send_fn = [this, client_socket_fd, w_buffer_ptr](ssize_t size)
+        {
+          this->onMessageReceived(client_socket_fd, w_buffer_ptr, size);
+        };
 
         MessageHandler message_handler = createMessageHandler(message_send_fn);
 
-        std::cout << "Placing client in queue" << std::endl;
+        std::cout << "Placing " << client_socket_fd << " in queue" << std::endl;
 
         u_task_queue_ptr->pushToQueue(
             std::bind(&SocketListener::handleClientSocket, this,
                       client_socket_fd, message_handler,
                       std::forward<std::shared_ptr<uint8_t[]>>(s_buffer_ptr)));
+
+        m_fds.insert_or_assign(client_socket_fd, true);
 
         if (m_test_mode)
           m_service_enabled = false;
@@ -249,4 +269,14 @@ int SocketListener::waitForConnection(int listening_socket)
 size_t SocketListener::count() const
 {
   return u_task_queue_ptr->size();
+}
+
+bool SocketListener::revoke(int32_t fd)
+{
+  if (m_fds.find(fd) != m_fds.end())
+  {
+    m_fds[fd] = false;
+    return true;
+  }
+  return false;
 }
