@@ -361,6 +361,8 @@ Platform::ProcessPlatform()
       m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, post.GetPayload());
       m_pending++;
     }
+    else
+      klog().e("Failed to process {}", post.id);
   }
 }
 //--------------------------------------------------------------------------------------
