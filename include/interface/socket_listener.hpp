@@ -88,7 +88,7 @@ class SocketListener : public SendInterface, public ListenInterface {
 
   size_t count() const;
 
-  void revoke(int32_t fd);
+  bool revoke(int32_t fd);
 
  private:
   // private methods

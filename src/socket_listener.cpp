@@ -147,12 +147,12 @@ void SocketListener::handleClientSocket(int32_t                           client
     else
     if (size == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
     {
-      std::cout << "## socket timeout for " << client_socket_fd << std::endl;
+      std::cout << "recv timeout on " << client_socket_fd << std::endl;
       continue; // timeout
     }
     else
     {
-      std::cout << "Client " << client_socket_fd << " disconnected. Errno: " << errno << std::endl;
+      std::cout << client_socket_fd << " disconnected. Errno: " << errno << std::endl;
       onConnectionClose(client_socket_fd);
       memset(s_buffer_ptr.get(), 0, MAX_BUFFER_SIZE);
       break;
@@ -191,7 +191,8 @@ void SocketListener::run()
         struct timeval tv;
         tv.tv_sec  = 10;
         tv.tv_usec = 0;
-        setsockopt(client_socket_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+
+        setsockopt(client_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
 
         std::shared_ptr<uint8_t[]>   s_buffer_ptr(new uint8_t[MAX_BUFFER_SIZE]);
         std::weak_ptr<uint8_t[]>     w_buffer_ptr(s_buffer_ptr);
@@ -202,7 +203,7 @@ void SocketListener::run()
 
         MessageHandler message_handler = createMessageHandler(message_send_fn);
 
-        std::cout << "Placing client in queue" << std::endl;
+        std::cout << "Placing " << client_socket_fd << " in queue" << std::endl;
 
         u_task_queue_ptr->pushToQueue(
             std::bind(&SocketListener::handleClientSocket, this,
@@ -270,14 +271,12 @@ size_t SocketListener::count() const
   return u_task_queue_ptr->size();
 }
 
-void SocketListener::revoke(int32_t fd)
+bool SocketListener::revoke(int32_t fd)
 {
-  std::cout << "Revoking " << fd << std::endl;
   if (m_fds.find(fd) != m_fds.end())
   {
     m_fds[fd] = false;
-    std::cout << "Revocation successful" << std::endl;
+    return true;
   }
-  else
-    std::cout << "Revocation failed " << std::endl;
+  return false;
 }
