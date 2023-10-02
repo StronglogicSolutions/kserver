@@ -4,7 +4,7 @@
 namespace kiq
 {
 //*******************************************************************//
-botbroker_handler::botbroker_handler(zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* manager, bool send_hb)
+botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* manager, bool send_hb)
 : manager_(manager),
   ctx_(ctx),
   tx_sink_(ctx_, ZMQ_DEALER),
@@ -17,7 +17,7 @@ botbroker_handler::botbroker_handler(zmq::context_t& ctx, std::string_view targe
   tx_sink_.set(zmq::sockopt::tcp_keepalive, 1);
   tx_sink_.set(zmq::sockopt::tcp_keepalive_idle,  300);
   tx_sink_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
-  tx_sink_.connect(config::Process::broker_address());
+  tx_sink_.connect(addr);
 
   if (send_hb_)
     future_ =  std::async(std::launch::async, [this]

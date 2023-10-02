@@ -7,7 +7,24 @@ namespace kiq
   using namespace kiq::log;
 
   static const char* broker_peer = "botbroker";
+  static const char* sentnl_peer = "sentinel";
   static const char* kygui_peer  = "kygui";
+
+  static std::array<std::string_view, 3> ipc_peers
+  {
+    broker_peer,
+    sentnl_peer,
+    kygui_peer
+  };
+
+  static std::string_view find_peer(const std::string& s)
+  {
+    for (const auto& peer : ipc_peers)
+
+      if (s.find(peer) != std::string::npos)
+        return peer;
+    return "";
+  }
   //*******************************************************************//
   static void log_message(ipc_message* msg)
   {
@@ -34,8 +51,7 @@ namespace kiq
     set_log_fn([](const char* arg) { klog().t(arg); });
     m_public_.bind(REP_ADDRESS);
     m_backend_.bind(BACKEND_ADDRESS);
-    m_future = std::async(std::launch::async, [this]
-                          { zmq::proxy(m_public_, m_backend_); });
+    m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
   }
   //*******************************************************************//
   IPCManager::~IPCManager()
@@ -56,7 +72,7 @@ namespace kiq
   IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
     klog().i("Processing IPC message for event {}", event);
-    if (m_clients.find(broker_peer) == m_clients.end())
+    if (m_clients.find(broker_peer) == m_clients.end() || m_clients.find(sentnl_peer) == m_clients.end())
     {
       delay_event(event, args);
       return false;
@@ -67,10 +83,16 @@ namespace kiq
       case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
       case SYSTEM_EVENTS__PLATFORM_EVENT:
         m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
-        break;
+      break;
       case SYSTEM_EVENTS__IPC_REQUEST:
-        m_clients.at(broker_peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
-        break;
+        if (const auto peer = find_peer(args.front()); !peer.empty())
+        {
+          klog().d("Sending KIQ message of {} to {}", args.front(), peer);
+          m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
+        }
+        else
+          klog().e("Ignoring IPC request from unknown peer: {}", peer);
+      break;
       default:
         return false;
     }
@@ -82,8 +104,11 @@ namespace kiq
   {
     m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
     m_workers.back().start();
-    m_clients.emplace(broker_peer, new botbroker_handler{m_context, broker_peer, this, true});
-    m_daemon.add_observer(broker_peer, [] { klog().e("Heartbeat timed out for {}", broker_peer); });
+    m_clients.emplace(broker_peer, new botbroker_handler{config::Process::broker_address(), m_context, broker_peer, this, true});
+    m_clients.emplace(sentnl_peer, new botbroker_handler{config::Process::sentnl_address(), m_context, sentnl_peer, this, true});
+
+    for (const auto& peer : ipc_peers)
+      m_daemon.add_observer(peer, [&peer] { klog().e("Heartbeat timed out for {}", peer); });
     m_daemon.reset();
   }
   //*******************************************************************//

@@ -49,6 +49,7 @@ const std::string executor();
 const std::string ipc_port();
 const std::string tg_dest ();
 const std::string broker_address();
+const std::string sentnl_address();
 } // namespace Process
 
 namespace Email {

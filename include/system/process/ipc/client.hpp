@@ -9,7 +9,7 @@ class botbroker_handler : public IPCHandlerInterface
 {
 public:
   using ipc_msg_t = ipc_message::u_ipc_msg_ptr;
-  botbroker_handler(zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* broker, bool send_hb = false);
+  botbroker_handler(const std::string& addr, zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* broker, bool send_hb = false);
   ~botbroker_handler() final;
   void process_message(ipc_msg_t) final;
   void               start();
