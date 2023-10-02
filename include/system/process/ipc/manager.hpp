@@ -56,7 +56,6 @@ private:
   session_daemon        m_daemon;
   zmq::context_t        m_context;
   zmq::socket_t         m_public_;
-  zmq::socket_t         m_2ublic_;
   zmq::socket_t         m_backend_;
   std::future<void>     m_future;
 };

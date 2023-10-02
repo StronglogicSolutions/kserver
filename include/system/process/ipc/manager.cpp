@@ -46,16 +46,12 @@ namespace kiq
       : m_req_ready(true),
         m_context(1),
         m_public_(m_context, ZMQ_ROUTER),
-        m_2ublic_(m_context, ZMQ_ROUTER),
         m_backend_(m_context, ZMQ_DEALER)
   {
     set_log_fn([](const char* arg) { klog().t(arg); });
     m_public_.bind(REP_ADDRESS);
-    m_2ublic_.bind(config::Process::sentnl_req_address());
     m_backend_.bind(BACKEND_ADDRESS);
-    m_future = std::async(std::launch::async, [this]
-                          { zmq::proxy(m_public_, m_backend_);
-                            zmq::proxy(m_2ublic_, m_backend_); });
+    m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
   }
   //*******************************************************************//
   IPCManager::~IPCManager()
@@ -90,7 +86,10 @@ namespace kiq
       break;
       case SYSTEM_EVENTS__IPC_REQUEST:
         if (const auto peer = find_peer(args.front()); !peer.empty())
+        {
+          klog().d("Sending KIQ message of {} to {}", args.front(), peer);
           m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
+        }
         else
           klog().e("Ignoring IPC request from unknown peer: {}", peer);
       break;
@@ -107,8 +106,9 @@ namespace kiq
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{config::Process::broker_address(), m_context, broker_peer, this, true});
     m_clients.emplace(sentnl_peer, new botbroker_handler{config::Process::sentnl_address(), m_context, sentnl_peer, this, true});
-    m_daemon.add_observer(broker_peer, [] { klog().e("Heartbeat timed out for {}", broker_peer); });
-    m_daemon.add_observer(sentnl_peer, [] { klog().e("Heartbeat timed out for {}", sentnl_peer); });
+
+    for (const auto& peer : ipc_peers)
+      m_daemon.add_observer(peer, [&peer] { klog().e("Heartbeat timed out for {}", peer); });
     m_daemon.reset();
   }
   //*******************************************************************//
