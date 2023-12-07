@@ -16,3 +16,6 @@
 [submodule "third_party/kproto"]
 	path = third_party/kproto
 	url = https://github.com/StronglogicSolutions/kproto
+[submodule "third_party/process_executor"]
+	path = third_party/process_executor
+	url = https://github.com/StronglogicSolutions/process_executor

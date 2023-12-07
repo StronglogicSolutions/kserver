@@ -101,19 +101,22 @@ target_link_libraries(
   PUBLIC fmt::fmt
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
-  "include"
+set(THIRD_PARTY_INCLUDES
   "third_party"
   "third_party/klogger/src"
   "third_party/kproto/include"
+  "third_party/process_executor"
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+  "include"
+  ${THIRD_PARTY_INCLUDES}
   ${JWT_INCLUDE}
 )
 
 target_include_directories(${PROJECT_NAME}_lib PRIVATE
   "include"
-  "third_party"
-  "third_party/klogger/src"
-  "third_party/kproto/include"
+  ${THIRD_PARTY_INCLUDES}
   ${JWT_INCLUDE}
 )
 
