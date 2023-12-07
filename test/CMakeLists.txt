@@ -32,6 +32,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
    "../third_party"
    "../third_party/klogger/src"
    "../third_party/kproto/include"
+   "../third_party/process_executor"
    ${JWT_INCLUDE}
 )
 

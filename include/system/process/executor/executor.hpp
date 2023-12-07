@@ -5,8 +5,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
-
-#include "execxx.hpp"
+#include <process.hpp>
 #include "environment.hpp"
 #include "kapplication.hpp"
 
@@ -15,7 +14,7 @@ namespace constants {
 extern const uint8_t IMMEDIATE_REQUEST;
 extern const uint8_t SCHEDULED_REQUEST;
 } // namespace constants
-
+using ProcessResult = kiq::proc_result_t;
 /** Function Types */
 typedef std::function<void(std::string, int, int, bool)> ProcessEventCallback;
 typedef std::function<void(std::string, int, std::string, int, bool)>

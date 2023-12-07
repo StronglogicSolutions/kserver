@@ -19,7 +19,10 @@ ProcessResult run_(std::string_view path, std::vector<std::string> argv)
 {
   std::vector<std::string> v{path.data()};
   v.insert(v.end(), std::make_move_iterator(argv.begin()), std::make_move_iterator(argv.end()));
-  return qx(v, findWorkDir(path));
+  const auto p = process{v, 30, true, true, get_current_working_directory()};
+  if (p.has_error())
+    klog().e("Error running process {}.\n{}", path, p.get_error());
+  return p.get();
 }
 //------------------------------------------------------------------------------
 ProcessDaemon::ProcessDaemon(std::string_view path, std::vector<std::string> argv)
