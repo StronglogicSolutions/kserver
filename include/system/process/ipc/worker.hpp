@@ -18,7 +18,8 @@ public:
   std::future<void>& stop();
 
 protected:
-  zmq::socket_t& socket() final;
+  zmq::socket_t& socket()  final;
+  void           on_done() final;
 
 private:
   void run();
