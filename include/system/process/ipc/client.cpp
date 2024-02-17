@@ -52,4 +52,10 @@ botbroker_handler::socket()
 {
   return tx_sink_;
 }
+//******************************************************************//
+void
+botbroker_handler::on_done()
+{
+  (void)(0); // Trace log
+}
 } // ns kiq

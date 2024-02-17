@@ -5,6 +5,7 @@ namespace kiq {
 struct Timer {
 using  TimePoint = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration  = std::chrono::seconds;
+static const uint64_t TWENTY_SECONDS = 20UL;
 static const uint64_t ONE_MINUTE     = 60UL;
 static const uint64_t TWO_MINUTES    = 120UL;
 static const uint64_t TEN_MINUTES    = 600UL;

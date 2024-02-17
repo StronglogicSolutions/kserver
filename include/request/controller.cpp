@@ -180,8 +180,8 @@ void Controller::InfiniteLoop()
     {
       klog().t("{}", Status());
       timer.reset();
-      m_validate_client();
     }
+    m_validate_client();
 
     m_scheduler.ProcessIPC();
     m_scheduler.ResolvePending();

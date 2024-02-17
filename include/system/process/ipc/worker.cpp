@@ -92,4 +92,10 @@ IPCWorker::name() const
 {
   return backend_.get(zmq::sockopt::routing_id);
 }
+//******************************************************************//
+void
+IPCWorker::on_done()
+{
+  (void)(0); // Trace log
+}
 } // ns kiq

@@ -17,6 +17,7 @@ public:
 
 protected:
   zmq::socket_t& socket() final;
+  void on_done() final;
 
 private:
   IPCBrokerInterface* manager_;
