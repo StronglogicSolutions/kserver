@@ -488,17 +488,17 @@ std::string KServer::Status() const
 //-----------------------------------------------------------------------------------------------------
 void KServer::ValidateClients()
 {
-  for (auto it = m_sessions.begin(); it != m_sessions.end(); it++)
+  for (auto it = m_sessions.begin(); it != m_sessions.end();)
   {
     auto &session = it->second;
     session.verify();
     if (session.expired())
     {
       EndSession(session.fd);
-      // it = m_sessions.erase(it);
+      it = m_sessions.erase(it);
     }
-    // else
-    //   it++;
+    else
+      it++;
   }
 }
 //-----------------------------------------------------------------------------------------------------

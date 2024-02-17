@@ -32,7 +32,7 @@ void KSession::verify()
 
 bool KSession::expired() const
 {
-  return (waiting_time() > Timer::ONE_MINUTE);
+  return (waiting_time() > Timer::TWENTY_SECONDS);
 }
 
 uint64_t KSession::waiting_time() const
