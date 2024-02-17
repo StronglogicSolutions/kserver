@@ -111,24 +111,37 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
 {
   bool result{true};
 
+  klog().d("Initializing session for {}", name);
+
   if (!has(name))
+  {
+    klog().d("Adding new session");
     m_sessions.emplace(name, new_session);
+  }
   else
   if (logged_in(new_session.user))
+  {
+    klog().d("Already logged in");
     result = false;
+  }
   else
   {
     // m_session_ptrs.erase(m_sessions[name].fd);
+    klog().d("Session exists but not logged in. Replacing with new session");
     m_sessions[name] = new_session;
   }
 
   if (result)
   {
+    klog().d("Updating session_ptrs for {}. Setting session active and starting ping", new_session.fd);
     m_session_ptrs[new_session.fd] = &m_sessions[name];
     m_sessions[name].notify();
   }
   else
+  {
+    klog().w("Erasing {} from sessions", name);
     m_sessions.erase(name);
+  }
 
   return result;
 }
