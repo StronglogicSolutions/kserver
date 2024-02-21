@@ -118,9 +118,12 @@ QueryResult DatabaseConnection::query(DatabaseQuery query)
 
       for (const auto &row : pqxx_result)
       {
+        ResultMap values;
         int index = 0;
         for (const auto &value : row)
-          result.values[query.fields[index++]] = value.c_str();
+          values[query.fields[index++]] = value.c_str();
+        result.values.push_back(values);
+
       }
       return result;
     }
@@ -129,10 +132,10 @@ QueryResult DatabaseConnection::query(DatabaseQuery query)
     {
       pqxx::result pqxx_result   = do_delete(query);
       QueryResult  result{.table = query.table};
-
+      result.values.push_back(ResultMap{});
       for (const auto &row : pqxx_result)
         for (const auto &value : row)
-          result.values[query.filter.value().front().first] = value.c_str();
+          result.values.front()[query.filter.value().front().first] = value.c_str();
       return result;
     }
 
@@ -153,8 +156,10 @@ QueryResult DatabaseConnection::query(T query)
   for (const auto &row : pqxx_result)
   {
     int index{};
+    ResultMap values;
     for (const auto &value : row)
-      result.values[query.fields[index++]] = value.c_str();
+      values[query.fields[index++]] = value.c_str();
+    result.values.push_back(values);
   }
   return result;
 }

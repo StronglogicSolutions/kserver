@@ -12,18 +12,15 @@ static KApplication get_app_info(int mask)
 
   QueryValues values = kdb.select("apps", {"path", "data", "name"}, CreateFilter("mask", mask_s));
 
-  for (const auto &value_pair : values) {
-    if (value_pair.first == "path")
-      k_app.path = value_pair.second;
-    else
-    if (value_pair.first == "data")
-      k_app.data = value_pair.second;
-    else
-    if (value_pair.first == "name")
-      k_app.name = value_pair.second;
-  }
+  if (values.empty())
+    return k_app;
 
+  const auto& row = values.front();
+  k_app.path = row.at("path");
+  k_app.data = row.at("data");
+  k_app.name = row.at("name");
   k_app.mask = mask_s;
+
   return k_app;
 }
 

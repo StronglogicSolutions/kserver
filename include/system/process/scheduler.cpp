@@ -81,20 +81,8 @@ static Scheduler::ApplicationMap FetchApplicationMap(Database::KDB& db)
   Scheduler::ApplicationMap map   {};
   std::string               mask, name;
 
-  for (const auto &value : db.select(table, fields, filter))
-  {
-    if (value.first == "mask")
-      mask = value.second;
-    else
-    if (value.first == "name")
-      name = value.second;
+  const auto result = db.select(table, fields, filter);
 
-    if (DataUtils::NoEmptyArgs(mask, name))
-    {
-      map.insert({std::stoi(mask), name});
-      DataUtils::ClearArgs(mask, name);
-    }
-  }
   return map;
 }
 //----------------------------------------------------------------------------------------------------------------

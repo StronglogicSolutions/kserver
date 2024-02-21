@@ -331,7 +331,7 @@ QueryValues select(std::string table, Fields fields,
           .filter = filter});
 
       if (!result.values.empty())
-        return result.values.at(0).second;
+        return result.values.front()[filter.front().first];
 
     }
     catch (const pqxx::sql_error &e)

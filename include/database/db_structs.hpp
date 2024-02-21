@@ -21,7 +21,8 @@ using QueryComparisonFilter        = std::vector<FTuple>;           // TODO: Sho
 using QueryComparisonBetweenFilter = std::vector<FTuple>;
 using Values                       = std::vector<std::string>;
 using QueryValue                   = std::pair<std::string, std::string>;
-using QueryValues                  = std::map<std::string, std::string>;
+using ResultMap                    = std::map<std::string, std::string>;
+using QueryValues                  = std::vector<ResultMap>;
 
 struct DatabaseCredentials {
   std::string user;
