@@ -35,40 +35,18 @@ return true;
  */
 static std::vector<TermEvent> ParseTermEvents(const QueryValues &values)
 {
-  using Event = TermEvent;
-  using Events = std::vector<Event>;
-
+  using Events = std::vector<TermEvent>;
   Events events;
-  std::string id, time, person, organization, user, type, term;
 
-  for (const auto &value : values)
-  {
-    if (value.first == "term_hit.time")
-      time = value.second;
-    else
-    if (value.first == "person.name")
-      person = value.second;
-    else
-    if (value.first == "organization.name")
-      organization = value.second;
-    else
-    if (value.first == "platform_user.name")
-      user = value.second;
-    else
-    if (value.first == "term.id")
-      id = value.second;
-    else
-    if (value.first == "term.name")
-      term = value.second;
-    else
-    if (value.first == "term.type")
-      type = value.second;
-    if (DataUtils::NoEmptyArgs(id, time, person, organization, term, type, user))
-    {
-      events.emplace_back(Event{id, user, person, organization, term, type, time});
-      DataUtils::ClearArgs(id, user, person, organization, term, type, time);
-    }
-  }
+  for (const auto &row : values)
+    events.emplace_back(TermEvent{
+      row.at("term.id"),
+      row.at("platform_user.name"),
+      row.at("person.name"),
+      row.at("organization.name"),
+      row.at("term.name"),
+      row.at("term.type"),
+      row.at("term_hit.time")});
 
   return events;
 }
@@ -169,9 +147,9 @@ std::string ResearchManager::AddTermHit(const std::string &tid, const std::strin
  */
 std::string ResearchManager::GetTerm(const std::string &term) const
 {
-  for (const auto &row : m_db_ptr->select("term", {"id"}, CreateFilter("name", term)))
-    if (row.first == "id")
-      return row.second;
+  const auto &rows = m_db_ptr->select("term", {"id"}, CreateFilter("name", term));
+    if (!rows.empty())
+      return rows.front().at("id");
   return "";
 }
 
@@ -180,11 +158,10 @@ std::string ResearchManager::GetTerm(const std::string &term) const
  */
 std::string ResearchManager::GetPerson(const std::string &name)
 {
-  std::string id{};
-  for (const auto &row : m_db_ptr->select("person", {"id"}, CreateFilter("name", name)))
-    if (row.first == "id")
-      id = row.second;
-  return id;
+  const auto &rows = m_db_ptr->select("person", {"id"}, CreateFilter("name", name));
+    if (!rows.empty())
+      return rows.front().at("id");
+  return "";
 }
 
 /**
@@ -197,11 +174,12 @@ Person ResearchManager::GetPersonForUID(const std::string &uid)
   const QueryFilter filter{"platform_user.id", uid};
   const Join join{"person", "id", "platform_user", "pers_id"};
 
-  for (const auto &row : m_db_ptr->selectSimpleJoin("platform_user", fields, filter, join))
-    if (row.first == "platform_user.pers_id")
-      person.id = row.second;
-    else if (row.first == "person.name")
-      person.name = row.second;
+  const auto &rows = m_db_ptr->selectSimpleJoin("platform_user", fields, filter, join);
+  if (!rows.empty())
+  {
+    person.id   = rows.front().at("platform_user.pers_id");
+    person.name = rows.front().at("person.name");
+  }
   return person;
 }
 
@@ -218,14 +196,13 @@ Identity ResearchManager::GetIdentity(const std::string &name, const std::string
   Fields fields = {"platform_user.id", "platform_user.name", "organization.name"};
   auto filter = CreateFilter("platform_user.name", name, "platform_user.pid", pid);
 
-  for (const auto &row : db->selectJoin("platform_user", fields, filter, joins))
-    if (row.first == "platform_user.id")
-      identity.id = row.second;
-    else if (row.first == "platform_user.name")
-      identity.name = row.second;
-    else if (row.first == "organization.name")
-      identity.organization = row.second;
-
+  const auto &rows = db->selectJoin("platform_user", fields, filter, joins);
+  if (!rows.empty())
+  {
+    identity.id           = rows.front().at("platform_user.id");
+    identity.name         = rows.front().at("platform_user.name");
+    identity.organization = rows.front().at("organization.name");
+  }
   return identity;
 }
 
@@ -236,13 +213,12 @@ std::string ResearchManager::GetUser(const std::string &name, const std::string 
 {
   if (name.empty() || pid.empty())
     throw std::invalid_argument{"Must provide name and platform id"};
-  std::string uid;
-  auto db = m_db_ptr;
-  QueryFilter filter = CreateFilter("name", name, "pid", pid);
-  for (const auto &row : db->select("platform_user", {"id"}, filter))
-    if (row.first == "id")
-      uid = row.second;
-  return uid;
+
+
+  const auto &rows = m_db_ptr->select("platform_user", {"id"}, QueryFilter("name", name, "pid", pid));
+  if (!rows.empty())
+    return rows.front().at("id");
+  return "";
 }
 
 /**
@@ -370,27 +346,21 @@ std::vector<TermHit> ResearchManager::GetTermHits(const std::string &term)
     return result;
 
   std::string tid = GetTerm(term);
-  std::string time, person, organization, user, sid, id;
-  for (const auto& value : DoQuery(tid))
-  {
-    if (value.first == "term_hit.time")      time         = value.second;
-    else
-    if (value.first == "term_hit.id")        id           = value.second;
-    else
-    if (value.first == "term_hit.sid")       sid          = value.second;
-    else
-    if (value.first == "person.name")        person       = value.second;
-    else
-    if (value.first == "organization.name")  organization = value.second;
-    else
-    if (value.first == "platform_user.name") user         = value.second;
 
-    if (DataUtils::NoEmptyArgs(id, time, person, organization, user, sid))
-    {
-      klog().i("Term {} has previous hit: Person: {} - Time: {}", term, person, time);
-      result.emplace_back(TermHit{id, person, user, organization, time, term, sid});
-      DataUtils::ClearArgs(time, person, user, organization);
-    }
+  for (const auto& row : DoQuery(tid))
+  {
+    const auto time   = row.at("term_hit.time");
+    const auto person = row.at("person.name");
+    result.emplace_back(TermHit{
+      row.at("term_hit.id"),
+      person,
+      row.at("platform_user.name"),
+      row.at("organization.name"),
+      time,
+      term,
+      row.at("term_hit.sid")});
+
+    klog().i("Term {} has previous hit: Person: {} - Time: {}", term, person, time);
   }
   return result;
 }
@@ -481,12 +451,8 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
 
 bool ResearchManager::TermHitExists(const std::string& term, const std::string& time) const
 {
-  auto db    = m_db_ptr;
-  auto query = db->select("term_hit", {"id"}, CreateFilter("tid", GetTerm(term), "time", time));
-  for (const auto& value : query)
-    if (value.first == "id")
-     return true;
-  return false;
+  return !m_db_ptr->select(
+    "term_hit", {"id"}, CreateFilter("tid", GetTerm(term), "time", time)).empty();
 }
 
 

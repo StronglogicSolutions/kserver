@@ -14,9 +14,8 @@ Platform::Platform(SystemEventcallback fn)
 std::vector<std::string> Platform::FetchRepostIDs(const std::string& pid) const
 {
   std::vector<std::string> pids{};
-  for (const auto& value : m_db.select("platform_repost", {"r_pid"}, CreateFilter("pid", pid)))
-    if (value.first == "r_pid")
-      pids.emplace_back(value.second);
+  for (const auto& row : m_db.select("platform_repost", {"r_pid"}, CreateFilter("pid", pid)))
+    pids.emplace_back(row.at("r_pid"));
   return pids;
 }
 //-------------------------------------------------------------------------------------
@@ -77,12 +76,11 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const post_t& post)
 {
   std::vector<PlatformPost> affiliate_posts{};
 
+  const auto affil_field = "platform_affiliate_user.a_uid";
+  const auto utype_field = "platform_user.type";
+
   QueryValues result = m_db.selectSimpleJoin(
-    "platform_user",
-    {
-      "platform_affiliate_user.a_uid",
-      "platform_user.type"
-    },
+    "platform_user", { affil_field, utype_field },
     CreateFilter("platform_user.name", post.user, "platform_user.pid",  post.pid),
     Join{
       .table      = "platform_affiliate_user",
@@ -95,24 +93,18 @@ const std::vector<PlatformPost> Platform::MakeAffiliatePosts(const post_t& post)
 
   std::string name, type;
 
-  for (const auto& value : result)
+  for (const auto& row : result)
   {
-    if (value.first == "platform_affiliate_user.a_uid")
-    {
-      for (const auto& af_value : m_db.select("platform_user", {"name"}, CreateFilter("id", value.second)))
-        if (af_value.first == "name")
-          name = af_value.second;
-    }
-    else
-    if (value.first == "platform_user.type")
-      type = value.second;
+    const auto af_rows = m_db.select("platform_user", {"name"}, CreateFilter("id", row.at(affil_field)));
+    if (af_rows.size() > 1)
+      klog().w("Found too many affiliate users matching {}", row.at(affil_field));
 
-    if (!name.empty() && !type.empty())
-    {
-      const PlatformPost affiliate_post = MakeAffiliatePost(name, type, post);
-      if (affiliate_post.is_valid())
-        affiliate_posts.emplace_back(affiliate_post);
-    }
+    name = af_rows.front().at("name");
+    type = row.at(utype_field);
+
+    const PlatformPost affiliate_post = MakeAffiliatePost(name, type, post);
+    if (affiliate_post.is_valid())
+      affiliate_posts.emplace_back(affiliate_post);
   }
 
   return affiliate_posts;
@@ -134,17 +126,7 @@ bool Platform::SavePlatformPost(post_t post, const std::string& status) const
     filters_t   result;
     std::string type, value;
     for (const auto& r : m_db.select("platform_filter", {"value", "type"}, CreateFilter("pid", pid, "rpid", rpid)))
-    {
-      if (r.first == "type" ) type  = r.second;
-      else
-      if (r.first == "value") value = r.second;
-
-      if (DataUtils::NoEmptyArgs(type, value))
-      {
-        result.push_back({type, value});
-        DataUtils::ClearArgs(type, value);
-      }
-    }
+      result.push_back({ r.at("type"), r.at("value") });
 
     return result;
   };
@@ -235,20 +217,20 @@ bool Platform::SavePlatformPost(std::vector<std::string> payload)
 std::string Platform::GetPlatformID(uint32_t mask) const
 {
   auto app_info = ProcessExecutor::GetAppInfo(mask);
-  if (!app_info.name.empty()) {
-    for (const auto& value : m_db.select("platform", {"id"}, CreateFilter("name", app_info.name)))
-      if (value.first == "id")
-        return value.second;
+  if (!app_info.name.empty())
+  {
+    const auto rows = m_db.select("platform", {"id"}, CreateFilter("name", app_info.name));
+      if (!rows.empty())
+        return rows.front().at("id");
   }
   return "";
 }
 //-------------------------------------------------------------------------------------
 std::string Platform::GetPlatformID(const std::string& name) const
 {
-  if (!name.empty())
-    for (const auto& value : m_db.select("platform", {"id"}, CreateFilter("name", name)))
-      if (value.first == "id")
-        return value.second;
+  const auto rows = m_db.select("platform", {"id"}, CreateFilter("name", name));
+    if (!rows.empty())
+      return rows.front().at("id");
   return "";
 }
 //-------------------------------------------------------------------------------------
@@ -256,32 +238,28 @@ std::vector<PlatformPost> Platform::ParsePlatformPosts(QueryValues&& result) con
 {
   static const size_t       post_size = 10;
   std::vector<PlatformPost> posts;
-  std::map<std::string, std::string> map;
-  for (const auto& v : result)
+
+  for (const auto& row : result)
   {
-    map[v.first] = v.second;
-    if (map.size() == post_size)
+    PlatformPost post;
+    post.pid    = row.at("platform_post.pid");
+    post.o_pid  = row.at("platform_post.o_pid");
+    post.id     = row.at("platform_post.unique_id");
+    post.user   = row.at("platform_user.name");
+    post.time   = row.at("platform_post.time");
+    post.repost = row.at("platform_post.repost");
+    post.name   = row.at("platform.name");
+    post.method = row.at("platform.method");
+    post.status = row.at("platform_post.status");
+
+    if (!PopulatePlatformPost(post))
     {
-      PlatformPost post;
-      post.pid    = map["platform_post.pid"];
-      post.o_pid  = map["platform_post.o_pid"];
-      post.id     = map["platform_post.unique_id"];
-      post.user   = map["platform_user.name"];
-      post.time   = map["platform_post.time"];
-      post.repost = map["platform_post.repost"];
-      post.name   = map["platform.name"];
-      post.method = map["platform.method"];
-      post.status = map["platform_post.status"];
-
-      if (!PopulatePlatformPost(post))
-      {
-        klog().e("Failed to retrieve values for {} platform post with id {}", post.name, post.id);
-        continue;
-      }
-
-      posts.emplace_back(std::move(post));
-      map.clear();
+      klog().e("Failed to retrieve values for {} platform post with id {}", post.name, post.id);
+      continue;
     }
+
+    posts.emplace_back(std::move(post));
+
   }
 
   return posts;
@@ -454,9 +432,9 @@ std::string Platform::AddUser(const std::string& pid, const std::string& name, c
 //-------------------------------------------------------------------------------------
 std::string Platform::GetUID(const std::string& pid, const std::string& name) const
 {
-  for (const auto& v : m_db.select("platform_user", {"id"}, CreateFilter("pid", pid, "name", name)))
-    if (v.first == "id")
-      return v.second;
+  const auto rows = m_db.select("platform_user", {"id"}, CreateFilter("pid", pid, "name", name));
+  if (!rows.empty())
+    return rows.front().at("id");
   return "";
 }
 //-------------------------------------------------------------------------------------
@@ -474,18 +452,18 @@ std::string Platform::GetUser(const std::string& uid, const std::string& pid, bo
   else
     return "";
 
-  for (const auto& v : m_db.select(table, fields, filter))
-    if (v.first == "name")
-      return v.second;
+  const auto rows = m_db.select(table, fields, filter);
+  if (!rows.empty())
+    return rows.front().at("name");
 
   return "";
 }
 //-------------------------------------------------------------------------------------
 std::string Platform::GetPlatform(const std::string& pid) const
 {
-  for (const auto& value : m_db.select("platform", {"name"}, CreateFilter("id", pid)))
-    if (value.first == "name")
-      return value.second;
+  const auto rows = m_db.select("platform", {"name"}, CreateFilter("id", pid));
+  if (!rows.empty())
+    return rows.front().at("name");
   return "";
 }
 //-------------------------------------------------------------------------------------

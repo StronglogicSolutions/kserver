@@ -282,26 +282,13 @@ std::vector<KApplication> Controller::CreateSession()
 
   for (const auto& row : m_kdb.select(name, fields, QueryFilter{}))
   {
-    if (row.first == "name")
-      command.name = row.second;
-      else
-      if (row.first == "mask")
-      command.mask = row.second;
-      else
-      if (row.first == "path")
-      command.path = row.second;
-      else
-      if (row.first == "data")
-      command.data = row.second;
-
-    if (i == 3)
-    {
-      i = 0;
-      commands.push_back(command);
-    }
-    else
-      i++;
+    command.name = row.at("name");
+    command.mask = row.at("mask");
+    command.path = row.at("path");
+    command.data = row.at("data");
+    commands.push_back(command);
   }
+
   return commands;
 }
 //----------------------------------------------------------------------------------
@@ -331,7 +318,7 @@ void Controller::Execute(const uint32_t&    mask,
                    {"PROCESS RUNNER - Process execution requested for applications with mask " + std::to_string(mask),
                    request_id});
 
-    executor.request(row.second, mask, client_socket_fd, request_id, {}, constants::IMMEDIATE_REQUEST);
+    executor.request(row.at("path"), mask, client_socket_fd, request_id, {}, constants::IMMEDIATE_REQUEST);
   }
 }
 //----------------------------------------------------------------------------------

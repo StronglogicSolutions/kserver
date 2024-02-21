@@ -45,9 +45,9 @@ uint32_t getAppMask(std::string name)
 {
         auto db = Database::KDB{};
   const auto value_field{"mask"};
-  for (const auto& row : db.select("apps", {value_field}, CreateFilter("name", name)))
-    if (row.first == value_field)
-      return std::stoi(row.second);
+  const auto rows = db.select("apps", { value_field }, CreateFilter("name", name));
+  if (!rows.empty())
+      return std::stoi(rows.front().at(value_field));
   return std::numeric_limits<uint32_t>::max();
 }
 
