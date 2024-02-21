@@ -213,27 +213,14 @@ KApplication ProcessExecutor::GetAppInfo(const int32_t& mask, const T& name)
   if (name.size())
     filter.Add("name", name);
 
-  QueryValues values = kdb.select("apps", fields, filter);
-
-  for (const auto &value_pair : values)
+  for (const auto &row : kdb.select("apps", fields, filter))
   {
-    if (value_pair.first == "path")
-      app.path   = value_pair.second;
-    else
-    if (value_pair.first == "data")
-      app.data   = value_pair.second;
-    else
-    if (value_pair.first == "name")
-      app.name   = value_pair.second;
-    else
-    if (value_pair.first == "id")
-      app.id     = value_pair.second;
-    else
-    if (value_pair.first == "mask")
-      app.mask   = value_pair.second;
-    else
-    if (value_pair.first == "internal")
-      app.is_kiq = (value_pair.second == "t") ? true : false;
+    app.path   = row.at("path");
+    app.data   = row.at("data");
+    app.name   = row.at("name");
+    app.id     = row.at("id");
+    app.mask   = row.at("mask");
+    app.is_kiq = (row.at("internal") == "t") ? true : false;
   }
 
   return app;

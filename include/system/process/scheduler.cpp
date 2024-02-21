@@ -77,11 +77,10 @@ static Scheduler::ApplicationMap FetchApplicationMap(Database::KDB& db)
 {
   static const std::string  table {"apps"};
   static const Fields       fields{"mask", "name"};
-  static const QueryFilter  filter{};
   Scheduler::ApplicationMap map   {};
-  std::string               mask, name;
 
-  const auto result = db.select(table, fields, filter);
+  for (const auto& row : db.select(table, fields))
+    map.insert({ std::stoi(row.at("mask")), row.at("name")});
 
   return map;
 }
@@ -212,130 +211,73 @@ Task Scheduler::parseTask(QueryValues&& result, bool parse_files, bool is_recurr
   bool checked_for_files{false};
   std::string TIME_FIELD = (is_recurring) ? Field::REC_TIME : Field::TIME;
 
-  for (const auto &v : result)
+  for (const auto &row : result)
   {
-    if (v.first == Field::MASK)      task.mask = std::stoi(v.second);
-    else
-    if (v.first == Field::FLAGS)     task.flags = v.second;
-    else
-    if (v.first == Field::ENVFILE)   task.env = v.second;
-    else
-    if (v.first == TIME_FIELD)       task.datetime = v.second;
-    else
-    if (v.first == Field::ID)        task.task_id = std::stoi(v.second);
-    else
-    if (v.first == Field::COMPLETED) task.completed = std::stoi(v.second);
-    else
-    if (v.first == Field::RECURRING) task.recurring = std::stoi(v.second);
-    else
-    if (v.first == Field::NOTIFY)    notify = v.second == "t";
-    else
-    if (v.first == FILEQUERY)
-    {
-      // TODO: Why isn't this working?
-      // for (const auto& filename : StringUtils::Split(v.second, ' '))
+    task.mask      = std::stoi(row.at(Field::MASK));
+    task.flags     = row.at(Field::FLAGS);
+    task.env       = row.at(Field::ENVFILE);
+    task.datetime  = row.at(TIME_FIELD);
+    task.task_id   = std::stoi(row.at(Field::ID));
+    task.completed = std::stoi(row.at(Field::COMPLETED));
+    task.recurring = std::stoi(row.at(Field::RECURRING));
+    notify         = row.at(Field::NOTIFY) == "t";
+
+      // for (const auto& filename : StringUtils::Split(v.at(FILEQUERY), ' '))
       //   TODO: get data
       // checked_for_files = true;
-    }
 
-    if (DataUtils::NoEmptyArgs(task.env, task.flags, task.datetime) &&
-        task.completed != NO_COMPLETED_VALUE && task.mask &&
-        task.task_id > 0 && task.recurring > -1 && task.notify > -1)
+    if (task.recurring != Constants::Recurring::NO)
+      task.datetime = TimeUtils::time_as_today(task.datetime);
+    task.runtime  = FileUtils::ReadRunArgs(task.env);
+    task.name     = m_app_map.at(task.mask);
+    task.notify   = notify == 1;
+
+    if (task.filenames.empty())
     {
-
-      if (parse_files && !checked_for_files)
+      for (const auto& file : getFiles({task.id()}))
       {
-        checked_for_files = true;
-        continue;
-      }
-      else
-      {
-        if (task.recurring != Constants::Recurring::NO)
-          task.datetime = TimeUtils::time_as_today(task.datetime);
-        task.runtime  = FileUtils::ReadRunArgs(task.env);
-        task.name     = m_app_map.at(task.mask);
-        task.notify   = notify == 1;
-
-        if (task.filenames.empty())
-        {
-          for (const auto& file : getFiles({task.id()}))
-          {
-            task.filenames.push_back(file.name);
-            task.files.push_back({file.name, ""});
-          }
-        }
-        return task;
+        task.filenames.push_back(file.name);
+        task.files.push_back({file.name, ""});
       }
     }
   }
+
   return task;
 }
 //----------------------------------------------------------------------------------------------------------------
 std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, bool is_recurring)
 {
-  int id{}, completed{NO_COMPLETED_VALUE}, recurring{-1}, notify{-1};
-  std::string mask, flags, env, time, filenames;
+  int               recurring = -1;
+  std::string       env, time, mask, filenames;
   std::vector<Task> tasks;
-  bool checked_for_files{false};
-  std::string TIME_FIELD = (is_recurring) ? Field::REC_TIME : Field::TIME;
+  std::string       TIME_FIELD = (is_recurring) ? Field::REC_TIME : Field::TIME;
 
-  for (const auto &v : result)
+  for (const auto &row : result)
   {
-    if (v.first == Field::MASK)      mask = v.second;
-    else
-    if (v.first == Field::FLAGS)     flags = v.second;
-    else
-    if (v.first == Field::ENVFILE)   env = v.second;
-    else
-    if (v.first == TIME_FIELD)       time = v.second;
-    else
-    if (v.first == Field::ID)        id = std::stoi(v.second);
-    else
-    if (v.first == Field::COMPLETED) completed = std::stoi(v.second);
-    else
-    if (v.first == Field::RECURRING) recurring = std::stoi(v.second);
-    else
-    if (v.first == Field::NOTIFY)    notify = v.second.compare("t") == 0;
-    else
-    if (v.first == FILEQUERY) {    filenames = v.second; checked_for_files = true; }
+    env       = row.at(Field::ENVFILE);
+    mask      = row.at(Field::MASK);
+    time      = row.at(TIME_FIELD);
+    filenames = row.at(FILEQUERY);
 
-    if (!env.empty() && !flags.empty() && !time.empty() &&
-        !mask.empty()    && completed != NO_COMPLETED_VALUE &&
-        id > 0           && recurring > -1 && notify > -1)
-    {
+    if (recurring != Constants::Recurring::NO)
+      time = TimeUtils::time_as_today(time);
 
-      if (parse_files && !checked_for_files)
-      {
-        checked_for_files = true;
-        continue;
-      }
-      else
-      {
-        if (recurring != Constants::Recurring::NO)
-          time = TimeUtils::time_as_today(time);
-        tasks.push_back(Task{
-            .mask         = std::stoi(mask),
-            .datetime     = time,
-            .file         = true,
-            .files        = {},
-            .env          = env,
-            .flags        = flags,
-            .task_id      = id,
-            .completed    = completed,
-            .recurring    = recurring,
-            .notify       = (notify == 1),
-            .runtime      = FileUtils::ReadRunArgs(env), // ⬅ set from DB?
-            .filenames    = StringUtils::Split(filenames, ' '),
-            .name         = m_app_map.at(std::stoi(mask))});
-        id                = 0;
-        recurring         = -1;
-        notify            = -1;
-        completed         = NO_COMPLETED_VALUE;
-        checked_for_files = false;
-        DataUtils::ClearArgs(filenames, env, flags, time, mask);
-      }
-    }
+    tasks.push_back(Task{
+      .mask      = std::stoi(mask),
+      .datetime  = time,
+      .file      = true,
+      .files     = {},
+      .env       = env,
+      .flags     = row.at(Field::FLAGS),
+      .task_id   = std::stoi(row.at(Field::ID)),
+      .completed = std::stoi(row.at(Field::COMPLETED)),
+      .recurring = std::stoi(row.at(Field::RECURRING)),
+      .notify    = row.at(Field::NOTIFY) == "t",
+      .runtime   = FileUtils::ReadRunArgs(env), // ⬅ set from DB?
+      .filenames = StringUtils::Split(filenames, ' '),
+      .name      = m_app_map.at(std::stoi(mask))});
   }
+
   return tasks;
 }
 //----------------------------------------------------------------------------------------------------------------
@@ -420,25 +362,16 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::vector<std::string>& si
   for (const auto& sid : sids)
   {
     const QueryFilter filter = (type.empty()) ? CreateFilter("sid", sid) : CreateFilter("sid", sid, "type", type);
-    FileMetaData file{};
+    FileMetaData file;
 
-    for (const auto& v : m_kdb.select("file", {"id", "name", "type"}, filter))
+    for (const auto& row : m_kdb.select("file", {"id", "name", "type"}, filter))
     {
-      if (v.first == "id")
-        file.id = v.second;
-      else
-      if (v.first == "name")
-        file.name = v.second;
-      else
-      if (v.first == "type")
-        file.type = v.second;
-
-      if (file.complete())
-      {
-        file.task_id = sid;
-        files.push_back(file);
-        file.clear();
-      }
+      file.id      = row.at("id");
+      file.name    = row.at("name");
+      file.type    = row.at("type");
+      file.task_id = sid;
+      files.push_back(file);
+      file.clear();
     }
   }
 
@@ -447,30 +380,19 @@ std::vector<FileMetaData> Scheduler::getFiles(const std::vector<std::string>& si
 //----------------------------------------------------------------------------------------------------------------
 std::vector<FileMetaData> Scheduler::getFiles(const std::string& sid, const std::string& type)
 {
-  std::vector<FileMetaData> files{};
   const QueryFilter filter = (type.empty()) ? CreateFilter("sid", sid) : CreateFilter("sid", sid, "type", type);
 
-  QueryValues result = m_kdb.select("file", {"id", "name", "type"}, filter);
+  std::vector<FileMetaData> files;
+  FileMetaData              file;
 
-  FileMetaData file{};
-
-  for (const auto &v : result)
+  for (const auto &row : m_kdb.select("file", {"id", "name", "type"}, filter))
   {
-    if (v.first == "id")
-      file.id = v.second;
-    else
-    if (v.first == "name")
-      file.name = v.second;
-    else
-    if (v.first == "type")
-      file.type = v.second;
-
-    if (file.complete())
-    {
-      file.task_id = sid;
-      files.push_back(file);
-      file.clear();
-    }
+    file.id      = row.at("id");
+    file.name    = row.at("name");
+    file.type    = row.at("type");
+    file.task_id = sid;
+    files.push_back(file);
+    file.clear();
   }
 
   return files;
@@ -501,9 +423,9 @@ std::vector<std::string> Scheduler::getFlags(const T& mask)
   if constexpr (std::is_integral<T>::value)
     filter_mask = std::to_string(mask);
 
-  for (const auto& row : m_kdb.select("schedule", {Field::FLAGS}, CreateFilter("mask", filter_mask), 1))
-    if (row.first == Field::FLAGS)
-      return StringUtils::Split(row.second, ' ');
+  const auto& rows = m_kdb.select("schedule", {Field::FLAGS}, CreateFilter("mask", filter_mask), 1);
+  if (!rows.empty())
+    return StringUtils::Split(rows.front().at(Field::FLAGS), ' ');
 
   klog().e("No task exists with that mask");
   return {};
@@ -546,13 +468,12 @@ bool Scheduler::updateRecurring(Task* task)
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::updateEnvfile(const std::string& id, const std::string& env)
 {
-  for (const auto &value : m_kdb.select("schedule", {"envfile"}, CreateFilter("id", id)))
-    if (value.first == "envfile")
-    {
-      FileUtils::SaveFile(env, value.second);
-      return true;
-    }
-  return false;
+  const auto rows = m_kdb.select("schedule", {"envfile"}, CreateFilter("id", id));
+  if (!rows.empty())
+    return false;
+
+  FileUtils::SaveFile(env, rows.front().at("envfile"));
+  return true;
 }
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::isKIQProcess(uint32_t mask)
@@ -1054,26 +975,16 @@ void Scheduler::ProcessIPC()
 
   const auto filter = QueryComparisonFilter{{"time", "<", TimeUtils::Now()}};
   const auto query  = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(
-    table, fields, {filter, CreateFilter("status", "0")});
-  std::string id, pid, data, command, time;
-  for (const auto &value : query)
-  {
-    if (value.first == "id")      id = value.second;
-    else
-    if (value.first == "pid")     pid = value.second;
-    else
-    if (value.first == "command") command = value.second;
-    else
-    if (value.first == "data")    data = value.second;
-    else
-    if (value.first == "time")    time = value.second;
+                        table, fields,
+                        { filter, CreateFilter("status", "0") }
+                      );
 
-    if (NoEmptyArgs(id, pid, command, data, time))
-    {
-      SendIPCRequest(id, pid, command, data, time);
-      ClearArgs(pid, command, data, time);
-    }
-  }
+  for (const auto &row : query)
+    SendIPCRequest(row.at("id"),
+                   row.at("pid"),
+                   row.at("command"),
+                   row.at("data"),
+                   row.at("time"));
 
   m_platform.ProcessPlatform();
 }
@@ -1127,9 +1038,10 @@ std::string Scheduler::Status() const
 //----------------------------------------------------------------------------------------------------------------
 std::string Scheduler::GetUUID(const std::string& id) const
 {
-  for (const auto &row : m_kdb.select("ipc", {"p_uuid"}, QueryFilter{"id", id}))
-    if (row.first == "p_uuid")
-      return row.second;
+  const auto &rows = m_kdb.select("ipc", {"p_uuid"}, QueryFilter{"id", id});
+  if (!rows.empty())
+      return rows.front().at("p_uuid");
+
   return "";
 }
 //----------------------------------------------------------------------------------------------------------------

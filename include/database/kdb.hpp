@@ -39,7 +39,7 @@ class KDB {
   }
 
 
-QueryValues select(std::string table, Fields fields, QueryFilter filter, uint32_t limit = 0) const
+QueryValues select(std::string table, Fields fields, QueryFilter filter = {}, uint32_t limit = 0) const
 {
   try
   {

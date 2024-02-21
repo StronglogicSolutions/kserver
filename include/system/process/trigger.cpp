@@ -27,81 +27,45 @@ std::vector<Task> Trigger::process(Task* task)
     auto query = this->m_db->select("triggers", {"id", "trigger_mask", "token_name", "token_value"},
       CreateFilter("mask", std::to_string(task->mask)));
 
-    for (const auto& value : query)
+    for (const auto& row : query)
     {
-      if (value.first == "id")
-        id = value.second;
-      else
-      if (value.first == "trigger_mask")
-        trigger_mask = value.second;
-      else
-      if (value.first == "token_name")
-        token_name = value.second;
-      else
-      if (value.first == "token_value")
-        token_value = value.second;
+      id           = row.at("id");
+      trigger_mask = row.at("trigger_mask");
+      token_name   = row.at("token_name");
+      token_value  = row.at("token_value");
 
-      if (!trigger_mask.empty() && !token_name.empty() && !token_value.empty())
+      TriggerConfig config;
+      auto tok_v = FileUtils::ReadEnvToken(task->env, token_name);
+      bool match = tok_v == token_value;
+
+      if (match)
       {
-        TriggerConfig config{};
-        auto tok_v = FileUtils::ReadEnvToken(task->env, token_name);
-        bool match = tok_v == token_value;
-        if (match)
+        config.application = get_app_info(std::stoi(trigger_mask));
+
+        if (config.application.is_valid())
         {
-          config.application = get_app_info(std::stoi(trigger_mask));
+          TriggerParamInfo& param_info = config.info;
+          param_info.map["id"] = id; // TODO: Possibly best to remove this line
+          query.clear();
+          query = this->m_db->select("trigger_map", {"old", "new"}, CreateFilter("tid", id));
 
-          if (config.application.is_valid())
-          {
-            TriggerParamInfo& param_info = config.info;
-            param_info.map["id"] = id; // TODO: Possibly best to remove this line
-            TriggerPair pair{};
-            query.clear();
-            query = this->m_db->select("trigger_map", {"old", "new"}, CreateFilter("tid", id));
+          for (const auto& m_row : query)
+            param_info.map[m_row.at("old")] = m_row.at("new");
 
-            for (const auto& value : query)
-            {
-              if (value.first == "old")
-                pair.first = value.second;
-              else
-              if (value.first == "new")
-                pair.second = value.second;
-              if (!pair.first.empty() && !pair.second.empty())
-              {
-                param_info.map[pair.first] = pair.second;
-                DataUtils::ClearArgs(pair.first, pair.second);
-              }
-            }
+          query.clear();
+          query = this->m_db->select("trigger_config", {"token_name", "section", "name"}, CreateFilter("tid", id));
 
-            query.clear();
-            query = this->m_db->select("trigger_config", {"token_name", "section", "name"}, CreateFilter("tid", id));
+          std::string token_name, section, name, config_value;
+          for (const auto& c_row : query)
 
-            std::string token_name, section, name, config_value;
-            for (const auto& value : query)
-            {
-              if (value.first == "token_name")
-                token_name = value.second;
-              else
-              if (value.first == "section")
-                section = value.second;
-              else
-              if (value.first == "name")
-                name = value.second;
-              if (!token_name.empty() && !section.empty() && !name.empty())
-              {
-                param_info.config_info_v.emplace_back(ParamConfigInfo{
-                  .token_name     = token_name,
-                  .config_section = section,
-                  .config_name    = name
-                });
-                DataUtils::ClearArgs(token_name, section, name);
-              }
-            }
-          }
-
-          configs.emplace_back(std::move(config));
+            param_info.config_info_v.emplace_back(ParamConfigInfo{
+              .token_name     = c_row.at("token_name"),
+              .config_section = c_row.at("section"),
+              .config_name    = c_row.at("name")
+            });
         }
 
-        DataUtils::ClearArgs(trigger_mask, token_name, token_value);
+        configs.emplace_back(std::move(config));
       }
     }
 
@@ -184,11 +148,7 @@ bool Trigger::add(TriggerConfig config)
       const auto& old_token = config_mapping.first;
       const auto& new_token = config_mapping.second;
 
-      error = m_db->insert(
-        "trigger_map",
-        {"tid", "old", "new"},
-        {id, old_token, new_token}
-      );
+      error = m_db->insert("trigger_map", {"tid", "old", "new"}, { id, old_token, new_token });
     }
 
     if (error)
@@ -198,13 +158,9 @@ bool Trigger::add(TriggerConfig config)
     }
 
     for (const auto& info : config.info.config_info_v)
-    {
-      error = m_db->insert(
-        "trigger_config",
-        {"token_name", "section", "name"},
-        {info.token_name, info.config_section, info.config_name}
-      );
-    }
+      error = m_db->insert("trigger_config",
+                           { "token_name", "section", "name" },
+                           { info.token_name, info.config_section, info.config_name } );
 
     if (error)
     {
