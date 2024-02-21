@@ -115,12 +115,12 @@ QueryResult DatabaseConnection::query(DatabaseQuery query)
     {
       pqxx::result pqxx_result = do_select(query);
       QueryResult result{.table = query.table};
-      result.values.reserve(pqxx_result.size());
+
       for (const auto &row : pqxx_result)
       {
         int index = 0;
         for (const auto &value : row)
-          result.values.push_back(std::make_pair(query.fields[index++], value.c_str()));
+          result.values[query.fields[index++]] = value.c_str();
       }
       return result;
     }
@@ -129,10 +129,10 @@ QueryResult DatabaseConnection::query(DatabaseQuery query)
     {
       pqxx::result pqxx_result   = do_delete(query);
       QueryResult  result{.table = query.table};
-      result.values.reserve(pqxx_result.size());
+
       for (const auto &row : pqxx_result)
         for (const auto &value : row)
-          result.values.push_back(std::make_pair(query.filter.value().front().first, value.c_str()));
+          result.values[query.filter.value().front().first] = value.c_str();
       return result;
     }
 
@@ -149,12 +149,12 @@ QueryResult DatabaseConnection::query(T query)
 {
   pqxx::result pqxx_result = do_select(query);
   QueryResult result{.table = query.table};
-  result.values.reserve(pqxx_result.size());
+
   for (const auto &row : pqxx_result)
   {
     int index{};
     for (const auto &value : row)
-      result.values.push_back(std::make_pair(query.fields[index++], value.c_str()));
+      result.values[query.fields[index++]] = value.c_str();
   }
   return result;
 }

@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 #include <variant>
+#include <map>
 
 enum class QueryType {
   INSERT = 0,
@@ -20,7 +21,7 @@ using QueryComparisonFilter        = std::vector<FTuple>;           // TODO: Sho
 using QueryComparisonBetweenFilter = std::vector<FTuple>;
 using Values                       = std::vector<std::string>;
 using QueryValue                   = std::pair<std::string, std::string>;
-using QueryValues                  = std::vector<QueryValue>;
+using QueryValues                  = std::map<std::string, std::string>;
 
 struct DatabaseCredentials {
   std::string user;
@@ -226,7 +227,7 @@ std::vector<CompFilter> filter;
 
 struct QueryResult {
 std::string table;
-std::vector<std::pair<std::string, std::string>> values;
+QueryValues values;
 };
 
 enum JoinType {
