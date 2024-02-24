@@ -12,6 +12,18 @@
 using ::testing::_;
 using ::testing::Return;
 
+static const auto query_test_value = std::vector<std::map<std::string, std::string>>
+  {
+    std::map<std::string, std::string>
+    {
+      {"database_test", "value1"}
+    },
+    std::map<std::string, std::string>
+    {
+      {"database_test", "value2"}
+    }
+  };
+
 
 DatabaseQuery g_test_query{.table = "apps",
                            .fields = {"name"},
@@ -36,11 +48,8 @@ class MockDBFixture : public ::testing::Test {
       .WillOnce(
         Return(
           QueryResult{
-            .table="database_test",
-            .values{
-              {"database_test", "value1"},
-              {"database_test", "value2"}
-            }
+            .table = "database_test",
+            .values = query_test_value
           }
         )
       );
@@ -77,8 +86,8 @@ TEST_F(MockDBFixture, MockQueryTest) {
 
   QueryResult result =  query(test_query);
 
-  auto expected_return_value_1 = std::pair<std::string, std::string>{"database_test", "value1"};
-  auto expected_return_value_2 = std::pair<std::string, std::string>{"database_test", "value2"};
+  auto expected_return_value_1 = std::map<std::string, std::string>{{"database_test", "value1"}};
+  auto expected_return_value_2 = std::map<std::string, std::string>{{"database_test", "value2"}};
 
 
   EXPECT_EQ(result.table, "database_test");
