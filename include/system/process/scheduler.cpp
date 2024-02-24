@@ -1040,7 +1040,7 @@ std::string Scheduler::GetUUID(const std::string& id) const
 {
   const auto &rows = m_kdb.select("ipc", {"p_uuid"}, QueryFilter{"id", id});
   if (!rows.empty())
-      return rows.front().at("p_uuid");
+    return rows.front().at("p_uuid");
 
   return "";
 }
