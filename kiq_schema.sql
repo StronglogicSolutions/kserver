@@ -154,7 +154,8 @@ CREATE TABLE public.ipc (
     command text,
     data text,
     status integer DEFAULT 0,
-    p_uuid text
+    p_uuid text,
+    type integer DEFAULT 0
 );
 
 
