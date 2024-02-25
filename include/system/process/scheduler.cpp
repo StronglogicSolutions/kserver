@@ -968,7 +968,7 @@ void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
   static const auto   table  = "ipc";
-  static const Fields fields = {"id", "pid", "command", "data", "time"};
+  static const Fields fields = {"id", "pid", "command", "data", "time", "type"};
 
   if (!IPCResponseReceived())
     return;
@@ -984,12 +984,13 @@ void Scheduler::ProcessIPC()
                    row.at("pid"),
                    row.at("command"),
                    row.at("data"),
-                   row.at("time"));
+                   row.at("time"),
+                   row.at("type"));
 
   m_platform.ProcessPlatform();
 }
 //----------------------------------------------------------------------------------------------------------------
-void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time)
+void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time, const std::string& type)
 {
   using namespace StringUtils;
   using Payload = std::vector<std::string>;
@@ -1003,10 +1004,21 @@ void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, co
          const auto    args      = CreateOperation("bot", {config::Process::tg_dest(), data});
          const Payload payload   = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
 
-  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
-  m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
+         const auto    ipc_type  = std::stoi(type);
+
+  if (ipc_type)
+  {
+    // handle new, cleaner IPC type
+  }
+  else
+  {
+    // handle old platform IPC type
+    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
+    m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
+    klog().t("Dispatched IPC with ID {} command {} and data {}", id, command, data);
+  }
+
   m_tx_ipc++;
-  klog().t("Dispatched IPC with ID {} command {} and data {}", id, command, data);
 }
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::IPCResponseReceived() const
