@@ -93,6 +93,12 @@ namespace kiq
         else
           klog().e("Ignoring IPC request from unknown peer: {}", peer);
       break;
+      case SYSTEM_EVENTS__PLATFORM_INFO_REQUEST:
+        if (const auto peer = find_peer(args.front()); !peer.empty())
+        {
+          klog().d("Sending platform_info of {} to {}", args.front(), peer);
+          m_clients.at(peer)->send_ipc_message(std::make_unique<platform_info>(args.front(), args.at(1), args.at(2)));
+        }
       default:
         return false;
     }

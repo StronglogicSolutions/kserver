@@ -43,6 +43,7 @@ public:
   void on_platform_request            (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_platform_event              (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_platform_info               (int32_t fd, int32_t evt, const event_payload_t& data);
+  void on_platform_info_request       (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_platform_fetch_posts        (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_platform_update             (int32_t fd, int32_t evt, const event_payload_t& data);
   void on_process_complete            (int32_t fd, int32_t evt, const event_payload_t& data);
@@ -133,6 +134,9 @@ private:
     },
     { SYSTEM_EVENTS__PLATFORM_INFO,
       [this](auto fd, auto evt, const auto& data) { on_platform_info(fd, evt, data); }
+    },
+    { SYSTEM_EVENTS__PLATFORM_INFO_REQUEST,
+      [this](auto fd, auto evt, const auto& data) { on_platform_info_request(fd, evt, data); }
     },
     { SYSTEM_EVENTS__PLATFORM_FETCH_POSTS,
       [this](auto fd, auto evt, const auto& data) { on_platform_fetch_posts(fd, evt, data); }

@@ -176,6 +176,12 @@ evt::on_platform_info       (int32_t client_fd, int32_t event, const event_paylo
 }
 //------------------------------------------------------------
 void
+evt::on_platform_info_request (int32_t client_fd, int32_t event, const event_payload_t& payload)
+{
+  m_server->GetIPCMgr().ReceiveEvent(SYSTEM_EVENTS__PLATFORM_INFO_REQUEST, payload);
+}
+//------------------------------------------------------------
+void
 evt::on_platform_fetch_posts(int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->Broadcast("Platform Posts", payload);
