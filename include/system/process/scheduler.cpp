@@ -18,6 +18,39 @@ static const Fields      DEFAULT_TASK_FIELDS  = {Field::ID, Field::TIME, Field::
                                                  Field::ENVFILE, Field::COMPLETED, Field::NOTIFY, Field::RECURRING};
 static const std::string FILEQUERY            = {"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
 //----------------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------
+struct IPCMessage
+{
+ public:
+  using args_t    = std::initializer_list<std::string>;
+  using payload_t = std::vector<std::string>;
+  template <typename... Args>
+  IPCMessage(Args&&... args)
+  {
+    initialize(std::forward<Args>(args)...);
+  }
+  //------------------------
+  payload_t
+  get_payload() const
+  {
+    return m_args;
+  }
+
+
+ private:
+  template <typename... Args>
+  void initialize(const std::string& type, Args&&... args)
+  {
+    m_type = std::stoi(type);
+    m_args = { std::forward<Args>(args)... };
+  }
+
+  uint8_t   m_type;
+  payload_t m_args;
+
+};
+
+//----------------------------------------------------------------------------------------------------------------
 IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
 {
   using namespace DataUtils;
@@ -968,7 +1001,7 @@ void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
   static const auto   table  = "ipc";
-  static const Fields fields = {"id", "pid", "command", "data", "time"};
+  static const Fields fields = {"id", "pid", "command", "data", "time", "type"};
 
   if (!IPCResponseReceived())
     return;
@@ -984,12 +1017,13 @@ void Scheduler::ProcessIPC()
                    row.at("pid"),
                    row.at("command"),
                    row.at("data"),
-                   row.at("time"));
+                   row.at("time"),
+                   row.at("type"));
 
   m_platform.ProcessPlatform();
 }
 //----------------------------------------------------------------------------------------------------------------
-void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time)
+void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time, const std::string& type)
 {
   using namespace StringUtils;
   using Payload = std::vector<std::string>;
@@ -1003,10 +1037,22 @@ void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, co
          const auto    args      = CreateOperation("bot", {config::Process::tg_dest(), data});
          const Payload payload   = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
 
-  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
-  m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
+         const auto    ipc_type  = std::stoi(type);
+
+  if (ipc_type)
+  {
+    IPCMessage msg{ type, platform, data, command };
+    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_INFO, msg.get_payload());
+  }
+  else
+  {
+    // handle old platform IPC type
+    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
+    m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
+    klog().t("Dispatched IPC with ID {} command {} and data {}", id, command, data);
+  }
+
   m_tx_ipc++;
-  klog().t("Dispatched IPC with ID {} command {} and data {}", id, command, data);
 }
 //----------------------------------------------------------------------------------------------------------------
 bool Scheduler::IPCResponseReceived() const
