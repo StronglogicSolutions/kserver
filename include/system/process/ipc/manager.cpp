@@ -17,6 +17,11 @@ namespace kiq
     kygui_peer
   };
 
+  static std::string to_info_type(std::string_view plat, std::string_view type)
+  {
+    return fmt::format("{}:{}", plat, type);
+  }
+
   static std::string_view find_peer(const std::string& s, bool get_default = false)
   {
     for (const auto& peer : ipc_peers)
@@ -99,8 +104,14 @@ namespace kiq
       case SYSTEM_EVENTS__PLATFORM_INFO_REQUEST:
         if (const auto peer = find_peer(args.front()); !peer.empty())
         {
-          klog().d("Sending platform_info of {} to {}", args.front(), peer);
-          m_clients.at(peer)->send_ipc_message(std::make_unique<platform_info>(args.front(), args.at(1), args.at(2)));
+          const auto& platform = args.front();
+          const auto& info     = args.at(1);
+          const auto& type     = args.at(2);
+
+          klog().d("Sending platform_info for {} of type {} and info {} to {} ", platform, type, info, peer);
+
+          m_clients.at(peer)->send_ipc_message(std::make_unique<platform_info>(
+            platform, info, to_info_type(platform, type)));
         }
       default:
         return false;
