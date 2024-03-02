@@ -17,12 +17,15 @@ namespace kiq
     kygui_peer
   };
 
-  static std::string_view find_peer(const std::string& s)
+  static std::string_view find_peer(const std::string& s, bool get_default = false)
   {
     for (const auto& peer : ipc_peers)
 
       if (s.find(peer) != std::string::npos)
         return peer;
+      else
+      if (get_default)
+        return ipc_peers.front();
     return "";
   }
   //*******************************************************************//
