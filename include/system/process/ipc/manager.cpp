@@ -93,7 +93,7 @@ namespace kiq
         m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
       break;
       case SYSTEM_EVENTS__IPC_REQUEST:
-        if (const auto peer = find_peer(args.front()); !peer.empty())
+        if (const auto peer = find_peer(args.front(), true); !peer.empty())
         {
           klog().d("Sending KIQ message of {} to {}", args.front(), peer);
           m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
