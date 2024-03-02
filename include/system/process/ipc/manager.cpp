@@ -9,12 +9,14 @@ namespace kiq
   static const char* broker_peer = "botbroker";
   static const char* sentnl_peer = "sentinel";
   static const char* kygui_peer  = "kygui";
+  static const char* onprm_peer  = "onprem";
 
-  static std::array<std::string_view, 3> ipc_peers
+  static std::array<std::string_view, 4> ipc_peers
   {
     broker_peer,
     sentnl_peer,
-    kygui_peer
+    kygui_peer,
+    onprm_peer
   };
 
   static std::string to_info_type(std::string_view plat, std::string_view type)
@@ -31,6 +33,11 @@ namespace kiq
     if (get_default)
         return ipc_peers.front();
     return "";
+  }
+  //*******************************************************************//
+  static bool should_relay(std::string_view addr)
+  {
+    return (addr.find("0.0.0.0") == addr.npos && addr.find("127.0.0.1") == addr.npos && addr.find("localhost") == addr.npos);
   }
   //*******************************************************************//
   static void log_message(ipc_message* msg)
@@ -92,10 +99,13 @@ namespace kiq
         m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
       break;
       case SYSTEM_EVENTS__IPC_REQUEST:
-        if (const auto peer = find_peer(args.front(), true); !peer.empty())
+        if (auto peer = find_peer(args.front(), true); !peer.empty())
         {
+          if (should_relay(m_clients.at(peer)->get_addr()))
+            peer = onprm_peer;                              // relay to on_prem
+
           klog().d("Sending KIQ message of {} to {}", args.front(), peer);
-          m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
+            m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
         }
         else
           klog().e("Ignoring IPC request from unknown peer: {}", peer);
