@@ -63,9 +63,20 @@ namespace kiq
         m_backend_(m_context, ZMQ_DEALER)
   {
     set_log_fn([](const char* arg) { klog().t(arg); });
-    m_public_.bind(REP_ADDRESS);
+
+    zmq::socket_t monitor(m_context, ZMQ_PULL);
+
+    monitor   .bind(MONITOR_ADDRESS);
+    m_public_ .bind(REP_ADDRESS);
     m_backend_.bind(BACKEND_ADDRESS);
-    m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
+
+    m_future = std::async(std::launch::async, [this, &monitor]
+    {
+      zmq::proxy(m_public_, m_backend_);
+      zmq::message_t identity;
+      if (monitor.recv(identity, zmq::recv_flags::dontwait))
+        klog().d("New connection received by monitor: {}", identity.to_string_view());
+    });
   }
   //*******************************************************************//
   IPCManager::~IPCManager()

@@ -8,6 +8,7 @@ using namespace kiq::log;
 IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers_t*  handlers)
 : ctx_(ctx),
   backend_(ctx_, ZMQ_DEALER),
+  monitor_(ctx, ZMQ_PUSH),
   handlers_(handlers)
 {
   backend_.set(zmq::sockopt::linger, 0);
@@ -45,6 +46,8 @@ IPCWorker::recv()
   klog().d("{} receiving message with identity {}", name(), identity.to_string());
   if (identity.empty())
     return;
+  else
+    monitor_.send(identity, zmq::send_flags::none);
 
   buffer_vector_t received_message{};
   zmq::message_t  message;

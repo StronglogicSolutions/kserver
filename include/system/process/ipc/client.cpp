@@ -3,6 +3,7 @@
 
 namespace kiq
 {
+static const std::string client_hello_g{"Hello"};
 //*******************************************************************//
 botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* manager, bool send_hb)
 : manager_(manager),
@@ -28,6 +29,9 @@ botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ct
         std::this_thread::sleep_for(hb_rate);
       }
     });
+
+  tx_sink_.send(zmq::message_t (name_.begin(), name_.end()), zmq::send_flags::sndmore);
+  tx_sink_.send(zmq::message_t (client_hello_g.begin(), client_hello_g.end()));
 }
 //*******************************************************************//
 botbroker_handler::~botbroker_handler()

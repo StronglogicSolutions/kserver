@@ -7,6 +7,7 @@ namespace kiq {
 const std::string  REQ_ADDRESS{"tcp://localhost:28473"};
 const std::string  REP_ADDRESS{"tcp://0.0.0.0:28474"};
 static const char* BACKEND_ADDRESS{"inproc://backend"};
+static const char* MONITOR_ADDRESS{"inproc://monitor"};
 const int32_t      POLLTIMEOUT{50};
 
 class IPCWorker : public IPCTransmitterInterface
@@ -29,6 +30,7 @@ private:
 
   zmq::context_t&     ctx_;
   zmq::socket_t       backend_;
+  zmq::socket_t       monitor_;
   client_handlers_t*  handlers_;
   bool                active_{true};
   std::future<void>   future_;
