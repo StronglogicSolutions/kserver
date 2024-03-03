@@ -9,14 +9,14 @@ namespace kiq
   static const char* broker_peer = "botbroker";
   static const char* sentnl_peer = "sentinel";
   static const char* kygui_peer  = "kygui";
-  static const char* onprm_peer  = "onprem";
+  static const char* onprem_peer = "onprem";
 
   static std::array<std::string_view, 4> ipc_peers
   {
     broker_peer,
     sentnl_peer,
     kygui_peer,
-    onprm_peer
+    onprem_peer
   };
 
   static std::string to_info_type(std::string_view plat, std::string_view type)
@@ -102,7 +102,7 @@ namespace kiq
         if (auto peer = find_peer(args.front(), true); !peer.empty())
         {
           if (should_relay(m_clients.at(peer)->get_addr()))
-            peer = onprm_peer;                              // relay to on_prem
+            peer = onprem_peer;                              // relay to on_prem
 
           klog().d("Sending KIQ message of {} to {}", args.front(), peer);
             m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
@@ -135,6 +135,7 @@ namespace kiq
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{config::Process::broker_address(), m_context, broker_peer, this, true});
     m_clients.emplace(sentnl_peer, new botbroker_handler{config::Process::sentnl_address(), m_context, sentnl_peer, this, true});
+    m_clients.emplace(onprem_peer, new botbroker_handler{config::Process::onprem_address(), m_context, sentnl_peer, this, true});
 
     for (const auto& peer : ipc_peers)
       m_daemon.add_observer(peer, [&peer] { klog().e("Heartbeat timed out for {}", peer); });
