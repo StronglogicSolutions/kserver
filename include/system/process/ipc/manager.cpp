@@ -146,7 +146,7 @@ namespace kiq
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{config::Process::broker_address(), m_context, broker_peer, this, true});
     m_clients.emplace(sentnl_peer, new botbroker_handler{config::Process::sentnl_address(), m_context, sentnl_peer, this, true});
-    m_clients.emplace(onprem_peer, new botbroker_handler{config::Process::onprem_address(), m_context, sentnl_peer, this, true});
+    m_clients.emplace(onprem_peer, new botbroker_handler{config::Process::onprem_address(), m_context, onprem_peer, this, true});
 
     for (const auto& peer : ipc_peers)
       m_daemon.add_observer(peer, [&peer] { klog().e("Heartbeat timed out for {}", peer); });
