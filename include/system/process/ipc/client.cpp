@@ -48,6 +48,7 @@ botbroker_handler::~botbroker_handler()
 void
 botbroker_handler::process_message(ipc_msg_t msg)
 {
+  kiq::log::klog().t("Client {} processing message of type", name_, msg->type());
   if (IsKeepAlive(msg->type()))
     manager_->on_heartbeat(client_);
   else

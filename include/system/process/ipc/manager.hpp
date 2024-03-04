@@ -6,16 +6,55 @@
 #include "worker.hpp"
 #include "client.hpp"
 #include "server/event_handler.hpp"
+#include <logger.hpp>
 
 namespace kiq {
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
 using SystemCallback_fn_ptr = std::function<void(int32_t, const std::vector<std::string>&)>;
 using SystemDispatch_t      = std::function<void(u_ipc_msg_ptr)>;
 using Payload               = std::vector<std::string>;
-static auto GetPayload = [](auto m) { return Payload{m->platform(), m->id(),   m->user(), "", m->content(), m->urls(), std::to_string(m->repost()), m->args()}; };
-static auto GetInfo    = [](auto m) { return Payload{m->platform(), m->type(), m->info()};                                                                      };
-static auto GetError   = [](auto m) { return Payload{m->name(),     m->id(),   m->user(), m->error(), ""};                                                      };
-static auto GetRequest = [](auto m) { return Payload{m->platform(), m->id(),   m->user(), m->content(), m->args()};                                             };
+template <uint8_t type = 0x00>
+static auto GetPayload = [](auto&& ipc)
+{
+  using namespace constants;
+  switch (type)
+  {
+    case IPC_PLATFORM_TYPE:
+    {
+      const auto& m = static_cast<platform_message*>(ipc.get());
+      return Payload{m->platform(), m->id(), m->user(), "", m->content(), m->urls(), std::to_string(m->repost()), m->args()};
+    }
+
+    case IPC_PLATFORM_REQUEST:
+    {
+      const auto& m = static_cast<platform_message*>(ipc.get());
+      return Payload{m->platform(), m->id(), m->user(), m->content(), m->args()};
+    }
+
+    case IPC_PLATFORM_INFO:
+    {
+      const auto& m = static_cast<platform_info*>(ipc.get());
+      return Payload{m->platform(), m->type(), m->info()};
+    }
+
+    case IPC_PLATFORM_ERROR:
+    {
+      const auto& m = static_cast<platform_error*>(ipc.get());
+      return Payload{m->name(), m->id(), m->user(), m->error(), ""};
+    }
+
+    case IPC_KIQ_MESSAGE:
+    {
+      const auto& m = static_cast<kiq_message*>(ipc.get());
+      return Payload{m->payload(), m->platform()};
+    }
+
+    default:
+      log::klog().w("Can't get payload for unhandled type {}", type);
+  }
+  return Payload{};
+};
+
 
 static const uint32_t DEFAULT_PORT{static_cast<uint32_t>(std::stoul(config::Process::ipc_port()))};
 
@@ -40,12 +79,28 @@ private:
   using evt = event_handler;
 
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
-  {constants::IPC_PLATFORM_TYPE   , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload(static_cast<platform_message*>(it.get()))); }},
-  {constants::IPC_PLATFORM_REQUEST, [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_REQUEST,  GetRequest(static_cast<platform_request*>(it.get()))); }},
-  {constants::IPC_PLATFORM_INFO   , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_INFO,     GetInfo   (static_cast<platform_info*>   (it.get()))); }},
-  {constants::IPC_PLATFORM_ERROR  , [&, this](auto it) { evt::instance()(SYSTEM_EVENTS__PLATFORM_ERROR,    GetError  (static_cast<platform_error*>  (it.get()))); }},
-  {constants::IPC_KEEPALIVE_TYPE  , [&, this](auto it) { m_daemon.reset();                                                                                        }},
-  {constants::IPC_OK_TYPE         , [&, this](auto it) { NOOP();                                                                                                  }}};
+  {constants::IPC_PLATFORM_TYPE,    [&, this](auto it)
+  {
+    evt::instance()(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload<constants::IPC_PLATFORM_TYPE>(it));
+  }},
+  {constants::IPC_PLATFORM_REQUEST, [&, this](auto it)
+  {
+    evt::instance()(SYSTEM_EVENTS__PLATFORM_REQUEST, GetPayload<constants::IPC_PLATFORM_REQUEST>(it));
+  }},
+  {constants::IPC_PLATFORM_INFO,    [&, this](auto it)
+  {
+    evt::instance()(SYSTEM_EVENTS__PLATFORM_INFO, GetPayload<constants::IPC_PLATFORM_INFO>(it));
+  }},
+  {constants::IPC_PLATFORM_ERROR,   [&, this](auto it)
+  {
+    evt::instance()(SYSTEM_EVENTS__PLATFORM_ERROR, GetPayload<constants::IPC_PLATFORM_ERROR>(it));
+  }},
+  {constants::IPC_KIQ_MESSAGE,      [&, this](auto it)
+  {
+    evt::instance()(SYSTEM_EVENTS__KIQ_IPC_MESSAGE, GetPayload<constants::IPC_KIQ_MESSAGE>(it));
+  }},
+  {constants::IPC_KEEPALIVE_TYPE,   [&, this](auto it) { m_daemon.reset(); }},
+  {constants::IPC_OK_TYPE,          [&, this](auto it) { NOOP();           }}};
 
   using workers_t = std::vector<IPCWorker>;
 
