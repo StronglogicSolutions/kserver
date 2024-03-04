@@ -9,14 +9,12 @@ namespace kiq
   static const char* broker_peer = "botbroker";
   static const char* sentnl_peer = "sentinel";
   static const char* kygui_peer  = "kygui";
-  static const char* onprem_peer = "onprem";
 
-  static std::array<std::string_view, 4> ipc_peers
+  static std::array<std::string_view, 3> ipc_peers
   {
     broker_peer,
     sentnl_peer,
-    kygui_peer,
-    onprem_peer
+    kygui_peer
   };
 
   static std::string to_info_type(std::string_view plat, std::string_view type)
@@ -37,7 +35,9 @@ namespace kiq
   //*******************************************************************//
   static bool should_relay(std::string_view addr)
   {
-    return (addr.find("0.0.0.0") == addr.npos && addr.find("127.0.0.1") == addr.npos && addr.find("localhost") == addr.npos);
+    return (addr.find("0.0.0.0")  == addr.npos  &&
+            addr.find("127.0.0.1") == addr.npos &&
+            addr.find("localhost") == addr.npos);
   }
   //*******************************************************************//
   static void log_message(ipc_message* msg)
@@ -59,24 +59,15 @@ namespace kiq
   IPCManager::IPCManager()
       : m_req_ready(true),
         m_context(1),
-        m_public_(m_context, ZMQ_ROUTER),
+        m_public_ (m_context, ZMQ_ROUTER),
         m_backend_(m_context, ZMQ_DEALER)
   {
     set_log_fn([](const char* arg) { klog().t(arg); });
 
-    zmq::socket_t monitor(m_context, ZMQ_PULL);
-
-    monitor   .bind(MONITOR_ADDRESS);
     m_public_ .bind(REP_ADDRESS);
     m_backend_.bind(BACKEND_ADDRESS);
 
-    m_future = std::async(std::launch::async, [this, &monitor]
-    {
-      zmq::proxy(m_public_, m_backend_);
-      zmq::message_t identity;
-      if (monitor.recv(identity, zmq::recv_flags::dontwait))
-        klog().d("New connection received by monitor: {}", identity.to_string_view());
-    });
+    m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
   }
   //*******************************************************************//
   IPCManager::~IPCManager()
@@ -112,11 +103,8 @@ namespace kiq
       case SYSTEM_EVENTS__IPC_REQUEST:
         if (auto peer = find_peer(args.front(), true); !peer.empty())
         {
-          if (should_relay(m_clients.at(peer)->get_addr()))
-            peer = onprem_peer;                              // relay to on_prem
-
-          klog().d("Sending KIQ message of {} to {}", args.front(), peer);
-            m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
+          klog().d("Sending KIQ message with {} to {}", args.front(), peer);
+          m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
         }
         else
           klog().e("Ignoring IPC request from unknown peer: {}", peer);
@@ -146,7 +134,6 @@ namespace kiq
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{config::Process::broker_address(), m_context, broker_peer, this, true});
     m_clients.emplace(sentnl_peer, new botbroker_handler{config::Process::sentnl_address(), m_context, sentnl_peer, this, true});
-    m_clients.emplace(onprem_peer, new botbroker_handler{config::Process::onprem_address(), m_context, onprem_peer, this, true});
 
     for (const auto& peer : ipc_peers)
       m_daemon.add_observer(peer, [&peer] { klog().e("Heartbeat timed out for {}", peer); });
