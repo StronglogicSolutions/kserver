@@ -542,6 +542,9 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     case(KIQ_STATUS):
       evt::instance()(client_fd, SYSTEM_EVENTS__STATUS_REPORT, { Status() });
     break;
+    case (IPC_REQUEST):
+      m_scheduler.ScheduleIPC({}, "");
+    break;
     case (RequestType::UNKNOWN):
       [[ fallthrough ]];
     default:

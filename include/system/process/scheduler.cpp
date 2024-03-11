@@ -1,4 +1,3 @@
-#include "codec/uuid.h"
 #include "common/time.hpp"
 #include "scheduler.hpp"
 #include "executor/task_handlers/generic.hpp"
@@ -991,9 +990,10 @@ std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std:
   const auto   platname = m_platform.GetPlatformID(platform);
   const auto   time     = std::to_string(GetTime(Constants::Recurring::HOURLY));
   const Fields fields   = {"pid", "command", "data", "time", "p_uuid"};
-  const Values values   = {platname, command, data, time, uuid};
+  const auto   uniq_id  = uuid.empty() ? StringUtils::GenerateUUIDString() : uuid;
+  const Values values   = {platname, command, data, time, uniq_id};
 
-  klog().i("Scheduling IPC. ID origin {} for platform {} with command {} at {}", uuid, platname, command, time);
+  klog().i("Scheduling IPC. ID origin {} for platform {} with command {} at {}", uniq_id, platname, command, time);
   return m_kdb.insert("ipc", fields, values, "id");
 }
 //----------------------------------------------------------------------------------------------------------------

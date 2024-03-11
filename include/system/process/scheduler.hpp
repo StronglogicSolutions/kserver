@@ -21,9 +21,6 @@ static const char* TIMESTAMP_TIME_AS_TODAY{"(extract(epoch from (TIMESTAMPTZ 'to
 static const char* UNIXTIME_NOW           {"extract(epoch from (now()))::int"};
 
 class ResearchManager;
-// class IPCSendEvent;
-// class PlatformIPC;
-// class TGCommand;
 
 struct TaskParams
 {
