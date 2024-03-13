@@ -43,11 +43,9 @@ IPCWorker::recv()
 
   zmq::message_t  identity;
   backend_.recv(&identity);
-  klog().d("{} receiving message with identity {}", name(), identity.to_string());
+
   if (identity.empty())
     return;
-
-  klog().d("see what else there is");
 
   buffer_vector_t received_message{};
   zmq::message_t  message;
@@ -60,7 +58,7 @@ IPCWorker::recv()
       klog().t("IPC Worker {} failed to receive on socket", name());
       return;
     }
-    klog().t("Received message frame:\n{}", message.to_string_view());
+
     size_t size = sizeof(more_flag);
     backend_.getsockopt(ZMQ_RCVMORE, &more_flag, &size);
     received_message.push_back(get_part(message));
@@ -70,7 +68,7 @@ IPCWorker::recv()
   {
     if (!IsKeepAlive(ipc_message->type()))
       send_ipc_message(std::make_unique<okay_message>());
-    klog().d("Worker recv success. Will handle for {}", identity.to_string_view());
+
     handlers_->at(identity.to_string_view())->process_message(std::move(ipc_message));
   }
   else
