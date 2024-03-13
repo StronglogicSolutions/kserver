@@ -981,14 +981,14 @@ int32_t Scheduler::FindMask(const std::string& application_name)
   return INVALID_MASK;
 }
 //----------------------------------------------------------------------------------------------------------------
-std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid)
+std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid, uint32_t unixtime)
 { // NOTE: Events run after 1 hour
   auto GetTime = [](const auto &intv) { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(intv)); };
   const auto   platform = v[0];
   const auto   command  = v[1];
   const auto   data     = v[2];
   const auto   platname = m_platform.GetPlatformID(platform);
-  const auto   time     = std::to_string(GetTime(Constants::Recurring::HOURLY));
+  const auto   time     = std::to_string(unixtime ? unixtime : GetTime(Constants::Recurring::HOURLY));
   const Fields fields   = {"pid", "command", "data", "time", "p_uuid"};
   const auto   uniq_id  = uuid.empty() ? StringUtils::GenerateUUIDString() : uuid;
   const Values values   = {platname, command, data, time, uniq_id};
