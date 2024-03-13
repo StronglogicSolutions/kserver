@@ -86,7 +86,7 @@ using TermEvents      = std::vector<TermEvent>;
 virtual ~Scheduler() override;
 
 virtual std::string               schedule(Task task) override;
-        std::string               ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid);
+        std::string               ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid, uint32_t unixtime = 0);
         void                      ProcessIPC();
 
         Task                      parseTask(QueryValues&& result,
