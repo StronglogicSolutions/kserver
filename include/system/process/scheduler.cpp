@@ -981,7 +981,7 @@ int32_t Scheduler::FindMask(const std::string& application_name)
   return INVALID_MASK;
 }
 //----------------------------------------------------------------------------------------------------------------
-std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid, uint32_t unixtime)
+std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid, uint32_t unixtime, uint8_t recurring)
 { // NOTE: Events run after 1 hour
   auto GetTime = [](const auto &intv) { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(intv)); };
   const auto   platform = v[0];
@@ -989,9 +989,9 @@ std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std:
   const auto   data     = v[2];
   const auto   platname = m_platform.GetPlatformID(platform);
   const auto   time     = std::to_string(unixtime ? unixtime : GetTime(Constants::Recurring::HOURLY));
-  const Fields fields   = {"pid", "command", "data", "time", "p_uuid"};
+  const Fields fields   = {"pid", "command", "data", "time", "p_uuid", "recurring"};
   const auto   uniq_id  = uuid.empty() ? StringUtils::GenerateUUIDString() : uuid;
-  const Values values   = {platname, command, data, time, uniq_id};
+  const Values values   = {platname, command, data, time, uniq_id, std::to_string(recurring)};
 
   klog().i("Scheduling IPC. ID origin {} for platform {} with command {} at {}", uniq_id, platname, command, time);
   return m_kdb.insert("ipc", fields, values, "id");
@@ -1001,7 +1001,7 @@ void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
   static const auto   table  = "ipc";
-  static const Fields fields = {"id", "pid", "command", "data", "time", "type"};
+  static const Fields fields = {"id", "pid", "command", "data", "time", "type", "recurring"};
 
   if (!IPCResponseReceived())
     return;
@@ -1013,12 +1013,17 @@ void Scheduler::ProcessIPC()
                       );
 
   for (const auto &row : query)
+  {
     SendIPCRequest(row.at("id"),
                    row.at("pid"),
                    row.at("command"),
                    row.at("data"),
                    row.at("time"),
                    row.at("type"));
+    const auto recurring = std::stoi(row.at("recurring"));
+    if (recurring)
+      m_kdb.update("ipc", {"runtime"}, {std::to_string(TimeUtils::UnixTime() + GetIntervalSeconds(recurring))}, QueryFilter{"id", row.at("id")});
+  }
 
   m_platform.ProcessPlatform();
 }
