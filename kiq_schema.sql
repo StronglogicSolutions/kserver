@@ -155,7 +155,8 @@ CREATE TABLE public.ipc (
     data text,
     status integer DEFAULT 0,
     p_uuid text,
-    type integer DEFAULT 0
+    type integer DEFAULT 0,
+    recurring integer DEFAULT 0
 );
 
 
