@@ -22,6 +22,77 @@ static const char* UNIXTIME_NOW           {"extract(epoch from (now()))::int"};
 
 class ResearchManager;
 
+struct IPCMessage
+{
+ public:
+  using args_t    = std::initializer_list<std::string>;
+  using payload_t = std::vector<std::string>;
+  template <typename... Args>
+  IPCMessage(Args&&... args)
+  {
+    initialize(std::forward<Args>(args)...);
+  }
+  //------------------------
+  payload_t
+  get_payload() const;
+
+  payload_t
+  platform_payload(std::function<std::string(std::string)> get_user) const;
+
+  void
+  set_validate(bool validate);
+
+  std::string
+  type_name() const;
+
+  uint8_t
+  type() const;
+
+  std::string
+  platform() const;
+
+  std::string
+  data() const;
+
+  std::string
+  command() const;
+
+  std::string
+  cmd_code_string() const;
+
+  std::string
+  time() const;
+
+  std::string
+  recurring() const;
+
+  std::string
+  status() const;
+
+  std::string
+  id() const;
+
+  std::string
+  p_uuid() const;
+  //------------------------
+  //------------------------
+ private:
+  template <typename... Args>
+  void initialize(Args&&... args)
+  {
+    m_args = { std::forward<Args>(args)... };
+    m_type = std::stoi(m_args.front());
+  }
+  //------------------------
+  size_t
+  size() const;
+  //------------------------
+  //------------------------
+  uint8_t   m_type;
+  payload_t m_args;
+  bool      m_validate{false};
+};
+
 struct TaskParams
 {
 TaskParams(const int32_t& id_, const std::string& data_, const std::string& name_, const std::vector<std::string>& args_)
@@ -86,7 +157,7 @@ using TermEvents      = std::vector<TermEvent>;
 virtual ~Scheduler() override;
 
 virtual std::string               schedule(Task task) override;
-        std::string               ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid, uint32_t unixtime = 0, uint8_t recurring = 0);
+        std::string               ScheduleIPC(const IPCMessage&);
         void                      ProcessIPC();
 
         Task                      parseTask(QueryValues&& result,
@@ -143,10 +214,11 @@ private:
         void                      SetIPCCommand(const uint8_t& command);
         IPCSendEvent              MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg = "");
         bool                      IPCNotPending() const;
-        void                      SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time, const std::string& type);
+        void                      SendIPCRequest(const IPCMessage&);
         bool                      IPCResponseReceived() const;
         bool                      OnIPCReceived(const std::string& id);
         std::string               GetUUID(const std::string& id) const;
+        std::string               GetPlatformUser(std::string_view) const;
 
 using MessageQueue  = std::deque<IPCSendEvent>;
 using DispatchedIPC = std::unordered_map<std::string, PlatformIPC>;

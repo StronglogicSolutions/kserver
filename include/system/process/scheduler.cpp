@@ -18,36 +18,112 @@ static const Fields      DEFAULT_TASK_FIELDS  = {Field::ID, Field::TIME, Field::
 static const std::string FILEQUERY            = {"(SELECT string_agg(file.name, ' ') FROM file WHERE file.sid = schedule.id) as files"};
 //----------------------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------------------
-struct IPCMessage
+
+IPCMessage::payload_t
+IPCMessage::get_payload() const
 {
- public:
-  using args_t    = std::initializer_list<std::string>;
-  using payload_t = std::vector<std::string>;
-  template <typename... Args>
-  IPCMessage(Args&&... args)
-  {
-    initialize(std::forward<Args>(args)...);
-  }
-  //------------------------
-  payload_t
-  get_payload() const
-  {
-    return m_args;
-  }
+  return m_args;
+}
+//------------------------
+IPCMessage::payload_t
+IPCMessage::platform_payload(std::function<std::string(std::string)> get_user) const
+{
+  const auto args = CreateOperation("bot", {config::Process::tg_dest(), data()});
+  return {
+    platform(), p_uuid(), get_user(platform()), time(), command(), "", "", "bot", args, std::to_string(IPC_CMD_CODES.at(command()))
+  };
+}
+//------------------------
+void
+IPCMessage::set_validate(bool validate)
+{
+  m_validate = validate;
+}
+//------------------------
+std::string
+IPCMessage::type_name() const
+{
+  return IPC_MESSAGE_NAMES.at(m_type);
+}
+//------------------------
+uint8_t
+IPCMessage::type() const
+{
+  return m_type;
+}
+//------------------------
+std::string
+IPCMessage::platform() const
+{
+  return m_args.at(0);
+}
+//------------------------
+std::string
+IPCMessage::data() const
+{
+  return m_args.at(1);
+}
+//------------------------
+std::string
+IPCMessage::command() const
+{
+  const auto cmd = m_args.at(2);
+  if (cmd.empty())
+    return std::to_string(std::numeric_limits<uint32_t>::max());
+}
+//------------------------
+std::string
+IPCMessage::cmd_code_string() const
+{
+  return std::to_string(IPC_CMD_CODES.at(command()));
+}
+//------------------------
+std::string
+IPCMessage::time() const
+{
+  if (size() > 2)
+    return m_args.at(3);
+  return "";
+}
+//------------------------
+std::string
+IPCMessage::recurring() const
+{
+  if (size() > 3)
+    return m_args.at(4);
+  return "";
+}
+//------------------------
+std::string
+IPCMessage::status() const
+{
+  if (size() > 4)
+    return m_args.at(5);
+  return "";
+}
+//------------------------
+std::string
+IPCMessage::id() const
+{
+  if (size() > 5)
+    return m_args.at(6);
+  return "";
+}
+//------------------------
+std::string
+IPCMessage::p_uuid() const
+{
+  if (size() > 6)
+    return m_args.at(7);
+  return StringUtils::GenerateUUIDString();
+}
+//------------------------
 
-
- private:
-  template <typename... Args>
-  void initialize(const std::string& type, Args&&... args)
-  {
-    m_type = std::stoi(type);
-    m_args = { std::forward<Args>(args)... };
-  }
-
-  uint8_t   m_type;
-  payload_t m_args;
-
-};
+size_t
+IPCMessage::size() const
+{
+  return m_args.size();
+}
 
 //----------------------------------------------------------------------------------------------------------------
 IPCSendEvent Scheduler::MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg)
@@ -806,8 +882,8 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
 
   klog().i("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
 
-  if (message == REQUEST_SCHEDULE_POLL_STOP)
-    ScheduleIPC({platform, message, args}, id);
+  if (message == REQUEST_SCHEDULE_POLL_STOP) // platform data command time recurring status id p_uuid
+    ScheduleIPC(IPCMessage{"", platform, args, message, "", "", "", id});
   else
   if (message == REQUEST_PROCESS_POLL_RESULT)
   {
@@ -981,19 +1057,13 @@ int32_t Scheduler::FindMask(const std::string& application_name)
   return INVALID_MASK;
 }
 //----------------------------------------------------------------------------------------------------------------
-std::string Scheduler::ScheduleIPC(const std::vector<std::string>& v, const std::string& uuid, uint32_t unixtime, uint8_t recurring)
+std::string Scheduler::ScheduleIPC(const IPCMessage& msg)
 { // NOTE: Events run after 1 hour
   auto GetTime = [](const auto &intv) { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(intv)); };
-  const auto   platform = v[0];
-  const auto   command  = v[1];
-  const auto   data     = v[2];
-  const auto   platname = m_platform.GetPlatformID(platform);
-  const auto   time     = std::to_string(unixtime ? unixtime : GetTime(Constants::Recurring::HOURLY));
   const Fields fields   = {"pid", "command", "data", "time", "p_uuid", "recurring"};
-  const auto   uniq_id  = uuid.empty() ? StringUtils::GenerateUUIDString() : uuid;
-  const Values values   = {platname, command, data, time, uniq_id, std::to_string(recurring)};
+  const Values values   = {msg.platform(), msg.command(), msg.data(), msg.time(), msg.p_uuid(), msg.recurring()};
 
-  klog().i("Scheduling IPC. ID origin {} for platform {} with command {} at {}", uniq_id, platname, command, time);
+  klog().i("Scheduling IPC. ID origin {} for platform {} with command {} at {}", msg.p_uuid(), msg.platform(), msg.command(), msg.time());
   return m_kdb.insert("ipc", fields, values, "id");
 }
 //----------------------------------------------------------------------------------------------------------------
@@ -1014,12 +1084,15 @@ void Scheduler::ProcessIPC()
 
   for (const auto &row : query)
   {
-    SendIPCRequest(row.at("id"),
-                   row.at("pid"),
-                   row.at("command"),
-                   row.at("data"),
-                   row.at("time"),
-                   row.at("type"));
+    //platform data command time recurring status id p_uuid
+    SendIPCRequest(IPCMessage{
+      row.at("id"),
+      row.at("type"),
+      m_platform.GetPlatform(row.at("pid")),
+      row.at("data"),
+      row.at("command"),
+      row.at("time"),
+      row.at("recurring")});
     const auto recurring = std::stoi(row.at("recurring"));
     if (recurring)
       m_kdb.update("ipc", {"runtime"}, {std::to_string(TimeUtils::UnixTime() + GetIntervalSeconds(recurring))}, QueryFilter{"id", row.at("id")});
@@ -1028,33 +1101,24 @@ void Scheduler::ProcessIPC()
   m_platform.ProcessPlatform();
 }
 //----------------------------------------------------------------------------------------------------------------
-void Scheduler::SendIPCRequest(const std::string& id, const std::string& pid, const std::string& command, const std::string& data, const std::string& time, const std::string& type)
+void Scheduler::SendIPCRequest(const IPCMessage& msg)
 {
+  auto get_user = [this](auto p) -> std::string { return GetPlatformUser(p); };
   using namespace StringUtils;
-  using Payload = std::vector<std::string>;
-  static const auto    no_repost = constants::NO_REPOST;
-  static const auto    no_urls   = constants::NO_URLS;
-  static const auto    no_cmd    = std::to_string(std::numeric_limits<uint32_t>::max());
-         const auto    uuid      = GenerateUUIDString();
-         const auto    platform  = m_platform.GetPlatform(pid);
-         const auto    user      = m_platform.GetUser("", pid, true);
-         const auto    code_s    = std::to_string(IPC_CMD_CODES.at(command));
-         const auto    args      = CreateOperation("bot", {config::Process::tg_dest(), data});
-         const Payload payload   = {platform, uuid, user, time, command, no_urls, no_repost, "bot", args, code_s};
 
-         const auto    ipc_type  = std::stoi(type);
 
-  if (ipc_type)
+  const auto payload = msg.platform_payload(get_user);
+
+  if (msg.type())
   {
-    IPCMessage msg{ type, platform, data, command };
     m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_INFO, msg.get_payload());
   }
   else
   {
     // handle old platform IPC type
     m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
-    m_dispatched_ipc.insert({uuid, PlatformIPC{platform, GetIPCCommand(command), id}});
-    klog().t("Dispatched IPC with ID {} command {} and data {}", id, command, data);
+    m_dispatched_ipc.insert({msg.p_uuid(), PlatformIPC{msg.platform(), GetIPCCommand(msg.cmd_code_string()), msg.id()}});
+    klog().t("Dispatched IPC with ID {} command {} and data {}", msg.id(), msg.command(), msg.data());
   }
 
   m_tx_ipc++;
@@ -1100,7 +1164,12 @@ void Scheduler::FetchPosts()
 {
   m_platform.FetchPosts();
 }
-
+//----------------------------------------------------------------------------------------------------------------
+std::string Scheduler::GetPlatformUser(std::string_view platform) const
+{
+  return m_platform.GetUser("", m_platform.GetPlatformID(platform.data()));
+}
+//----------------------------------------------------------------------------------------------------------------
 template bool Scheduler::SavePlatformPost(const std::vector<std::string>&);
 template bool Scheduler::SavePlatformPost(const std::string&);
 } // ns kiq
