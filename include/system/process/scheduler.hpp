@@ -165,14 +165,15 @@ virtual std::string               schedule(Task task) override;
                                             bool is_recurring = false);
         std::vector<Task>         parseTasks(QueryValues&& result,
                                              bool          parse_files = true,
-                                             bool          is_recurring = false);
+                                             bool          is_recurring = false,
+                                             bool          original_time = false);
 
 virtual std::vector<Task>         fetchTasks() override;
         std::vector<Task>         fetchTasks(const std::string& mask,        const std::string& date_range = "0TO0",
                                              const std::string& count = "0", const std::string& limit = "0",
                                              const std::string& order = "asc");
         std::vector<Task>         fetchRecurringTasks();
-        std::vector<Task>         fetchAllTasks();
+        std::vector<Task>         fetchAllTasks(bool original_time = false);
         std::vector<std::string>  fetchRepostIDs(const std::string& pid);
 
         Task                      GetTask(const std::string& id);

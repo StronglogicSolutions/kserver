@@ -70,6 +70,7 @@ IPCMessage::command() const
   const auto cmd = m_args.at(2);
   if (cmd.empty())
     return std::to_string(std::numeric_limits<uint32_t>::max());
+  return cmd;
 }
 //------------------------
 std::string
@@ -353,21 +354,24 @@ Task Scheduler::parseTask(QueryValues&& result, bool parse_files, bool is_recurr
   return task;
 }
 //----------------------------------------------------------------------------------------------------------------
-std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, bool is_recurring)
+std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, bool is_recurring, bool original_time)
 {
+  auto has_rec = [](const auto& row) { return row.find(Field::REC_TIME) != row.end(); };
   int               recurring = -1;
-  std::string       env, time, mask, filenames;
+  std::string       TIME_FIELD, env, time, mask, filenames;
   std::vector<Task> tasks;
-  std::string       TIME_FIELD = (is_recurring) ? Field::REC_TIME : Field::TIME;
 
   for (const auto &row : result)
   {
+    recurring = std::stoi(row.at(Field::RECURRING));
     env       = row.at(Field::ENVFILE);
     mask      = row.at(Field::MASK);
-    time      = row.at(TIME_FIELD);
+    time      = row.at( (original_time) ? Field::TIME : (recurring && has_rec(row)) ? Field::REC_TIME : Field::TIME);
     filenames = row.at(FILEQUERY);
 
-    if (recurring != Constants::Recurring::NO)
+    klog().d("parseTasks got time of {}", time);
+
+    if (!original_time && recurring)
       time = TimeUtils::time_as_today(time);
 
     tasks.push_back(Task{
@@ -444,13 +448,13 @@ std::vector<Task> Scheduler::fetchRecurringTasks()
                     parse_files, recurring);
 }
 //----------------------------------------------------------------------------------------------------------------
-std::vector<Task> Scheduler::fetchAllTasks()
+std::vector<Task> Scheduler::fetchAllTasks(bool original_time)
 {
   static const Fields fields  {Field::ID,        Field::TIME,      Field::MASK, Field::FLAGS, Field::ENVFILE,
                                Field::COMPLETED, Field::RECURRING, Field::NOTIFY, FILEQUERY};
   static const Joins joins{{"file", "sid", "schedule", "id", JoinType::OUTER}};
 
-  return parseTasks(m_kdb.selectJoin<QueryFilter>("schedule", fields, {}, joins), true);
+  return parseTasks(m_kdb.selectJoin<QueryFilter>("schedule", fields, {}, joins), true, original_time);
 }
 //----------------------------------------------------------------------------------------------------------------
 Task Scheduler::GetTask(const std::string& id)
