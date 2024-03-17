@@ -543,7 +543,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       evt::instance()(client_fd, SYSTEM_EVENTS__STATUS_REPORT, { Status() });
     break;
     case (IPC_REQUEST):
-      m_scheduler.ScheduleIPC({}, "");
+      m_scheduler.ScheduleIPC({});
     break;
     case (RequestType::UNKNOWN):
       [[ fallthrough ]];
