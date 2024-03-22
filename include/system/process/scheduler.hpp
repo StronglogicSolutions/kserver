@@ -81,7 +81,11 @@ struct IPCMessage
   void initialize(Args&&... args)
   {
     m_args = { std::forward<Args>(args)... };
-    m_type = std::stoi(m_args.front());
+    const auto& type = m_args.front();
+    if (type.size() > 2)
+      m_type = kiq::IPC_MESSAGE_VALUES.at(type);
+    else
+      m_type = std::stoi(type);
   }
   //------------------------
   size_t
@@ -216,6 +220,7 @@ private:
         IPCSendEvent              MakeIPCEvent(int32_t event, TGCommand command, const std::string& data, const std::string& arg = "");
         bool                      IPCNotPending() const;
         void                      SendIPCRequest(const IPCMessage&);
+        bool                      UpdateIPC(const std::string& id, int status);
         bool                      IPCResponseReceived() const;
         bool                      OnIPCReceived(const std::string& id);
         std::string               GetUUID(const std::string& id) const;
