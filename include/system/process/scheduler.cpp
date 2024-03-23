@@ -90,10 +90,9 @@ IPCMessage::time() const
 std::string
 IPCMessage::recurring() const
 {
-  return std::to_string(
-    (size() > 5 && m_args.at(5) == "true") ?
-      Constants::Recurring::DAILY :
-      Constants::Recurring::NO);
+  if (size() > 5)
+    return m_args.at(5);
+  return Constants::Recurring::NO;
 }
 //------------------------
 std::string
@@ -1100,7 +1099,7 @@ void Scheduler::ProcessIPC()
       row.at("p_uuid")});
 
     if (const auto recurring = std::stoi(recur); recurring)
-      m_kdb.update("ipc", {"runtime"}, {std::to_string(TimeUtils::UnixTime() + GetIntervalSeconds(recurring))}, QueryFilter{"id", row.at("id")});
+      m_kdb.update("ipc", {"time"}, {std::to_string(TimeUtils::UnixTime() + GetIntervalSeconds(recurring))}, QueryFilter{"id", row.at("id")});
   }
 
   m_platform.ProcessPlatform();
