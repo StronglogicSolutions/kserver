@@ -92,7 +92,7 @@ IPCMessage::recurring() const
 {
   if (size() > 5)
     return m_args.at(5);
-  return Constants::Recurring::NO;
+  return std::to_string(Constants::Recurring::NO);
 }
 //------------------------
 std::string
