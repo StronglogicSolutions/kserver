@@ -30,7 +30,7 @@ IPCMessage::platform_payload(std::function<std::string(std::string)> get_user) c
 {
   const auto args = CreateOperation("bot", {config::Process::tg_dest(), data()});
   return {
-    platform(), p_uuid(), get_user(platform()), time(), command(), "", "", "bot", args, std::to_string(IPC_CMD_CODES.at(command()))
+    platform(), p_uuid(), get_user(platform()), time(), data(), "", "false", "bot", args, std::to_string(IPC_CMD_CODES.at(command()))
   };
 }
 //------------------------
@@ -82,7 +82,7 @@ IPCMessage::cmd_code_string() const
 std::string
 IPCMessage::time() const
 {
-  if (size() > 3)
+  if (size() > 4)
     return m_args.at(4);
   return "";
 }
@@ -91,7 +91,7 @@ std::string
 IPCMessage::recurring() const
 {
   return std::to_string(
-    (size() > 4 && m_args.at(5) == "true") ?
+    (size() > 5 && m_args.at(5) == "true") ?
       Constants::Recurring::DAILY :
       Constants::Recurring::NO);
 }
@@ -99,7 +99,7 @@ IPCMessage::recurring() const
 std::string
 IPCMessage::status() const
 {
-  if (size() > 5)
+  if (size() > 6)
     return m_args.at(6);
   return "";
 }
@@ -107,7 +107,7 @@ IPCMessage::status() const
 std::string
 IPCMessage::id() const
 {
-  if (size() > 6)
+  if (size() > 7)
     return m_args.at(7);
   return "";
 }
@@ -115,7 +115,7 @@ IPCMessage::id() const
 std::string
 IPCMessage::p_uuid() const
 {
-  if (size() > 7)
+  if (size() > 8)
     return m_args.at(8);
   return StringUtils::GenerateUUIDString();
 }
@@ -1118,21 +1118,17 @@ void Scheduler::SendIPCRequest(const IPCMessage& msg)
   auto get_user = [this](auto p) -> std::string { return GetPlatformUser(p); };
   using namespace StringUtils;
 
-
   const auto payload = msg.platform_payload(get_user);
 
+  m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
+
   if (msg.type())
-  {
-    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_INFO, msg.get_payload());
     UpdateIPC(msg.id()); // TODO: Add to dispatch and record receipt of IPC_OK
-  }
   else
-  {
-    // handle old platform IPC type
-    m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_EVENT, payload);
-    m_dispatched_ipc.insert({msg.p_uuid(), PlatformIPC{msg.platform(), GetIPCCommand(msg.cmd_code_string()), msg.id()}});
-    klog().t("Dispatched IPC with ID {} command {} and data {}", msg.id(), msg.command(), msg.data());
-  }
+    m_dispatched_ipc.insert({
+      msg.p_uuid(), PlatformIPC{msg.platform(), GetIPCCommand(msg.cmd_code_string()), msg.id()}
+    });
+  klog().t("Sent IPC with ID {} command {} and data {}", msg.id(), msg.command(), msg.data());
 
   m_tx_ipc++;
 }
