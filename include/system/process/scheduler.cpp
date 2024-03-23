@@ -55,19 +55,19 @@ IPCMessage::type() const
 std::string
 IPCMessage::platform() const
 {
-  return m_args.at(0);
+  return m_args.at(1);
 }
 //------------------------
 std::string
 IPCMessage::data() const
 {
-  return m_args.at(1);
+  return m_args.at(2);
 }
 //------------------------
 std::string
 IPCMessage::command() const
 {
-  const auto cmd = m_args.at(2);
+  const auto cmd = m_args.at(3);
   if (cmd.empty())
     return std::to_string(std::numeric_limits<uint32_t>::max());
   return cmd;
@@ -82,29 +82,22 @@ IPCMessage::cmd_code_string() const
 std::string
 IPCMessage::time() const
 {
-  if (size() > 2)
-    return m_args.at(3);
-  return "";
-}
-//------------------------
-std::string
-IPCMessage::recurring() const
-{
   if (size() > 3)
     return m_args.at(4);
   return "";
 }
 //------------------------
 std::string
-IPCMessage::status() const
+IPCMessage::recurring() const
 {
-  if (size() > 4)
-    return m_args.at(5);
-  return "";
+  return std::to_string(
+    (size() > 4 && m_args.at(5) == "true") ?
+      Constants::Recurring::DAILY :
+      Constants::Recurring::NO);
 }
 //------------------------
 std::string
-IPCMessage::id() const
+IPCMessage::status() const
 {
   if (size() > 5)
     return m_args.at(6);
@@ -112,10 +105,18 @@ IPCMessage::id() const
 }
 //------------------------
 std::string
-IPCMessage::p_uuid() const
+IPCMessage::id() const
 {
   if (size() > 6)
     return m_args.at(7);
+  return "";
+}
+//------------------------
+std::string
+IPCMessage::p_uuid() const
+{
+  if (size() > 7)
+    return m_args.at(8);
   return StringUtils::GenerateUUIDString();
 }
 //------------------------
@@ -368,8 +369,6 @@ std::vector<Task> Scheduler::parseTasks(QueryValues&& result, bool parse_files, 
     mask      = row.at(Field::MASK);
     time      = row.at( (original_time) ? Field::TIME : (recurring && has_rec(row)) ? Field::REC_TIME : Field::TIME);
     filenames = row.at(FILEQUERY);
-
-    klog().d("parseTasks got time of {}", time);
 
     if (!original_time && recurring)
       time = TimeUtils::time_as_today(time);
@@ -1064,8 +1063,8 @@ int32_t Scheduler::FindMask(const std::string& application_name)
 std::string Scheduler::ScheduleIPC(const IPCMessage& msg)
 { // NOTE: Events run after 1 hour
   auto GetTime = [](const auto &intv) { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(intv)); };
-  const Fields fields   = {"pid", "command", "data", "time", "p_uuid", "recurring"};
-  const Values values   = {msg.platform(), msg.command(), msg.data(), msg.time(), msg.p_uuid(), msg.recurring()};
+  const Fields fields   = {"pid", "command", "data", "time", "p_uuid", "recurring", "type"};
+  const Values values   = {m_platform.GetPlatformID(msg.platform()), msg.command(), msg.data(), msg.time(), msg.p_uuid(), msg.recurring(), std::to_string(msg.type())};
 
   klog().i("Scheduling IPC. ID origin {} for platform {} with command {} at {}", msg.p_uuid(), msg.platform(), msg.command(), msg.time());
   return m_kdb.insert("ipc", fields, values, "id");
@@ -1075,7 +1074,7 @@ void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
   static const auto   table  = "ipc";
-  static const Fields fields = {"id", "pid", "command", "data", "time", "type", "recurring"};
+  static const Fields fields = {"id", "pid", "command", "data", "time", "p_uuid", "type", "recurring"};
 
   if (!IPCResponseReceived())
     return;
@@ -1088,21 +1087,30 @@ void Scheduler::ProcessIPC()
 
   for (const auto &row : query)
   {
-    //platform data command time recurring status id p_uuid
-    SendIPCRequest(IPCMessage{
-      row.at("id"),
+    const auto recur = row.at("recurring");
+    SendIPCRequest({
       row.at("type"),
       m_platform.GetPlatform(row.at("pid")),
       row.at("data"),
       row.at("command"),
       row.at("time"),
-      row.at("recurring")});
-    const auto recurring = std::stoi(row.at("recurring"));
-    if (recurring)
+      recur,
+      "0",
+      row.at("id"),
+      row.at("p_uuid")});
+
+    if (const auto recurring = std::stoi(recur); recurring)
       m_kdb.update("ipc", {"runtime"}, {std::to_string(TimeUtils::UnixTime() + GetIntervalSeconds(recurring))}, QueryFilter{"id", row.at("id")});
   }
 
   m_platform.ProcessPlatform();
+}
+//----------------------------------------------------------------------------------------------------------------
+bool Scheduler::UpdateIPC(const std::string& id, int status = 1)
+{
+   return !m_kdb.update("ipc",
+   { "status" }, { std::to_string(status) },
+    CreateFilter("id", id)).empty();
 }
 //----------------------------------------------------------------------------------------------------------------
 void Scheduler::SendIPCRequest(const IPCMessage& msg)
@@ -1116,6 +1124,7 @@ void Scheduler::SendIPCRequest(const IPCMessage& msg)
   if (msg.type())
   {
     m_event_callback(ALL_CLIENTS, SYSTEM_EVENTS__PLATFORM_INFO, msg.get_payload());
+    UpdateIPC(msg.id()); // TODO: Add to dispatch and record receipt of IPC_OK
   }
   else
   {

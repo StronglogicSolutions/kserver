@@ -414,7 +414,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     {
       try
       {
-        std::vector<Task>    tasks             = m_scheduler.fetchAllTasks();
+        std::vector<Task>    tasks             = m_scheduler.fetchAllTasks(true);
         const auto           size              = tasks.size();
         Payload              payload{"Schedule"};
         klog().i("Processing schedule fetch request");
@@ -543,7 +543,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       evt::instance()(client_fd, SYSTEM_EVENTS__STATUS_REPORT, { Status() });
     break;
     case (IPC_REQUEST):
-      m_scheduler.ScheduleIPC({});
+      m_scheduler.ScheduleIPC({ args.begin() + 1, args.end() });
     break;
     case (RequestType::UNKNOWN):
       [[ fallthrough ]];

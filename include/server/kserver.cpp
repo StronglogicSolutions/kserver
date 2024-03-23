@@ -226,10 +226,10 @@ void KServer::OperationRequest(const std::string& message, const int32_t& client
   {
     WaitForFile(client_fd);
   }
-  else if (IsIPCOperation(op))
-  {
-    m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, {message});
-  }
+  // else if (IsIPCOperation(op))
+  // {
+  //   m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, {message});
+  // }
   else
   {
     try
