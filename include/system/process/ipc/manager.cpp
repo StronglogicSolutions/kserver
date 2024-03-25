@@ -46,14 +46,62 @@ namespace kiq
       klog().t("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
   }
   //*******************************************************************//
-  std::unique_ptr<platform_message> deserialize(const Payload &args)
+  enum class ipc_payload_t {
+    PLATFORM = 0x00,
+    IPC_MSG  = 0x01
+  };
+
+  struct out_ipc_t
   {
-    return std::make_unique<platform_message>(
-      args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX), args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_USER_INDEX), args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_URL_INDEX), args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
-      std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)), args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX),
-      args.at(constants::PLATFORM_PAYLOAD_TIME_INDEX));
+    std::unique_ptr<ipc_message> msg;
+    std::string                  platform{""};
+
+    std::unique_ptr<ipc_message> get()
+    {
+      return std::move(msg);
+    }
+
+  };
+  template <ipc_payload_t N>
+  out_ipc_t deserialize(const Payload &args)
+  {
+    if constexpr (N == ipc_payload_t::PLATFORM)
+      return {std::make_unique<platform_message>(
+          args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX),
+          args.at(constants::PLATFORM_PAYLOAD_ID_INDEX),
+          args.at(constants::PLATFORM_PAYLOAD_USER_INDEX),
+          args.at(constants::PLATFORM_PAYLOAD_CONTENT_INDEX),
+          args.at(constants::PLATFORM_PAYLOAD_URL_INDEX),
+          args.at(constants::PLATFORM_PAYLOAD_REPOST_INDEX) == "y",
+std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
+          args.at(constants::PLATFORM_PAYLOAD_ARGS_INDEX),
+          args.at(constants::PLATFORM_PAYLOAD_TIME_INDEX)),
+          args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)};
+    else
+    {
+      uint8_t message_type = std::stoi(args.front());
+      switch (message_type)
+      {
+        case (constants::IPC_KIQ_MESSAGE):      return {std::make_unique<kiq_message>     (
+              args.at(constants::IPC_CONTENT_INDEX),
+              args.at(constants::IPC_PLATFORM_INDEX)), args.at(constants::IPC_PLATFORM_INDEX)};
+        case (constants::IPC_PLATFORM_TYPE):    return {std::make_unique<platform_message>(
+              args.at(constants::IPC_PLATFORM_INDEX),
+              args.at(constants::IPC_ID_INDEX),
+              args.at(constants::IPC_USER_INDEX),
+              args.at(constants::IPC_CONTENT_INDEX),
+              args.at(constants::IPC_URL_INDEX),
+              args.at(constants::IPC_REPOST_INDEX) == "y",
+    std::stoi(args.at(constants::IPC_CMD_INDEX)),
+              args.at(constants::IPC_ARGS_INDEX),
+              args.at(constants::IPC_TIME_INDEX)), args.at(constants::IPC_PLATFORM_INDEX)};
+        case (constants::IPC_PLATFORM_INFO):    return {std::make_unique<platform_info>   (
+              args.at(constants::IPC_PLATFORM_INDEX),
+              args.at(constants::IPC_CONTENT_INDEX),
+              args.at(constants::IPC_CMD_INDEX)), args.at(constants::IPC_PLATFORM_INDEX)};
+        default:                                return {nullptr};
+      }
+    }
   };
   //*******************************************************************//
   IPCManager::IPCManager()
@@ -97,9 +145,14 @@ namespace kiq
     switch (event)
     {
       case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
-      case SYSTEM_EVENTS__PLATFORM_EVENT:
-        m_clients.at(broker_peer)->send_ipc_message(deserialize(args));
+        m_clients.at(broker_peer)->send_ipc_message(deserialize<ipc_payload_t::PLATFORM>(args).get());
       break;
+      case SYSTEM_EVENTS__PLATFORM_EVENT:
+      {
+        auto out = deserialize<ipc_payload_t::IPC_MSG>(args);
+        m_clients.at(find_peer(out.platform, true))->send_ipc_message(out.get());
+      break;
+      }
       case SYSTEM_EVENTS__IPC_REQUEST:
         if (auto peer = find_peer(args.front(), true); !peer.empty())
         {

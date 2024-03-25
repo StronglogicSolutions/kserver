@@ -102,6 +102,20 @@ static const uint8_t     PLATFORM_POST_CONTENT_INDEX     {0x00};
 static const uint8_t     PLATFORM_POST_URL_INDEX         {0x01};
 static const uint8_t     PLATFORM_POST_ARGS_INDEX        {0x02};
 
+// IPC Message
+static const uint8_t     IPC_PLATFORM_INDEX {0x01};
+static const uint8_t     IPC_ID_INDEX       {0x02};
+static const uint8_t     IPC_USER_INDEX     {0x03};
+static const uint8_t     IPC_TIME_INDEX     {0x04};
+static const uint8_t     IPC_ERROR_INDEX    {0x05};
+static const uint8_t     IPC_CONTENT_INDEX  {0x06};
+static const uint8_t     IPC_URL_INDEX      {0x07};
+static const uint8_t     IPC_REPOST_INDEX   {0x08};
+static const uint8_t     IPC_METHOD_INDEX   {0x09};
+static const uint8_t     IPC_ARGS_INDEX     {0x0A};
+static const uint8_t     IPC_CMD_INDEX      {0x0B};
+static const uint8_t     IPC_STATUS_INDEX   {0x0C};
+
 static const uint8_t     FETCH_TASK_MASK_INDEX           {0x01};
 static const uint8_t     FETCH_TASK_DATE_RANGE_INDEX     {0x02};
 static const uint8_t     FETCH_TASK_ROW_COUNT_INDEX      {0x03};
