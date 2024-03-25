@@ -1101,7 +1101,7 @@ void Scheduler::ProcessIPC()
     if (const auto recurring = std::stoi(recur); recurring)
       m_kdb.update("ipc",
         { "time", "status" },
-        { std::to_string(TimeUtils::UnixTime() + GetIntervalSeconds(recurring)), "0" },
+        { std::to_string(std::stoul(row.at("time")) + GetIntervalSeconds(recurring)), "0" },
         QueryFilter{"id", row.at("id")});
   }
 
