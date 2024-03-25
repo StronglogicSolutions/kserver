@@ -30,7 +30,7 @@ IPCMessage::platform_payload(std::function<std::string(std::string)> get_user) c
 {
   const auto args = CreateOperation("bot", {config::Process::tg_dest(), data()});
   return {
-    platform(), p_uuid(), get_user(platform()), time(), data(), "", "false", "bot", args, std::to_string(IPC_CMD_CODES.at(command()))
+    type_name(), platform(), p_uuid(), get_user(platform()), time(), data(), "", "false", "bot", args, std::to_string(IPC_CMD_CODES.at(command()))
   };
 }
 //------------------------
@@ -1099,7 +1099,10 @@ void Scheduler::ProcessIPC()
       row.at("p_uuid")});
 
     if (const auto recurring = std::stoi(recur); recurring)
-      m_kdb.update("ipc", {"time"}, {std::to_string(TimeUtils::UnixTime() + GetIntervalSeconds(recurring))}, QueryFilter{"id", row.at("id")});
+      m_kdb.update("ipc",
+        { "time", "status" },
+        { std::to_string(TimeUtils::UnixTime() + GetIntervalSeconds(recurring)), "0" },
+        QueryFilter{"id", row.at("id")});
   }
 
   m_platform.ProcessPlatform();
