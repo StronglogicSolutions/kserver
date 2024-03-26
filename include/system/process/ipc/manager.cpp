@@ -79,11 +79,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
           args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)};
     else
     {
-      uint8_t message_type = std::stoi(args.front());
+      uint8_t message_type = constants::IPC_MESSAGE_VALUES.at(args.front());
       switch (message_type)
       {
         case (constants::IPC_KIQ_MESSAGE):      return {std::make_unique<kiq_message>     (
-              args.at(constants::IPC_CONTENT_INDEX),
+              args.at(constants::IPC_ARGS_INDEX),
               args.at(constants::IPC_PLATFORM_INDEX)), args.at(constants::IPC_PLATFORM_INDEX)};
         case (constants::IPC_PLATFORM_TYPE):    return {std::make_unique<platform_message>(
               args.at(constants::IPC_PLATFORM_INDEX),

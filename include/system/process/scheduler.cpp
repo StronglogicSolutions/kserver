@@ -28,7 +28,9 @@ IPCMessage::get_payload() const
 IPCMessage::payload_t
 IPCMessage::platform_payload(std::function<std::string(std::string)> get_user) const
 {
-  const auto args = CreateOperation("bot", {config::Process::tg_dest(), data()});
+  const auto args = CreateOperation("bot",
+    { config::Process::tg_dest(), data(), config::Platform::default_user(), command() }
+  );
   return {
     type_name(), platform(), p_uuid(), get_user(platform()), time(), data(), "", "false", "bot", args, std::to_string(IPC_CMD_CODES.at(command()))
   };
