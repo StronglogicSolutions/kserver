@@ -64,10 +64,22 @@ std::string SavePlatformEnvFile(const post_t& post)
         {"args",    post.args}}), filename);
 }
 //-------------------------------------------------------------------------------------
+std::string
+GetEnvPath(const std::string& id, const std::string& time, const std::string& pid)
+{
+  return "data/" + time + id + pid + "/v.env";
+}
+//-------------------------------------------------------------------------------------
+std::string
+GetArgsOperation(const std::string& path)
+{
+  return CreateOperation("Bot", GetJSONArray(FileUtils::ReadEnvToken(path, "args", true)));
+}
+//-------------------------------------------------------------------------------------
 bool PopulatePlatformPost(PlatformPost& post)
 {
   using namespace FileUtils;
-  const std::string              env_path    = "data/" + post.time + post.id + post.pid + "/v.env";
+  const std::string              env_path    = GetEnvPath(post.id, post.time, post.pid);
   const std::vector<std::string> post_values = ReadEnvValues(env_path, PLATFORM_ENV_KEYS);
   const size_t                   size        = post_values.size();
   const bool                     has_args    = (size == 3);
@@ -75,7 +87,7 @@ bool PopulatePlatformPost(PlatformPost& post)
   {
     post.content = post_values.at(constants::PLATFORM_POST_CONTENT_INDEX);
     post.urls    = post_values.at(constants::PLATFORM_POST_URL_INDEX);
-    post.args    = (has_args) ? CreateOperation("Bot", GetJSONArray(ReadEnvToken(env_path, "args", true))) : "";
+    post.args    = (has_args) ? GetArgsOperation(env_path) : "";
     return true;
   }
 

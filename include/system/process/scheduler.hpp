@@ -74,6 +74,9 @@ struct IPCMessage
 
   std::string
   p_uuid() const;
+
+  std::string
+  option() const;
   //------------------------
   //------------------------
  private:

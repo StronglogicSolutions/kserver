@@ -50,10 +50,12 @@ struct TaskParser : public TaskParserInterface
   void parse(const std::string& flag, const std::string& arg) final;
 };
 //-------------------------------------------------------------------------------------
-std::string SavePlatformEnvFile (const post_t& post);
-std::string SavePlatformEnv     (const post_t& post);
-bool        PopulatePost        (PlatformPost& post);
-bool        PopulatePlatformPost(PlatformPost& post);
+std::string SavePlatformEnvFile (const post_t&      post);
+std::string SavePlatformEnv     (const post_t&      post);
+std::string GetArgsOperation    (const std::string& path);;
+std::string GetEnvPath          (const std::string& id, const std::string& time, const std::string& pid = "0");
+bool        PopulatePost        (PlatformPost&      post);
+bool        PopulatePlatformPost(PlatformPost&      post);
 bool        MustRepost          (const std::string& s);
 //-------------------------------------------------------------------------------------
 static const std::vector<std::string> PLATFORM_KEYS{

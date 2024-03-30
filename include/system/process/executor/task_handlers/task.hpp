@@ -543,6 +543,16 @@ static PlatformPost FromPayload(const std::vector<std::string>& payload)
     .status  = status
   };
 }
+
+static PlatformPost Dummy(const std::string& id, const std::string& time, const std::string& option)
+{
+  PlatformPost p;
+  p.id   = id;
+  p.pid  = "0";
+  p.time = time;
+  p.args = ToJSONArray({ option });
+  return p;
+}
 };
 
 using PlatformStatePair = std::pair<PlatformPost, PlatformPostState>;
