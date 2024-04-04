@@ -99,8 +99,9 @@ private:
   {
     evt::instance()(SYSTEM_EVENTS__KIQ_IPC_MESSAGE, GetPayload<constants::IPC_KIQ_MESSAGE>(it));
   }},
-  {constants::IPC_KEEPALIVE_TYPE,   [&, this](auto it) { m_daemon.reset(); }},
-  {constants::IPC_OK_TYPE,          [&, this](auto it) { NOOP();           }}};
+  {constants::IPC_KEEPALIVE_TYPE,   [&, this](auto it) { m_daemon.reset();   }},
+  {constants::IPC_OK_TYPE,          [&, this](auto it) { NOOP();             }},
+  {constants::IPC_STATUS,           [&, this](auto it) { NOOP();             }}};
 
   using workers_t = std::vector<IPCWorker>;
 

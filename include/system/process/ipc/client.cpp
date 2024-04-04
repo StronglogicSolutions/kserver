@@ -31,9 +31,6 @@ botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ct
       }
     });
 
-  tx_sink_.send(zmq::message_t (name_.begin(), name_.end()), zmq::send_flags::sndmore);
-  tx_sink_.send(zmq::message_t (client_hello_g.begin(), client_hello_g.end()));
-
   kiq::log::klog().t("Client {} sent greeting to {}", name_, get_addr());
 }
 //*******************************************************************//

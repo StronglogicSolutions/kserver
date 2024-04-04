@@ -22,8 +22,9 @@ namespace kiq
     return fmt::format("{}:{}", plat, type);
   }
 
-  static std::string_view find_peer(const std::string& s, bool get_default = false)
+  static std::string_view find_peer(const std::string& input, bool get_default = false)
   {
+    const auto s = StringUtils::ToLower(input);
     for (const auto& peer : ipc_peers)
       if (s.find(peer) != std::string::npos)
         return peer;
@@ -31,13 +32,6 @@ namespace kiq
     if (get_default)
         return ipc_peers.front();
     return "";
-  }
-  //*******************************************************************//
-  static bool should_relay(std::string_view addr)
-  {
-    return (addr.find("0.0.0.0")  == addr.npos  &&
-            addr.find("127.0.0.1") == addr.npos &&
-            addr.find("localhost") == addr.npos);
   }
   //*******************************************************************//
   static void log_message(ipc_message* msg)
@@ -187,6 +181,9 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{config::Process::broker_address(), m_context, broker_peer, this, true});
     m_clients.emplace(sentnl_peer, new botbroker_handler{config::Process::sentnl_address(), m_context, sentnl_peer, this, true});
+
+    m_clients.at(broker_peer)->send_ipc_message(std::make_unique<status_check>());
+    m_clients.at(sentnl_peer)->send_ipc_message(std::make_unique<status_check>());
 
     for (const auto& peer : ipc_peers)
       m_daemon.add_observer(peer, [&peer] { klog().e("Heartbeat timed out for {}", peer); });

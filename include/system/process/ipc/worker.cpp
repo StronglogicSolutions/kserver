@@ -29,6 +29,8 @@ IPCWorker::run()
 {
   klog().t("{} is ready to receive IPC", name());
   backend_.connect(BACKEND_ADDRESS);
+  send_ipc_message(std::make_unique<status_check>());
+
   while (active_)
     recv();
   klog().t("{} no longer receiving IPC", name());
@@ -67,7 +69,10 @@ IPCWorker::recv()
   if (ipc_message::u_ipc_msg_ptr ipc_message = DeserializeIPCMessage(std::move(received_message)))
   {
     if (!IsKeepAlive(ipc_message->type()))
+    {
+      klog().d("Received IPC from {}", identity.to_string_view());
       send_ipc_message(std::make_unique<okay_message>());
+    }
 
     handlers_->at(identity.to_string_view())->process_message(std::move(ipc_message));
   }
