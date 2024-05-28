@@ -27,15 +27,26 @@ static auto GetPayload = [](auto&& ipc)
 
     case IPC_PLATFORM_REQUEST:
     {
-      const auto& m = static_cast<platform_message*>(ipc.get());
-      return Payload{m->platform(), m->id(), m->user(), m->content(), m->args()};
+      log::klog().t("Getting payload from {}", ipc->to_string());
+      const auto& m = static_cast<platform_request*>(ipc.get());
+      const auto platform = m->platform();
+      log::klog().t("Got {}", platform);
+      const auto id = m->id();
+      log::klog().t("Got {}", id);
+      const auto user = m->user();
+      log::klog().t("Got {}", user);
+      const auto content = m->content();
+      log::klog().t("Got {}", content);
+      const auto args = m->args() ;
+      log::klog().t("Got {}", args);
+      return Payload{platform, id, user, content, args};
     }
 
     case IPC_PLATFORM_INFO:
     {
       const auto& m = static_cast<platform_info*>(ipc.get());
-      return Payload{m->platform(), m->type(), m->info()};
-    }
+      return Payload{std::string{constants::IPC_MESSAGE_NAMES.at(IPC_PLATFORM_INFO)}, m->platform(), m->id(), m->type(), m->info()}; // TODO: compliant to task.hpp platform indexes
+    }                                                                   // TODO: all should be compliant
 
     case IPC_PLATFORM_ERROR:
     {
@@ -81,22 +92,29 @@ private:
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
   {constants::IPC_PLATFORM_TYPE,    [&, this](auto it)
   {
+    log::klog().t("Calling event handler for {}", constants::IPC_MESSAGE_NAMES.at(it->type()));
     evt::instance()(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload<constants::IPC_PLATFORM_TYPE>(it));
   }},
   {constants::IPC_PLATFORM_REQUEST, [&, this](auto it)
   {
+    log::klog().t("Calling event handler for {}", constants::IPC_MESSAGE_NAMES.at(it->type()));
     evt::instance()(SYSTEM_EVENTS__PLATFORM_REQUEST, GetPayload<constants::IPC_PLATFORM_REQUEST>(it));
   }},
   {constants::IPC_PLATFORM_INFO,    [&, this](auto it)
   {
-    evt::instance()(SYSTEM_EVENTS__PLATFORM_INFO, GetPayload<constants::IPC_PLATFORM_INFO>(it));
+    log::klog().t("Calling event handler for {} with {} frames", constants::IPC_MESSAGE_NAMES.at(it->type()), it->data().size());
+    const auto payload = GetPayload<constants::IPC_PLATFORM_INFO>(it);
+    log::klog().t("Payload size is {}", payload.size());
+    evt::instance()(SYSTEM_EVENTS__PLATFORM_INFO, payload);
   }},
   {constants::IPC_PLATFORM_ERROR,   [&, this](auto it)
   {
+    log::klog().t("Calling event handler for {}", constants::IPC_MESSAGE_NAMES.at(it->type()));
     evt::instance()(SYSTEM_EVENTS__PLATFORM_ERROR, GetPayload<constants::IPC_PLATFORM_ERROR>(it));
   }},
   {constants::IPC_KIQ_MESSAGE,      [&, this](auto it)
   {
+    log::klog().t("Calling event handler for {}", constants::IPC_MESSAGE_NAMES.at(it->type()));
     evt::instance()(SYSTEM_EVENTS__KIQ_IPC_MESSAGE, GetPayload<constants::IPC_KIQ_MESSAGE>(it));
   }},
   {constants::IPC_KEEPALIVE_TYPE,   [&, this](auto it) { m_daemon.reset();   }},

@@ -47,7 +47,12 @@ IPCWorker::recv()
   backend_.recv(&identity);
 
   if (identity.empty())
+  {
+    klog().t("Received IPC with no identity");
     return;
+  }
+
+  klog().t("Received IPC from {}", identity.to_string_view());
 
   buffer_vector_t received_message{};
   zmq::message_t  message;

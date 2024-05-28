@@ -12,6 +12,7 @@ botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ct
   tx_sink_(ctx_, ZMQ_DEALER),
   client_(target_id),
   name_(std::string(target_id) + "__worker"),
+  addr_(addr),
   send_hb_(send_hb)
 {
   tx_sink_.set(zmq::sockopt::linger, 0);
@@ -19,7 +20,8 @@ botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ct
   tx_sink_.set(zmq::sockopt::tcp_keepalive, 1);
   tx_sink_.set(zmq::sockopt::tcp_keepalive_idle,  300);
   tx_sink_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
-  tx_sink_.connect(addr);
+
+  connect();
 
   if (send_hb_)
     future_ =  std::async(std::launch::async, [this]
@@ -43,12 +45,28 @@ botbroker_handler::~botbroker_handler()
 }
 //*******************************************************************//
 void
+botbroker_handler::connect()
+{
+  tx_sink_.connect(addr_);
+}
+//*******************************************************************//
+void
 botbroker_handler::process_message(ipc_msg_t msg)
 {
-  if (IsKeepAlive(msg->type()))
-    manager_->on_heartbeat(client_);
-  else
-    manager_->process_message(std::move(msg));
+  kiq::log::klog().d("Received from {}", get_addr());
+  switch(msg->type())
+  {
+    case constants::IPC_KEEPALIVE_TYPE:
+      manager_->on_heartbeat(client_);
+    break;
+    case constants::IPC_STATUS:
+      send_ipc_message(std::make_unique<okay_message>());
+      connect();
+    break;
+    default:
+      manager_->process_message(std::move(msg));
+    break;
+  }
 }
 //******************************************************************//
 zmq::socket_t&

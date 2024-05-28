@@ -29,6 +29,7 @@ IPCMessage::payload_t
 IPCMessage::platform_payload(std::function<std::string(std::string)> get_user) const
 {
   const auto dest = option();
+  klog().d("Dest: {}", dest);
   const auto args = CreateOperation("bot",
     { command(), data(), config::Platform::default_user(), dest.empty() ? config::Process::tg_dest() : dest }
   );
@@ -86,15 +87,19 @@ std::string
 IPCMessage::time() const
 {
   if (size() > 4)
-    return m_args.at(4);
-  return "";
+    if (const auto value = m_args.at(4); !value.empty())
+      return value;
+
+  return TimeUtils::Now();
 }
 //------------------------
 std::string
 IPCMessage::recurring() const
 {
   if (size() > 5)
-    return m_args.at(5);
+    if (const auto& recur = m_args.at(5); !recur.empty())
+      return recur;
+
   return std::to_string(Constants::Recurring::NO);
 }
 //------------------------
@@ -896,7 +901,10 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
   const auto& message  = payload[constants::PLATFORM_REQUEST_MESSAGE_INDEX];
   const auto& args     = payload[constants::PLATFORM_REQUEST_ARGS_INDEX];
 
-  klog().i("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
+  klog().i("Platform request from {}", platform, message, args);
+  for (const auto& arg : payload)
+    klog().d("{}", arg);
+    // klog().i("Platform request from {}.\nMessage: {}\nArgs: {}", platform, message, args);
 
   if (message == REQUEST_SCHEDULE_POLL_STOP) // platform data command time recurring status id p_uuid
     ScheduleIPC(IPCMessage{"", platform, args, message, "", "", "", id});
@@ -926,6 +934,10 @@ void Scheduler::OnPlatformRequest(const std::vector<std::string> &payload)
       ResolvePending(IMMEDIATELY);
     }
   }
+  else
+  if (message == REQUEST_GENERATE_AI)
+    if (platform == "kai")
+      ScheduleIPC(IPCMessage{std::to_string(constants::IPC_PLATFORM_TYPE), platform, args, message, "", "", "", id});
 }
 //----------------------------------------------------------------------------------------------------------------
 void Scheduler::OnPlatformError(const std::vector<std::string>& payload)
@@ -1074,17 +1086,20 @@ int32_t Scheduler::FindMask(const std::string& application_name)
 }
 //----------------------------------------------------------------------------------------------------------------
 std::string Scheduler::ScheduleIPC(const IPCMessage& msg)
-{ // NOTE: Events run after 1 hour
-  auto GetTime = [](const auto &intv) { return (std::stoi(TimeUtils::Now()) + GetIntervalSeconds(intv)); };
-  const Fields fields   = {"pid", "command", "data", "time", "p_uuid", "recurring", "type"};
-  const Values values   = {m_platform.GetPlatformID(msg.platform()), msg.command(), msg.data(), msg.time(), msg.p_uuid(), msg.recurring(), std::to_string(msg.type())};
+{
+  static const Fields fields   = { "pid", "command", "data", "time", "p_uuid", "recurring", "type" };
+         const Values values   = { m_platform.GetPlatformID(msg.platform()), msg.command(), msg.data(),
+                                   msg.time(), msg.p_uuid(), msg.recurring(), std::to_string(msg.type()) };
 
-  klog().i("Scheduling IPC. ID origin {} for platform {} with command {} at {}", msg.p_uuid(), msg.platform(), msg.command(), msg.time());
+  klog().i("Scheduling IPC. ID {} for platform {} with command {} at {}",
+    msg.p_uuid(), msg.platform(), msg.command(), msg.time());
+
   const auto id = m_kdb.insert("ipc", fields, values, "id");
+
   if (id.empty())
     klog().e("Error scheduling IPC: SQL INSERT failed.");
-
-  SavePlatformEnvFile(PlatformPost::Dummy(id, msg.time(), msg.option()));
+  else
+    SavePlatformEnvFile(PlatformPost::Dummy(id, msg.time(), msg.option())); // TODO: make env procedure more generic
 
   return id;
 }
@@ -1093,7 +1108,7 @@ void Scheduler::ProcessIPC()
 {
   using namespace DataUtils;
   static const auto   table  = "ipc";
-  static const Fields fields = {"id", "pid", "command", "data", "time", "p_uuid", "type", "recurring"};
+  static const Fields fields = { "id", "pid", "command", "data", "time", "p_uuid", "type", "recurring" };
 
   if (!IPCResponseReceived())
     return;
@@ -1101,8 +1116,7 @@ void Scheduler::ProcessIPC()
   const auto filter = QueryComparisonFilter{{"time", "<", TimeUtils::Now()}};
   const auto query  = m_kdb.selectMultiFilter<QueryComparisonFilter, QueryFilter>(
                         table, fields,
-                        { filter, CreateFilter("status", "0") }
-                      );
+                        { filter, CreateFilter("status", "0") });
 
   for (const auto &row : query)
   {
@@ -1124,8 +1138,8 @@ void Scheduler::ProcessIPC()
     if (const auto recurring = std::stoi(recur); recurring)
       m_kdb.update("ipc",
         { "time", "status" },
-        { std::to_string(std::stoul(row.at("time")) + GetIntervalSeconds(recurring)), "0" },
-        QueryFilter{"id", row.at("id")});
+        { std::to_string(std::stoul(time) + GetIntervalSeconds(recurring)), "0" },
+        QueryFilter{"id", id});
   }
 
   m_platform.ProcessPlatform();

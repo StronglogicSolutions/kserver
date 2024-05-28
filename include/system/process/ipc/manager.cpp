@@ -9,12 +9,14 @@ namespace kiq
   static const char* broker_peer = "botbroker";
   static const char* sentnl_peer = "sentinel";
   static const char* kygui_peer  = "kygui";
+  static const char* kai_peer    = "kai";
 
-  static std::array<std::string_view, 3> ipc_peers
+  static std::array<std::string_view, 4> ipc_peers
   {
     broker_peer,
     sentnl_peer,
-    kygui_peer
+    kygui_peer,
+    kai_peer
   };
 
   static std::string to_info_type(std::string_view plat, std::string_view type)
@@ -25,6 +27,7 @@ namespace kiq
   static std::string_view find_peer(const std::string& input, bool get_default = false)
   {
     const auto s = StringUtils::ToLower(input);
+    klog().d("Finding peer for {}", s);
     for (const auto& peer : ipc_peers)
       if (s.find(peer) != std::string::npos)
         return peer;
@@ -34,10 +37,33 @@ namespace kiq
     return "";
   }
   //*******************************************************************//
+  auto to_string_max = [](const auto& str, size_t max)
+  {
+    const auto size = str.size();
+    return (size > max) ? std::string(str.data(), max) : str;
+  };
+
   static void log_message(ipc_message* msg)
   {
-    if (const auto type = msg->type(); type != constants::IPC_KEEPALIVE_TYPE)
-      klog().t("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
+
+    using namespace constants;
+
+    if (!msg)
+    {
+      klog().w("Received null IPC message");
+      return;
+    }
+
+
+    const auto type = msg->type();
+    if (type == constants::IPC_KEEPALIVE_TYPE)
+      return;
+
+    klog().t("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
+    klog().d("View message: {}", to_string_max(msg->to_string(), 650));
+    klog().t("For event handler {} with {} frames", IPC_MESSAGE_NAMES.at(msg->type()),
+                                                                         msg->data().size());
+
   }
   //*******************************************************************//
   enum class ipc_payload_t {
@@ -73,27 +99,35 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
           args.at(constants::PLATFORM_PAYLOAD_PLATFORM_INDEX)};
     else
     {
+      klog().t("Getting IPC Message value for {}", args.front());
       uint8_t message_type = constants::IPC_MESSAGE_VALUES.at(args.front());
       switch (message_type)
       {
-        case (constants::IPC_KIQ_MESSAGE):      return {std::make_unique<kiq_message>     (
-              args.at(constants::IPC_ARGS_INDEX),
-              args.at(constants::IPC_PLATFORM_INDEX)), args.at(constants::IPC_PLATFORM_INDEX)};
-        case (constants::IPC_PLATFORM_TYPE):    return {std::make_unique<platform_message>(
-              args.at(constants::IPC_PLATFORM_INDEX),
-              args.at(constants::IPC_ID_INDEX),
-              args.at(constants::IPC_USER_INDEX),
-              args.at(constants::IPC_CONTENT_INDEX),
-              args.at(constants::IPC_URL_INDEX),
-              args.at(constants::IPC_REPOST_INDEX) == "y",
-    std::stoi(args.at(constants::IPC_CMD_INDEX)),
-              args.at(constants::IPC_ARGS_INDEX),
-              args.at(constants::IPC_TIME_INDEX)), args.at(constants::IPC_PLATFORM_INDEX)};
-        case (constants::IPC_PLATFORM_INFO):    return {std::make_unique<platform_info>   (
-              args.at(constants::IPC_PLATFORM_INDEX),
-              args.at(constants::IPC_CONTENT_INDEX),
-              args.at(constants::IPC_CMD_INDEX)), args.at(constants::IPC_PLATFORM_INDEX)};
-        default:                                return {nullptr};
+        case (constants::IPC_KIQ_MESSAGE):
+          return {std::make_unique<kiq_message>     (args.at(constants::IPC_ARGS_INDEX),
+                                                     args.at(constants::IPC_PLATFORM_INDEX)),
+                                                     args.at(constants::IPC_PLATFORM_INDEX)};
+
+        case (constants::IPC_PLATFORM_TYPE):
+          return {std::make_unique<platform_message>(args.at(constants::IPC_PLATFORM_INDEX),
+                                                    args.at(constants::IPC_ID_INDEX),
+                                                    args.at(constants::IPC_USER_INDEX),
+                                                    args.at(constants::IPC_CONTENT_INDEX),
+                                                    args.at(constants::IPC_URL_INDEX),
+                                                    args.at(constants::IPC_REPOST_INDEX) == "y",
+                                          std::stoi(args.at(constants::IPC_CMD_INDEX)),
+                                                    args.at(constants::IPC_ARGS_INDEX),
+                                                    args.at(constants::IPC_TIME_INDEX)),
+                                                    args.at(constants::IPC_PLATFORM_INDEX)};
+
+        case (constants::IPC_PLATFORM_INFO):
+          return {std::make_unique<platform_info>   (args.at(constants::IPC_PLATFORM_INDEX),
+                                                     args.at(constants::IPC_INFO_INDEX ),
+                                                     args.at(constants::IPC_TYPE_INDEX ),
+                                                     args.at(constants::IPC_ID_INDEX   )),
+                                                     args.at(constants::IPC_PLATFORM_INDEX)};
+        default:
+          return {nullptr};
       }
     }
   };
@@ -144,7 +178,13 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       case SYSTEM_EVENTS__PLATFORM_EVENT:
       {
         auto out = deserialize<ipc_payload_t::IPC_MSG>(args);
-        m_clients.at(find_peer(out.platform, true))->send_ipc_message(out.get());
+        klog().t("Sending IPC message: {}", to_string_max(out.msg->to_string(), 650));
+
+        IPCHandlerInterface* client = m_clients.at(find_peer(out.platform, true));
+
+        klog().t("Client address is {}", client->get_addr());
+
+        client->send_ipc_message(out.get());
       break;
       }
       case SYSTEM_EVENTS__IPC_REQUEST:
@@ -166,7 +206,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
           klog().d("Sending platform_info for {} of type {} and info {} to {} ", platform, type, info, peer);
 
           m_clients.at(peer)->send_ipc_message(std::make_unique<platform_info>(
-            platform, info, to_info_type(platform, type)));
+            platform, info, to_info_type(platform, type), ""));
         }
       default:
         return false;
@@ -181,9 +221,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     m_workers.back().start();
     m_clients.emplace(broker_peer, new botbroker_handler{config::Process::broker_address(), m_context, broker_peer, this, true});
     m_clients.emplace(sentnl_peer, new botbroker_handler{config::Process::sentnl_address(), m_context, sentnl_peer, this, true});
+    m_clients.emplace(kai_peer,    new botbroker_handler{config::Process::kai_address(),    m_context, kai_peer, this, true});
 
     m_clients.at(broker_peer)->send_ipc_message(std::make_unique<status_check>());
     m_clients.at(sentnl_peer)->send_ipc_message(std::make_unique<status_check>());
+    m_clients.at(kai_peer   )->send_ipc_message(std::make_unique<status_check>());
 
     for (const auto& peer : ipc_peers)
       m_daemon.add_observer(peer, [&peer] { klog().e("Heartbeat timed out for {}", peer); });
@@ -193,7 +235,6 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   void
   IPCManager::process_message(u_ipc_msg_ptr msg)
   {
-    klog().d("Received IPC message: {}", msg ? msg->to_string() : "null");
     log_message(msg.get());
     m_dispatch_table[msg->type()](std::move(msg));
   }
