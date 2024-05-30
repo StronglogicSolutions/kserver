@@ -92,29 +92,22 @@ private:
   std::map<uint8_t, SystemDispatch_t> m_dispatch_table{
   {constants::IPC_PLATFORM_TYPE,    [&, this](auto it)
   {
-    log::klog().t("Calling event handler for {}", constants::IPC_MESSAGE_NAMES.at(it->type()));
     evt::instance()(SYSTEM_EVENTS__PLATFORM_NEW_POST, GetPayload<constants::IPC_PLATFORM_TYPE>(it));
   }},
   {constants::IPC_PLATFORM_REQUEST, [&, this](auto it)
   {
-    log::klog().t("Calling event handler for {}", constants::IPC_MESSAGE_NAMES.at(it->type()));
     evt::instance()(SYSTEM_EVENTS__PLATFORM_REQUEST, GetPayload<constants::IPC_PLATFORM_REQUEST>(it));
   }},
   {constants::IPC_PLATFORM_INFO,    [&, this](auto it)
   {
-    log::klog().t("Calling event handler for {} with {} frames", constants::IPC_MESSAGE_NAMES.at(it->type()), it->data().size());
-    const auto payload = GetPayload<constants::IPC_PLATFORM_INFO>(it);
-    log::klog().t("Payload size is {}", payload.size());
-    evt::instance()(SYSTEM_EVENTS__PLATFORM_INFO, payload);
+    evt::instance()(SYSTEM_EVENTS__PLATFORM_INFO, GetPayload<constants::IPC_PLATFORM_INFO>(it));
   }},
   {constants::IPC_PLATFORM_ERROR,   [&, this](auto it)
   {
-    log::klog().t("Calling event handler for {}", constants::IPC_MESSAGE_NAMES.at(it->type()));
     evt::instance()(SYSTEM_EVENTS__PLATFORM_ERROR, GetPayload<constants::IPC_PLATFORM_ERROR>(it));
   }},
   {constants::IPC_KIQ_MESSAGE,      [&, this](auto it)
   {
-    log::klog().t("Calling event handler for {}", constants::IPC_MESSAGE_NAMES.at(it->type()));
     evt::instance()(SYSTEM_EVENTS__KIQ_IPC_MESSAGE, GetPayload<constants::IPC_KIQ_MESSAGE>(it));
   }},
   {constants::IPC_KEEPALIVE_TYPE,   [&, this](auto it) { m_daemon.reset();   }},
