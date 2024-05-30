@@ -46,7 +46,8 @@ const std::string executor()     { return reader.Get("process", "executor",   Re
 const std::string ipc_port()     { return reader.Get("process", "ipc_port",   "28473");                                }
 const std::string tg_dest ()     { return reader.Get("process", "tg_dest",    "-1");                                   }
 const std::string broker_address() { return reader.Get("process", "broker_address", RequiredConfig("[process] broker_address")); }
-const std::string sentnl_address() { return reader.Get("process", "sentnl_address", RequiredConfig("[process] broker_address")); }
+const std::string sentnl_address() { return reader.Get("process", "sentnl_address", RequiredConfig("[process] sentnl_address")); }
+const std::string kai_address() { return reader.Get("process", "kai_address", RequiredConfig("[process] broker_address")); }
 } // namespace Process
 
 namespace Email {

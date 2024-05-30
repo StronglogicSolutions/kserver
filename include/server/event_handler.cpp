@@ -173,7 +173,8 @@ void
 evt::on_platform_info       (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
   m_server->SendEvent(client_fd, "Platform Info", payload);
-}
+  m_server->GetIPCMgr().ReceiveEvent(SYSTEM_EVENTS__PLATFORM_EVENT, payload);
+} // TODO:
 //------------------------------------------------------------
 void
 evt::on_platform_info_request (int32_t client_fd, int32_t event, const event_payload_t& payload)

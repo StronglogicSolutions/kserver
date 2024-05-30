@@ -86,6 +86,7 @@ static const uint8_t     PLATFORM_REQUEST_ID_INDEX       {0x01};
 static const uint8_t     PLATFORM_REQUEST_USER_INDEX     {0x02};
 static const uint8_t     PLATFORM_REQUEST_MESSAGE_INDEX  {0x03};
 static const uint8_t     PLATFORM_REQUEST_ARGS_INDEX     {0x04};
+static const uint8_t     PLATFORM_REQUEST_PUUID_INDEX    {0x05};
 
 // Platform Error
 static const uint8_t     PLATFORM_ERROR_PLATFORM_INDEX   {0x00};
@@ -106,7 +107,9 @@ static const uint8_t     PLATFORM_POST_ARGS_INDEX        {0x02};
 static const uint8_t     IPC_PLATFORM_INDEX {0x01};
 static const uint8_t     IPC_ID_INDEX       {0x02};
 static const uint8_t     IPC_USER_INDEX     {0x03};
+static const uint8_t     IPC_TYPE_INDEX     {0x03};
 static const uint8_t     IPC_TIME_INDEX     {0x04};
+static const uint8_t     IPC_INFO_INDEX     {0x04};
 static const uint8_t     IPC_ERROR_INDEX    {0x04};
 static const uint8_t     IPC_CONTENT_INDEX  {0x05};
 static const uint8_t     IPC_URL_INDEX      {0x06};

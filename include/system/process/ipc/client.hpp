@@ -14,6 +14,7 @@ public:
   void process_message(ipc_msg_t) final;
   void               start();
   std::future<void>& stop();
+  void               connect();
 
 protected:
   zmq::socket_t& socket() final;
@@ -25,6 +26,7 @@ private:
   zmq::socket_t       tx_sink_;
   std::string_view    client_;
   std::string         name_;
+  std::string         addr_;
   bool                active_;
   std::future<void>   future_;
   bool                send_hb_;

@@ -27,15 +27,26 @@ static auto GetPayload = [](auto&& ipc)
 
     case IPC_PLATFORM_REQUEST:
     {
-      const auto& m = static_cast<platform_message*>(ipc.get());
-      return Payload{m->platform(), m->id(), m->user(), m->content(), m->args()};
+      log::klog().t("Getting payload from {}", ipc->to_string());
+      const auto& m = static_cast<platform_request*>(ipc.get());
+      const auto platform = m->platform();
+      log::klog().t("Got {}", platform);
+      const auto id = m->id();
+      log::klog().t("Got {}", id);
+      const auto user = m->user();
+      log::klog().t("Got {}", user);
+      const auto content = m->content();
+      log::klog().t("Got {}", content);
+      const auto args = m->args() ;
+      log::klog().t("Got {}", args);
+      return Payload{platform, id, user, content, args};
     }
 
     case IPC_PLATFORM_INFO:
     {
       const auto& m = static_cast<platform_info*>(ipc.get());
-      return Payload{m->platform(), m->type(), m->info()};
-    }
+      return Payload{std::string{constants::IPC_MESSAGE_NAMES.at(IPC_PLATFORM_INFO)}, m->platform(), m->id(), m->type(), m->info()}; // TODO: compliant to task.hpp platform indexes
+    }                                                                   // TODO: all should be compliant
 
     case IPC_PLATFORM_ERROR:
     {
