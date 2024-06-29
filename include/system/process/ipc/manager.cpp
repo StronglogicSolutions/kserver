@@ -11,7 +11,7 @@ namespace kiq
   static const char* kygui_peer  = "kygui";
   static const char* kai_peer    = "kai";
 
-  static std::array<std::string_view, 4> ipc_peers
+  static const std::array<std::string_view, 4> ipc_peers
   {
     broker_peer,
     sentnl_peer,
