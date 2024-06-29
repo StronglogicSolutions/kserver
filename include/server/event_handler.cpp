@@ -174,10 +174,15 @@ evt::on_platform_info       (int32_t client_fd, int32_t event, const event_paylo
 {
   static const std::set<std::string_view> types_to_email{"agitation analysis"};
 
+  const auto& info_type = payload.at(PLATFORM_PAYLOAD_INFO_TYPE_INDEX);
+  const auto& platform  = payload.at(PLATFORM_PAYLOAD_PLATFORM_INDEX);
+
+  klog().d("KIQ-EVENT - {}: {}", platform, info_type);
+
   m_server->SendEvent(client_fd, "Platform Info", payload);
   m_server->GetIPCMgr().ReceiveEvent(SYSTEM_EVENTS__PLATFORM_EVENT, payload);
 
-  if (const auto& it = types_to_email.find(payload.at(PLATFORM_PAYLOAD_INFO_TYPE_INDEX)); it != types_to_email.end())
+   if (const auto& it = types_to_email.find(info_type); it != types_to_email.end())
   {
     SystemUtils::SendMail(
       config::Email::admin(),
