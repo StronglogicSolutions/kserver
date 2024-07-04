@@ -76,11 +76,16 @@ IPCWorker::recv()
   {
     if (!IsKeepAlive(ipc_message->type()))
     {
-      klog().d("Received IPC from {}", identity.to_string_view());
+      klog().d("Received IPC from {}", identity.to_string());
       send_ipc_message(std::make_unique<okay_message>());
+      klog().t("Sent OKAY");
     }
 
-    handlers_->at(identity.to_string_view())->process_message(std::move(ipc_message));
+    auto it = handlers_->find(identity.to_string_view());
+    if (it == handlers_->end())
+      klog().w("No handler available for that name");
+    else
+      it->second->process_message(std::move(ipc_message));
   }
   else
     klog().e("{} failed to deserialize IPC message", name());
