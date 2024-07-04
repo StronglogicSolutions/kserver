@@ -54,7 +54,6 @@ namespace kiq
       return;
     }
 
-
     const auto type = msg->type();
     if (type == constants::IPC_KEEPALIVE_TYPE)
       return;
