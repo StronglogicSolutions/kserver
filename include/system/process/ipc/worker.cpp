@@ -43,6 +43,7 @@ IPCWorker::recv()
 
   auto get_part = [](auto& msg) { return buffer_vector_t::value_type{static_cast<uint8_t*>(msg.data()), static_cast<uint8_t*>(msg.data()) + msg.size()}; };
 
+  klog().t("{} worker recv()", name());
   zmq::message_t  identity;
   backend_.recv(&identity);
 
