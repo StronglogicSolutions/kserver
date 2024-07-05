@@ -29,6 +29,7 @@ botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ct
       while (active_)
       {
         send_ipc_message(std::make_unique<keepalive>());
+        kiq::log::klog().t("{}->HB->target", tx_sink_.get(zmq::sockopt::routing_id));
         std::this_thread::sleep_for(hb_rate);
       }
     });

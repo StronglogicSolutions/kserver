@@ -55,10 +55,11 @@ namespace kiq
     }
 
     const auto type = msg->type();
+    klog().t("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
+
     if (type == constants::IPC_KEEPALIVE_TYPE)
       return;
 
-    klog().t("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
     klog().d("View message: {}", to_string_max(msg->to_string(), 650));
     klog().t("For event handler {} with {} frames", IPC_MESSAGE_NAMES.at(msg->type()),
                                                                          msg->data().size());
