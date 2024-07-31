@@ -18,10 +18,10 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers
   backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
 }
 //*******************************************************************//
-IPCWorker::~IPCWorker()
-{
-  klog().d("{} IPCWorker is being destroyed", name());
-}
+// IPCWorker::~IPCWorker()
+// {
+
+// }
 //*******************************************************************//
 void
 IPCWorker::start()
