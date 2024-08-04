@@ -18,6 +18,11 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers
   backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
 }
 //*******************************************************************//
+// IPCWorker::~IPCWorker()
+// {
+
+// }
+//*******************************************************************//
 void
 IPCWorker::start()
 {
@@ -43,7 +48,7 @@ IPCWorker::recv()
 
   auto get_part = [](auto& msg) { return buffer_vector_t::value_type{static_cast<uint8_t*>(msg.data()), static_cast<uint8_t*>(msg.data()) + msg.size()}; };
 
-  klog().t("{} worker recv()", name());
+  // klog().t("{} worker recv()", name());
   zmq::message_t  identity;
   backend_.recv(&identity);
 
@@ -53,7 +58,7 @@ IPCWorker::recv()
     return;
   }
 
-  klog().t("Received IPC from {}", identity.to_string_view());
+  // klog().t("Received IPC from {}", identity.to_string_view());
 
   buffer_vector_t received_message{};
   zmq::message_t  message;

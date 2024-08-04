@@ -4,6 +4,8 @@
 
 namespace kiq
 {
+using namespace kiq::log;
+
 static const std::string client_hello_g{"Hello"};
 //*******************************************************************//
 botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ctx, std::string_view target_id, IPCBrokerInterface* manager, bool send_hb)
@@ -26,18 +28,24 @@ botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ct
   if (send_hb_)
     future_ =  std::async(std::launch::async, [this]
     {
+      int hb_count = 0;
       while (active_)
       {
         send_ipc_message(std::make_unique<keepalive>());
+
+        if (++hb_count % 200 == 0)
+          klog().t("Sent {} HB -> {}", hb_count, name_);
         std::this_thread::sleep_for(hb_rate);
       }
+      klog().t("Stopping HB with {}", name_);
     });
 
-  kiq::log::klog().t("Client {} sent greeting to {}", name_, get_addr());
+  klog().t("Client {} sent greeting to {}", name_, get_addr());
 }
 //*******************************************************************//
 botbroker_handler::~botbroker_handler()
 {
+  klog().d("Cleaning up for {} at {}", tx_sink_.get(zmq::sockopt::routing_id), get_addr());
   active_ = false;
 
   if (send_hb_ && future_.valid())
@@ -53,17 +61,19 @@ botbroker_handler::connect()
 void
 botbroker_handler::process_message(ipc_msg_t msg)
 {
-  kiq::log::klog().d("Received from {}", get_addr());
   switch(msg->type())
   {
     case constants::IPC_KEEPALIVE_TYPE:
       manager_->on_heartbeat(client_);
+      if (++hb_count_ % 200 == 0)
+        klog().d("Received {} HB from {}", hb_count_, get_addr());
     break;
     case constants::IPC_STATUS:
       send_ipc_message(std::make_unique<okay_message>());
       connect();
     break;
     default:
+      klog().d("Received from {}", get_addr());
       manager_->process_message(std::move(msg));
     break;
   }

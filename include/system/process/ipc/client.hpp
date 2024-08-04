@@ -27,8 +27,9 @@ private:
   std::string_view    client_;
   std::string         name_;
   std::string         addr_;
-  bool                active_;
+  bool                active_{true};
   std::future<void>   future_;
   bool                send_hb_;
+  int                 hb_count_{0};
 };
 } // ns kiq
