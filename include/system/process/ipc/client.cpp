@@ -61,14 +61,12 @@ botbroker_handler::connect()
 void
 botbroker_handler::process_message(ipc_msg_t msg)
 {
-  static int hb_count = 0;
-
   switch(msg->type())
   {
     case constants::IPC_KEEPALIVE_TYPE:
       manager_->on_heartbeat(client_);
-      if (++hb_count % 200 == 0)
-        klog().d("Received {} HB from {}", hb_count, get_addr());
+      if (++hb_count_ % 200 == 0)
+        klog().d("Received {} HB from {}", hb_count_, get_addr());
     break;
     case constants::IPC_STATUS:
       send_ipc_message(std::make_unique<okay_message>());
