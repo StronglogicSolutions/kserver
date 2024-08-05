@@ -225,7 +225,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     m_clients.at(kai_peer   )->send_ipc_message(std::make_unique<status_check>());
 
     for (const auto& peer : ipc_peers)
-      m_daemon.add_observer(peer, [&peer] { klog().e("Heartbeat timed out for {}", peer); });
+      m_daemon.add_observer(peer, [&]
+      {
+        klog().e("Heartbeat timed out for {}", peer);
+        m_clients.at(peer)->send_ipc_message(std::make_unique<status_check>());
+      });
     m_daemon.reset();
   }
   //*******************************************************************//
