@@ -224,12 +224,6 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     m_clients.at(sentnl_peer)->send_ipc_message(std::make_unique<status_check>());
     m_clients.at(kai_peer   )->send_ipc_message(std::make_unique<status_check>());
 
-    for (const auto& peer : ipc_peers)
-      m_daemon.add_observer(peer, [&]
-      {
-        klog().e("Heartbeat timed out for {}", peer);
-        m_clients.at(peer)->send_ipc_message(std::make_unique<status_check>());
-      });
     m_daemon.reset();
   }
   //*******************************************************************//
@@ -243,6 +237,12 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   void
   IPCManager::on_heartbeat(std::string_view peer)
   {
+    if (!m_daemon.has_observer(peer))
+      m_daemon.add_observer(peer, [&]
+      {
+        klog().e("Heartbeat timed out for {}", peer);
+        m_clients.at(peer)->send_ipc_message(std::make_unique<status_check>());
+      });
     if (!m_daemon.validate(peer))
       klog().t("Couldn't validate heartbeat for {}", peer);
   }
