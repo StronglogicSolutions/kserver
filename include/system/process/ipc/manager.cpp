@@ -241,7 +241,27 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       m_daemon.add_observer(peer, [&]
       {
         klog().e("Heartbeat timed out for {}", peer);
-        m_clients.at(peer)->send_ipc_message(std::make_unique<status_check>());
+        auto dead_it = m_clients.find(peer);
+        if (dead_it == m_clients.end())
+        {
+          klog().w("IPC manager does not have an IPC worker for {}", peer);
+          return;
+        }
+
+        botbroker_handler* value = static_cast<botbroker_handler*>(dead_it->second);
+        const auto addr = value->get_addr();
+        delete value;
+
+        auto it = m_clients.insert_or_assign(peer,
+          new botbroker_handler{addr, m_context, peer, this, true});
+
+        if (it.second)
+        {
+          it.first->second->send_ipc_message(std::make_unique<status_check>());
+          klog().d("Replaced IPC worker for {}", peer);
+        }
+        else
+          klog().e("Failed to replace IPC worker for {}", peer);
       });
     if (!m_daemon.validate(peer))
       klog().t("Couldn't validate heartbeat for {}", peer);
