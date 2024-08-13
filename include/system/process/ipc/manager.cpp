@@ -263,7 +263,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         else
           klog().e("Failed to replace IPC worker for {}", peer);
       });
-    if (! m_daemon.validate(peer))
+    if (!m_daemon.validate(peer))
       klog().t("Couldn't validate heartbeat for {}", peer);
   }
   //*******************************************************************//
