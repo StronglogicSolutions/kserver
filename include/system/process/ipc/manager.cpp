@@ -249,10 +249,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         }
 
         botbroker_handler* value = static_cast<botbroker_handler*>(dead_it->second);
+        const auto addr = value->get_addr();
         delete value;
 
         auto it = m_clients.insert_or_assign(peer,
-          new botbroker_handler{config::Process::broker_address(), m_context, peer, this, true});
+          new botbroker_handler{addr, m_context, peer, this, true});
 
         if (it.second)
         {
