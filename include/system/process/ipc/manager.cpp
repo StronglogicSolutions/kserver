@@ -255,7 +255,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         auto it = m_clients.insert_or_assign(peer,
           new botbroker_handler{addr, m_context, peer, this, true});
 
-        if (it.second)
+        if (it.first != m_clients.end())
         {
           it.first->second->send_ipc_message(std::make_unique<status_check>());
           klog().d("Replaced IPC worker for {}", peer);
