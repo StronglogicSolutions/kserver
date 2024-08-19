@@ -17,6 +17,13 @@ namespace kiq
     kai_peer
   };
 
+  static const std::map<std::string_view, std::string> ipc_addresses{
+    { broker_peer, config::Process::broker_address() },
+    { sentnl_peer, config::Process::sentnl_address() },
+    { kai_peer   , config::Process::kai_address   () }
+  };
+
+
   static std::string to_info_type(std::string_view plat, std::string_view type)
   {
     return fmt::format("{}:{}", plat, type);
@@ -216,13 +223,19 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   {
     m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
     m_workers.back().start();
-    m_clients.emplace(broker_peer, new botbroker_handler{config::Process::broker_address(), m_context, broker_peer, this, true});
-    m_clients.emplace(sentnl_peer, new botbroker_handler{config::Process::sentnl_address(), m_context, sentnl_peer, this, true});
-    m_clients.emplace(kai_peer,    new botbroker_handler{config::Process::kai_address(),    m_context, kai_peer, this, true});
 
-    m_clients.at(broker_peer)->send_ipc_message(std::make_unique<status_check>());
-    m_clients.at(sentnl_peer)->send_ipc_message(std::make_unique<status_check>());
-    m_clients.at(kai_peer   )->send_ipc_message(std::make_unique<status_check>());
+    for (const auto& peer : ipc_peers)
+    {
+      const auto& client = m_clients.emplace(peer,
+        new botbroker_handler{ipc_addresses.at(peer),
+                              m_context,
+                              peer,
+                              this,
+                              true});
+
+      client.first->second->send_ipc_message(std::make_unique<status_check>());
+      on_heartbeat(peer);
+    }
 
     m_daemon.reset();
   }
