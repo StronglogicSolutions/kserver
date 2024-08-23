@@ -135,7 +135,13 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       }
     }
   };
-  //*******************************************************************//
+
+  //---------------------------------------------------------------------
+  static void add_observer(IPCManager* p_mgr, std::string_view peer, session_daemon& daemon)
+  {
+
+  }
+  //---------------------------------------------------------------------
   IPCManager::IPCManager()
       : m_req_ready(true),
         m_context(1),
@@ -234,7 +240,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
                               true});
 
       client.first->second->send_ipc_message(std::make_unique<status_check>());
-      on_heartbeat(peer);
+      add_observer(peer);
     }
 
     m_daemon.reset();
@@ -246,12 +252,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     log_message(msg.get());
     m_dispatch_table[msg->type()](std::move(msg));
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   void
-  IPCManager::on_heartbeat(std::string_view peer)
+  IPCManager::add_observer(std::string_view peer)
   {
-    if (!m_daemon.has_observer(peer))
-      m_daemon.add_observer(peer, [&]
+    m_daemon.add_observer(peer, [this, peer]
       {
         klog().e("Heartbeat timed out for {}", peer);
         auto dead_it = m_clients.find(peer);
@@ -276,6 +281,14 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         else
           klog().e("Failed to replace IPC worker for {}", peer);
       });
+  }
+  //*******************************************************************//
+  void
+  IPCManager::on_heartbeat(std::string_view peer)
+  {
+    if (!m_daemon.has_observer(peer))
+      add_observer(peer);
+
     if (!m_daemon.validate(peer))
       klog().t("Couldn't validate heartbeat for {}", peer);
   }

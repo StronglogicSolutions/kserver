@@ -77,15 +77,16 @@ public:
 
 IPCManager();
 ~IPCManager() final;
-bool ReceiveEvent(int32_t event, const std::vector<std::string>& args);
+bool ReceiveEvent(int32_t, const std::vector<std::string>&);
 void close(int32_t fd);
-void process_message(u_ipc_msg_ptr msg);
+void process_message(u_ipc_msg_ptr);
 void start();
-void on_heartbeat(std::string_view peer);
+void on_heartbeat(std::string_view);
+void add_observer(std::string_view);
 
 private:
   void loop();
-  void delay_event(int32_t event, const std::vector<std::string>& args);
+  void delay_event(int32_t, const std::vector<std::string>&);
 
   using evt = event_handler;
 
