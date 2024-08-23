@@ -41,7 +41,7 @@ namespace kiq
         return ipc_peers.front();
     return "";
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   auto to_string_max = [](const auto& str, size_t max)
   {
     const auto size = str.size();
@@ -69,7 +69,7 @@ namespace kiq
                                                                          msg->data().size());
 
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   enum class ipc_payload_t {
     PLATFORM = 0x00,
     IPC_MSG  = 0x01
@@ -135,7 +135,8 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       }
     }
   };
-  //*******************************************************************//
+
+  //---------------------------------------------------------------------
   IPCManager::IPCManager()
       : m_req_ready(true),
         m_context(1),
@@ -149,7 +150,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
     m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   IPCManager::~IPCManager()
   {
     for (auto& worker : m_workers)
@@ -163,7 +164,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       it = m_clients.erase(it);
     }
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   bool
   IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
@@ -217,7 +218,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     }
     return true;
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   void
   IPCManager::start()
   {
@@ -234,24 +235,23 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
                               true});
 
       client.first->second->send_ipc_message(std::make_unique<status_check>());
-      on_heartbeat(peer);
+      add_observer(peer);
     }
 
     m_daemon.reset();
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   void
   IPCManager::process_message(u_ipc_msg_ptr msg)
   {
     log_message(msg.get());
     m_dispatch_table[msg->type()](std::move(msg));
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   void
-  IPCManager::on_heartbeat(std::string_view peer)
+  IPCManager::add_observer(std::string_view peer)
   {
-    if (!m_daemon.has_observer(peer))
-      m_daemon.add_observer(peer, [&]
+    m_daemon.add_observer(peer, [this, peer]
       {
         klog().e("Heartbeat timed out for {}", peer);
         auto dead_it = m_clients.find(peer);
@@ -276,10 +276,18 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         else
           klog().e("Failed to replace IPC worker for {}", peer);
       });
+  }
+  //---------------------------------------------------------------------
+  void
+  IPCManager::on_heartbeat(std::string_view peer)
+  {
+    if (!m_daemon.has_observer(peer))
+      add_observer(peer);
+
     if (!m_daemon.validate(peer))
       klog().t("Couldn't validate heartbeat for {}", peer);
   }
-  //*******************************************************************//
+  //---------------------------------------------------------------------
   void
   IPCManager::delay_event(int32_t event, const std::vector<std::string>& args)
   {
