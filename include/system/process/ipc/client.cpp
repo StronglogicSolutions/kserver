@@ -17,12 +17,6 @@ botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ct
   addr_(addr),
   send_hb_(send_hb)
 {
-  tx_sink_.set(zmq::sockopt::linger, 0);
-  tx_sink_.set(zmq::sockopt::routing_id, name_);
-  tx_sink_.set(zmq::sockopt::tcp_keepalive, 1);
-  tx_sink_.set(zmq::sockopt::tcp_keepalive_idle,  300);
-  tx_sink_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
-
   connect();
 
   if (send_hb_)
@@ -55,6 +49,11 @@ botbroker_handler::~botbroker_handler()
 void
 botbroker_handler::connect()
 {
+  tx_sink_.set(zmq::sockopt::linger, 0);
+  tx_sink_.set(zmq::sockopt::routing_id, name_);
+  tx_sink_.set(zmq::sockopt::tcp_keepalive, 1);
+  tx_sink_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+  tx_sink_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
   tx_sink_.connect(addr_);
 }
 //*******************************************************************//
@@ -89,5 +88,13 @@ void
 botbroker_handler::on_done()
 {
   (void)(0); // Trace log
+}
+//--------------------------------------------------------------------
+void botbroker_handler::reconnect()
+{
+
+    tx_sink_.close();
+    tx_sink_ = zmq::socket_t(ctx_, ZMQ_DEALER);
+
 }
 } // ns kiq
