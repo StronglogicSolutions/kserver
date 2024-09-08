@@ -95,6 +95,6 @@ void botbroker_handler::reconnect()
 
     tx_sink_.close();
     tx_sink_ = zmq::socket_t(ctx_, ZMQ_DEALER);
-
+    connect();
 }
 } // ns kiq

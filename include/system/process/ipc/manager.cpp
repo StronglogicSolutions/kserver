@@ -261,7 +261,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
           return;
         }
 
-        klog().d("{} reconnecting to ", peer, it->second->get_addr());
+        klog().d("{} reconnecting to {}", peer, it->second->get_addr());
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
