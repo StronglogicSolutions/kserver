@@ -63,10 +63,10 @@ namespace kiq
     if (type == constants::IPC_KEEPALIVE_TYPE)
       return;
 
-    klog().t("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
-    klog().d("View message: {}", to_string_max(msg->to_string(), 650));
-    klog().t("For event handler {} with {} frames", IPC_MESSAGE_NAMES.at(msg->type()),
-                                                                         msg->data().size());
+    klog().t("Processing message of type {}",       constants::IPC_MESSAGE_NAMES.at(type)                 );
+    klog().d("View message: {}",                    to_string_max                  (msg->to_string(), 650));
+    klog().t("For event handler {} with {} frames", IPC_MESSAGE_NAMES.at           (msg->type()           ),
+                                                                                    msg->data().size()    );
 
   }
   //---------------------------------------------------------------------
@@ -265,6 +265,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
+        std::thread{[this, peer]
+        {
+          std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+          add_observer(peer);
+        }}.detach();
       });
       m_daemon.validate(peer);
   }
