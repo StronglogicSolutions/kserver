@@ -27,6 +27,8 @@ void
 IPCWorker::start()
 {
   future_ = std::async(std::launch::async, [this] { run(); });
+
+  monfut_ = std::async(std::launch::async, [this] { monitor(); });
 }
 //*******************************************************************//
 void
@@ -96,6 +98,71 @@ IPCWorker::recv()
     klog().e("{} failed to deserialize IPC message", name());
 }
 //*******************************************************************//
+
+void
+IPCWorker::monitor()
+{
+  // Create a monitoring socket
+    void* monitor_socket = zmq_socket(ctx_.handle(), ZMQ_PAIR);
+    if (!monitor_socket) {
+        // std::cerr << "Error creating monitor socket" << std::endl;
+        return;
+    }
+
+    // Bind the monitoring socket to an in-process transport address
+    if (zmq_bind(monitor_socket, "inproc://monitor.sock") != 0) {
+        // std::cerr << "Error binding monitor socket" << std::endl;
+        zmq_close(monitor_socket);
+        return;
+    }
+
+    // Start monitoring the original socket
+    if (zmq_socket_monitor(socket().handle(), "inproc://monitor.sock", ZMQ_EVENT_ALL) != 0) {
+        // std::cerr << "Error starting socket monitor" << std::endl;
+        zmq_close(monitor_socket);
+        return;
+    }
+
+    while (true) {
+        zmq_msg_t event_msg;
+        zmq_msg_init(&event_msg);
+
+        if (zmq_msg_recv(&event_msg, monitor_socket, 0) == -1) {
+            // std::cerr << "Error receiving message" << std::endl;
+            zmq_msg_close(&event_msg);
+            continue;
+        }
+
+        // Get event data
+        zmq_event_t event = *(reinterpret_cast<zmq_event_t *>(zmq_msg_data(&event_msg)));
+
+        // Process the event type
+        switch (event.event) {
+            case ZMQ_EVENT_CONNECTED:
+                // std::cout << "Client connected" << std::endl;
+                break;
+            case ZMQ_EVENT_DISCONNECTED:
+                // std::cout << "Client disconnected" << std::endl;
+                break;
+            case ZMQ_EVENT_CLOSED:
+                // std::cout << "Socket closed" << std::endl;
+                break;
+            case ZMQ_EVENT_ACCEPTED:
+                // std::cout << "Client accepted" << std::endl;
+                break;
+            default:
+              (void)(0);
+                // std::cout << "Other event occurred: " << event.event << std::endl;
+        }
+
+        zmq_msg_close(&event_msg);
+    }
+
+    zmq_close(monitor_socket);
+}
+
+
+
 std::future<void>&
 IPCWorker::stop()
 {

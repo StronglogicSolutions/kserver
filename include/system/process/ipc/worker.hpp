@@ -26,6 +26,7 @@ protected:
 private:
   void run();
   void recv();
+  void monitor();
 
   std::string name() const;
 
@@ -35,5 +36,6 @@ private:
   client_handlers_t*  handlers_;
   bool                active_{true};
   std::future<void>   future_;
+  std::future<void>   monfut_;
 };
 } // ns kiq

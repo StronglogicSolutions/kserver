@@ -267,7 +267,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         std::thread{[this, peer]
         {
-          std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+          std::this_thread::sleep_for(std::chrono::milliseconds(1000));
           add_observer(peer);
         }}.detach();
       });
