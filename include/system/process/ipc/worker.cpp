@@ -105,20 +105,20 @@ IPCWorker::monitor()
   // Create a monitoring socket
     void* monitor_socket = zmq_socket(ctx_.handle(), ZMQ_PAIR);
     if (!monitor_socket) {
-        // std::cerr << "Error creating monitor socket" << std::endl;
+        klog().e("Error creating monitor socket");
         return;
     }
 
     // Bind the monitoring socket to an in-process transport address
     if (zmq_bind(monitor_socket, "inproc://monitor.sock") != 0) {
-        // std::cerr << "Error binding monitor socket" << std::endl;
+        klog().e("Error binding monitor socket");
         zmq_close(monitor_socket);
         return;
     }
 
     // Start monitoring the original socket
     if (zmq_socket_monitor(socket().handle(), "inproc://monitor.sock", ZMQ_EVENT_ALL) != 0) {
-        // std::cerr << "Error starting socket monitor" << std::endl;
+        klog().e("Error starting socket monitor");
         zmq_close(monitor_socket);
         return;
     }
@@ -128,7 +128,7 @@ IPCWorker::monitor()
         zmq_msg_init(&event_msg);
 
         if (zmq_msg_recv(&event_msg, monitor_socket, 0) == -1) {
-            // std::cerr << "Error receiving message" << std::endl;
+            klog().e("Error receiving message");
             zmq_msg_close(&event_msg);
             continue;
         }
@@ -139,20 +139,19 @@ IPCWorker::monitor()
         // Process the event type
         switch (event.event) {
             case ZMQ_EVENT_CONNECTED:
-                // std::cout << "Client connected" << std::endl;
+                klog().t("Client connected");
                 break;
             case ZMQ_EVENT_DISCONNECTED:
-                // std::cout << "Client disconnected" << std::endl;
+                klog().t("Client disconnected");
                 break;
             case ZMQ_EVENT_CLOSED:
-                // std::cout << "Socket closed" << std::endl;
+                klog().t("Socket closed");
                 break;
             case ZMQ_EVENT_ACCEPTED:
-                // std::cout << "Client accepted" << std::endl;
+                klog().t("Client accepted");
                 break;
             default:
-              (void)(0);
-                // std::cout << "Other event occurred: " << event.event << std::endl;
+                klog().t("Other event occurred: {}", event.event);
         }
 
         zmq_msg_close(&event_msg);
