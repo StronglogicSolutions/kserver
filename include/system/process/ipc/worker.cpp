@@ -103,59 +103,53 @@ void
 IPCWorker::monitor()
 {
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
-  // Create a monitoring socket
-    void* monitor_socket = zmq_socket(ctx_.handle(), ZMQ_PAIR);
-    if (!monitor_socket) {
-        klog().e("Error creating monitor socket");
-        return;
+  void* monitor_socket = zmq_socket(ctx_.handle(), ZMQ_PAIR);
+  if (!monitor_socket)
+  {
+    klog().e("Error creating monitor socket");
+    return;
+  }
+
+  if (zmq_socket_monitor(socket().handle(), "inproc://monitors.sock", ZMQ_EVENT_ALL) != 0)
+  {
+    klog().e("Error starting socket monitor. Error: {}", zmq_strerror(zmq_errno()));
+    zmq_close(monitor_socket);
+    return;
+  }
+
+  while (true)
+  {
+    zmq_msg_t event_msg;
+    zmq_msg_init(&event_msg);
+
+    if (zmq_msg_recv(&event_msg, monitor_socket, 0) == -1)
+    {
+      klog().e("Error receiving message");
+      zmq_msg_close(&event_msg);
+      continue;
     }
 
-    // Bind the monitoring socket to an in-process transport address
-    if (zmq_bind(monitor_socket, "tcp://127.0.0.1:29999") != 0) {
-        klog().e("Error binding monitor socket");
-        zmq_close(monitor_socket);
-        return;
-    }
 
-    // Start monitoring the original socket
-    if (zmq_socket_monitor(socket().handle(), "tcp://127.0.0.1:29999", ZMQ_EVENT_ALL) != 0) {
-        klog().e("Error starting socket monitor");
-        zmq_close(monitor_socket);
-        return;
-    }
+    zmq_event_t event = *(reinterpret_cast<zmq_event_t *>(zmq_msg_data(&event_msg)));
+    switch (event.event)
+    {
+      case ZMQ_EVENT_CONNECTED:
+        klog().t("@@ZMQMONITOR! Client connected");
+      break;
+      case ZMQ_EVENT_DISCONNECTED:
+        klog().t("@@ZMQMONITOR! Client disconnected");
+      break;
+      case ZMQ_EVENT_CLOSED:
+        klog().t("@@ZMQMONITOR! Socket closed");
+      break;
+      case ZMQ_EVENT_ACCEPTED:
+        klog().t("@@ZMQMONITOR! Client accepted");
+      break;
+      default:
+        klog().t("@@ZMQMONITOR! Other event occurred: {}", event.event);
+     }
 
-    while (true) {
-        zmq_msg_t event_msg;
-        zmq_msg_init(&event_msg);
-
-        if (zmq_msg_recv(&event_msg, monitor_socket, 0) == -1) {
-            klog().e("Error receiving message");
-            zmq_msg_close(&event_msg);
-            continue;
-        }
-
-        // Get event data
-        zmq_event_t event = *(reinterpret_cast<zmq_event_t *>(zmq_msg_data(&event_msg)));
-
-        // Process the event type
-        switch (event.event) {
-            case ZMQ_EVENT_CONNECTED:
-                klog().t("Client connected");
-                break;
-            case ZMQ_EVENT_DISCONNECTED:
-                klog().t("Client disconnected");
-                break;
-            case ZMQ_EVENT_CLOSED:
-                klog().t("Socket closed");
-                break;
-            case ZMQ_EVENT_ACCEPTED:
-                klog().t("Client accepted");
-                break;
-            default:
-                klog().t("Other event occurred: {}", event.event);
-        }
-
-        zmq_msg_close(&event_msg);
+      zmq_msg_close(&event_msg);
     }
 
     zmq_close(monitor_socket);
