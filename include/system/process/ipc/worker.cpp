@@ -8,7 +8,7 @@ using namespace kiq::log;
 IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers_t*  handlers)
 : ctx_(ctx),
   backend_(ctx_, ZMQ_DEALER),
-  monitor_(ctx, ZMQ_PUSH),
+  // monitor_(ctx, ZMQ_PUSH),
   handlers_(handlers)
 {
   backend_.set(zmq::sockopt::linger, 0);
@@ -26,9 +26,9 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers
 void
 IPCWorker::start()
 {
-  future_ = std::async(std::launch::async, [this] { run(); });
-
   monfut_ = std::async(std::launch::async, [this] { monitor(); });
+
+  future_ = std::async(std::launch::async, [this] { run(); });
 }
 //*******************************************************************//
 void
@@ -102,6 +102,7 @@ IPCWorker::recv()
 void
 IPCWorker::monitor()
 {
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
   // Create a monitoring socket
     void* monitor_socket = zmq_socket(ctx_.handle(), ZMQ_PAIR);
     if (!monitor_socket) {
@@ -110,14 +111,14 @@ IPCWorker::monitor()
     }
 
     // Bind the monitoring socket to an in-process transport address
-    if (zmq_bind(monitor_socket, "inproc://monitor.sock") != 0) {
+    if (zmq_bind(monitor_socket, "tcp://127.0.0.1:29999") != 0) {
         klog().e("Error binding monitor socket");
         zmq_close(monitor_socket);
         return;
     }
 
     // Start monitoring the original socket
-    if (zmq_socket_monitor(socket().handle(), "inproc://monitor.sock", ZMQ_EVENT_ALL) != 0) {
+    if (zmq_socket_monitor(socket().handle(), "tcp://127.0.0.1:29999", ZMQ_EVENT_ALL) != 0) {
         klog().e("Error starting socket monitor");
         zmq_close(monitor_socket);
         return;

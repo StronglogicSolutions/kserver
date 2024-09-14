@@ -32,7 +32,7 @@ private:
 
   zmq::context_t&     ctx_;
   zmq::socket_t       backend_;
-  zmq::socket_t       monitor_;
+  // zmq::socket_t       monitor_;
   client_handlers_t*  handlers_;
   bool                active_{true};
   std::future<void>   future_;
