@@ -131,7 +131,10 @@ IPCWorker::monitor()
 
     klog().d("@@ZMQMONITOR! Processing ZMQ event message");
 
-    zmq_event_t event = *(reinterpret_cast<zmq_event_t *>(zmq_msg_data(&event_msg)));
+    zmq_event_t event;
+    memcpy(&event, zmq_msg_data(&event_msg), sizeof(zmq_event_t));
+    zmq_msg_close(&event_msg);
+
     switch (event.event)
     {
       case ZMQ_EVENT_CONNECTED:
@@ -149,14 +152,10 @@ IPCWorker::monitor()
       default:
         klog().t("@@ZMQMONITOR! Other event occurred: {}", event.event);
      }
-
-      zmq_msg_close(&event_msg);
     }
 
     zmq_close(monitor_socket);
 }
-
-
 
 std::future<void>&
 IPCWorker::stop()
