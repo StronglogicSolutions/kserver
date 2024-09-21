@@ -8,7 +8,6 @@ using namespace kiq::log;
 IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers_t*  handlers)
 : ctx_(ctx),
   backend_(ctx_, ZMQ_DEALER),
-  // monitor_(ctx, ZMQ_PUSH),
   handlers_(handlers)
 {
   backend_.set(zmq::sockopt::linger, 0);
@@ -18,10 +17,12 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers
   backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
 }
 //*******************************************************************//
-// IPCWorker::~IPCWorker()
-// {
-
-// }
+IPCWorker::~IPCWorker()
+{
+  active_ = false;
+  monfut_.wait();
+  future_.wait();
+}
 //*******************************************************************//
 void
 IPCWorker::start()
@@ -117,14 +118,20 @@ IPCWorker::monitor()
     return;
   }
 
+  int timeout_ms = 5000; // 5 seconds
+  zmq_setsockopt(socket(), ZMQ_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
+
   while (true)
   {
+    if (!active_)
+      return;
+
     zmq_msg_t event_msg;
     zmq_msg_init(&event_msg);
     klog().t("@@ZMQMONITOR! Waiting for message");
     if (zmq_msg_recv(&event_msg, monitor_socket, 0) == -1)
     {
-      klog().e("Error receiving message");
+      klog().e("@@ZMQMONITOR! Error receiving message");
       zmq_msg_close(&event_msg);
       continue;
     }

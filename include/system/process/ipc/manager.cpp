@@ -265,6 +265,14 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
+        if (++m_timeouts > 100 && m_clients.size() > 1)
+        {
+          m_timeouts = 0;
+          m_workers.clear();
+          m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
+          m_workers.back().start();
+        }
+
         std::thread{[this, peer]
         {
           std::this_thread::sleep_for(std::chrono::milliseconds(1000));
