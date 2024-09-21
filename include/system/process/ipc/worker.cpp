@@ -121,7 +121,7 @@ IPCWorker::monitor()
   {
     zmq_msg_t event_msg;
     zmq_msg_init(&event_msg);
-
+    klog().t("@@ZMQMONITOR! Waiting for message");
     if (zmq_msg_recv(&event_msg, monitor_socket, 0) == -1)
     {
       klog().e("Error receiving message");
@@ -129,6 +129,7 @@ IPCWorker::monitor()
       continue;
     }
 
+    klog().d("@@ZMQMONITOR! Processing ZMQ event message");
 
     zmq_event_t event = *(reinterpret_cast<zmq_event_t *>(zmq_msg_data(&event_msg)));
     switch (event.event)
