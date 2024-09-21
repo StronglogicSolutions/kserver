@@ -222,7 +222,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   void
   IPCManager::start()
   {
-    m_workers.emplace_back(IPCWorker{m_context, "Worker 1", &m_clients});
+    m_workers.emplace_back(std::move(IPCWorker{m_context, "Worker 1", &m_clients}));
     m_workers.back().start();
 
     for (const auto& peer : ipc_peers)

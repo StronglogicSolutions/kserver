@@ -21,7 +21,7 @@ public:
   IPCWorker(IPCWorker&&) noexcept;
 
   IPCWorker& operator=(const IPCWorker&) = default;
-  IPCWorker& operator=(IPCWorker&&)      = default;
+  IPCWorker& operator=(IPCWorker&&) noexcept;
 
   void               start();
   std::future<void>& stop();

@@ -20,8 +20,10 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers
 IPCWorker::~IPCWorker()
 {
   active_ = false;
-  monfut_.wait();
-  future_.wait();
+  if (monfut_.valid())
+    monfut_.wait();
+  if (future_.valid())
+    future_.wait();
 }
 //*******************************************************************//
 IPCWorker::IPCWorker(const IPCWorker& w)
@@ -29,13 +31,33 @@ IPCWorker::IPCWorker(const IPCWorker& w)
   handlers_(w.handlers_),
   active_(w.active_)
 {}
-//*******************************************************************//
+
 IPCWorker::IPCWorker(IPCWorker&& w) noexcept
 : ctx_(w.ctx_),
   handlers_(w.handlers_),
-  active_(w.active_)
+  active_(w.active_),
+  monfut_(std::move(w.monfut_)),
+  future_(std::move(w.future_))
 {}
-//*******************************************************************//
+
+// Allow move assignment operator
+IPCWorker& IPCWorker::operator=(IPCWorker&& w) noexcept
+{
+  if (this != &w)
+  {
+    if (w.future_.valid())
+      future_ = std::move(w.future_);
+
+    if (w.monfut_.valid())
+      monfut_ = std::move(w.monfut_);
+
+    ctx_ = std::move(w.ctx_);
+    handlers_ = w.handlers_;
+    active_ = w.active_;
+  }
+  return *this;
+}
+
 void
 IPCWorker::start()
 {
