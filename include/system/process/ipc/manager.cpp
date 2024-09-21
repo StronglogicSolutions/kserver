@@ -222,7 +222,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   void
   IPCManager::start()
   {
-    m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
+    m_workers.emplace_back(IPCWorker{m_context, "Worker 1", &m_clients});
     m_workers.back().start();
 
     for (const auto& peer : ipc_peers)
@@ -265,11 +265,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
-        if (++m_timeouts > 100 && m_clients.size() > 1)
+        if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
         {
           m_timeouts = 0;
           m_workers.clear();
-          m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
+          m_workers.emplace_back(IPCWorker{m_context, "Worker 1", &m_clients});
           m_workers.back().start();
         }
 

@@ -16,6 +16,13 @@ using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
 public:
   IPCWorker(zmq::context_t& ctx, std::string_view target_id, client_handlers_t* handlers);
   ~IPCWorker() final;
+
+  IPCWorker(const IPCWorker&);
+  IPCWorker(IPCWorker&&) noexcept;
+
+  IPCWorker& operator=(const IPCWorker&) = default;
+  IPCWorker& operator=(IPCWorker&&)      = default;
+
   void               start();
   std::future<void>& stop();
 

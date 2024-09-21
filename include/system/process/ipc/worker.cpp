@@ -24,6 +24,18 @@ IPCWorker::~IPCWorker()
   future_.wait();
 }
 //*******************************************************************//
+IPCWorker::IPCWorker(const IPCWorker& w)
+: ctx_(w.ctx_),
+  handlers_(w.handlers_),
+  active_(w.active_)
+{}
+//*******************************************************************//
+IPCWorker::IPCWorker(IPCWorker&& w) noexcept
+: ctx_(w.ctx_),
+  handlers_(w.handlers_),
+  active_(w.active_)
+{}
+//*******************************************************************//
 void
 IPCWorker::start()
 {
