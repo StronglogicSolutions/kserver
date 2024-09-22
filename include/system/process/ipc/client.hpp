@@ -15,6 +15,7 @@ public:
   void               start();
   std::future<void>& stop();
   void               connect();
+  void               reconnect();
 
 protected:
   zmq::socket_t& socket() final;

@@ -63,10 +63,10 @@ namespace kiq
     if (type == constants::IPC_KEEPALIVE_TYPE)
       return;
 
-    klog().t("Processing message of type {}", constants::IPC_MESSAGE_NAMES.at(type));
-    klog().d("View message: {}", to_string_max(msg->to_string(), 650));
-    klog().t("For event handler {} with {} frames", IPC_MESSAGE_NAMES.at(msg->type()),
-                                                                         msg->data().size());
+    klog().t("Processing message of type {}",       constants::IPC_MESSAGE_NAMES.at(type)                 );
+    klog().d("View message: {}",                    to_string_max                  (msg->to_string(), 650));
+    klog().t("For event handler {} with {} frames", IPC_MESSAGE_NAMES.at           (msg->type()           ),
+                                                                                    msg->data().size()    );
 
   }
   //---------------------------------------------------------------------
@@ -254,28 +254,24 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     m_daemon.add_observer(peer, [this, peer]
       {
         klog().e("Heartbeat timed out for {}", peer);
-        auto dead_it = m_clients.find(peer);
-        if (dead_it == m_clients.end())
+        const auto it = m_clients.find(peer);
+        if (it == m_clients.end())
         {
           klog().w("IPC manager does not have an IPC worker for {}", peer);
           return;
         }
 
-        botbroker_handler* value = static_cast<botbroker_handler*>(dead_it->second);
-        const auto addr = value->get_addr();
-        delete value;
+        klog().d("{} reconnecting to {}", peer, it->second->get_addr());
 
-        auto it = m_clients.insert_or_assign(peer,
-          new botbroker_handler{addr, m_context, peer, this, true});
+        static_cast<botbroker_handler*>(it->second)->reconnect();
 
-        if (it.first != m_clients.end())
+        std::thread{[this, peer]
         {
-          it.first->second->send_ipc_message(std::make_unique<status_check>());
-          klog().d("Replaced IPC worker for {}", peer);
-        }
-        else
-          klog().e("Failed to replace IPC worker for {}", peer);
+          std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+          add_observer(peer);
+        }}.detach();
       });
+      m_daemon.validate(peer);
   }
   //---------------------------------------------------------------------
   void
