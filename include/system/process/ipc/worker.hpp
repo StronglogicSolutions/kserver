@@ -15,9 +15,11 @@ class IPCWorker : public IPCTransmitterInterface
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
 public:
   IPCWorker(zmq::context_t& ctx, std::string_view target_id, client_handlers_t* handlers);
-  // ~IPCWorker() final;
+
   void               start();
   std::future<void>& stop();
+  void               connect();
+  void               reconnect();
 
 protected:
   zmq::socket_t& socket()  final;
@@ -33,7 +35,9 @@ private:
   zmq::socket_t       backend_;
   zmq::socket_t       monitor_;
   client_handlers_t*  handlers_;
+  std::string         name_;
   bool                active_{true};
+  bool                reconnect_{false};
   std::future<void>   future_;
 };
 } // ns kiq

@@ -9,19 +9,9 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers
 : ctx_(ctx),
   backend_(ctx_, ZMQ_DEALER),
   monitor_(ctx, ZMQ_PUSH),
-  handlers_(handlers)
-{
-  backend_.set(zmq::sockopt::linger, 0);
-  backend_.set(zmq::sockopt::routing_id, name);
-  backend_.set(zmq::sockopt::tcp_keepalive, 1);
-  backend_.set(zmq::sockopt::tcp_keepalive_idle,  300);
-  backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
-}
-//*******************************************************************//
-// IPCWorker::~IPCWorker()
-// {
-
-// }
+  handlers_(handlers),
+  name_(name)
+{}
 //*******************************************************************//
 void
 IPCWorker::start()
@@ -33,11 +23,19 @@ void
 IPCWorker::run()
 {
   klog().t("{} is ready to receive IPC", name());
-  backend_.connect(BACKEND_ADDRESS);
-  send_ipc_message(std::make_unique<status_check>());
+  connect();
 
-  while (active_)
+  for (;;)
+  {
     recv();
+
+    if (reconnect_)
+      reconnect();
+    else
+    if (!active_)
+      break;
+  }
+
   klog().t("{} no longer receiving IPC", name());
 }
 //*******************************************************************//
@@ -119,5 +117,23 @@ void
 IPCWorker::on_done()
 {
   (void)(0); // Trace log
+}
+//******************************************************************//
+void
+IPCWorker::connect()
+{
+  backend_.set(zmq::sockopt::linger, 0);
+  backend_.set(zmq::sockopt::routing_id, name_);
+  backend_.set(zmq::sockopt::tcp_keepalive, 1);
+  backend_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+  backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
+  backend_.connect(BACKEND_ADDRESS);
+  send_ipc_message(std::make_unique<status_check>());
+}
+//******************************************************************//
+void
+IPCWorker::reconnect()
+{
+  reconnect_ = true;
 }
 } // ns kiq
