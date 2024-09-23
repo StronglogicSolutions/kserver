@@ -265,6 +265,12 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
+        if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
+        {
+          m_timeouts = 0;
+          m_workers.back().reconnect();
+        }
+
         std::thread{[this, peer]
         {
           std::this_thread::sleep_for(std::chrono::milliseconds(5000));
