@@ -19,6 +19,7 @@ public:
   void               start();
   std::future<void>& stop();
   void               connect();
+  void               disconnect();
   void               reconnect();
 
 protected:

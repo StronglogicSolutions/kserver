@@ -7,7 +7,6 @@ using namespace kiq::log;
 
 IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers_t*  handlers)
 : ctx_(ctx),
-  backend_(ctx_, ZMQ_DEALER),
   monitor_(ctx, ZMQ_PUSH),
   handlers_(handlers),
   name_(name)
@@ -30,7 +29,10 @@ IPCWorker::run()
     recv();
 
     if (reconnect_)
-      reconnect();
+    {
+      disconnect();
+      connect();
+    }
     else
     if (!active_)
       break;
@@ -135,5 +137,12 @@ void
 IPCWorker::reconnect()
 {
   reconnect_ = true;
+}
+//******************************************************************//
+void
+IPCWorker::disconnect()
+{
+  backend_.close();
+  backend_ = zmq::socket_t{ctx_, ZMQ_DEALER};
 }
 } // ns kiq
