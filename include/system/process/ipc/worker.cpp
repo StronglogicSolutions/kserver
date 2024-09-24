@@ -124,6 +124,7 @@ IPCWorker::on_done()
 void
 IPCWorker::connect()
 {
+  backend_ = zmq::socket_t{ctx_, ZMQ_DEALER};
   backend_.set(zmq::sockopt::linger, 0);
   backend_.set(zmq::sockopt::routing_id, name_);
   backend_.set(zmq::sockopt::tcp_keepalive, 1);
@@ -143,6 +144,5 @@ void
 IPCWorker::disconnect()
 {
   backend_.close();
-  backend_ = zmq::socket_t{ctx_, ZMQ_DEALER};
 }
 } // ns kiq
