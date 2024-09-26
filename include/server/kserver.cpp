@@ -28,6 +28,10 @@ KServer::KServer(int argc, char **argv)
   m_file_pending_fd(NONE_PENDING)
 {
   evt::instance().set_server(this);
+
+  klog().i("Starting IPC manager");
+  m_ipc_manager.start();
+
   klog().i("Initializing controller");
   m_controller.Initialize(
     [this](std::string result, int mask, std::string request_id, const int32_t &client_fd, bool error)
@@ -42,9 +46,6 @@ KServer::KServer(int argc, char **argv)
     {
       ValidateClients();
     });
-
-  klog().i("Starting IPC manager");
-  m_ipc_manager.start();
 }
 //-----------------------------------------------------------------------------------------------------
 KServer::~KServer()

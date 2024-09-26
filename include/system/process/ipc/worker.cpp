@@ -7,21 +7,16 @@ using namespace kiq::log;
 
 IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers_t*  handlers)
 : ctx_(ctx),
-  backend_(ctx_, ZMQ_DEALER),
-  monitor_(ctx, ZMQ_PUSH),
-  handlers_(handlers)
+  backend_(ctx, ZMQ_DEALER),
+  handlers_(handlers),
+  name_(name)
 {
   backend_.set(zmq::sockopt::linger, 0);
-  backend_.set(zmq::sockopt::routing_id, name);
+  backend_.set(zmq::sockopt::routing_id, name_);
   backend_.set(zmq::sockopt::tcp_keepalive, 1);
   backend_.set(zmq::sockopt::tcp_keepalive_idle,  300);
   backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
 }
-//*******************************************************************//
-// IPCWorker::~IPCWorker()
-// {
-
-// }
 //*******************************************************************//
 void
 IPCWorker::start()
@@ -33,11 +28,24 @@ void
 IPCWorker::run()
 {
   klog().t("{} is ready to receive IPC", name());
-  backend_.connect(BACKEND_ADDRESS);
-  send_ipc_message(std::make_unique<status_check>());
+  connect();
 
-  while (active_)
+  for (;;)
+  {
     recv();
+
+    if (reconnect_)
+    {
+      klog().t("Worker handling reconnect request");
+
+      disconnect();
+      connect();
+    }
+    else
+    if (!active_)
+      break;
+  }
+
   klog().t("{} no longer receiving IPC", name());
 }
 //*******************************************************************//
@@ -119,5 +127,42 @@ void
 IPCWorker::on_done()
 {
   (void)(0); // Trace log
+}
+//******************************************************************//
+void
+IPCWorker::connect()
+{
+  klog().d("Worker connecting");
+
+  if (reconnect_)
+  {
+    klog().d("Replacing socket");
+
+    backend_ = zmq::socket_t{ctx_, ZMQ_DEALER};
+    backend_.set(zmq::sockopt::linger, 0);
+    backend_.set(zmq::sockopt::routing_id, name_);
+    backend_.set(zmq::sockopt::tcp_keepalive, 1);
+    backend_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+    backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
+    reconnect_ = false;
+  }
+
+  backend_.connect(BACKEND_ADDRESS);
+
+  klog().d("Connected to {}", BACKEND_ADDRESS);
+}
+//******************************************************************//
+void
+IPCWorker::reconnect()
+{
+  klog().d("Requesting reconnect");
+  reconnect_ = true;
+}
+//******************************************************************//
+void
+IPCWorker::disconnect()
+{
+  klog().d("Worker disconnecting");
+  backend_.close();
 }
 } // ns kiq

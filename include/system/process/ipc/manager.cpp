@@ -169,11 +169,6 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
     klog().i("Processing IPC message for event {}", event);
-    if (m_clients.find(broker_peer) == m_clients.end() || m_clients.find(sentnl_peer) == m_clients.end())
-    {
-      delay_event(event, args);
-      return false;
-    }
 
     switch (event)
     {
@@ -264,6 +259,14 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         klog().d("{} reconnecting to {}", peer, it->second->get_addr());
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
+
+        if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
+        {
+          klog().t("100 timeouts reached. Replacing back-end worker.");
+
+          m_timeouts = 0;
+          m_workers.back().reconnect();
+        }
 
         std::thread{[this, peer]
         {

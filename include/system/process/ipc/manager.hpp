@@ -126,5 +126,6 @@ private:
   zmq::socket_t         m_public_;
   zmq::socket_t         m_backend_;
   std::future<void>     m_future;
+  int                   m_timeouts{0};
 };
 } // ns kiq
