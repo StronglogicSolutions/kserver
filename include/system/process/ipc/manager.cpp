@@ -169,11 +169,6 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
     klog().i("Processing IPC message for event {}", event);
-    // if (m_clients.find(broker_peer) == m_clients.end() || m_clients.find(sentnl_peer) == m_clients.end())
-    // {
-    //   delay_event(event, args);
-    //   return false;
-    // }
 
     switch (event)
     {
