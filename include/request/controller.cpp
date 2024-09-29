@@ -10,7 +10,7 @@ using Payload = std::vector<std::string>;
 static flatbuffers::FlatBufferBuilder builder(1024);
 using namespace kiq::log;
 //----------------------------------------------------------------------------------
-Controller::Controller()
+Controller::Controller(int* control_sock)
 : m_active(true),
   m_executor(nullptr),
   m_scheduler(
@@ -23,13 +23,15 @@ Controller::Controller()
   m_ps_exec_count(0),
   m_client_rq_count(0),
   m_system_rq_count(0),
-  m_err_count(0)
+  m_err_count(0),
+  m_control_sock(control_sock)
 {}
 //----------------------------------------------------------------------------------
 Controller::Controller(Controller &&r)
 : m_active(r.m_active),
   m_executor(r.m_executor),
-  m_scheduler(nullptr)
+  m_scheduler(nullptr),
+  m_control_sock(r.m_control_sock)
 {
   r.m_executor = nullptr;
 }
@@ -37,7 +39,8 @@ Controller::Controller(Controller &&r)
 Controller::Controller(const Controller &r)
 : m_active(r.m_active),
   m_executor(nullptr),
-  m_scheduler(nullptr)
+  m_scheduler(nullptr),
+  m_control_sock(r.m_control_sock)
 {}
 //----------------------------------------------------------------------------------
 Controller& Controller::operator=(const Controller &handler)
@@ -54,6 +57,7 @@ Controller& Controller::operator=(Controller&& handler)
     m_executor          = handler.m_executor;
     m_active            = handler.m_active;
     handler.m_executor  = nullptr;
+    m_control_sock      = handler.m_control_sock;
   }
 
   return *this;
@@ -185,6 +189,14 @@ void Controller::InfiniteLoop()
 
     m_scheduler.ProcessIPC();
     m_scheduler.ResolvePending();
+
+    if (*m_control_sock)
+    {
+      int control_message = (m_shutdown) ? 0 : 1;
+
+      write(*m_control_sock, &control_message, sizeof(control_message));
+    }
+
     m_condition.wait_for(lock, std::chrono::milliseconds(5000));
   }
 

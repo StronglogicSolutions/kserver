@@ -46,7 +46,7 @@ class Controller
  using ClientValidateFn  = std::function<void(void)>;
 
  public:
-  Controller();
+  Controller(int* control_sock);
   Controller(Controller&& r);
   Controller(const Controller& r);
   Controller &operator=(const Controller& handler);
@@ -109,5 +109,8 @@ class Controller
   uint32_t                          m_client_rq_count;
   uint32_t                          m_system_rq_count;
   uint32_t                          m_err_count;
+
+  int*                              m_control_sock;
+  bool                              m_shutdown{false};
 };
 }  // ns kiq
