@@ -213,12 +213,13 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   void
   IPCManager::start()
   {
+    klog().d("Binding public socket and backend socket");
     m_public_ .bind(REP_ADDRESS);
     m_backend_.bind(BACKEND_ADDRESS);
 
     m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
 
-    m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
+    m_workers.emplace_back(IPCWorker{m_context, "Worker 1", &m_clients});
     m_workers.back().start();
 
     for (const auto& peer : ipc_peers)
@@ -234,6 +235,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       add_observer(peer);
     }
 
+    klog().d("IPC Workers and clients initialized. Resetting heartbeat daemon");
     m_daemon.reset();
   }
   //---------------------------------------------------------------------
@@ -308,6 +310,8 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       m_future.wait();
 
     klog().w("Clients and workers destroyed. Restarting.");
+
+    m_context = zmq::context_t{1};
 
     start();
   }
