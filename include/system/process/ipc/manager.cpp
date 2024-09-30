@@ -266,7 +266,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
         {
           klog().t("{} timeouts reached. Replacing back-end worker.", m_timeouts);
-          evt::instance()(ALL_CLIENTS, SYSTEM_EVENTS__IPC_RECONNECT_REQUEST, {});
+          evt::instance()(ALL_CLIENTS, SYSTEM_EVENTS__IPC_RECONNECT_REQUEST, {}); // Must be handled on original thread
           m_timeouts = 0;
         }
 
