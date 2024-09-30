@@ -572,7 +572,7 @@ void KServer::run()
         break;
 
         default:
-          klog().w("KServer ignoring unknown request: {}", req);
+          klog().w("KServer ignoring unknown request: {}", static_cast<int>(req));
       }
     }
   }
