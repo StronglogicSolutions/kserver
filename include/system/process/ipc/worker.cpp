@@ -23,7 +23,7 @@ IPCWorker::IPCWorker (IPCWorker&& other)
   backend_(std::move(other.backend_)),
   handlers_(other.handlers_),
   name_(other.name_),
-  active_(other.active_),
+  active_(true),
   future_(std::move(other.future_))
 {}
 //*******************************************************************//
@@ -35,7 +35,7 @@ IPCWorker& IPCWorker::operator=(IPCWorker&& other)
     backend_  = std::move(other.backend_);
     handlers_ = other.handlers_;
     name_     = other.name_;
-    active_   = other.active_;
+    active_   = true;
     future_   = std::move(other.future_);
   }
 
