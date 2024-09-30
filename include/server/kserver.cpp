@@ -26,14 +26,11 @@ static const char*   RECV_MSG     {"Received by KServer"};
 
 KServer::KServer(int argc, char **argv)
 : SocketListener(argc, argv),
-  m_controller(m_control_sock),
+  m_controller(&m_control_sock),
   m_file_pending(false),
   m_file_pending_fd(NONE_PENDING)
 {
   evt::instance().set_server(this);
-
-  klog().i("Starting IPC manager");
-  m_ipc_manager.start();
 
   klog().i("Initializing controller");
   m_controller.Initialize(
@@ -564,6 +561,18 @@ void KServer::run()
         }
         else
           klog().i("KServer is running");
+      }
+    }
+    if (auto req = GetController().GetRequest(); req != Request::UNKNOWN)
+    {
+      switch (req)
+      {
+        case Request::RECONNECT_IPC:
+          GetIPCMgr().reconnect();
+        break;
+
+        default:
+          klog().w("KServer ignoring unknown request: {}", static_cast<int>(req));
       }
     }
   }

@@ -81,12 +81,12 @@ bool ReceiveEvent(int32_t, const std::vector<std::string>&);
 void close(int32_t fd);
 void process_message(u_ipc_msg_ptr);
 void start();
+void reconnect();
 void on_heartbeat(std::string_view);
 void add_observer(std::string_view);
 
 private:
   void loop();
-  void delay_event(int32_t, const std::vector<std::string>&);
 
   using evt = event_handler;
 
@@ -127,5 +127,6 @@ private:
   zmq::socket_t         m_backend_;
   std::future<void>     m_future;
   int                   m_timeouts{0};
+  bool                  m_reconnect;
 };
 } // ns kiq

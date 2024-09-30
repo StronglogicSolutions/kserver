@@ -18,9 +18,42 @@ IPCWorker::IPCWorker(zmq::context_t& ctx, std::string_view name, client_handlers
   backend_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
 }
 //*******************************************************************//
+IPCWorker::IPCWorker (IPCWorker&& other)
+: ctx_(other.ctx_),
+  backend_(std::move(other.backend_)),
+  handlers_(other.handlers_),
+  name_(other.name_),
+  future_(std::move(other.future_))
+{}
+//*******************************************************************//
+IPCWorker& IPCWorker::operator=(IPCWorker&& other)
+{
+  if (this != &other)
+  {
+    ctx_      = std::move(other.ctx_);
+    backend_  = std::move(other.backend_);
+    handlers_ = other.handlers_;
+    name_     = other.name_;
+    future_   = std::move(other.future_);
+  }
+
+  return *this;
+}
+//*******************************************************************//
+IPCWorker::~IPCWorker()
+{
+  active_ = false;
+
+  if (future_.valid())
+    future_.wait();
+
+  backend_.close();
+}
+//*******************************************************************//
 void
 IPCWorker::start()
 {
+  active_ = true;
   future_ = std::async(std::launch::async, [this] { run(); });
 }
 //*******************************************************************//

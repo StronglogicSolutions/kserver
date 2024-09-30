@@ -15,6 +15,13 @@ class IPCWorker : public IPCTransmitterInterface
 using u_ipc_msg_ptr         = ipc_message::u_ipc_msg_ptr;
 public:
   IPCWorker(zmq::context_t& ctx, std::string_view target_id, client_handlers_t* handlers);
+  ~IPCWorker() final;
+
+  IPCWorker(const IPCWorker&) = delete;
+  IPCWorker& operator=(const IPCWorker&) = delete;
+
+  IPCWorker(IPCWorker&& other)           ;// noexcept;
+  IPCWorker& operator=(IPCWorker&& other);// noexcept;
 
   void               start();
   std::future<void>& stop();
