@@ -144,6 +144,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         m_backend_(m_context, ZMQ_DEALER)
   {
     set_log_fn([](const char* arg) { klog().t(arg); });
+    klog().i("Starting IPC manager");
     start();
   }
   //---------------------------------------------------------------------
