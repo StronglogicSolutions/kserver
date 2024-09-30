@@ -303,6 +303,12 @@ evt::on_status_report (int32_t client_fd, int32_t event, const event_payload_t& 
   m_server->SendEvent(client_fd, "Status Report", payload);
 }
 //------------------------------------------------------------
+void
+evt::on_ipc_reconnect_request(int32_t client_fd, int32_t event, const event_payload_t& payload)
+{
+  m_server->GetController().Request(Request::RECONNECT_IPC);
+}
+//------------------------------------------------------------
 void evt::set_server(KServer* server)
 {
   m_server = server;

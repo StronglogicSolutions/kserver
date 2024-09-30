@@ -22,6 +22,7 @@
 #include "system/process/executor/task_handlers/instagram.hpp"
 #include "system/process/executor/task_handlers/generic.hpp"
 #include "server/types.hpp"
+#include "kproto/types.hpp"
 #include "system/cron.hpp"
 
 namespace kiq
@@ -74,6 +75,8 @@ class Controller
                                                  const int32_t&                  id = 0);
   void                      ProcessClientRequest(const int32_t&                  client_fd,
                                                  const std::string&              message);
+  void                      Request             (Request::RequestType request);
+  Request::RequestType      GetRequest          () ;
 
  private:
   void onProcessComplete(const std::string&              value,
@@ -87,6 +90,7 @@ class Controller
                          const std::vector<std::string>& args = {});
   std::string Status() const;
 
+  using RequestQueue = std::deque<Request::RequestType>;
   ProcessCallbackFn                 m_process_event;
   StatusCallbackFn                  m_server_status;
   ClientValidateFn                  m_validate_client;
@@ -112,5 +116,7 @@ class Controller
 
   int*                              m_control_sock;
   bool                              m_shutdown{false};
+  RequestQueue                      m_requests;
+
 };
 }  // ns kiq

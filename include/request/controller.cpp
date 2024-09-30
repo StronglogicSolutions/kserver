@@ -1,6 +1,5 @@
 #include "controller.hpp"
 #include "common/time.hpp"
-#include "kproto/types.hpp"
 #include "server/event_handler.hpp"
 #include <logger.hpp>
 
@@ -637,5 +636,22 @@ std::string Controller::Status() const
   return m_server_status() + "\n\n" + fmt::format("Controller Status Update\nProcesses Executed: {}\nClient Requests: {}\nSystem Requests: {}\nErrors: {}",
     m_ps_exec_count, m_client_rq_count, m_system_rq_count, m_err_count) + "\n\n" + m_scheduler.Status();
 }
+//----------------------------------------------------------------------------------
+void Controller::Request(Request::RequestType request)
+{
+  m_requests.push_back(request);
+}
+//----------------------------------------------------------------------------------
+Request::RequestType Controller::GetRequest()
+{
+  if (!m_requests.empty())
+  {
+    auto req = m_requests.front();
+    m_requests.pop_front();
+    return req;
+  }
+  return Request::UNKNOWN;
+}
+
 
 }  // ns kiq

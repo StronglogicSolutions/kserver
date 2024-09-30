@@ -44,6 +44,8 @@ botbroker_handler::~botbroker_handler()
 
   if (send_hb_ && future_.valid())
     future_.wait();
+
+  tx_sink_.close();
 }
 //*******************************************************************//
 void

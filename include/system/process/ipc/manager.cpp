@@ -144,11 +144,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
         m_backend_(m_context, ZMQ_DEALER)
   {
     set_log_fn([](const char* arg) { klog().t(arg); });
-
-    m_public_ .bind(REP_ADDRESS);
-    m_backend_.bind(BACKEND_ADDRESS);
-
-    m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
+    start();
   }
   //---------------------------------------------------------------------
   IPCManager::~IPCManager()
@@ -217,6 +213,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   void
   IPCManager::start()
   {
+    m_public_ .bind(REP_ADDRESS);
+    m_backend_.bind(BACKEND_ADDRESS);
+
+    m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
+
     m_workers.push_back(IPCWorker{m_context, "Worker 1", &m_clients});
     m_workers.back().start();
 
@@ -262,10 +263,9 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
         {
-          klog().t("100 timeouts reached. Replacing back-end worker.");
-
+          klog().t("{} timeouts reached. Replacing back-end worker.", m_timeouts);
+          evt::instance()(ALL_CLIENTS, SYSTEM_EVENTS__IPC_RECONNECT_REQUEST, {});
           m_timeouts = 0;
-          m_workers.back().reconnect();
         }
 
         std::thread{[this, peer]
@@ -286,24 +286,29 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     if (!m_daemon.validate(peer))
       klog().t("Couldn't validate heartbeat for {}", peer);
   }
-  //---------------------------------------------------------------------
+  //----------------------------------------------------------------------
   void
-  IPCManager::delay_event(int32_t event, const std::vector<std::string>& args)
+  IPCManager::reconnect()
   {
-    static const int delay_limit{5};
-    static       int delay_count{0};
+    klog().w("IPC Reconnect request received. Destroying clients and workers");
 
-    if (++delay_count > delay_limit)
-      throw std::runtime_error{"Exceeded IPC event delay limit"};
-
-    std::thread{[this, event, args]
+    for (auto it = m_clients.begin(); it != m_clients.end();)
     {
-      while (m_clients.find(broker_peer) == m_clients.end())
-      {
-        klog().t("Delaying handling of IPC message");
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-      }
-      ReceiveEvent(event, args);
-    }}.detach();
+      MessageHandlerInterface* handler_ptr = it->second;
+      delete handler_ptr;
+      it = m_clients.erase(it);
+    }
+
+    m_clients.clear();
+    m_workers.clear();
+
+    m_context.close();
+
+    if (m_future.valid())
+      m_future.wait();
+
+    klog().w("Clients and workers destroyed. Restarting.");
+
+    start();
   }
 } // ns kiq
