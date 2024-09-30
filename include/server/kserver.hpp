@@ -98,15 +98,16 @@ public:
   KServer(int argc, char **argv);
   ~KServer();
 
-  void            Broadcast                (const std::string& event, const std::vector<std::string>& argv);
-  void            SendEvent                (const int32_t& client_fd, const std::string& event,
-                                            const std::vector<std::string>& argv);
-  void            SendFile                 (const int32_t& client_fd, const std::string& filename);
-  void            EraseMessageHandler      (const int32_t& client_fd);
-  void            EraseFileHandler         (const int32_t& client_fd);
-  Controller&     GetController            ();
-  IPCManager&     GetIPCMgr                ();
-  FileManager&    GetFileMgr               ();
+  void            Broadcast          (const std::string& event, const std::vector<std::string>& argv);
+  void            SendEvent          (const int32_t& client_fd, const std::string& event,
+                                      const std::vector<std::string>& argv);
+  void            SendFile           (const int32_t& client_fd, const std::string& filename);
+  void            EraseMessageHandler(const int32_t& client_fd);
+  void            EraseFileHandler   (const int32_t& client_fd);
+  Controller&     GetController      ();
+  IPCManager&     GetIPCMgr          ();
+  FileManager&    GetFileMgr         ();
+  void            run                ();
 
 private:
   using FileHandlers = std::unordered_map<int32_t, kiqoder::FileHandler>;
@@ -159,6 +160,7 @@ private:
   bool                      m_message_pending;
   int32_t                   m_message_pending_fd;
   uint32_t                  m_errors{0};
+  int                       m_control_sock{0};
 };
 
 };     // namespace kiq

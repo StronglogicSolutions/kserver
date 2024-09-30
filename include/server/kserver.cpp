@@ -2,6 +2,8 @@
 #include "kserver.hpp"
 #include "kiqoder/file_iterator.hpp"
 #include <logger.hpp>
+#include <sys/select.h>
+
 
 namespace kiq
 {
@@ -24,6 +26,7 @@ static const char*   RECV_MSG     {"Received by KServer"};
 
 KServer::KServer(int argc, char **argv)
 : SocketListener(argc, argv),
+  m_controller(m_control_sock),
   m_file_pending(false),
   m_file_pending_fd(NONE_PENDING)
 {
@@ -516,5 +519,53 @@ IPCManager &KServer::GetIPCMgr()
 FileManager &KServer::GetFileMgr()
 {
   return m_file_manager;
+}
+
+//-----------------------------------------------------------------------------------------------------
+void KServer::run()
+{
+  const auto client_thread = std::thread(&SocketListener::run, this);
+
+  int control_sockets[2];
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, control_sockets) < 0)
+  {
+    klog().e("Socket pair creation failed");
+    throw std::runtime_error("Could not create control socket pair to govern KServer run behaviour");
+  }
+
+  fd_set read_fds;
+  bool housekeeping_running = true;
+
+  int& control_sock = control_sockets[0]; // read from in this method only
+  m_control_sock    = control_sockets[1]; // passed to controller
+
+  for (;;)
+  {
+    FD_ZERO(&read_fds);
+    FD_SET(control_sock, &read_fds);
+    int max_fd = control_sock;
+
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+
+    int activity = select(max_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+    if (activity > 0 && FD_ISSET(control_sock, &read_fds))
+    {
+      // Read control message
+      int control_message;
+      ssize_t bytes_read = read(control_sock, &control_message, sizeof(control_message));
+      if (bytes_read)
+      {
+        if (!control_message)
+        {
+          klog().w("Controller has requested shutdown");
+          break;
+        }
+        else
+          klog().i("KServer is running");
+      }
+    }
+  }
 }
 } // ns kiq
