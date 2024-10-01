@@ -268,7 +268,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
-        if (++m_timeouts > 1 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
+        if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
         {
           klog().e("{} timeouts reached. Replacing back-end worker.", m_timeouts);
 
