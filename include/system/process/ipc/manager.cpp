@@ -268,7 +268,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
-        if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
+        if (++m_timeouts > 1 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
         {
           klog().e("{} timeouts reached. Replacing back-end worker.", m_timeouts);
 
@@ -319,7 +319,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       m_future.wait();
 
     m_control_.close();
-    m_context .close();                         // Close ZMQ context
+    // m_context .close();                         // Close ZMQ context
 
     klog().w("Clients and workers destroyed. Restarting.");
 
