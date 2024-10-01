@@ -110,7 +110,7 @@ void Controller::Initialize(ProcessCallbackFn process_callback_fn,
         if (m_timer.expired())
         {
           const auto message = "Controller's worker seems deadlocked";
-          klog().t(message);
+          klog().w(message);
           SystemUtils::SendMail(config::Email::notification(), message);
           m_active = false;
         }
@@ -143,7 +143,7 @@ void Controller::InfiniteLoop()
   static const int32_t client_fd{ALL_CLIENTS};
   static       Timer   timer{Timer::TEN_MINUTES, autostart};
 
-  klog().i("Worker starting");
+  klog().i("Controller worker starting");
 
   while (m_active)
   {
@@ -163,25 +163,25 @@ void Controller::InfiniteLoop()
       {
         const auto formatted_time = TimeUtils::FormatTimestamp(task.datetime);
         scheduled_times += formatted_time + " ";
-        klog().i("Task - Time: {} - Mask: {}\nEnv: {}", formatted_time, task.mask, task.env);
+        klog().i("Task\ntime : {}\nmask : {}\nenv : {}", formatted_time, task.mask, task.env);
       }
 
       evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULED_TASKS_READY,
-        {std::to_string(tasks.size()) + " tasks need to be executed", scheduled_times});
+        {std::to_string(tasks.size()) + " tasks ready", scheduled_times});
 
       if (auto it = m_tasks_map.find(client_fd); it == m_tasks_map.end())
         m_tasks_map.insert(std::pair<int, std::vector<Task>>(client_fd, tasks));
       else
         it->second.insert(it->second.end(), tasks.begin(), tasks.end());
 
-      klog().i("{} Tasks pending execution: ", m_tasks_map.at(client_fd).size());
+      klog().i("{} tasks pending", m_tasks_map.at(client_fd).size());
     }
 
     HandlePendingTasks();
 
     if (timer.expired())
     {
-      klog().t("{}", Status());
+      klog().d("{}", Status());
       timer.reset();
     }
     m_validate_client();
@@ -191,8 +191,8 @@ void Controller::InfiniteLoop()
 
     if (*m_control_sock)
     {
-      int control_message = (m_shutdown) ? 0 : 1;
-
+      const int control_message = (m_shutdown) ? 0 : 1;
+      klog().t("Sending control message {} to main thread", control_message);
       write(*m_control_sock, &control_message, sizeof(control_message));
     }
 
@@ -204,19 +204,10 @@ void Controller::InfiniteLoop()
 //----------------------------------------------------------------------------------
 void Controller::HandlePendingTasks()
 {
-  // try
-  // {
     for (const auto& client_tasks : m_tasks_map)
       for (const auto& task : client_tasks.second)
         m_executor->executeTask(client_tasks.first, task);
     m_tasks_map.clear();
-  // }
-  // catch(const std::exception& e)
-  // {
-  //   const auto error = fmt::format("Exception caught while executing process: {}", e.what());
-  //   klog().e(error.c_str());
-  //   SystemUtils::SendMail(config::System::admin(), error);
-  // }
 }
 //----------------------------------------------------------------------------------
 void Controller::operator()(const KOperation&               op,
@@ -380,7 +371,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
   Payload     args = GetArgs(message);
   RequestType type = int_to_request_type(std::stoi(args.at(Request::REQUEST_TYPE_INDEX)));
 
-  klog().t("Controller processing client request of type {}", request_type_to_string(type));
+  klog().i("Controller processing client request of type {}", request_type_to_string(type));
 
   switch (type)
   {
@@ -418,7 +409,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
     }
 
     case (RequestType::UPDATE_APPLICATION):
-      klog().i("Must implement UPDATE_APPLICATION");
+      klog().w("UPDATE_APPLICATION request ignored");
     break;
 
     case (RequestType::FETCH_SCHEDULE):
@@ -428,8 +419,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
         std::vector<Task>    tasks             = m_scheduler.fetchAllTasks(true);
         const auto           size              = tasks.size();
         Payload              payload{"Schedule"};
-        klog().i("Processing schedule fetch request");
-        klog().i("Fetched {} scheduled tasks for client", size);
+        klog().i("Fetched {} scheduled tasks", size);
         for (const auto& tk : tasks)
           ReadTask(tk, payload);
         evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULER_FETCH, payload);
@@ -451,7 +441,7 @@ void Controller::ProcessClientRequest(const int32_t&     client_fd,
       evt::instance()(client_fd, SYSTEM_EVENTS__SCHEDULER_UPDATE, {task_id, (save_success) ? "Success" : "Failure"});
 
       if (!env_updated)
-        klog().i("Failed to update envfile while handling update for task {}", task_id);
+        klog().e("Failed to update envfile while handling update for task {}", task_id);
     }
     break;
     case (RequestType::FETCH_SCHEDULE_TOKENS):
@@ -596,7 +586,7 @@ void Controller::onProcessComplete(const std::string& out,
   if (err)
   {
     tk_it->completed = (tk_it->completed == FAILED) ? RETRY_FAIL : FAILED;
-    klog().i("Sending email to administrator about failed task.\nNew Status: {}", STRINGS[tk_it->completed]);
+    klog().w("Sending email to administrator about failed task.\nNew Status: {}", STRINGS[tk_it->completed]);
     SystemUtils::SendMail(config::Email::notification(), Messages::TASK_ERROR_EMAIL + out);
     m_err_count++;
   }
@@ -604,7 +594,7 @@ void Controller::onProcessComplete(const std::string& out,
   {
     tk_it->completed = tk_it->recurring ? SCHEDULED : SUCCESS;
     if (!m_scheduler.processTriggers(&*tk_it))
-      klog().i("Error occurred processing triggers for task {} with mask {}", tk_it->id(), tk_it->mask);
+      klog().e("Error occurred processing triggers for task {} with mask {}", tk_it->id(), tk_it->mask);
     m_ps_exec_count++;
   }
 

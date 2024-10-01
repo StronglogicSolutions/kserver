@@ -60,7 +60,8 @@ IPCWorker::start()
 void
 IPCWorker::run()
 {
-  klog().t("{} is ready to receive IPC", name());
+  klog().d("{} is ready to receive IPC", name());
+
   connect();
 
   for (;;)
@@ -69,7 +70,7 @@ IPCWorker::run()
 
     if (reconnect_)
     {
-      klog().t("Worker handling reconnect request");
+      klog().d("Worker handling reconnect request");
 
       disconnect();
       connect();
@@ -79,7 +80,7 @@ IPCWorker::run()
       break;
   }
 
-  klog().t("{} no longer receiving IPC", name());
+  klog().d("{} no longer receiving IPC", name());
 }
 //*******************************************************************//
 void
@@ -89,7 +90,6 @@ IPCWorker::recv()
 
   auto get_part = [](auto& msg) { return buffer_vector_t::value_type{static_cast<uint8_t*>(msg.data()), static_cast<uint8_t*>(msg.data()) + msg.size()}; };
 
-  // klog().t("{} worker recv()", name());
   zmq::message_t  identity;
   backend_.recv(&identity);
 
@@ -99,8 +99,6 @@ IPCWorker::recv()
     return;
   }
 
-  // klog().t("Received IPC from {}", identity.to_string_view());
-
   buffer_vector_t received_message{};
   zmq::message_t  message;
   int             more_flag{1};
@@ -109,7 +107,7 @@ IPCWorker::recv()
   {
     if (!backend_.recv(&message, static_cast<int>(zmq::recv_flags::none)))
     {
-      klog().t("IPC Worker {} failed to receive on socket", name());
+      klog().w("IPC Worker {} failed to receive on socket", name());
       return;
     }
 
@@ -120,14 +118,16 @@ IPCWorker::recv()
 
   if (ipc_message::u_ipc_msg_ptr ipc_message = DeserializeIPCMessage(std::move(received_message)))
   {
-    if (!IsKeepAlive(ipc_message->type()))
+    const auto type = ipc_message->type();
+
+    klog().t("Received {} from {}", type, identity.to_string());
+    if (!IsKeepAlive(type))
     {
-      klog().d("Received IPC from {}", identity.to_string());
       send_ipc_message(std::make_unique<okay_message>());
       klog().t("Sent OKAY");
     }
 
-    auto it = handlers_->find(identity.to_string_view());
+    const auto it = handlers_->find(identity.to_string_view());
     if (it == handlers_->end())
       klog().w("No handler available for that name");
     else

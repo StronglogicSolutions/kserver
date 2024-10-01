@@ -433,11 +433,11 @@ ResearchManager::AnalyzeTW(const TaskWrapper& root, const TaskWrapper& child, co
   const Sentiment   sub_c_sts      = Sentiment::Create(sub_c_sts_data);
   const Hits        hits           = GetTermHits(StringUtils::RemoveTags(terms_data.front().value));
 
-  klog().t("Analysis found {} related term hits", hits.size());
+  klog().i("Analysis found {} related term hits", hits.size());
 
   for (const TermHit& hit : hits)
   {
-    klog().t("Sending request for term {}", hit.term);
+    klog().i("Sending request for term {}", hit.term);
     requests.emplace_back(ResearchRequest{
       hit,
       MakePollMessage(child_text, child_emo, child_sts, hit.ToString()),
@@ -465,7 +465,7 @@ void ResearchManager::GenerateMLData()
 
 void ResearchManager::FinalizeMLInputs(const std::string& id, const std::vector<std::string>& data)
 {
-  klog().t("Adding data to model input data generator from research with ID {}", id);
+  klog().i("Adding data to model input data generator from research with ID {}", id);
   if (m_ml_generator.has(id))
     m_ml_generator.at(id).poll_results = data;
   else
@@ -482,14 +482,14 @@ void ResearchManager::AddMLInput(const std::string& id, const T& input)
   if (!m_ml_generator.has_data())
     m_ml_generator.init("id,emo1,emo2,emo3,emo4,emo5,emo6,sen1,poll1,poll2,poll3,poll4");
 
-  klog().t("Adding research data with ID {}");
+  klog().i("Adding research data with ID {}");
   m_ml_generator.operator()(id, input);
 }
 template void ResearchManager::AddMLInput(const std::string&, const TWResearchInputs&);
 
 std::string ResearchManager::GetMLData()
 {
-  klog().t("Getting model training data");
+  klog().i("Getting model training data");
   return m_ml_generator.GetResult();
 }
 
