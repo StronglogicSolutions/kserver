@@ -125,6 +125,7 @@ private:
   zmq::context_t        m_context;
   zmq::socket_t         m_public_;
   zmq::socket_t         m_backend_;
+  zmq::socket_t         m_control_;
   std::future<void>     m_future;
   int                   m_timeouts{0};
   bool                  m_reconnect;

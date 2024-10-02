@@ -7,7 +7,7 @@ namespace kiq {
 const std::string  REQ_ADDRESS{"tcp://localhost:28473"};
 const std::string  REP_ADDRESS{"tcp://0.0.0.0:28474"};
 static const char* BACKEND_ADDRESS{"inproc://backend"};
-static const char* MONITOR_ADDRESS{"inproc://monitor"};
+static const char* CONTROL_ADDRESS{"inproc://proxy_control"};
 const int32_t      POLLTIMEOUT{50};
 
 class IPCWorker : public IPCTransmitterInterface

@@ -139,9 +139,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   //---------------------------------------------------------------------
   IPCManager::IPCManager()
       : m_req_ready(true),
-        m_context(1),
-        m_public_ (m_context, ZMQ_ROUTER),
-        m_backend_(m_context, ZMQ_DEALER)
+        m_context(1)
   {
     set_log_fn([](const char* arg) { klog().t(arg); });
     klog().i("Starting IPC manager");
@@ -214,11 +212,15 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   void
   IPCManager::start()
   {
+    m_public_  = zmq::socket_t{m_context, ZMQ_ROUTER};
+    m_backend_ = zmq::socket_t{m_context, ZMQ_DEALER};
+    m_control_ = zmq::socket_t{m_context, ZMQ_PULL};
     klog().d("Binding public socket and backend socket");
     m_public_ .bind(REP_ADDRESS);
     m_backend_.bind(BACKEND_ADDRESS);
+    m_control_.bind(CONTROL_ADDRESS);
 
-    m_future = std::async(std::launch::async, [this] { zmq::proxy(m_public_, m_backend_); });
+    m_future = std::async(std::launch::async, [this] { zmq::proxy_steerable(m_public_, m_backend_, nullptr, m_control_); });
 
     m_workers.emplace_back(IPCWorker{m_context, "Worker 1", &m_clients});
     m_workers.back().start();
@@ -305,14 +307,20 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     m_clients.clear();
     m_workers.clear();
 
-    m_context.close();
+    zmq::socket_t control{m_context, ZMQ_PUSH}; // Terminate proxy
+    control.connect(CONTROL_ADDRESS);
+    control.send(zmq::str_buffer("TERMINATE"));
+    control.close();
 
     if (m_future.valid())
       m_future.wait();
 
+    m_control_.close();
+    m_context .close();                         // Close ZMQ context
+
     klog().w("Clients and workers destroyed. Restarting.");
 
-    m_context = zmq::context_t{1};
+    // m_context = zmq::context_t{1};
 
     start();
   }
