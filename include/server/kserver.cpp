@@ -57,7 +57,7 @@ KServer::~KServer()
 //-----------------------------------------------------------------------------------------------------
 void KServer::OnProcessEvent(const std::string& result, int32_t mask, const std::string& id, int32_t client_fd, bool error)
 {
-  klog().t("Task {} completed with result:\n{}", id, result);
+  klog().i("Task {} completed with result:\n{}", id, result);
   std::string process_executor_result_str{};
   std::vector<std::string> event_args{};
 
@@ -121,7 +121,7 @@ void KServer::SendMessage(const int32_t& client_fd, const std::string& message)
 void KServer::OnFileHandled(const int& socket_fd, uint8_t*&& f_ptr, size_t size)
 {
   if (m_file_pending_fd != socket_fd)
-    klog().i("Lost file intended for {}", socket_fd);
+    klog().w("Lost file intended for {}", socket_fd);
   else
   {
     const auto timestamp = TimeUtils::UnixTime();
@@ -142,7 +142,7 @@ void KServer::ReceiveFileData(const std::shared_ptr<uint8_t[]>& s_buffer_ptr,
     handler->second.processPacket(s_buffer_ptr.get(), size);
   else
   {
-    klog().i("creating FileHandler for {}", client_fd);
+    klog().i("Creating FileHandler for {}", client_fd);
     m_file_handlers.insert({client_fd, FileHandler{
                                             [this](int32_t fd, uint8_t *data, size_t size)
                                             { OnFileHandled(fd, std::move(data), size); }}});
@@ -185,7 +185,7 @@ void KServer::InitClient(const std::string& message, const int32_t& fd)
   }
   else
   {
-    klog().e("Rejected session request for {} on {}", user.name, fd);
+    klog().w("Rejected session request for {} on {}", user.name, fd);
     SendMessage(fd, CreateSessionEvent(SESSION_INVALID, REJECTED_MSG, GetError("Invalid token")));
     EndSession(fd, SESSION_INVALID);
   }
@@ -220,19 +220,10 @@ void KServer::OperationRequest(const std::string& message, const int32_t& client
     }
   }
   else if (IsStopOperation(op))
-  {
     EndSession(client_fd);
-  }
   else if (IsFileUploadOperation(op))
-  {
     WaitForFile(client_fd);
-  }
-  // else if (IsIPCOperation(op))
-  // {
-  //   m_ipc_manager.ReceiveEvent(SYSTEM_EVENTS__IPC_REQUEST, {message});
-  // }
   else
-  {
     try
     {
       m_controller.ProcessClientRequest(client_fd, message);
@@ -241,7 +232,6 @@ void KServer::OperationRequest(const std::string& message, const int32_t& client
     {
       klog().e("Exception thrown during Controller::ProcessClientRequest: {}", e.what());
     }
-  }
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::onMessageReceived(int                      client_fd,
@@ -293,7 +283,7 @@ void KServer::EndSession(const int32_t& client_fd, int32_t status)
   else
     klog().i("Shutting down socket for client with no session");
 
-  klog().t("Calling shutdown on fd {}", client_fd);
+  klog().i("Calling shutdown on fd {}", client_fd);
   if (shutdown(client_fd, SHUT_RD) != SUCCESS)
     klog().e("Error shutting down socket\nCode: {}\nMessage: {}", errno, strerror(errno));
 
@@ -390,6 +380,7 @@ void KServer::ReceiveMessage(std::shared_ptr<uint8_t[]> s_buffer_ptr, uint32_t s
 //-----------------------------------------------------------------------------------------------------
 void KServer::Broadcast(const std::string& event, const std::vector<std::string>& argv)
 {
+  klog().d("Broadcasting {}", event);
   for (const auto &[_, session] : m_sessions)
     if (session.active())
       SendEvent(session.fd, event, argv);
@@ -397,6 +388,7 @@ void KServer::Broadcast(const std::string& event, const std::vector<std::string>
 //-----------------------------------------------------------------------------------------------------
 void KServer::OnClientExit(const int32_t& client_fd)
 {
+  klog().i("Client exited: {}", client_fd);
   auto DeleteFiles = [this](const auto& fd)
   {
     for (auto it = m_outbound_files.begin(); it != m_outbound_files.end();)
@@ -409,6 +401,8 @@ void KServer::OnClientExit(const int32_t& client_fd)
   EraseMessageHandler(client_fd);
   EraseFileHandler(client_fd);
   DeleteFiles(client_fd);
+
+  klog().d("Client cleanup complete");
 }
 //-----------------------------------------------------------------------------------------------------
 void KServer::EraseFileHandler(const int32_t& fd)
@@ -450,14 +444,15 @@ bool KServer::HandlingFile(const int32_t& fd)
 //-----------------------------------------------------------------------------------------------------
 void KServer::onConnectionClose(int32_t client_fd)
 {
-  klog().i("Connection closed for {}", client_fd);
-  klog().i("Ending session");
+  klog().i("Connection closed for {}. Ending session.", client_fd);
+
   EndSession(client_fd);
   OnClientExit(client_fd);
 }
 //-----------------------------------------------------------------------------------------------------
 KSession KServer::GetSession(const int32_t& client_fd) const
 {
+  klog().d("Getting session for {}", client_fd);
   try
   {
     auto it = m_sessions.find(client_fd);
@@ -468,6 +463,9 @@ KSession KServer::GetSession(const int32_t& client_fd) const
   {
     klog().e("Exception thrown in GetSession: {}", e.what());
   }
+
+  klog().d("Returning blank session", client_fd);
+
   return KSession{};
 }
 //-----------------------------------------------------------------------------------------------------
@@ -523,6 +521,8 @@ void KServer::run()
 {
   const auto client_thread = std::thread(&SocketListener::run, this);
 
+  klog().i("Socket listener thread started");
+
   int control_sockets[2];
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, control_sockets) < 0)
   {
@@ -535,6 +535,8 @@ void KServer::run()
 
   int& control_sock = control_sockets[0]; // read from in this method only
   m_control_sock    = control_sockets[1]; // passed to controller
+
+  klog().d("Beginning control flow with controller");
 
   for (;;)
   {
@@ -560,7 +562,7 @@ void KServer::run()
           break;
         }
         else
-          klog().i("KServer is running");
+          klog().t("Control message: OK");
       }
     }
     if (auto req = GetController().GetRequest(); req != Request::UNKNOWN)

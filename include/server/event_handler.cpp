@@ -133,7 +133,7 @@ evt::on_platform_created (int32_t client_fd, int32_t event, const event_payload_
 void
 evt::on_platform_new_post (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-  klog().t("Handling Platform New Post");
+  klog().i("Handling Platform New Post");
   m_server->GetController().ProcessSystemEvent(SYSTEM_EVENTS__PLATFORM_NEW_POST, payload);
   m_server->SendEvent(client_fd, "Platform Post", payload);
 }
@@ -141,7 +141,7 @@ evt::on_platform_new_post (int32_t client_fd, int32_t event, const event_payload
 void
 evt::on_platform_post_request (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-  klog().t("Handling Platform Post Requested");
+  klog().i("Handling Platform Post Requested");
    if (payload.at(constants::PLATFORM_PAYLOAD_METHOD_INDEX) == "bot")
     m_server->GetIPCMgr().ReceiveEvent(event, payload);
   else
@@ -159,7 +159,7 @@ evt::on_platform_error(int32_t client_fd, int32_t event, const event_payload_t& 
 void
 evt::on_platform_request    (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-  klog().t("Handling Platform Request");
+  klog().i("Handling Platform Request");
   m_server->GetController().ProcessSystemEvent(event, payload);
 }
 //------------------------------------------------------------
@@ -207,7 +207,7 @@ evt::on_platform_fetch_posts(int32_t client_fd, int32_t event, const event_paylo
 void
 evt::on_platform_update     (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-  klog().t("Handling Platform Update");
+  klog().i("Handling Platform Update");
   m_server->Broadcast("Platform Update", payload);
 }
 //------------------------------------------------------------
@@ -276,13 +276,13 @@ evt::on_task_data_final (int32_t client_fd, int32_t event, const event_payload_t
 void
 evt::on_process_research (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-  klog().t("not implemented");
+  klog().w("on_process_research not implemented");
 }
 //------------------------------------------------------------
 void
 evt::on_process_research_result (int32_t client_fd, int32_t event, const event_payload_t& payload)
 {
-  klog().t("not implemented");
+  klog().w("on_process_research_result not implemented");
 }
 //------------------------------------------------------------
 void

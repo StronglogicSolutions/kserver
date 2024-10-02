@@ -28,13 +28,13 @@ botbroker_handler::botbroker_handler(const std::string& addr, zmq::context_t& ct
         send_ipc_message(std::make_unique<keepalive>());
 
         if (++hb_count % 200 == 0)
-          klog().t("Sent {} HB -> {}", hb_count, name_);
+          klog().d("Sent {} HB -> {}", hb_count, name_);
         std::this_thread::sleep_for(hb_rate);
       }
-      klog().t("Stopping HB with {}", name_);
+      klog().d("Stopping HB with {}", name_);
     });
 
-  klog().t("Client {} sent greeting to {}", name_, get_addr());
+  klog().d("Client {} sent greeting to {}", name_, get_addr());
 }
 //*******************************************************************//
 botbroker_handler::~botbroker_handler()

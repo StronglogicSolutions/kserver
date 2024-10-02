@@ -11,7 +11,7 @@ using namespace log;
 bool KSession::active() const
 {
   bool active = (!(expired()) && status == SESSION_ACTIVE);
-  klog().t("{} is {} on {}", user.name, (active) ? "active" : "not active", fd);
+  klog().d("{} is {} on {}", user.name, (active) ? "active" : "not active", fd);
   return active;
 }
 
@@ -25,7 +25,7 @@ void KSession::verify()
 {
   if (expired())
   {
-    klog().t("Session expired for {} on {}", user.name, fd);
+    klog().w("Session expired for {} on {}", user.name, fd);
     status = SESSION_INACTIVE;
   }
 }
@@ -79,7 +79,7 @@ SessionMap::Sessions::iterator SessionMap::end()
 
 SessionMap::Sessions::iterator SessionMap::erase(SessionMap::Sessions::iterator it)
 {
-  klog().t("SessionMap erasing FD {} and Name {}", it->second.fd, it->first);
+  klog().d("SessionMap erasing FD {} and Name {}", it->second.fd, it->first);
   if (auto ptr_it = find(it->second.fd); ptr_it != m_session_ptrs.end())
     m_session_ptrs.erase(ptr_it);
   else
@@ -111,7 +111,7 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
 {
   bool result{true};
 
-  klog().d("Initializing session for {}", name);
+  klog().i("Initializing session for {}", name);
 
   if (!has(name))
   {
@@ -126,8 +126,7 @@ bool SessionMap::init(const std::string& name, const KSession& new_session)
   }
   else
   {
-    // m_session_ptrs.erase(m_sessions[name].fd);
-    klog().d("Session exists but not logged in. Replacing with new session");
+    klog().i("Session exists but not logged in. Replacing with new session");
     m_sessions[name] = new_session;
   }
 
@@ -201,7 +200,7 @@ bool ValidateToken(User user)
       klog().e("Token has expired");
     else
     {
-      klog().t("Token valid for {}", user.name);
+      klog().d("Token valid for {}", user.name);
       return true;
     }
   }

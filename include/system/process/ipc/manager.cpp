@@ -63,9 +63,9 @@ namespace kiq
     if (type == constants::IPC_KEEPALIVE_TYPE)
       return;
 
-    klog().t("Processing message of type {}",       constants::IPC_MESSAGE_NAMES.at(type)                 );
+    klog().d("Processing message of type {}",       constants::IPC_MESSAGE_NAMES.at(type)                 );
     klog().d("View message: {}",                    to_string_max                  (msg->to_string(), 650));
-    klog().t("For event handler {} with {} frames", IPC_MESSAGE_NAMES.at           (msg->type()           ),
+    klog().d("For event handler {} with {} frames", IPC_MESSAGE_NAMES.at           (msg->type()           ),
                                                                                     msg->data().size()    );
 
   }
@@ -173,11 +173,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       case SYSTEM_EVENTS__PLATFORM_EVENT:
       {
         auto out = deserialize<ipc_payload_t::IPC_MSG>(args);
-        klog().t("Sending IPC message: {}", to_string_max(out.msg->to_string(), 650));
+        klog().d("Sending IPC message: {}", to_string_max(out.msg->to_string(), 650));
 
         IPCHandlerInterface* client = m_clients.at(find_peer(out.platform, true));
 
-        klog().t("Client address is {}", client->get_addr());
+        klog().d("Client address is {}", client->get_addr());
 
         client->send_ipc_message(out.get());
       break;
@@ -189,7 +189,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
           m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
         }
         else
-          klog().e("Ignoring IPC request from unknown peer: {}", peer);
+          klog().w("Ignoring IPC request from unknown peer: {}", peer);
       break;
       case SYSTEM_EVENTS__PLATFORM_INFO_REQUEST:
         if (const auto peer = find_peer(args.front()); !peer.empty())
@@ -215,7 +215,9 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     m_public_  = zmq::socket_t{m_context, ZMQ_ROUTER};
     m_backend_ = zmq::socket_t{m_context, ZMQ_DEALER};
     m_control_ = zmq::socket_t{m_context, ZMQ_PULL};
-    klog().d("Binding public socket and backend socket");
+
+    klog().d("Binding public, backend, and ipc control sockets");
+
     m_public_ .bind(REP_ADDRESS);
     m_backend_.bind(BACKEND_ADDRESS);
     m_control_.bind(CONTROL_ADDRESS);
@@ -268,7 +270,8 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
         {
-          klog().t("{} timeouts reached. Replacing back-end worker.", m_timeouts);
+          klog().e("{} timeouts reached. Replacing back-end worker.", m_timeouts);
+
           evt::instance()(ALL_CLIENTS, SYSTEM_EVENTS__IPC_RECONNECT_REQUEST, {}); // Must be handled on original thread
           m_timeouts = 0;
         }
@@ -289,7 +292,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       add_observer(peer);
 
     if (!m_daemon.validate(peer))
-      klog().t("Couldn't validate heartbeat for {}", peer);
+      klog().w("Couldn't validate heartbeat for {}", peer);
   }
   //----------------------------------------------------------------------
   void
@@ -316,11 +319,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       m_future.wait();
 
     m_control_.close();
-    m_context .close();                         // Close ZMQ context
+    // m_context .close();                         // Close ZMQ context
 
     klog().w("Clients and workers destroyed. Restarting.");
 
-    // m_context = zmq::context_t{1};
+    // m_context = zmq::context_t{1}; TODO: compare behaviour
 
     start();
   }

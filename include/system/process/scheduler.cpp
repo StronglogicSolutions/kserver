@@ -692,14 +692,14 @@ void Scheduler::PostExecWork(ProcessEventData &&event, Scheduler::PostExecDuo ap
     auto PollExists = [this](const auto &id) { return m_research_polls.find(id) != m_research_polls.end(); };
 
     if (QueueFull())
-      return klog().t("Outbound IPC queue is full");
+      return klog().d("Outbound IPC queue is full");
 
     const auto event = PLATFORM_REQUEST;
     for (const auto &request : m_research_manager.AnalyzeTW(root, child, subchild))
     {
       if (!PollExists(root.id))
       {
-        klog().t("Adding poll for {}", root.id);
+        klog().d("Adding poll for {}", root.id);
         std::string dest = config::Process::tg_dest();
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::message, request.data, CreateOperation("Bot", {dest})));
         m_message_queue.emplace_back(MakeIPCEvent(event, TGCommand::poll, request.title, CreateOperation("Bot", {dest, "High", "Some", "Little", "None"})));
@@ -1167,7 +1167,7 @@ void Scheduler::SendIPCRequest(const IPCMessage& msg)
     m_dispatched_ipc.insert({
       msg.p_uuid(), PlatformIPC{msg.platform(), GetIPCCommand(msg.cmd_code_string()), msg.id()}
     });
-  klog().t("Sent IPC with ID {} command {} and data {}", msg.id(), msg.command(), msg.data());
+  klog().d("Sent IPC with ID {} command {} and data {}", msg.id(), msg.command(), msg.data());
 
   m_tx_ipc++;
 }
