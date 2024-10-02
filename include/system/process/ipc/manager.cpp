@@ -164,6 +164,11 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
     klog().i("Processing IPC message for event {}", event);
+    if (m_clients.find(broker_peer) == m_clients.end() || m_clients.find(sentnl_peer) == m_clients.end())
+    {
+      delay_event(event, args);
+      return false;
+    }
 
     switch (event)
     {
@@ -268,7 +273,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
-        if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
+        if (++m_timeouts > 1 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
         {
           klog().e("{} timeouts reached. Replacing back-end worker.", m_timeouts);
 
@@ -326,5 +331,26 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     // m_context = zmq::context_t{1}; TODO: compare behaviour
 
     start();
+  }
+
+  //---------------------------------------------------------------------
+  void
+  IPCManager::delay_event(int32_t event, const std::vector<std::string>& args)
+  {
+    static const int delay_limit{5};
+    static       int delay_count{0};
+
+    if (++delay_count > delay_limit)
+      throw std::runtime_error{"Exceeded IPC event delay limit"};
+
+    std::thread{[this, event, args]
+    {
+      while (m_clients.find(broker_peer) == m_clients.end())
+      {
+        klog().t("Delaying handling of IPC message");
+        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+      }
+      ReceiveEvent(event, args);
+    }}.detach();
   }
 } // ns kiq
