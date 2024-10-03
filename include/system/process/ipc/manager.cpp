@@ -166,14 +166,17 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     klog().i("Processing IPC message for event {}", event);
     if (m_clients.find(broker_peer) == m_clients.end() || m_clients.find(sentnl_peer) == m_clients.end())
     {
-      delay_event(event, args);
+      delay_event(event, args, broker_peer);
       return false;
     }
 
     switch (event)
     {
       case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
-        m_clients.at(broker_peer)->send_ipc_message(deserialize<ipc_payload_t::PLATFORM>(args).get());
+        if (m_daemon.has_observer(broker_peer))
+          m_clients.at(broker_peer)->send_ipc_message(deserialize<ipc_payload_t::PLATFORM>(args).get());
+        else
+          klog().w("Ignoring IPC request {} event for {}", SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, broker_peer);
       break;
       case SYSTEM_EVENTS__PLATFORM_EVENT:
       {
