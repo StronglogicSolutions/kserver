@@ -335,17 +335,19 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
   //---------------------------------------------------------------------
   void
-  IPCManager::delay_event(int32_t event, const std::vector<std::string>& args)
+  IPCManager::delay_event(int32_t event, const std::vector<std::string>& args, std::string_view peer = "")
   {
-    static const int delay_limit{5};
+    static const int delay_limit{10};
     static       int delay_count{0};
 
     if (++delay_count > delay_limit)
       throw std::runtime_error{"Exceeded IPC event delay limit"};
 
-    std::thread{[this, event, args]
+    klog().d("Delaying event for {}", peer);
+
+    std::thread{[this, event, args, peer]
     {
-      while (m_clients.find(broker_peer) == m_clients.end())
+      while (m_clients.find(peer) == m_clients.end())
       {
         klog().t("Delaying handling of IPC message");
         std::this_thread::sleep_for(std::chrono::milliseconds(3000));

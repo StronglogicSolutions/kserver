@@ -87,7 +87,7 @@ void add_observer(std::string_view);
 
 private:
   void loop();
-  void delay_event(int32_t, const std::vector<std::string>&);
+  void delay_event(int32_t, const std::vector<std::string>&, std::string_view);
 
   using evt = event_handler;
 
