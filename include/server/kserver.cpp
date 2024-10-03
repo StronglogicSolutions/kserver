@@ -548,34 +548,41 @@ void KServer::run()
     timeout.tv_sec = 5;
     timeout.tv_usec = 0;
 
-    int activity = select(max_fd + 1, &read_fds, nullptr, nullptr, &timeout);
-    if (activity > 0 && FD_ISSET(control_sock, &read_fds))
+    try
     {
-      // Read control message
-      int control_message;
-      ssize_t bytes_read = read(control_sock, &control_message, sizeof(control_message));
-      if (bytes_read)
+      int activity = select(max_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+      if (activity > 0 && FD_ISSET(control_sock, &read_fds))
       {
-        if (!control_message)
+        // Read control message
+        int control_message;
+        ssize_t bytes_read = read(control_sock, &control_message, sizeof(control_message));
+        if (bytes_read)
         {
-          klog().w("Controller has requested shutdown");
-          break;
+          if (!control_message)
+          {
+            klog().w("Controller has requested shutdown");
+            break;
+          }
+          else
+            klog().t("Control message: OK");
         }
-        else
-          klog().t("Control message: OK");
+      }
+      if (auto req = GetController().GetRequest(); req != Request::UNKNOWN)
+      {
+        switch (req)
+        {
+          case Request::RECONNECT_IPC:
+            GetIPCMgr().reconnect();
+          break;
+
+          default:
+            klog().w("KServer ignoring unknown request: {}", static_cast<int>(req));
+        }
       }
     }
-    if (auto req = GetController().GetRequest(); req != Request::UNKNOWN)
+    catch (const std::exception& e)
     {
-      switch (req)
-      {
-        case Request::RECONNECT_IPC:
-          GetIPCMgr().reconnect();
-        break;
-
-        default:
-          klog().w("KServer ignoring unknown request: {}", static_cast<int>(req));
-      }
+      klog().e("Exception caught: {}", e.what());
     }
   }
 }
