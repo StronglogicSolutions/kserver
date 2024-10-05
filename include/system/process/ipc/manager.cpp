@@ -165,28 +165,26 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   {
     klog().i("Processing IPC message for event {}", event);
 
+    ipc_event out_event;
+
     switch (event)
     {
       case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
-        m_clients.at(broker_peer)->send_ipc_message(deserialize<ipc_payload_t::PLATFORM>(args).get());
+        out_event.msg  = deserialize<ipc_payload_t::PLATFORM>(args).get();
+        out_event.peer = broker_peer;
       break;
       case SYSTEM_EVENTS__PLATFORM_EVENT:
       {
-        auto out = deserialize<ipc_payload_t::IPC_MSG>(args);
-        klog().d("Sending IPC message: {}", to_string_max(out.msg->to_string(), 650));
-
-        IPCHandlerInterface* client = m_clients.at(find_peer(out.platform, true));
-
-        klog().d("Client address is {}", client->get_addr());
-
-        client->send_ipc_message(out.get());
+        auto out       = deserialize<ipc_payload_t::IPC_MSG>(args);
+        out_event.peer = find_peer(out.platform, true);
+        out_event.msg  = out.get();
       break;
       }
       case SYSTEM_EVENTS__IPC_REQUEST:
-        if (auto peer = find_peer(args.front(), true); !peer.empty())
+        if (const auto peer = find_peer(args.front(), true); !peer.empty())
         {
-          klog().d("Sending KIQ message with {} to {}", args.front(), peer);
-          m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
+          out_event.msg  = std::make_unique<kiq_message>(args.front());
+          out_event.peer = peer;
         }
         else
           klog().w("Ignoring IPC request from unknown peer: {}", peer);
@@ -197,16 +195,22 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
           const auto& platform = args.front();
           const auto& info     = args.at(1);
           const auto& type     = args.at(2);
-
-          klog().d("Sending platform_info for {} of type {} and info {} to {} ", platform, type, info, peer);
-
-          m_clients.at(peer)->send_ipc_message(std::make_unique<platform_info>(
-            platform, info, to_info_type(platform, type), ""));
+          out_event.peer       = peer;
+          out_event.msg        = std::make_unique<platform_info>(platform, info, to_info_type(platform, type), "");
         }
-      default:
-        return false;
+      default: break;
     }
-    return true;
+
+    if (out_event.msg)
+    {
+      klog().t("Queueing {} for {}", constants::IPC_MESSAGE_NAMES.at(out_event.msg->type()), out_event.peer);
+
+      m_queue.emplace_back(std::move(out_event));
+
+      return true;
+    }
+
+    return false;
   }
   //---------------------------------------------------------------------
   void
@@ -268,7 +272,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
 
         static_cast<botbroker_handler*>(it->second)->reconnect();
 
-        if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: should depend on # of previously connected clients
+        if (++m_timeouts > 100 && m_clients.size() > 1) // TODO: track # of missing clients
         {
           klog().e("{} timeouts reached. Replacing back-end worker.", m_timeouts);
 
@@ -319,12 +323,38 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       m_future.wait();
 
     m_control_.close();
-    // m_context .close();                         // Close ZMQ context
+    m_backend_.close();
+    m_public_. close();
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
     klog().w("Clients and workers destroyed. Restarting.");
 
-    // m_context = zmq::context_t{1}; TODO: compare behaviour
-
     start();
+  }
+
+  //---------------------------------------------------------------------
+  void
+  IPCManager::run(bool must_reconnect)
+  {
+    static const auto limit = 10;
+                 auto i     =  0;
+
+    if (must_reconnect)
+    {
+      klog().d("IPCManager must shutdown, re-initialize and re-connect sockets");
+      reconnect();
+      return;
+    }
+
+    while (!m_queue.empty() && ++i < limit)
+    {
+      auto&& out = m_queue.front();
+      if (m_daemon.has_observer(out.peer))
+      {
+        klog().t("Sending {} the following IPC message: {}", out.peer, to_string_max(out.msg->to_string(), 650));
+        m_clients.at(out.peer)->send_ipc_message(std::move(out.msg));
+        m_queue.pop_front();
+      }
+    }
   }
 } // ns kiq
