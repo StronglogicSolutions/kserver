@@ -164,37 +164,27 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
   IPCManager::ReceiveEvent(int32_t event, const std::vector<std::string>& args)
   {
     klog().i("Processing IPC message for event {}", event);
-    if (m_clients.find(broker_peer) == m_clients.end() || m_clients.find(sentnl_peer) == m_clients.end())
-    {
-      delay_event(event, args, broker_peer);
-      return false;
-    }
+
+    ipc_event out_event;
 
     switch (event)
     {
       case SYSTEM_EVENTS__PLATFORM_POST_REQUESTED:
-        if (m_daemon.has_observer(broker_peer))
-          m_clients.at(broker_peer)->send_ipc_message(deserialize<ipc_payload_t::PLATFORM>(args).get());
-        else
-          klog().w("Ignoring IPC request {} event for {}", SYSTEM_EVENTS__PLATFORM_POST_REQUESTED, broker_peer);
+        out_event.msg  = deserialize<ipc_payload_t::PLATFORM>(args).get();
+        out_event.peer = broker_peer;
       break;
       case SYSTEM_EVENTS__PLATFORM_EVENT:
       {
-        auto out = deserialize<ipc_payload_t::IPC_MSG>(args);
-        klog().d("Sending IPC message: {}", to_string_max(out.msg->to_string(), 650));
-
-        IPCHandlerInterface* client = m_clients.at(find_peer(out.platform, true));
-
-        klog().d("Client address is {}", client->get_addr());
-
-        client->send_ipc_message(out.get());
+        auto out       = deserialize<ipc_payload_t::IPC_MSG>(args);
+        out_event.peer = find_peer(out.platform, true);
+        out_event.msg  = out.get();
       break;
       }
       case SYSTEM_EVENTS__IPC_REQUEST:
-        if (auto peer = find_peer(args.front(), true); !peer.empty())
+        if (const auto peer = find_peer(args.front(), true); !peer.empty())
         {
-          klog().d("Sending KIQ message with {} to {}", args.front(), peer);
-          m_clients.at(peer)->send_ipc_message(std::make_unique<kiq_message>(args.front()));
+          out_event.msg  = std::make_unique<kiq_message>(args.front());
+          out_event.peer = peer;
         }
         else
           klog().w("Ignoring IPC request from unknown peer: {}", peer);
@@ -205,16 +195,22 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
           const auto& platform = args.front();
           const auto& info     = args.at(1);
           const auto& type     = args.at(2);
-
-          klog().d("Sending platform_info for {} of type {} and info {} to {} ", platform, type, info, peer);
-
-          m_clients.at(peer)->send_ipc_message(std::make_unique<platform_info>(
-            platform, info, to_info_type(platform, type), ""));
+          out_event.peer       = peer;
+          out_event.msg        = std::make_unique<platform_info>(platform, info, to_info_type(platform, type), "");
         }
-      default:
-        return false;
+      default: break;
     }
-    return true;
+
+    if (out_event.msg)
+    {
+      klog().t("Queueing {} for {}", constants::IPC_MESSAGE_NAMES.at(out_event.msg->type()), out_event.peer);
+
+      m_queue.emplace_back(std::move(out_event));
+
+      return true;
+    }
+
+    return false;
   }
   //---------------------------------------------------------------------
   void
@@ -327,35 +323,37 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       m_future.wait();
 
     m_control_.close();
-    // m_context .close();                         // Close ZMQ context
+    m_backend_.close();
+    m_public_. close();
 
     klog().w("Clients and workers destroyed. Restarting.");
-
-    // m_context = zmq::context_t{1}; TODO: compare behaviour
 
     start();
   }
 
   //---------------------------------------------------------------------
   void
-  IPCManager::delay_event(int32_t event, const std::vector<std::string>& args, std::string_view peer = "")
+  IPCManager::run(bool must_reconnect)
   {
-    static const int delay_limit{10};
-    static       int delay_count{0};
+    static const auto limit = 10;
+                 auto i     =  0;
 
-    if (++delay_count > delay_limit)
-      throw std::runtime_error{"Exceeded IPC event delay limit"};
-
-    klog().d("Delaying event for {}", peer);
-
-    std::thread{[this, event, args, peer]
+    if (must_reconnect)
     {
-      while (m_clients.find(peer) == m_clients.end())
+      klog().d("IPCManager must shutdown, re-initialize and re-connect sockets");
+      reconnect();
+      return;
+    }
+
+    while (!m_queue.empty() && ++i < limit)
+    {
+      auto&& out = m_queue.front();
+      if (m_daemon.has_observer(out.peer))
       {
-        klog().t("Delaying handling of IPC message");
-        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+        klog().t("Sending {} the following IPC message: {}", to_string_max(out.msg->to_string(), 650));
+        m_clients.at(out.peer)->send_ipc_message(std::move(out.msg));
+        m_queue.pop_front();
       }
-      ReceiveEvent(event, args);
-    }}.detach();
+    }
   }
 } // ns kiq

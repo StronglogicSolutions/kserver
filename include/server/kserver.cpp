@@ -526,59 +526,61 @@ void KServer::run()
   int control_sockets[2];
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, control_sockets) < 0)
   {
-    klog().e("Socket pair creation failed");
+    klog().e("Socket pair creation failed. Last network error: {}", strerror(errno));
     throw std::runtime_error("Could not create control socket pair to govern KServer run behaviour");
   }
 
   fd_set read_fds;
-  bool housekeeping_running = true;
-
-  int& control_sock = control_sockets[0]; // read from in this method only
-  m_control_sock    = control_sockets[1]; // passed to controller
+  int&   control_sock   = control_sockets[0]; // read from in this method only
+         m_control_sock = control_sockets[1]; // passed to controller
 
   klog().d("Beginning control flow with controller");
 
   for (;;)
   {
     FD_ZERO(&read_fds);
-    FD_SET(control_sock, &read_fds);
-    int max_fd = control_sock;
+    FD_SET (control_sock, &read_fds);
 
     struct timeval timeout;
-    timeout.tv_sec = 5;
+    timeout.tv_sec  = 5;
     timeout.tv_usec = 0;
 
     try
     {
-      int activity = select(max_fd + 1, &read_fds, nullptr, nullptr, &timeout);
-      if (activity > 0 && FD_ISSET(control_sock, &read_fds))
+      int max_fd = control_sock;
+      int result = select(max_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+      if (result && FD_ISSET(control_sock, &read_fds))
       {
-        // Read control message
         int control_message;
         ssize_t bytes_read = read(control_sock, &control_message, sizeof(control_message));
         if (bytes_read)
         {
           if (!control_message)
           {
-            klog().w("Controller has requested shutdown");
+            klog().w("Control message: SHUTDOWN");
             break;
           }
           else
             klog().t("Control message: OK");
         }
       }
-      if (auto req = GetController().GetRequest(); req != Request::UNKNOWN)
+
+      bool reconnect_ipc = false;
+
+      if (const auto req = GetController().GetRequest(); req != Request::UNKNOWN)
       {
         switch (req)
         {
           case Request::RECONNECT_IPC:
-            GetIPCMgr().reconnect();
+            reconnect_ipc = true;
           break;
 
           default:
             klog().w("KServer ignoring unknown request: {}", static_cast<int>(req));
         }
       }
+
+      GetIPCMgr().run(reconnect_ipc);
     }
     catch (const std::exception& e)
     {

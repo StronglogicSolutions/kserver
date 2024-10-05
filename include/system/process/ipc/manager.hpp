@@ -84,10 +84,10 @@ void start();
 void reconnect();
 void on_heartbeat(std::string_view);
 void add_observer(std::string_view);
+void run(bool);
 
 private:
   void loop();
-  void delay_event(int32_t, const std::vector<std::string>&, std::string_view);
 
   using evt = event_handler;
 
@@ -117,6 +117,8 @@ private:
   {constants::IPC_STATUS,           [&, this](auto it) { NOOP();             }}};
 
   using workers_t = std::vector<IPCWorker>;
+  struct ipc_event { std::string_view peer; ipc_message::u_ipc_msg_ptr msg{nullptr}; };
+  using messages_t = std::deque<ipc_event>;
 
   workers_t             m_workers;
   client_handlers_t     m_clients;
@@ -128,6 +130,7 @@ private:
   zmq::socket_t         m_backend_;
   zmq::socket_t         m_control_;
   std::future<void>     m_future;
+  messages_t            m_queue;
   int                   m_timeouts{0};
   bool                  m_reconnect;
 };
