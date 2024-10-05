@@ -326,6 +326,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
     m_backend_.close();
     m_public_. close();
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
     klog().w("Clients and workers destroyed. Restarting.");
 
     start();
