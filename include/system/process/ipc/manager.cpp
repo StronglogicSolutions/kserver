@@ -42,7 +42,7 @@ namespace kiq
     return "";
   }
   //---------------------------------------------------------------------
-  auto to_string_max = [](const auto& str, size_t max)
+  auto to_string_max = [](const std::string& str, size_t max)
   {
     const auto size = str.size();
     return (size > max) ? std::string(str.data(), max) : str;
