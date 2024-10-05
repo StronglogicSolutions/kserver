@@ -42,7 +42,7 @@ namespace kiq
     return "";
   }
   //---------------------------------------------------------------------
-  auto to_string_max = [](const std::string& str, size_t max)
+  auto to_string_max = [](const auto& str, size_t max)
   {
     const auto size = str.size();
     return (size > max) ? std::string(str.data(), max) : str;
@@ -350,7 +350,7 @@ std::stoi(args.at(constants::PLATFORM_PAYLOAD_CMD_INDEX)),
       auto&& out = m_queue.front();
       if (m_daemon.has_observer(out.peer))
       {
-        klog().t("Sending {} the following IPC message: {}", to_string_max(out.msg->to_string(), 650));
+        klog().t("Sending {} the following IPC message: {}", out.peer, to_string_max(out.msg->to_string(), 650));
         m_clients.at(out.peer)->send_ipc_message(std::move(out.msg));
         m_queue.pop_front();
       }
